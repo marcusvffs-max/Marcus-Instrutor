@@ -1472,6 +1472,95 @@ function mostrarRelatorio(conteudo) {
 
       @media print {
         body * {
+
+
+/* =========================================
+   EXIBIR RELATÓRIO DENTRO DO APLICATIVO
+========================================= */
+
+function mostrarRelatorio(conteudo) {
+  relatorioAtual = conteudo;
+
+  const resultado = document.getElementById("resultadoRelatorio");
+
+  if (!resultado) {
+    mostrarAviso("Área de exibição do relatório não encontrada.");
+    return;
+  }
+
+  const nomeEmpresa = escapar(
+    db.configuracoes.nome || "Marcus Instrutor"
+  );
+
+  let estilo = document.getElementById("estiloRelatorio");
+
+  if (!estilo) {
+    estilo = document.createElement("style");
+    estilo.id = "estiloRelatorio";
+
+    estilo.textContent = `
+      #resultadoRelatorio {
+        background: #fff;
+        color: #222;
+        padding: 18px;
+        margin-top: 20px;
+        border-radius: 10px;
+        border: 1px solid #ddd;
+      }
+
+      #resultadoRelatorio .cabecalho-relatorio {
+        text-align: center;
+        border-bottom: 2px solid #12345a;
+        padding-bottom: 12px;
+        margin-bottom: 20px;
+      }
+
+      #resultadoRelatorio h1,
+      #resultadoRelatorio h2 {
+        color: #12345a;
+      }
+
+      #resultadoRelatorio table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+      }
+
+      #resultadoRelatorio th,
+      #resultadoRelatorio td {
+        border: 1px solid #999;
+        padding: 8px;
+        text-align: left;
+        font-size: 13px;
+      }
+
+      #resultadoRelatorio th {
+        background: #e8edf3;
+        color: #12345a;
+      }
+
+      #resultadoRelatorio .acoes-relatorio {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 20px 0;
+      }
+
+      #resultadoRelatorio .acoes-relatorio button {
+        padding: 12px 16px;
+        border: 0;
+        border-radius: 6px;
+        background: #12345a;
+        color: white;
+        cursor: pointer;
+      }
+
+      #resultadoRelatorio .acoes-relatorio .fechar {
+        background: #555;
+      }
+
+      @media print {
+        body * {
           visibility: hidden !important;
         }
 
