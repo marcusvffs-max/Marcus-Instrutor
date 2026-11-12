@@ -1384,79 +1384,168 @@ function mostrarRelatorio(conteudo) {
         }
 
         th, td {
-          border: 1px solid #999;
-          padding: 9px 7px;
-          text-align: left;
-          font-size: 13px;
+
+/* =========================================
+   EXIBIR RELATÓRIO DENTRO DO APLICATIVO
+========================================= */
+
+function mostrarRelatorio(conteudo) {
+  relatorioAtual = conteudo;
+
+  const resultado = document.getElementById("resultadoRelatorio");
+
+  if (!resultado) {
+    mostrarAviso("Área de exibição do relatório não encontrada.");
+    return;
+  }
+
+  const nomeEmpresa = escapar(
+    db.configuracoes.nome || "Marcus Instrutor"
+  );
+
+  let estilo = document.getElementById("estiloRelatorio");
+
+  if (!estilo) {
+    estilo = document.createElement("style");
+    estilo.id = "estiloRelatorio";
+
+    estilo.textContent = `
+      #resultadoRelatorio {
+        background: #fff;
+        color: #222;
+        padding: 18px;
+        margin-top: 20px;
+        border-radius: 10px;
+        border: 1px solid #ddd;
+      }
+
+      #resultadoRelatorio .cabecalho-relatorio {
+        text-align: center;
+        border-bottom: 2px solid #12345a;
+        padding-bottom: 12px;
+        margin-bottom: 20px;
+      }
+
+      #resultadoRelatorio h1,
+      #resultadoRelatorio h2 {
+        color: #12345a;
+      }
+
+      #resultadoRelatorio table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+      }
+
+      #resultadoRelatorio th,
+      #resultadoRelatorio td {
+        border: 1px solid #999;
+        padding: 8px;
+        text-align: left;
+        font-size: 13px;
+      }
+
+      #resultadoRelatorio th {
+        background: #e8edf3;
+        color: #12345a;
+      }
+
+      #resultadoRelatorio .acoes-relatorio {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 20px 0;
+      }
+
+      #resultadoRelatorio .acoes-relatorio button {
+        padding: 12px 16px;
+        border: 0;
+        border-radius: 6px;
+        background: #12345a;
+        color: white;
+        cursor: pointer;
+      }
+
+      #resultadoRelatorio .acoes-relatorio .fechar {
+        background: #555;
+      }
+
+      @media print {
+        body * {
+          visibility: hidden !important;
         }
 
-        th {
-          background: #e8edf3;
-          color: #12345a;
+        #resultadoRelatorio,
+        #resultadoRelatorio * {
+          visibility: visible !important;
         }
 
-        .acoes {
-          display: flex;
-          gap: 10px;
-          margin: 20px 0;
+        #resultadoRelatorio {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+          margin: 0 !important;
+          padding: 10mm !important;
+          border: 0 !important;
+          box-shadow: none !important;
         }
 
-        button {
-          border: 0;
-          border-radius: 6px;
-          padding: 12px 18px;
-          background: #12345a;
-          color: white;
-          font-size: 15px;
-          cursor: pointer;
+        #resultadoRelatorio .acoes-relatorio {
+          display: none !important;
         }
 
-        .voltar {
-          background: #555;
+        #resultadoRelatorio th {
+          background: #e8edf3 !important;
+          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact;
         }
 
-        @media print {
-          body {
-            margin: 10mm;
-          }
-
-          .acoes {
-            display: none !important;
-          }
-
-          th {
-            background: #e8edf3 !important;
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-          }
-
-          tr {
-            page-break-inside: avoid;
-          }
+        #resultadoRelatorio tr {
+          page-break-inside: avoid;
         }
-      </style>
-    </head>
+      }
+    `;
 
-    <body>
-      <div class="cabecalho">
-        <h1>${nomeEmpresa}</h1>
-        <p>Relatório de controle de aulas</p>
-      </div>
+    document.head.appendChild(estilo);
+  }
 
-      <main>
-        ${conteudo}
-      </main>
+  resultado.innerHTML = `
+    <div class="cabecalho-relatorio">
+      <h1>${nomeEmpresa}</h1>
+      <p>Relatório de controle de aulas</p>
+    </div>
 
-      <div class="acoes">
-        <button onclick="window.print()">Imprimir / Salvar PDF</button>
-        <button class="voltar" onclick="window.close()">Fechar relatório</button>
-      </div>
-    </body>
-    </html>
-  `);
+    <main>
+      ${conteudo}
+    </main>
 
-  janela.document.close();
+    <div class="acoes-relatorio">
+      <button type="button" id="imprimirRelatorio">
+        Imprimir / Salvar PDF
+      </button>
+
+      <button type="button" id="fecharRelatorio" class="fechar">
+        Fechar relatório
+      </button>
+    </div>
+  `;
+
+  document.getElementById("imprimirRelatorio").onclick = () => {
+    window.print();
+  };
+
+  document.getElementById("fecharRelatorio").onclick = () => {
+    resultado.innerHTML = "";
+    relatorioAtual = null;
+  };
+
+  resultado.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
 }
+
 
 /* =========================================
    BACKUP
