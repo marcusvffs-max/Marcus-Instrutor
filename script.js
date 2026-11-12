@@ -707,6 +707,7 @@ function excluirAula(id) {
    FINANCEIRO
 ========================================= */
 
+
 function registrarMovimentacao(tipo, descricao, valor, alunoId = null) {
   db.movimentacoes.push({
     id: gerarId(),
@@ -718,6 +719,8 @@ function registrarMovimentacao(tipo, descricao, valor, alunoId = null) {
   });
 
   salvarDados();
+}
+
 
 function atualizarFinanceiro() {
   const entradas = db.movimentacoes.filter(m => m.tipo === "entrada")
@@ -735,21 +738,53 @@ function atualizarFinanceiro() {
   if (elSaldo) elSaldo.textContent = moeda(entradas - saidas);
 }
 
+
 function listarMovimentacoes() {
   const lista = document.getElementById("listaMovimentacoes");
   if (!lista) return;
 
-  lista.innerHTML = [...db.movimentacoes].reverse().map(m => `
-    <div class="record">
-      <strong>${escapar(m.descricao)}</strong>
-      <p>${formatarData(m.data)} • ${m.tipo === "entrada" ? "Entrada" : "Saída"}</p>
-      <strong>${moeda(m.valor)}</strong>
-      ${m.tipo === "saida" && !m.vendaId
-        ? `<button type="button" data-delete-despesa="${m.id}">Excluir despesa</button>`
-        : ""}
-    </div>
-  `).join("") || '<div class="empty-state">Nenhuma movimentação.</div>';
+  const movimentos = [...db.movimentacoes].reverse();
+
+  lista.innerHTML = movimentos.map(m => {
+    const venda = m.vendaId
+      ? db.vendas.find(v => v.id === m.vendaId)
+      : null;
+
+    let acao = "";
+
+    if (m.tipo === "saida" && !m.vendaId) {
+      acao = `
+        <button type="button"
+          data-delete-despesa="${m.id}">
+          Excluir despesa
+        </button>
+      `;
+    } else if (m.tipo === "entrada" && venda) {
+      acao = `
+        <button type="button"
+          data-delete-venda="${venda.id}">
+          Excluir venda
+        </button>
+      `;
+    }
+
+    return `
+      <div class="record">
+        <strong>${escapar(m.descricao)}</strong>
+        <p>
+          ${formatarData(m.data)} •
+          ${m.tipo === "entrada" ? "Entrada" : "Saída"}
+        </p>
+        <strong>${moeda(m.valor)}</strong>
+        <div class="record-actions">
+          ${acao}
+        </div>
+      </div>
+    `;
+  }).join("") ||
+    '<div class="empty-state">Nenhuma movimentação.</div>';
 }
+
 
 function abrirVenda() {
   if (!db.alunos.length) {
