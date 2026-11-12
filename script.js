@@ -1,23 +1,18 @@
+
 "use strict";
 
 /* =========================================
    MARCUS INSTRUTOR
-   Controle de aulas e financeiro
 ========================================= */
 
 const STORAGE_KEY = "marcus_instrutor_novo_v1";
 
 const HORARIOS = [
-  "07:00 - 07:50",
-  "08:00 - 08:50",
-  "09:00 - 09:50",
-  "10:00 - 10:50",
-  "11:00 - 11:50",
-  "14:00 - 14:50",
-  "15:00 - 15:50",
-  "16:00 - 16:50",
-  "17:00 - 17:50",
-  "18:00 - 18:50"
+  "07:00 - 07:50", "08:00 - 08:50",
+  "09:00 - 09:50", "10:00 - 10:50",
+  "11:00 - 11:50", "14:00 - 14:50",
+  "15:00 - 15:50", "16:00 - 16:50",
+  "17:00 - 17:50", "18:00 - 18:50"
 ];
 
 const estadoInicial = {
@@ -53,19 +48,12 @@ function carregarDados() {
   try {
     const dados = localStorage.getItem(STORAGE_KEY);
 
-    if (!dados) {
-      return structuredClone(estadoInicial);
-    }
+    if (!dados) return structuredClone(estadoInicial);
 
     const recuperado = JSON.parse(dados);
-
-    const produtosPadrao = [
-      { id: "bronze", nome: "Pacote Bronze", preco: 80 },
-      { id: "prata", nome: "Pacote Prata", preco: 75 },
-      { id: "ouro", nome: "Pacote Ouro", preco: 70 }
-    ];
-
+    const produtosPadrao = structuredClone(estadoInicial.produtos);
     const produtosAntigos = recuperado.produtos || [];
+
     const manterProdutos = produtosAntigos.some(p =>
       !["p1", "p2", "p3", "p4"].includes(p.id)
     );
@@ -186,6 +174,9 @@ function atualizarTela(nome) {
       listarMovimentacoes();
       atualizarFinanceiro();
       break;
+    case "produtos":
+      listarProdutos();
+      break;
     case "relatorios":
       atualizarSeletoresAlunos();
       break;
@@ -286,10 +277,7 @@ function abrirFormularioAluno(id = null) {
 
       <label>Situação</label>
       <select name="situacao">
-        ${opcoes(
-          ["Em aberto", "Finalizado", "Aprovado"],
-          aluno.situacao || "Em aberto"
-        )}
+        ${opcoes(["Em aberto", "Finalizado", "Aprovado"], aluno.situacao || "Em aberto")}
       </select>
 
       <div class="panel">
@@ -311,10 +299,7 @@ function abrirFormularioAluno(id = null) {
 function salvarAluno(evento) {
   evento.preventDefault();
 
-  const dados = Object.fromEntries(
-    new FormData(evento.target).entries()
-  );
-
+  const dados = Object.fromEntries(new FormData(evento.target).entries());
   const nome = dados.nome.trim();
 
   if (!nome) {
@@ -392,6 +377,7 @@ function listarAlunos() {
       `).join("")
     : '<div class="empty-state">Nenhum aluno encontrado.</div>';
 }
+
 function excluirAluno(id) {
   if (db.aulas.some(a => a.alunoId === id)) {
     mostrarAviso("Este aluno possui aulas vinculadas. Não é possível excluí-lo.");
@@ -527,6 +513,7 @@ function excluirVeiculo(id) {
 /* =========================================
    AULAS
 ========================================= */
+
 function abrirFormularioAula(id = null) {
   aulaEditando = id;
   const aula = db.aulas.find(a => a.id === id) || {};
@@ -707,7 +694,6 @@ function excluirAula(id) {
    FINANCEIRO
 ========================================= */
 
-
 function registrarMovimentacao(tipo, descricao, valor, alunoId = null) {
   db.movimentacoes.push({
     id: gerarId(),
@@ -721,12 +707,13 @@ function registrarMovimentacao(tipo, descricao, valor, alunoId = null) {
   salvarDados();
 }
 
-
 function atualizarFinanceiro() {
-  const entradas = db.movimentacoes.filter(m => m.tipo === "entrada")
+  const entradas = db.movimentacoes
+    .filter(m => m.tipo === "entrada")
     .reduce((s, m) => s + Number(m.valor || 0), 0);
 
-  const saidas = db.movimentacoes.filter(m => m.tipo === "saida")
+  const saidas = db.movimentacoes
+    .filter(m => m.tipo === "saida")
     .reduce((s, m) => s + Number(m.valor || 0), 0);
 
   const elEntradas = document.getElementById("totalEntradas");
@@ -737,7 +724,6 @@ function atualizarFinanceiro() {
   if (elDespesas) elDespesas.textContent = moeda(saidas);
   if (elSaldo) elSaldo.textContent = moeda(entradas - saidas);
 }
-
 
 function listarMovimentacoes() {
   const lista = document.getElementById("listaMovimentacoes");
@@ -753,83 +739,59 @@ function listarMovimentacoes() {
     let acao = "";
 
     if (m.tipo === "saida" && !m.vendaId) {
-      acao = `
-        <button type="button"
-          data-delete-despesa="${m.id}">
-          Excluir despesa
-        </button>
-      `;
+      acao = `<button type="button" data-delete-despesa="${m.id}">Excluir despesa</button>`;
     } else if (m.tipo === "entrada" && venda) {
-      acao = `
-        <button type="button"
-          data-delete-venda="${venda.id}">
-          Excluir venda
-        </button>
-      `;
+      acao = `<button type="button" data-delete-venda="${venda.id}">Excluir venda</button>`;
     }
 
     return `
       <div class="record">
         <strong>${escapar(m.descricao)}</strong>
-        <p>
-          ${formatarData(m.data)} •
-          ${m.tipo === "entrada" ? "Entrada" : "Saída"}
-        </p>
+        <p>${formatarData(m.data)} • ${m.tipo === "entrada" ? "Entrada" : "Saída"}</p>
         <strong>${moeda(m.valor)}</strong>
-        <div class="record-actions">
-          ${acao}
-        </div>
+        <div class="record-actions">${acao}</div>
       </div>
     `;
-  }).join("") ||
-    '<div class="empty-state">Nenhuma movimentação.</div>';
+  }).join("") || '<div class="empty-state">Nenhuma movimentação.</div>';
 }
 
+/* =========================================
+   PRODUTOS E SERVIÇOS
+========================================= */
+
+/* Lista agora aparece na página própria page-produtos */
+
 function listarProdutos() {
-  const painel = document.getElementById("page-financeiro");
-  if (!painel) return;
+  const lista = document.getElementById("listaProdutos");
+  if (!lista) return;
 
-  let area = document.getElementById("areaProdutos");
+  const campoBusca = document.getElementById("buscaProdutos");
+  const busca = (campoBusca?.value || "").trim().toLowerCase();
 
-  if (!area) {
-    area = document.createElement("div");
-    area.id = "areaProdutos";
-    area.className = "panel";
-    painel.appendChild(area);
-  }
+  const produtos = db.produtos.filter(p =>
+    String(p.nome || "").toLowerCase().includes(busca)
+  );
 
-  area.innerHTML = `
-    <h3>Produtos e serviços</h3>
-
-    <button type="button" class="primary-button"
-      id="btnAdicionarProduto">
-      + Cadastrar produto
-    </button>
-
-    <div class="list-container">
-      ${db.produtos.length
-        ? db.produtos.map(p => `
-          <div class="record">
+  lista.innerHTML = produtos.length
+    ? produtos.map(p => `
+        <div class="record">
+          <div class="record-info">
             <strong>${escapar(p.nome)}</strong>
-            <p>Valor por aula: ${moeda(p.preco)}</p>
-
-            <div class="record-actions">
-              <button type="button"
-                data-edit-produto="${p.id}">
-                Editar
-              </button>
-
-              <button type="button"
-                data-delete-produto="${p.id}">
-                Excluir
-              </button>
-            </div>
+            <p>Valor por aula: <strong>${moeda(p.preco)}</strong></p>
           </div>
-        `).join("")
-        : '<p>Nenhum produto cadastrado.</p>'
-      }
-    </div>
-  `;
+
+          <div class="record-actions">
+            <button type="button" data-edit-produto="${escapar(p.id)}">
+              Editar
+            </button>
+
+            <button type="button" data-delete-produto="${escapar(p.id)}">
+              Excluir
+            </button>
+          </div>
+        </div>
+      `).join("")
+    : '<div class="empty-state">Nenhum produto encontrado.</div>';
 }
 
 function editarProduto(id = null) {
@@ -839,14 +801,14 @@ function editarProduto(id = null) {
     <h2>${id ? "Editar produto" : "Cadastrar produto"}</h2>
 
     <form id="formProduto">
-      <label>Nome do produto</label>
+      <label>Nome do produto ou serviço</label>
       <input name="nome" required
         value="${escapar(produto.nome || "")}">
 
       <label>Valor por aula (R$)</label>
       <input name="preco" type="number"
         min="0.01" step="0.01" required
-        value="${produto.preco || ""}">
+        value="${produto.preco ?? ""}">
 
       <div class="modal-actions">
         <button type="button" class="secondary-button"
@@ -905,7 +867,6 @@ function editarProduto(id = null) {
     salvarDados();
     fecharModal();
     listarProdutos();
-
     mostrarAviso("Produto salvo com sucesso!");
   };
 }
@@ -914,17 +875,19 @@ function excluirProduto(id) {
   const produto = db.produtos.find(p => p.id === id);
   if (!produto) return;
 
-  if (!confirmar(`Excluir o produto "${produto.nome}"?`)) {
-    return;
-  }
+  if (!confirmar(`Excluir o produto "${produto.nome}"?`)) return;
 
   db.produtos = db.produtos.filter(p => p.id !== id);
 
   salvarDados();
   listarProdutos();
-
   mostrarAviso("Produto excluído.");
 }
+
+/* =========================================
+   VENDAS
+========================================= */
+
 function abrirVenda() {
   if (!db.alunos.length) {
     mostrarAviso("Cadastre um aluno primeiro.");
@@ -966,7 +929,6 @@ function abrirVenda() {
         <p>Valor por aula:
           <strong id="precoUnitarioVenda">R$ 0,00</strong>
         </p>
-
         <p>Total:
           <strong id="totalVenda">R$ 0,00</strong>
         </p>
@@ -975,7 +937,6 @@ function abrirVenda() {
       <div class="modal-actions">
         <button type="button" class="secondary-button"
           data-close>Cancelar</button>
-
         <button type="submit" class="primary-button">
           Confirmar venda
         </button>
@@ -983,14 +944,8 @@ function abrirVenda() {
     </form>
   `);
 
-  document.getElementById("formVenda").addEventListener(
-    "change", calcularVenda
-  );
-
-  document.getElementById("formVenda").addEventListener(
-    "input", calcularVenda
-  );
-
+  document.getElementById("formVenda").addEventListener("change", calcularVenda);
+  document.getElementById("formVenda").addEventListener("input", calcularVenda);
   document.getElementById("formVenda").onsubmit = salvarVenda;
 }
 
@@ -999,24 +954,16 @@ function calcularVenda() {
   if (!formulario) return 0;
 
   const produto = formulario.elements.produtoId;
-  const preco = Number(
-    produto.selectedOptions[0]?.dataset.preco || 0
-  );
-
-  const quantidade = numero(
-    formulario.elements.quantidade.value
-  );
-
+  const preco = Number(produto.selectedOptions[0]?.dataset.preco || 0);
+  const quantidade = numero(formulario.elements.quantidade.value);
   const total = preco * quantidade;
 
-  document.getElementById("precoUnitarioVenda").textContent =
-    moeda(preco);
-
-  document.getElementById("totalVenda").textContent =
-    moeda(total);
+  document.getElementById("precoUnitarioVenda").textContent = moeda(preco);
+  document.getElementById("totalVenda").textContent = moeda(total);
 
   return total;
 }
+
 function salvarVenda(evento) {
   evento.preventDefault();
 
@@ -1030,17 +977,10 @@ function salvarVenda(evento) {
     p.id === formulario.elements.produtoId.value
   );
 
-  const quantidade = numero(
-    formulario.elements.quantidade.value
-  );
+  const quantidade = numero(formulario.elements.quantidade.value);
 
-  if (
-    !aluno ||
-    !produto ||
-    produto.preco <= 0 ||
-    !Number.isInteger(quantidade) ||
-    quantidade < 1
-  ) {
+  if (!aluno || !produto || produto.preco <= 0 ||
+      !Number.isInteger(quantidade) || quantidade < 1) {
     mostrarAviso("Confira os dados da venda.");
     return;
   }
@@ -1084,7 +1024,11 @@ function salvarVenda(evento) {
   atualizarFinanceiro();
 
   mostrarAviso(`${quantidade} aulas adicionadas ao aluno.`);
-     }
+}
+
+/* =========================================
+   DEVOLUÇÕES
+========================================= */
 
 function abrirDevolucao() {
   const vendas = db.vendas.filter(v =>
@@ -1172,6 +1116,10 @@ function salvarDevolucao(evento) {
   mostrarAviso("Devolução registrada.");
 }
 
+/* =========================================
+   DESPESAS E EXCLUSÕES FINANCEIRAS
+========================================= */
+
 function abrirDespesa() {
   abrirModal(`
     <h2>Nova despesa</h2>
@@ -1189,6 +1137,7 @@ function abrirDespesa() {
 
   document.getElementById("formDespesa").onsubmit = evento => {
     evento.preventDefault();
+
     const dados = Object.fromEntries(new FormData(evento.target).entries());
     const valor = numero(dados.valor);
 
@@ -1248,7 +1197,12 @@ function excluirDespesa(id) {
   atualizarFinanceiro();
   mostrarAviso("Despesa excluída.");
 }
-   function atualizarSeletoresAlunos() {
+
+/* =========================================
+   SELETORES E RELATÓRIOS
+========================================= */
+
+function atualizarSeletoresAlunos() {
   const selects = [
     document.getElementById("filtroAlunoAulas"),
     document.getElementById("relatorioAluno")
@@ -1393,7 +1347,9 @@ function mostrarRelatorio(conteudo) {
   relatorioAtual = conteudo;
 }
 
-/* BACKUP */
+/* =========================================
+   BACKUP
+========================================= */
 
 function exportarBackup() {
   const arquivo = new Blob(
@@ -1428,12 +1384,8 @@ function importarBackup() {
       const dados = JSON.parse(leitor.result);
 
       const campos = [
-        "alunos",
-        "veiculos",
-        "aulas",
-        "produtos",
-        "movimentacoes",
-        "configuracoes"
+        "alunos", "veiculos", "aulas",
+        "produtos", "movimentacoes", "configuracoes"
       ];
 
       if (!dados || !campos.every(c => c in dados)) {
@@ -1473,7 +1425,9 @@ function importarBackup() {
   leitor.readAsText(arquivo);
 }
 
-/* CONFIGURAÇÕES */
+/* =========================================
+   CONFIGURAÇÕES
+========================================= */
 
 function carregarConfiguracoes() {
   const nome = document.getElementById("nomeEmpresa");
@@ -1528,8 +1482,13 @@ function salvarConfiguracoes() {
   };
 
   leitor.readAsDataURL(arquivo);
-     }
-   function abrirModal(conteudo) {
+}
+
+/* =========================================
+   MODAIS
+========================================= */
+
+function abrirModal(conteudo) {
   const container = document.getElementById("modalContainer");
 
   container.innerHTML = `
@@ -1557,7 +1516,9 @@ function opcoes(valores, selecionado) {
   `).join("");
 }
 
-/* EVENTOS DO APLICATIVO */
+/* =========================================
+   EVENTOS DO APLICATIVO
+========================================= */
 
 document.addEventListener("click", evento => {
   const pagina = evento.target.closest("[data-page]");
@@ -1620,7 +1581,7 @@ document.addEventListener("click", evento => {
     return;
   }
 
-  if (evento.target.closest("#btnAdicionarProduto")) {
+  if (evento.target.closest("#btnNovoProduto")) {
     editarProduto();
     return;
   }
@@ -1643,6 +1604,8 @@ document.addEventListener("click", evento => {
   }
 });
 
+/* BOTÕES PRINCIPAIS */
+
 document.getElementById("btnNovoAluno").onclick =
   () => abrirFormularioAluno();
 
@@ -1653,7 +1616,23 @@ document.getElementById("btnNovaAula").onclick =
   () => abrirFormularioAula();
 
 document.getElementById("btnNovaVenda").onclick = abrirVenda;
-document.getElementById("btnProdutos").onclick = listarProdutos;
+
+/* CORREÇÃO: ABRIR PÁGINA PRÓPRIA DE PRODUTOS */
+
+document.getElementById("btnProdutos").onclick = () => {
+  mostrarPagina("produtos");
+};
+
+document.getElementById("btnNovoProduto").onclick = () => {
+  editarProduto();
+};
+
+/* BUSCA DE PRODUTOS */
+
+document.getElementById("buscaProdutos").addEventListener(
+  "input",
+  listarProdutos
+);
 
 const botaoDevolucao = document.getElementById("btnDevolucao");
 if (botaoDevolucao) {
@@ -1698,7 +1677,9 @@ document.getElementById("filtroAlunoAulas").addEventListener(
   "change", listarAulas
 );
 
-/* INICIALIZAÇÃO */
+/* =========================================
+   INICIALIZAÇÃO
+========================================= */
 
 function iniciarAplicativo() {
   document.documentElement.style.setProperty(
@@ -1721,13 +1702,18 @@ function iniciarAplicativo() {
   listarAulas();
   listarMovimentacoes();
   atualizarFinanceiro();
+  listarProdutos();
   mostrarPagina("inicio");
 
   console.log("Marcus Instrutor iniciado.");
 }
 
 iniciarAplicativo();
-   
+
+/* =========================================
+   LIMPAR TODOS OS REGISTROS
+========================================= */
+
 function limparTodosRegistros() {
   if (!confirmar(
     "ATENÇÃO!\n\nDeseja apagar TODOS os alunos, veículos, aulas, vendas, despesas e movimentações?\n\nEssa ação não poderá ser desfeita."
