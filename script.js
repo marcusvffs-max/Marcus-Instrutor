@@ -390,8 +390,7 @@ function excluirAluno(id) {
   listarAlunos();
   atualizarSeletoresAlunos();
   mostrarAviso("Aluno excluído.");
-}
-
+                            }
 /* =========================================
    VEÍCULOS
 ========================================= */
@@ -1192,8 +1191,7 @@ function excluirDespesa(id) {
   listarMovimentacoes();
   atualizarFinanceiro();
   mostrarAviso("Despesa excluída.");
-}
-
+      }
 /* =========================================
    SELETORES E RELATÓRIOS
 ========================================= */
@@ -1627,7 +1625,7 @@ function opcoes(valores, selecionado) {
       ${valor}
     </option>
   `).join("");
-}
+     }
 
 /* =========================================
    EVENTOS DO APLICATIVO
@@ -1748,11 +1746,6 @@ if (botaoNovaDespesa) {
 const botaoProdutos = document.getElementById("btnProdutos");
 if (botaoProdutos) {
   botaoProdutos.onclick = () => mostrarPagina("produtos");
-}
-
-const botaoNovoProduto = document.getElementById("btnNovoProduto");
-if (botaoNovoProduto) {
-  botaoNovoProduto.onclick = () => editarProduto();
 }
 
 /* BUSCA DE PRODUTOS */
@@ -1910,4 +1903,4 @@ if (painelBackup) {
 
   document.getElementById("btnLimparRegistros").onclick =
     limparTodosRegistros;
-         }
+}
