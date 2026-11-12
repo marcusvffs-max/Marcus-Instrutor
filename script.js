@@ -1401,17 +1401,6 @@ function mostrarRelatorio(conteudo) {
 
   const nomeEmpresa = escapar(
     db.configuracoes.nome || "Marcus Instrutor"
-  );
-
-  let estilo = document.getElementById("estiloRelatorio");
-
-  if (!estilo) {
-    estilo = document.createElement("style");
-    estilo.id = "estiloRelatorio";
-
-    estilo.textContent = `
-      #resultadoRelatorio {
-        background: #fff;
 
 function mostrarRelatorio(conteudo) {
   relatorioAtual = conteudo;
