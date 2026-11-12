@@ -1,782 +1,1457 @@
 
 "use strict";
 
-// ==========================================
-// MARCUS INSTRUTOR - CONTROLE DE AULAS
-// ARMAZENAMENTO LOCAL + BACKUP
-// ==========================================
+/* =========================================
+   MARCUS INSTRUTOR - NOVA VERSÃO
+   Banco de dados independente e vazio
+========================================= */
 
-const CHAVE_DADOS = "marcus_instrutor_dados_v1";
+const STORAGE_KEY = "marcus_instrutor_novo_v1";
 
-let dados = {
-    alunos: [],
-    veiculos: [],
-    aulas: []
+const HORARIOS = [
+  "07:00 - 07:50",
+  "08:00 - 08:50",
+  "09:00 - 09:50",
+  "10:00 - 10:50",
+  "11:00 - 11:50",
+  "14:00 - 14:50",
+  "15:00 - 15:50",
+  "16:00 - 16:50",
+  "17:00 - 17:50",
+  "18:00 - 18:50"
+];
+
+const estadoInicial = {
+  alunos: [],
+  veiculos: [],
+  aulas: [],
+  produtos: [
+    { id: "p1", nome: "Aula avulsa", preco: 0, aulas: 1 },
+    { id: "p2", nome: "Pacote de 5 aulas", preco: 0, aulas: 5 },
+    { id: "p3", nome: "Pacote de 10 aulas", preco: 0, aulas: 10 },
+    { id: "p4", nome: "Pacote de 20 aulas", preco: 0, aulas: 20 }
+  ],
+  movimentacoes: [],
+  configuracoes: {
+    nome: "Marcus Instrutor",
+    corPrincipal: "#12345a",
+    corSecundaria: "#e8edf3",
+    logo: ""
+  }
 };
 
-// ==========================================
-// FUNÇÕES BÁSICAS
-// ==========================================
+let db = carregarDados();
+let alunoEditando = null;
+let veiculoEditando = null;
+let aulaEditando = null;
+let relatorioAtual = null;
 
-function gerarId() {
-    return Date.now().toString(36) +
-        Math.random().toString(36).slice(2, 9);
-}
+/* =========================================
+   FUNÇÕES BÁSICAS
+========================================= */
 
-function escapar(valor) {
-    return String(valor ?? "").replace(/[&<>"']/g, caractere => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
-    })[caractere]);
+function carregarDados() {
+  try {
+    const dados = localStorage.getItem(STORAGE_KEY);
+
+    if (!dados) {
+      return structuredClone(estadoInicial);
+    }
+
+    const recuperado = JSON.parse(dados);
+
+    return {
+      ...structuredClone(estadoInicial),
+      ...recuperado
+    };
+  } catch (erro) {
+    console.error("Erro ao carregar dados:", erro);
+    return structuredClone(estadoInicial);
+  }
 }
 
 function salvarDados() {
-    try {
-        localStorage.setItem(CHAVE_DADOS, JSON.stringify(dados));
-        atualizarPainel();
-    } catch (erro) {
-        alert("Não foi possível salvar os dados. Faça um backup e verifique o espaço disponível.");
-        console.error(erro);
-    }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  atualizarPainel();
 }
 
-function carregarDados() {
-    try {
-        const salvo = localStorage.getItem(CHAVE_DADOS);
-
-        if (salvo) {
-            const recuperado = JSON.parse(salvo);
-
-            dados.alunos = Array.isArray(recuperado.alunos)
-                ? recuperado.alunos : [];
-
-            dados.veiculos = Array.isArray(recuperado.veiculos)
-                ? recuperado.veiculos : [];
-
-            dados.aulas = Array.isArray(recuperado.aulas)
-                ? recuperado.aulas : [];
-        }
-    } catch (erro) {
-        alert("Não foi possível ler os dados salvos. Não faça novos cadastros antes de verificar o backup.");
-        console.error(erro);
-    }
+function gerarId() {
+  return Date.now().toString(36) +
+    Math.random().toString(36).substring(2, 9);
 }
 
-// ==========================================
-// NAVEGAÇÃO
-// ==========================================
-
-function mostrarPagina(id) {
-    document.querySelectorAll(".pagina").forEach(pagina => {
-        pagina.classList.remove("ativa");
-    });
-
-    const pagina = document.getElementById(id);
-
-    if (pagina) {
-        pagina.classList.add("ativa");
-    }
-
-    if (id === "inicio") atualizarPainel();
-    if (id === "alunos") mostrarAlunos();
-    if (id === "veiculos") mostrarVeiculos();
-    if (id === "aulas") mostrarAulas();
-    if (id === "relatorios") gerarRelatorio();
-    if (id === "backup") mostrarBackup();
+function escapar(valor) {
+  return String(valor ?? "").replace(/[&<>"']/g, caractere => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[caractere]);
 }
 
-// ==========================================
-// PAINEL PRINCIPAL
-// ==========================================
+function moeda(valor) {
+  return Number(valor || 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  });
+}
+
+function dataHoje() {
+  const agora = new Date();
+  const local = new Date(
+    agora.getTime() - agora.getTimezoneOffset() * 60000
+  );
+  return local.toISOString().slice(0, 10);
+}
+
+function formatarData(data) {
+  if (!data) return "";
+  const partes = data.split("-");
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
+}
+
+function numero(valor) {
+  return Number(String(valor || "0").replace(",", ".")) || 0;
+}
+
+function mostrarAviso(mensagem) {
+  const container = document.getElementById("toastContainer");
+  if (!container) return;
+
+  const aviso = document.createElement("div");
+  aviso.className = "toast";
+  aviso.textContent = mensagem;
+  container.appendChild(aviso);
+
+  setTimeout(() => aviso.remove(), 3500);
+}
+
+function confirmar(mensagem) {
+  return window.confirm(mensagem);
+}
+
+/* =========================================
+   NAVEGAÇÃO
+========================================= */
+
+function mostrarPagina(nome) {
+  document.querySelectorAll(".page").forEach(pagina => {
+    pagina.classList.remove("active");
+  });
+
+  document.querySelectorAll(".menu-item").forEach(botao => {
+    botao.classList.toggle(
+      "active",
+      botao.dataset.page === nome
+    );
+  });
+
+  const pagina = document.getElementById("page-" + nome);
+
+  if (pagina) {
+    pagina.classList.add("active");
+  }
+
+  atualizarTela(nome);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function atualizarTela(nome) {
+  switch (nome) {
+    case "inicio":
+      atualizarPainel();
+      break;
+    case "alunos":
+      listarAlunos();
+      break;
+    case "veiculos":
+      listarVeiculos();
+      break;
+    case "aulas":
+      listarAulas();
+      break;
+    case "financeiro":
+      listarMovimentacoes();
+      atualizarFinanceiro();
+      break;
+    case "relatorios":
+      atualizarSeletoresAlunos();
+      break;
+    case "configuracoes":
+      carregarConfiguracoes();
+      break;
+  }
+}
+
+/* =========================================
+   PAINEL INICIAL
+========================================= */
 
 function atualizarPainel() {
-    const elemento = document.getElementById("resumo");
-    if (!elemento) return;
+  const totalAlunos = document.getElementById("totalAlunos");
+  const totalAgendadas = document.getElementById("totalAgendadas");
+  const totalRealizadas = document.getElementById("totalRealizadas");
+  const saldoCaixa = document.getElementById("saldoCaixa");
 
-    const agendadas = dados.aulas.filter(a => a.situacao === "Agendada").length;
-    const realizadas = dados.aulas.filter(a => a.situacao === "Realizada").length;
+  if (totalAlunos) totalAlunos.textContent = db.alunos.length;
 
-    elemento.innerHTML = `
-        <div class="card">Alunos cadastrados: <strong>${dados.alunos.length}</strong></div>
-        <div class="card">Veículos cadastrados: <strong>${dados.veiculos.length}</strong></div>
-        <div class="card">Aulas agendadas: <strong>${agendadas}</strong></div>
-        <div class="card">Aulas realizadas: <strong>${realizadas}</strong></div>
-    `;
+  if (totalAgendadas) {
+    totalAgendadas.textContent =
+      db.aulas.filter(a => a.status === "Agendada").length;
+  }
+
+  if (totalRealizadas) {
+    totalRealizadas.textContent =
+      db.aulas.filter(a => a.status === "Realizada").length;
+  }
+
+  if (saldoCaixa) {
+    saldoCaixa.textContent = moeda(calcularSaldo());
+  }
+
+  const proximas = document.getElementById("proximasAulas");
+
+  if (proximas) {
+    const aulas = db.aulas
+      .filter(a => a.status === "Agendada")
+      .sort((a, b) =>
+        (a.data + a.horario).localeCompare(b.data + b.horario)
+      )
+      .slice(0, 5);
+
+    proximas.innerHTML = aulas.length
+      ? aulas.map(a => `
+          <div class="record">
+            <strong>${escapar(nomeAluno(a.alunoId))}</strong>
+            <p>${formatarData(a.data)} • ${escapar(a.horario)}</p>
+          </div>
+        `).join("")
+      : '<div class="empty-state">Nenhuma aula agendada.</div>';
+  }
 }
 
-// ==========================================
-// ALUNOS
-// ==========================================
-
-function saldoAluno(alunoId) {
-    const aluno = dados.alunos.find(a => a.id === alunoId);
-    if (!aluno) return 0;
-
-    const realizadas = dados.aulas.filter(a =>
-        a.alunoId === alunoId && a.situacao === "Realizada"
-    ).length;
-
-    return Number(aluno.contratadas || 0) - realizadas;
+function calcularSaldo() {
+  return db.movimentacoes.reduce((total, item) => {
+    return total + (
+      item.tipo === "entrada"
+        ? Number(item.valor)
+        : -Number(item.valor)
+    );
+  }, 0);
 }
 
-function mostrarAlunos() {
-    const area = document.getElementById("conteudoAlunos");
-    if (!area) return;
+/* =========================================
+   ALUNOS
+========================================= */
 
-    area.innerHTML = `
-        <form onsubmit="salvarAluno(event)">
-            <input type="hidden" id="alunoId">
+function nomeAluno(id) {
+  const aluno = db.alunos.find(a => a.id === id);
+  return aluno ? aluno.nome : "Aluno não encontrado";
+}
 
-            <label>Nome completo</label>
-            <input id="alunoNome" required>
+function abrirFormularioAluno(id = null) {
+  alunoEditando = id;
+  const aluno = db.alunos.find(a => a.id === id) || {};
 
-            <label>Telefone</label>
-            <input id="alunoTelefone" type="tel">
+  abrirModal(`
+    <h2>${id ? "Editar aluno" : "Novo aluno"}</h2>
 
-            <label>CPF</label>
-            <input id="alunoCpf">
+    <form id="formAluno">
+      <label>Nome completo</label>
+      <input name="nome" required value="${escapar(aluno.nome)}">
 
-            <label>Endereço</label>
-            <input id="alunoEndereco">
+      <label>Telefone</label>
+      <input name="telefone" type="tel" value="${escapar(aluno.telefone)}">
 
-            <label>Categoria</label>
-            <select id="alunoCategoria" required>
-                <option value="">Selecione</option>
-                <option value="A">A - Moto</option>
-                <option value="B">B - Carro</option>
-                <option value="AB">AB - Moto e carro</option>
-            </select>
+      <label>CPF</label>
+      <input name="cpf" value="${escapar(aluno.cpf)}">
 
-            <label>Situação</label>
-            <select id="alunoSituacao">
-                <option>Em aberto</option>
-                <option>Finalizado</option>
-                <option>Aprovado</option>
-            </select>
+      <label>Endereço</label>
+      <input name="endereco" value="${escapar(aluno.endereco)}">
 
-            <label>Aulas contratadas</label>
-            <input id="alunoContratadas" type="number" min="0" value="0" required>
+      <label>Categoria em andamento</label>
+      <select name="categoria">
+        ${opcoes(["A", "B", "AB"], aluno.categoria || "B")}
+      </select>
 
-            <button class="btn" type="submit">Salvar aluno</button>
-            <button class="secundario" type="button" onclick="limparAluno()">Limpar</button>
-        </form>
+      <label>Situação</label>
+      <select name="situacao">
+        ${opcoes(["Em aberto", "Finalizado", "Aprovado"], aluno.situacao || "Em aberto")}
+      </select>
 
-        <h3>Alunos cadastrados</h3>
-        <input id="pesquisaAluno" placeholder="Pesquisar aluno..." oninput="filtrarAlunos()">
-        <div id="listaAlunos"></div>
-    `;
+      <label>Aulas contratadas</label>
+      <input name="contratadas" type="number" min="0"
+        required value="${aluno.contratadas ?? 0}">
 
-    filtrarAlunos();
+      <label>Aulas restantes</label>
+      <input name="saldo" type="number" min="0"
+        required value="${aluno.saldo ?? aluno.contratadas ?? 0}">
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-button" data-close>Cancelar</button>
+        <button type="submit" class="primary-button">Salvar aluno</button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById("formAluno").onsubmit = salvarAluno;
 }
 
 function salvarAluno(evento) {
-    evento.preventDefault();
+  evento.preventDefault();
 
-    const id = document.getElementById("alunoId").value;
-    const nome = document.getElementById("alunoNome").value.trim();
+  const dados = Object.fromEntries(
+    new FormData(evento.target).entries()
+  );
 
-    if (!nome) return alert("Informe o nome do aluno.");
+  const nome = dados.nome.trim();
 
-    const aluno = {
-        id: id || gerarId(),
-        nome,
-        telefone: document.getElementById("alunoTelefone").value.trim(),
-        cpf: document.getElementById("alunoCpf").value.trim(),
-        endereco: document.getElementById("alunoEndereco").value.trim(),
-        categoria: document.getElementById("alunoCategoria").value,
-        situacao: document.getElementById("alunoSituacao").value,
-        contratadas: Number(document.getElementById("alunoContratadas").value)
-    };
+  if (!nome) {
+    mostrarAviso("Informe o nome do aluno.");
+    return;
+  }
 
-    const existente = id
-        ? dados.alunos.find(a => a.id === id)
-        : dados.alunos.find(a => a.nome.toLowerCase() === nome.toLowerCase());
+  const duplicado = db.alunos.find(a =>
+    a.nome.toLowerCase() === nome.toLowerCase() &&
+    a.id !== alunoEditando
+  );
 
-    if (existente) {
-        aluno.id = existente.id;
-        dados.alunos = dados.alunos.map(a =>
-            a.id === existente.id ? aluno : a
-        );
-    } else {
-        dados.alunos.push(aluno);
-    }
+  if (duplicado) {
+    mostrarAviso("Já existe um aluno com esse nome.");
+    return;
+  }
 
-    salvarDados();
-    alert("Aluno salvo com sucesso!");
-    mostrarAlunos();
+  const aluno = {
+    id: alunoEditando || gerarId(),
+    nome,
+    telefone: dados.telefone,
+    cpf: dados.cpf,
+    endereco: dados.endereco,
+    categoria: dados.categoria,
+    situacao: dados.situacao,
+    contratadas: numero(dados.contratadas),
+    saldo: numero(dados.saldo)
+  };
+
+  if (alunoEditando) {
+    const indice = db.alunos.findIndex(a => a.id === alunoEditando);
+    if (indice >= 0) db.alunos[indice] = aluno;
+  } else {
+    db.alunos.push(aluno);
+  }
+
+  salvarDados();
+  fecharModal();
+  listarAlunos();
+  atualizarSeletoresAlunos();
+  mostrarAviso("Aluno salvo com sucesso!");
+  alunoEditando = null;
 }
 
-function filtrarAlunos() {
-    const lista = document.getElementById("listaAlunos");
-    if (!lista) return;
+function listarAlunos() {
+  const lista = document.getElementById("listaAlunos");
+  if (!lista) return;
 
-    const pesquisa = (
-        document.getElementById("pesquisaAluno")?.value || ""
-    ).toLowerCase();
+  const busca = (
+    document.getElementById("buscaAlunos")?.value || ""
+  ).toLowerCase();
 
-    const alunos = dados.alunos.filter(a =>
-        a.nome.toLowerCase().includes(pesquisa)
-    );
+  const alunos = db.alunos.filter(a =>
+    a.nome.toLowerCase().includes(busca) ||
+    String(a.cpf || "").includes(busca)
+  );
 
-    lista.innerHTML = alunos.length ? alunos.map(a => `
-        <div class="item">
+  lista.innerHTML = alunos.length
+    ? alunos.map(a => `
+        <div class="record">
+          <div class="record-info">
             <strong>${escapar(a.nome)}</strong>
-            <p>Telefone: ${escapar(a.telefone)}</p>
+            <p>Telefone: ${escapar(a.telefone || "Não informado")}</p>
             <p>Categoria: ${escapar(a.categoria)}</p>
             <p>Situação: ${escapar(a.situacao)}</p>
-            <p>Aulas contratadas: ${a.contratadas}</p>
-            <p>Saldo: <strong>${saldoAluno(a.id)}</strong> aulas</p>
-            <button class="secundario" onclick="editarAluno('${a.id}')">Editar</button>
-            <button class="perigo" onclick="excluirAluno('${a.id}')">Excluir</button>
+            <p>Aulas: ${a.saldo} restantes de ${a.contratadas}</p>
+          </div>
+          <div class="record-actions">
+            <button type="button" data-edit-aluno="${a.id}">Editar</button>
+            <button type="button" data-delete-aluno="${a.id}">Excluir</button>
+          </div>
         </div>
-    `).join("") : "<p>Nenhum aluno cadastrado.</p>";
-}
-
-function editarAluno(id) {
-    const a = dados.alunos.find(x => x.id === id);
-    if (!a) return;
-
-    document.getElementById("alunoId").value = a.id;
-    document.getElementById("alunoNome").value = a.nome;
-    document.getElementById("alunoTelefone").value = a.telefone;
-    document.getElementById("alunoCpf").value = a.cpf;
-    document.getElementById("alunoEndereco").value = a.endereco;
-    document.getElementById("alunoCategoria").value = a.categoria;
-    document.getElementById("alunoSituacao").value = a.situacao;
-    document.getElementById("alunoContratadas").value = a.contratadas;
-
-    window.scrollTo(0, 0);
-}
-
-function limparAluno() {
-    mostrarAlunos();
+      `).join("")
+    : '<div class="empty-state">Nenhum aluno encontrado.</div>';
 }
 
 function excluirAluno(id) {
-    const possuiAulas = dados.aulas.some(a => a.alunoId === id);
+  if (db.aulas.some(a => a.alunoId === id)) {
+    mostrarAviso("Este aluno possui aulas vinculadas. Não é possível excluí-lo.");
+    return;
+  }
 
-    if (possuiAulas) {
-        return alert("Este aluno possui aulas cadastradas. Não é possível excluí-lo sem antes tratar essas aulas.");
-    }
+  if (!confirmar("Deseja realmente excluir este aluno?")) return;
 
-    if (!confirm("Deseja excluir este aluno?")) return;
-
-    dados.alunos = dados.alunos.filter(a => a.id !== id);
-    salvarDados();
-    mostrarAlunos();
+  db.alunos = db.alunos.filter(a => a.id !== id);
+  salvarDados();
+  listarAlunos();
+  atualizarSeletoresAlunos();
+  mostrarAviso("Aluno excluído.");
 }
 
-// ==========================================
-// VEÍCULOS
-// ==========================================
+/* =========================================
+   VEÍCULOS
+========================================= */
 
-function mostrarVeiculos() {
-    const area = document.getElementById("conteudoVeiculos");
-    if (!area) return;
+function abrirFormularioVeiculo(id = null) {
+  veiculoEditando = id;
+  const veiculo = db.veiculos.find(v => v.id === id) || {};
 
-    area.innerHTML = `
-        <form onsubmit="salvarVeiculo(event)">
-            <input type="hidden" id="veiculoId">
+  abrirModal(`
+    <h2>${id ? "Editar veículo" : "Novo veículo"}</h2>
 
-            <label>Tipo</label>
-            <select id="veiculoTipo" required>
-                <option value="">Selecione</option>
-                <option>Carro</option>
-                <option>Moto</option>
-            </select>
+    <form id="formVeiculo">
+      <label>Tipo de veículo</label>
+      <select name="tipo">
+        ${opcoes(["Carro", "Moto"], veiculo.tipo || "Carro")}
+      </select>
 
-            <label>Modelo</label>
-            <input id="veiculoModelo" required>
+      <label>Modelo</label>
+      <input name="modelo" required value="${escapar(veiculo.modelo)}">
 
-            <label>Placa</label>
-            <input id="veiculoPlaca" required>
+      <label>Placa</label>
+      <input name="placa" required value="${escapar(veiculo.placa)}">
 
-            <label>Categoria</label>
-            <select id="veiculoCategoria" required>
-                <option value="">Selecione</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-            </select>
+      <label>Categoria</label>
+      <select name="categoria">
+        ${opcoes(["A", "B"], veiculo.categoria || "B")}
+      </select>
 
-            <button class="btn" type="submit">Salvar veículo</button>
-            <button class="secundario" type="button" onclick="limparVeiculo()">Limpar</button>
-        </form>
+      <div class="modal-actions">
+        <button type="button" class="secondary-button" data-close>Cancelar</button>
+        <button type="submit" class="primary-button">Salvar veículo</button>
+      </div>
+    </form>
+  `);
 
-        <h3>Veículos cadastrados</h3>
-        <div id="listaVeiculos"></div>
-    `;
-
-    listarVeiculos();
+  document.getElementById("formVeiculo").onsubmit = salvarVeiculo;
 }
 
 function salvarVeiculo(evento) {
-    evento.preventDefault();
+  evento.preventDefault();
 
-    const id = document.getElementById("veiculoId").value;
+  const dados = Object.fromEntries(
+    new FormData(evento.target).entries()
+  );
 
-    const veiculo = {
-        id: id || gerarId(),
-        tipo: document.getElementById("veiculoTipo").value,
-        modelo: document.getElementById("veiculoModelo").value.trim(),
-        placa: document.getElementById("veiculoPlaca").value.trim().toUpperCase(),
-        categoria: document.getElementById("veiculoCategoria").value
-    };
+  const placa = dados.placa.trim().toUpperCase();
 
-    const existente = id
-        ? dados.veiculos.find(v => v.id === id)
-        : null;
+  const duplicado = db.veiculos.find(v =>
+    v.placa.toUpperCase() === placa &&
+    v.id !== veiculoEditando
+  );
 
-    if (existente) {
-        dados.veiculos = dados.veiculos.map(v =>
-            v.id === id ? veiculo : v
-        );
-    } else {
-        dados.veiculos.push(veiculo);
-    }
+  if (duplicado) {
+    mostrarAviso("Já existe um veículo com essa placa.");
+    return;
+  }
 
-    salvarDados();
-    alert("Veículo salvo!");
-    mostrarVeiculos();
+  const veiculo = {
+    id: veiculoEditando || gerarId(),
+    tipo: dados.tipo,
+    modelo: dados.modelo.trim(),
+    placa,
+    categoria: dados.categoria
+  };
+
+  if (veiculoEditando) {
+    const indice = db.veiculos.findIndex(v => v.id === veiculoEditando);
+    if (indice >= 0) db.veiculos[indice] = veiculo;
+  } else {
+    db.veiculos.push(veiculo);
+  }
+
+  salvarDados();
+  fecharModal();
+  listarVeiculos();
+  mostrarAviso("Veículo salvo!");
+  veiculoEditando = null;
 }
 
 function listarVeiculos() {
-    const lista = document.getElementById("listaVeiculos");
-    if (!lista) return;
+  const lista = document.getElementById("listaVeiculos");
+  if (!lista) return;
 
-    lista.innerHTML = dados.veiculos.length
-        ? dados.veiculos.map(v => `
-            <div class="item">
-                <strong>${escapar(v.modelo)}</strong>
-                <p>${escapar(v.tipo)} - ${escapar(v.categoria)}</p>
-                <p>Placa: ${escapar(v.placa)}</p>
-                <button class="secundario" onclick="editarVeiculo('${v.id}')">Editar</button>
-                <button class="perigo" onclick="excluirVeiculo('${v.id}')">Excluir</button>
-            </div>
-        `).join("")
-        : "<p>Nenhum veículo cadastrado.</p>";
-}
+  const busca = (
+    document.getElementById("buscaVeiculos")?.value || ""
+  ).toLowerCase();
 
-function editarVeiculo(id) {
-    const v = dados.veiculos.find(x => x.id === id);
-    if (!v) return;
+  const veiculos = db.veiculos.filter(v =>
+    v.modelo.toLowerCase().includes(busca) ||
+    v.placa.toLowerCase().includes(busca)
+  );
 
-    document.getElementById("veiculoId").value = v.id;
-    document.getElementById("veiculoTipo").value = v.tipo;
-    document.getElementById("veiculoModelo").value = v.modelo;
-    document.getElementById("veiculoPlaca").value = v.placa;
-    document.getElementById("veiculoCategoria").value = v.categoria;
-
-    window.scrollTo(0, 0);
-}
-
-function limparVeiculo() {
-    mostrarVeiculos();
+  lista.innerHTML = veiculos.length
+    ? veiculos.map(v => `
+        <div class="record">
+          <strong>${escapar(v.modelo)}</strong>
+          <p>${escapar(v.tipo)} • Placa: ${escapar(v.placa)}</p>
+          <p>Categoria: ${escapar(v.categoria)}</p>
+          <div class="record-actions">
+            <button type="button" data-edit-veiculo="${v.id}">Editar</button>
+            <button type="button" data-delete-veiculo="${v.id}">Excluir</button>
+          </div>
+        </div>
+      `).join("")
+    : '<div class="empty-state">Nenhum veículo encontrado.</div>';
 }
 
 function excluirVeiculo(id) {
-    if (dados.aulas.some(a => a.veiculoId === id)) {
-        return alert("Este veículo possui aulas cadastradas. Não é possível excluí-lo.");
-    }
+  if (db.aulas.some(a => a.veiculoId === id)) {
+    mostrarAviso("Este veículo possui aulas vinculadas.");
+    return;
+  }
 
-    if (!confirm("Deseja excluir este veículo?")) return;
+  if (!confirmar("Excluir este veículo?")) return;
 
-    dados.veiculos = dados.veiculos.filter(v => v.id !== id);
-    salvarDados();
-    mostrarVeiculos();
+  db.veiculos = db.veiculos.filter(v => v.id !== id);
+  salvarDados();
+  listarVeiculos();
+  mostrarAviso("Veículo excluído.");
 }
 
-// ==========================================
-// AULAS
-// ==========================================
+/* =========================================
+   AULAS
+========================================= */
 
-function mostrarAulas() {
-    const area = document.getElementById("conteudoAulas");
-    if (!area) return;
+function abrirFormularioAula(id = null) {
+  aulaEditando = id;
+  const aula = db.aulas.find(a => a.id === id) || {};
 
-    const opcoesAlunos = dados.alunos.map(a =>
-        `<option value="${a.id}">${escapar(a.nome)}</option>`
-    ).join("");
+  if (!db.alunos.length) {
+    mostrarAviso("Cadastre um aluno primeiro.");
+    return;
+  }
 
-    const opcoesVeiculos = dados.veiculos.map(v =>
-        `<option value="${v.id}">${escapar(v.modelo)} - ${escapar(v.placa)}</option>`
-    ).join("");
+  if (!db.veiculos.length) {
+    mostrarAviso("Cadastre um veículo primeiro.");
+    return;
+  }
 
-    area.innerHTML = `
-        <form onsubmit="salvarAula(event)">
-            <input type="hidden" id="aulaId">
+  abrirModal(`
+    <h2>${id ? "Editar aula" : "Agendar aula"}</h2>
 
-            <label>Aluno</label>
-            <select id="aulaAluno" required>
-                <option value="">Selecione o aluno</option>
-                ${opcoesAlunos}
-            </select>
+    <form id="formAula">
+      <label>Aluno</label>
+      <select name="alunoId" required>
+        <option value="">Selecione</option>
+        ${db.alunos.map(a => `
+          <option value="${a.id}" ${aula.alunoId === a.id ? "selected" : ""}>
+            ${escapar(a.nome)}
+          </option>
+        `).join("")}
+      </select>
 
-            <label>Data</label>
-            <input id="aulaData" type="date" required>
+      <label>Data</label>
+      <input name="data" type="date" required
+        value="${escapar(aula.data || dataHoje())}">
 
-            <label>Horário</label>
-            <select id="aulaHorario" required>
-                <option value="">Selecione</option>
-                <option>07:00 - 07:50</option>
-                <option>08:00 - 08:50</option>
-                <option>09:00 - 09:50</option>
-                <option>10:00 - 10:50</option>
-                <option>11:00 - 11:50</option>
-                <option>14:00 - 14:50</option>
-                <option>15:00 - 15:50</option>
-                <option>16:00 - 16:50</option>
-                <option>17:00 - 17:50</option>
-                <option>18:00 - 18:50</option>
-            </select>
+      <label>Horário</label>
+      <select name="horario" required>
+        <option value="">Selecione</option>
+        ${HORARIOS.map(h => `
+          <option value="${h}" ${aula.horario === h ? "selected" : ""}>
+            ${h}
+          </option>
+        `).join("")}
+      </select>
 
-            <label>Veículo</label>
-            <select id="aulaVeiculo" required>
-                <option value="">Selecione o veículo</option>
-                ${opcoesVeiculos}
-            </select>
+      <label>Veículo</label>
+      <select name="veiculoId" required>
+        <option value="">Selecione</option>
+        ${db.veiculos.map(v => `
+          <option value="${v.id}" ${aula.veiculoId === v.id ? "selected" : ""}>
+            ${escapar(v.modelo)} - ${escapar(v.placa)}
+          </option>
+        `).join("")}
+      </select>
 
-            <label>Situação</label>
-            <select id="aulaSituacao">
-                <option>Agendada</option>
-                <option>Realizada</option>
-                <option>Cancelada</option>
-            </select>
+      <label>Situação</label>
+      <select name="status">
+        ${opcoes(["Agendada", "Realizada", "Cancelada"], aula.status || "Agendada")}
+      </select>
 
-            <label>Observações</label>
-            <textarea id="aulaObservacao"></textarea>
+      <label>Observações</label>
+      <textarea name="observacoes">${escapar(aula.observacoes)}</textarea>
 
-            <button class="btn" type="submit">Salvar aula</button>
-            <button class="secundario" type="button" onclick="limparAula()">Limpar</button>
-        </form>
+      <div class="modal-actions">
+        <button type="button" class="secondary-button" data-close>Cancelar</button>
+        <button type="submit" class="primary-button">Salvar aula</button>
+      </div>
+    </form>
+  `);
 
-        <h3>Aulas cadastradas</h3>
-        <label>Filtrar por aluno</label>
-        <select id="filtroAulaAluno" onchange="listarAulas()">
-            <option value="">Todos os alunos</option>
-            ${opcoesAlunos}
-        </select>
-
-        <label>Filtrar por data</label>
-        <input id="filtroAulaData" type="date" onchange="listarAulas()">
-
-        <div id="listaAulas"></div>
-    `;
-
-    listarAulas();
+  document.getElementById("formAula").onsubmit = salvarAula;
 }
-
-// FUNÇÃO CORRIGIDA: BLOQUEIA HORÁRIOS DUPLICADOS
 
 function salvarAula(evento) {
-    evento.preventDefault();
+  evento.preventDefault();
 
-    const id = document.getElementById("aulaId").value;
-    const alunoId = document.getElementById("aulaAluno").value;
-    const veiculoId = document.getElementById("aulaVeiculo").value;
-    const data = document.getElementById("aulaData").value;
-    const horario = document.getElementById("aulaHorario").value;
-    const situacao = document.getElementById("aulaSituacao").value;
-    const observacao = document.getElementById("aulaObservacao").value.trim();
+  const dados = Object.fromEntries(
+    new FormData(evento.target).entries()
+  );
 
-    const aluno = dados.alunos.find(a => a.id === alunoId);
-    const veiculo = dados.veiculos.find(v => v.id === veiculoId);
+  const conflito = db.aulas.find(a =>
+    a.id !== aulaEditando &&
+    a.data === dados.data &&
+    a.horario === dados.horario &&
+    a.status !== "Cancelada" &&
+    dados.status !== "Cancelada"
+  );
 
-    if (!aluno || !veiculo) {
-        return alert("Selecione um aluno e um veículo válidos.");
-    }
+  if (conflito) {
+    mostrarAviso("Este dia e horário já estão ocupados.");
+    return;
+  }
 
-    if (!data || !horario) {
-        return alert("Informe a data e o horário da aula.");
-    }
+  const anterior = db.aulas.find(a => a.id === aulaEditando);
 
-    if (
-        aluno.categoria !== "AB" &&
-        aluno.categoria !== veiculo.categoria
-    ) {
-        return alert("A categoria do veículo não corresponde à categoria do aluno.");
-    }
+  const aula = {
+    id: aulaEditando || gerarId(),
+    alunoId: dados.alunoId,
+    data: dados.data,
+    horario: dados.horario,
+    veiculoId: dados.veiculoId,
+    status: dados.status,
+    observacoes: dados.observacoes || ""
+  };
 
-    // Verifica conflito de dia e horário.
-    // Aulas canceladas não ocupam horário.
-    // Ignora a própria aula durante a edição.
+  if (anterior) {
+    ajustarSaldoAula(anterior, -1);
+    ajustarSaldoAula(aula, 1);
 
-    const conflito = dados.aulas.find(a =>
-        a.id !== id &&
-        a.data === data &&
-        a.horario === horario &&
-        a.situacao !== "Cancelada"
-    );
+    const indice = db.aulas.findIndex(a => a.id === aulaEditando);
+    db.aulas[indice] = aula;
+  } else {
+    ajustarSaldoAula(aula, 1);
+    db.aulas.push(aula);
+  }
 
-    if (situacao !== "Cancelada" && conflito) {
-        const nomeConflito =
-            dados.alunos.find(a => a.id === conflito.alunoId)?.nome
-            || "outro aluno";
+  salvarDados();
+  fecharModal();
+  listarAulas();
+  atualizarSeletoresAlunos();
+  mostrarAviso("Aula salva com sucesso!");
+  aulaEditando = null;
+}
 
-        return alert(
-            "HORÁRIO INDISPONÍVEL!\n\n" +
-            data + " às " + horario +
-            " já está reservado para " + nomeConflito +
-            ".\nEscolha outro horário."
-        );
-    }
+function ajustarSaldoAula(aula, fator) {
+  if (aula.status !== "Realizada") return;
 
-    // Verifica o saldo de aulas.
-
-    const realizadasSemEsta = dados.aulas.filter(a =>
-        a.alunoId === alunoId &&
-        a.situacao === "Realizada" &&
-        a.id !== id
-    ).length;
-
-    if (
-        situacao === "Realizada" &&
-        realizadasSemEsta >= Number(aluno.contratadas || 0)
-    ) {
-        return alert("O aluno não possui saldo de aulas disponível.");
-    }
-
-    const aula = {
-        id: id || gerarId(),
-        alunoId: alunoId,
-        veiculoId: veiculoId,
-        data: data,
-        horario: horario,
-        situacao: situacao,
-        observacao: observacao
-    };
-
-    if (id) {
-        const indice = dados.aulas.findIndex(a => a.id === id);
-
-        if (indice < 0) {
-            return alert("Não foi possível localizar esta aula para edição. Atualize a tela e tente novamente.");
-        }
-
-        dados.aulas[indice] = aula;
-    } else {
-        dados.aulas.push(aula);
-    }
-
-    salvarDados();
-
-    alert("Aula salva com sucesso!");
-
-    mostrarAulas();
+  const aluno = db.alunos.find(a => a.id === aula.alunoId);
+  if (aluno) {
+    aluno.saldo = Math.max(0, Number(aluno.saldo) - fator);
+  }
 }
 
 function listarAulas() {
-    const lista = document.getElementById("listaAulas");
-    if (!lista) return;
+  const lista = document.getElementById("listaAulas");
+  if (!lista) return;
 
-    const alunoFiltro = document.getElementById("filtroAulaAluno")?.value || "";
-    const dataFiltro = document.getElementById("filtroAulaData")?.value || "";
+  const filtroData =
+    document.getElementById("filtroDataAulas")?.value || "";
 
-    const aulas = [...dados.aulas]
-        .filter(a => !alunoFiltro || a.alunoId === alunoFiltro)
-        .filter(a => !dataFiltro || a.data === dataFiltro)
-        .sort((a, b) =>
-            (a.data + a.horario).localeCompare(b.data + b.horario)
-        );
+  const filtroAluno =
+    document.getElementById("filtroAlunoAulas")?.value || "";
 
-    const contagem = {};
+  const aulas = db.aulas
+    .filter(a => !filtroData || a.data === filtroData)
+    .filter(a => !filtroAluno || a.alunoId === filtroAluno)
+    .sort((a, b) =>
+      (a.data + a.horario).localeCompare(b.data + b.horario)
+    );
 
-    lista.innerHTML = aulas.length ? aulas.map(a => {
-        const aluno = dados.alunos.find(x => x.id === a.alunoId);
-        const veiculo = dados.veiculos.find(x => x.id === a.veiculoId);
-
-        contagem[a.alunoId] = (contagem[a.alunoId] || 0) + 1;
+  lista.innerHTML = aulas.length
+    ? aulas.map(a => {
+        const veiculo = db.veiculos.find(v => v.id === a.veiculoId);
+        const aluno = db.alunos.find(x => x.id === a.alunoId);
+        const numeroAula = db.aulas.filter(x =>
+          x.alunoId === a.alunoId &&
+          x.status === "Realizada" &&
+          (x.data + x.horario).localeCompare(a.data + a.horario) <= 0
+        ).length;
 
         return `
-            <div class="item">
-                <strong>${contagem[a.alunoId]}ª aula - ${escapar(aluno?.nome || "Aluno não encontrado")}</strong>
-                <p>Data: ${escapar(a.data)}</p>
-                <p>Horário: ${escapar(a.horario)}</p>
-                <p>Veículo: ${escapar(veiculo?.modelo || "Não encontrado")}</p>
-                <p>Situação: <strong>${escapar(a.situacao)}</strong></p>
-                <p>${escapar(a.observacao)}</p>
-                <button class="secundario" onclick="editarAula('${a.id}')">Editar</button>
-                <button class="perigo" onclick="excluirAula('${a.id}')">Excluir</button>
+          <div class="record">
+            <strong>${escapar(aluno?.nome || "Aluno não encontrado")}</strong>
+            <p>${formatarData(a.data)} • ${escapar(a.horario)}</p>
+            <p>Veículo: ${escapar(veiculo?.modelo || "Não encontrado")}</p>
+            <p>Situação: ${escapar(a.status)}</p>
+            <p>Aula realizada: ${a.status === "Realizada" ? numeroAula : "—"}</p>
+            <div class="record-actions">
+              <button type="button" data-edit-aula="${a.id}">Editar</button>
+              <button type="button" data-delete-aula="${a.id}">Excluir</button>
             </div>
+          </div>
         `;
-    }).join("") : "<p>Nenhuma aula encontrada.</p>";
-}
-
-function editarAula(id) {
-    const a = dados.aulas.find(x => x.id === id);
-    if (!a) return;
-
-    document.getElementById("aulaId").value = a.id;
-    document.getElementById("aulaAluno").value = a.alunoId;
-    document.getElementById("aulaData").value = a.data;
-    document.getElementById("aulaHorario").value = a.horario;
-    document.getElementById("aulaVeiculo").value = a.veiculoId;
-    document.getElementById("aulaSituacao").value = a.situacao;
-    document.getElementById("aulaObservacao").value = a.observacao;
-
-    window.scrollTo(0, 0);
-}
-
-function limparAula() {
-    mostrarAulas();
+      }).join("")
+    : '<div class="empty-state">Nenhuma aula encontrada.</div>';
 }
 
 function excluirAula(id) {
-    if (!confirm("Deseja excluir esta aula?")) return;
+  if (!confirmar("Deseja excluir esta aula?")) return;
 
-    dados.aulas = dados.aulas.filter(a => a.id !== id);
-    salvarDados();
-    mostrarAulas();
+  const aula = db.aulas.find(a => a.id === id);
+  if (aula) ajustarSaldoAula(aula, -1);
+
+  db.aulas = db.aulas.filter(a => a.id !== id);
+  salvarDados();
+  listarAulas();
+  mostrarAviso("Aula excluída.");
 }
 
-// ==========================================
-// RELATÓRIOS
-// ==========================================
+/* =========================================
+   FINANCEIRO
+========================================= */
 
-function gerarRelatorio() {
-    const area = document.getElementById("conteudoRelatorios");
-    if (!area) return;
+function registrarMovimentacao(tipo, descricao, valor, alunoId = null) {
+  db.movimentacoes.push({
+    id: gerarId(),
+    tipo,
+    descricao,
+    valor: Number(valor),
+    alunoId,
+    data: dataHoje()
+  });
 
-    const opcoes = dados.alunos.map(a =>
-        `<option value="${a.id}">${escapar(a.nome)}</option>`
-    ).join("");
-
-    area.innerHTML = `
-        <label>Selecionar aluno</label>
-        <select id="relatorioAluno" onchange="montarRelatorio()">
-            <option value="">Todos os alunos</option>
-            ${opcoes}
-        </select>
-
-        <button class="btn" onclick="montarRelatorio()">Gerar relatório</button>
-        <button class="secundario" onclick="window.print()">Imprimir relatório A4</button>
-
-        <div id="resultadoRelatorio"></div>
-    `;
-
-    montarRelatorio();
+  salvarDados();
 }
 
-function montarRelatorio() {
-    const area = document.getElementById("resultadoRelatorio");
-    if (!area) return;
+function atualizarFinanceiro() {
+  const entradas = db.movimentacoes
+    .filter(m => m.tipo === "entrada")
+    .reduce((s, m) => s + Number(m.valor), 0);
 
-    const alunoId = document.getElementById("relatorioAluno")?.value || "";
+  const despesas = db.movimentacoes
+    .filter(m => m.tipo === "saida")
+    .reduce((s, m) => s + Number(m.valor), 0);
 
-    const alunos = dados.alunos.filter(a =>
-        !alunoId || a.id === alunoId
+  document.getElementById("totalEntradas").textContent = moeda(entradas);
+  document.getElementById("totalDespesas").textContent = moeda(despesas);
+  document.getElementById("saldoFinanceiro").textContent = moeda(entradas - despesas);
+}
+
+function listarMovimentacoes() {
+  const lista = document.getElementById("listaMovimentacoes");
+  if (!lista) return;
+
+  const movimentacoes = [...db.movimentacoes].reverse();
+
+  lista.innerHTML = movimentacoes.length
+    ? movimentacoes.map(m => `
+        <div class="record">
+          <strong>${escapar(m.descricao)}</strong>
+          <p>${formatarData(m.data)} • ${m.tipo === "entrada" ? "Entrada" : "Saída"}</p>
+          <strong>${moeda(m.valor)}</strong>
+        </div>
+      `).join("")
+    : '<div class="empty-state">Nenhuma movimentação registrada.</div>';
+}
+
+function abrirVenda() {
+  if (!db.alunos.length) {
+    mostrarAviso("Cadastre um aluno antes de realizar uma venda.");
+    return;
+  }
+
+  abrirModal(`
+    <h2>Nova venda</h2>
+
+    <form id="formVenda">
+      <label>Aluno</label>
+      <select name="alunoId" required>
+        <option value="">Selecione o aluno</option>
+        ${db.alunos.map(a => `
+          <option value="${a.id}">${escapar(a.nome)}</option>
+        `).join("")}
+      </select>
+
+      <div id="itensVenda">
+        ${db.produtos.map(p => `
+          <div class="sale-item">
+            <label>
+              <input type="checkbox" name="produto" value="${p.id}">
+              ${escapar(p.nome)} - ${moeda(p.preco)}
+            </label>
+            <input type="number" min="1" value="1"
+              data-quantidade="${p.id}" aria-label="Quantidade">
+          </div>
+        `).join("")}
+      </div>
+
+      <label>Desconto (R$)</label>
+      <input name="desconto" type="number" min="0" step="0.01" value="0">
+
+      <div class="panel">
+        Total: <strong id="totalVenda">${moeda(0)}</strong>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-button" data-close>Cancelar</button>
+        <button type="submit" class="primary-button">Confirmar venda</button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById("formVenda").addEventListener("change", calcularVenda);
+  document.getElementById("formVenda").addEventListener("input", calcularVenda);
+  document.getElementById("formVenda").onsubmit = salvarVenda;
+}
+
+function calcularVenda() {
+  const formulario = document.getElementById("formVenda");
+  if (!formulario) return 0;
+
+  let total = 0;
+
+  formulario.querySelectorAll('input[name="produto"]:checked').forEach(check => {
+    const produto = db.produtos.find(p => p.id === check.value);
+    const quantidade = numero(
+      formulario.querySelector(`[data-quantidade="${check.value}"]`)?.value
     );
 
-    area.innerHTML = alunos.map(aluno => {
-        const aulas = dados.aulas
-            .filter(a => a.alunoId === aluno.id)
-            .sort((a, b) =>
-                (a.data + a.horario).localeCompare(b.data + b.horario)
-            );
+    if (produto) total += produto.preco * quantidade;
+  });
 
-        return `
-            <div class="item">
-                <h3>${escapar(aluno.nome)}</h3>
-                <p>Categoria: ${escapar(aluno.categoria)}</p>
-                <p>Contratadas: ${aluno.contratadas}</p>
-                <p>Realizadas: ${aluno.contratadas - saldoAluno(aluno.id)}</p>
-                <p>Saldo: ${saldoAluno(aluno.id)}</p>
-                <p>Situação: ${escapar(aluno.situacao)}</p>
+  total -= numero(formulario.elements.desconto?.value);
+  total = Math.max(0, total);
 
-                <h3>Histórico de aulas</h3>
-
-                ${aulas.length ? aulas.map((a, i) => `
-                    <p>${i + 1}ª aula | ${escapar(a.data)} | ${escapar(a.horario)} | ${escapar(a.situacao)}</p>
-                `).join("") : "<p>Sem aulas cadastradas.</p>"}
-
-                <p style="margin-top:40px">
-                    ______________________________________<br>
-                    Assinatura do aluno
-                </p>
-            </div>
-        `;
-    }).join("") || "<p>Nenhum aluno cadastrado.</p>";
+  document.getElementById("totalVenda").textContent = moeda(total);
+  return total;
 }
 
-// ==========================================
-// BACKUP
-// ==========================================
+function salvarVenda(evento) {
+  evento.preventDefault();
 
-function mostrarBackup() {
-    const area = document.getElementById("conteudoBackup");
-    if (!area) return;
+  const formulario = evento.target;
+  const alunoId = formulario.elements.alunoId.value;
+  const selecionados = [...formulario.querySelectorAll('input[name="produto"]:checked')];
 
-    area.innerHTML = `
-        <p>Faça backups regularmente para proteger seus cadastros.</p>
+  if (!selecionados.length) {
+    mostrarAviso("Selecione pelo menos um produto ou serviço.");
+    return;
+  }
 
-        <button class="btn" onclick="exportarBackup()">Baixar backup</button>
+  let total = 0;
+  let totalAulas = 0;
+  const descricoes = [];
 
-        <h3>Restaurar backup</h3>
-        <input type="file" id="arquivoBackup" accept=".json,application/json">
-        <button class="secundario" onclick="importarBackup()">Restaurar dados</button>
-    `;
+  selecionados.forEach(check => {
+    const produto = db.produtos.find(p => p.id === check.value);
+    const quantidade = numero(
+      formulario.querySelector(`[data-quantidade="${check.value}"]`).value
+    );
+
+    if (produto && quantidade > 0) {
+      total += produto.preco * quantidade;
+      totalAulas += produto.aulas * quantidade;
+      descricoes.push(`${produto.nome} x${quantidade}`);
+    }
+  });
+
+  total = Math.max(0, total - numero(formulario.elements.desconto.value));
+
+  const aluno = db.alunos.find(a => a.id === alunoId);
+  if (!aluno) return;
+
+  aluno.saldo += totalAulas;
+  aluno.contratadas += totalAulas;
+
+  registrarMovimentacao(
+    "entrada",
+    `Venda para ${aluno.nome}: ${descricoes.join(", ")}`,
+    total,
+    alunoId
+  );
+
+  fecharModal();
+  listarAlunos();
+  mostrarAviso(`${totalAulas} aulas adicionadas ao saldo do aluno.`);
 }
+
+function abrirDespesa() {
+  abrirModal(`
+    <h2>Nova despesa</h2>
+    <form id="formDespesa">
+      <label>Descrição</label>
+      <input name="descricao" required>
+
+      <label>Valor (R$)</label>
+      <input name="valor" type="number" min="0.01" step="0.01" required>
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-button" data-close>Cancelar</button>
+        <button type="submit" class="primary-button">Registrar despesa</button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById("formDespesa").onsubmit = evento => {
+    evento.preventDefault();
+    const dados = Object.fromEntries(new FormData(evento.target).entries());
+
+    if (numero(dados.valor) <= 0) {
+      mostrarAviso("Informe um valor válido.");
+      return;
+    }
+
+    registrarMovimentacao("saida", dados.descricao, numero(dados.valor));
+    fecharModal();
+    listarMovimentacoes();
+    atualizarFinanceiro();
+    mostrarAviso("Despesa registrada.");
+  };
+}
+
+function abrirProdutos() {
+  abrirModal(`
+    <h2>Produtos e serviços</h2>
+    <p>Cadastre pacotes e serviços com seus preços e quantidades de aulas.</p>
+
+    <div id="listaProdutos">
+      ${db.produtos.map(p => `
+        <div class="record">
+          <strong>${escapar(p.nome)}</strong>
+          <p>${moeda(p.preco)} • ${p.aulas} aula(s)</p>
+          <button type="button" data-edit-produto="${p.id}">Editar</button>
+          <button type="button" data-delete-produto="${p.id}">Excluir</button>
+        </div>
+      `).join("")}
+    </div>
+
+    <button id="btnAdicionarProduto" class="primary-button" type="button">
+      + Adicionar produto
+    </button>
+  `);
+}
+
+function editarProduto(id = null) {
+  const produto = db.produtos.find(p => p.id === id) || {};
+
+  abrirModal(`
+    <h2>${id ? "Editar produto" : "Novo produto"}</h2>
+    <form id="formProduto">
+      <label>Nome</label>
+      <input name="nome" required value="${escapar(produto.nome)}">
+
+      <label>Preço (R$)</label>
+      <input name="preco" type="number" min="0" step="0.01"
+        value="${produto.preco ?? 0}" required>
+
+      <label>Quantidade de aulas adicionadas</label>
+      <input name="aulas" type="number" min="0"
+        value="${produto.aulas ?? 1}" required>
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-button" data-close>Cancelar</button>
+        <button type="submit" class="primary-button">Salvar</button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById("formProduto").onsubmit = evento => {
+    evento.preventDefault();
+
+    const dados = Object.fromEntries(new FormData(evento.target).entries());
+
+    const novo = {
+      id: id || gerarId(),
+      nome: dados.nome.trim(),
+      preco: numero(dados.preco),
+      aulas: numero(dados.aulas)
+    };
+
+    if (id) {
+      const indice = db.produtos.findIndex(p => p.id === id);
+      db.produtos[indice] = novo;
+    } else {
+      db.produtos.push(novo);
+    }
+
+    salvarDados();
+    abrirProdutos();
+    mostrarAviso("Produto salvo.");
+  };
+}
+
+function excluirProduto(id) {
+  if (!confirmar("Excluir este produto?")) return;
+  db.produtos = db.produtos.filter(p => p.id !== id);
+  salvarDados();
+  abrirProdutos();
+}
+
+/* =========================================
+   RELATÓRIOS
+========================================= */
+
+function atualizarSeletoresAlunos() {
+  const selects = [
+    document.getElementById("filtroAlunoAulas"),
+    document.getElementById("relatorioAluno")
+  ];
+
+  selects.forEach(select => {
+    if (!select) return;
+
+    const valorAnterior = select.value;
+    const primeiro = select.id === "filtroAlunoAulas"
+      ? "Todos os alunos"
+      : "Selecione um aluno";
+
+    select.innerHTML = `<option value="">${primeiro}</option>` +
+      db.alunos.map(a => `
+        <option value="${a.id}">${escapar(a.nome)}</option>
+      `).join("");
+
+    select.value = valorAnterior;
+  });
+}
+
+function gerarRelatorioAluno() {
+  const id = document.getElementById("relatorioAluno").value;
+  if (!id) {
+    mostrarAviso("Selecione um aluno.");
+    return;
+  }
+
+  const aluno = db.alunos.find(a => a.id === id);
+  if (!aluno) return;
+
+  const aulas = db.aulas
+    .filter(a => a.alunoId === id)
+    .sort((a, b) => (a.data + a.horario).localeCompare(b.data + b.horario));
+
+  const realizadas = aulas.filter(a => a.status === "Realizada").length;
+
+  mostrarRelatorio(`
+    <h2>Relatório individual de aulas</h2>
+    <p><strong>Aluno:</strong> ${escapar(aluno.nome)}</p>
+    <p><strong>Categoria:</strong> ${escapar(aluno.categoria)}</p>
+    <p><strong>Contratadas:</strong> ${aluno.contratadas}</p>
+    <p><strong>Realizadas:</strong> ${realizadas}</p>
+    <p><strong>Restantes:</strong> ${aluno.saldo}</p>
+    ${tabelaAulas(aulas)}
+  `);
+}
+
+function gerarRelatorioPeriodo() {
+  const inicio = document.getElementById("relatorioInicio").value;
+  const fim = document.getElementById("relatorioFim").value;
+
+  if (!inicio || !fim || inicio > fim) {
+    mostrarAviso("Informe um período válido.");
+    return;
+  }
+
+  const aulas = db.aulas.filter(a => a.data >= inicio && a.data <= fim);
+
+  mostrarRelatorio(`
+    <h2>Relatório por período</h2>
+    <p>De ${formatarData(inicio)} até ${formatarData(fim)}</p>
+    ${tabelaAulas(aulas)}
+  `);
+}
+
+function gerarRelatorioDiario() {
+  const data = document.getElementById("relatorioData").value;
+
+  if (!data) {
+    mostrarAviso("Selecione uma data.");
+    return;
+  }
+
+  const aulas = db.aulas
+    .filter(a => a.data === data && a.status !== "Cancelada")
+    .sort((a, b) => a.horario.localeCompare(b.horario));
+
+  mostrarRelatorio(`
+    <h2>Lista diária de aulas</h2>
+    <p>Data: ${formatarData(data)}</p>
+    ${tabelaAulas(aulas, true)}
+  `);
+}
+
+function tabelaAulas(aulas, assinatura = false) {
+  if (!aulas.length) return "<p>Nenhuma aula encontrada.</p>";
+
+  return `
+    <div class="report-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Horário</th>
+            <th>Aluno</th>
+            <th>Veículo</th>
+            <th>Situação</th>
+            ${assinatura ? "<th>Assinatura</th>" : ""}
+          </tr>
+        </thead>
+        <tbody>
+          ${aulas.map(a => {
+            const veiculo = db.veiculos.find(v => v.id === a.veiculoId);
+            return `
+              <tr>
+                <td>${formatarData(a.data)}</td>
+                <td>${escapar(a.horario)}</td>
+                <td>${escapar(nomeAluno(a.alunoId))}</td>
+                <td>${escapar(veiculo?.modelo || "")}</td>
+                <td>${escapar(a.status)}</td>
+                ${assinatura ? "<td>__________________</td>" : ""}
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function mostrarRelatorio(conteudo) {
+  const resultado = document.getElementById("resultadoRelatorio");
+
+  resultado.innerHTML = `
+    <div class="panel printable-report">
+      ${conteudo}
+      <button id="btnImprimirRelatorio" class="primary-button" type="button">
+        Imprimir / Salvar PDF
+      </button>
+    </div>
+  `;
+
+  relatorioAtual = conteudo;
+}
+
+/* =========================================
+   BACKUP E RESTAURAÇÃO
+========================================= */
 
 function exportarBackup() {
-    const arquivo = new Blob(
-        [JSON.stringify(dados, null, 2)],
-        { type: "application/json" }
-    );
+  const arquivo = new Blob(
+    [JSON.stringify(db, null, 2)],
+    { type: "application/json" }
+  );
 
-    const url = URL.createObjectURL(arquivo);
-    const link = document.createElement("a");
+  const url = URL.createObjectURL(arquivo);
+  const link = document.createElement("a");
 
-    link.href = url;
-    link.download = "backup-marcus-instrutor.json";
-    link.click();
+  link.href = url;
+  link.download = `backup-marcus-instrutor-${dataHoje()}.json`;
+  link.click();
 
-    URL.revokeObjectURL(url);
+  URL.revokeObjectURL(url);
+  mostrarAviso("Backup exportado.");
 }
 
 function importarBackup() {
-    const campo = document.getElementById("arquivoBackup");
-    const arquivo = campo?.files?.[0];
+  const input = document.getElementById("arquivoBackup");
+  const arquivo = input.files[0];
 
-    if (!arquivo) {
-        return alert("Selecione um arquivo de backup.");
-    }
+  if (!arquivo) {
+    mostrarAviso("Selecione um arquivo de backup.");
+    return;
+  }
 
-    if (!confirm("A restauração substituirá os dados atuais. Deseja continuar?")) {
+  const leitor = new FileReader();
+
+  leitor.onload = () => {
+    try {
+      const dados = JSON.parse(leitor.result);
+
+      const campos = [
+        "alunos",
+        "veiculos",
+        "aulas",
+        "produtos",
+        "movimentacoes",
+        "configuracoes"
+      ];
+
+      if (!dados || !campos.every(c => c in dados)) {
+        throw new Error("Estrutura inválida");
+      }
+
+      if (!campos.slice(0, 5).every(c => Array.isArray(dados[c]))) {
+        throw new Error("Dados inválidos");
+      }
+
+      if (!confirmar("Restaurar este backup substituirá os dados atuais. Continuar?")) {
         return;
+      }
+
+      db = {
+        ...structuredClone(estadoInicial),
+        ...dados
+      };
+
+      salvarDados();
+      atualizarSeletoresAlunos();
+      atualizarPainel();
+      listarAlunos();
+      listarVeiculos();
+      listarAulas();
+
+      mostrarAviso("Backup restaurado com sucesso!");
+      input.value = "";
+    } catch (erro) {
+      mostrarAviso("Arquivo de backup inválido.");
     }
+  };
 
-    const leitor = new FileReader();
-
-    leitor.onload = () => {
-        try {
-            const importado = JSON.parse(leitor.result);
-
-            if (
-                !Array.isArray(importado.alunos) ||
-                !Array.isArray(importado.veiculos) ||
-                !Array.isArray(importado.aulas)
-            ) {
-                throw new Error("Formato inválido");
-            }
-
-            dados = importado;
-            salvarDados();
-            alert("Backup restaurado com sucesso!");
-            mostrarBackup();
-        } catch (erro) {
-            alert("Arquivo de backup inválido. Os dados atuais foram preservados.");
-            console.error(erro);
-        }
-    };
-
-    leitor.readAsText(arquivo);
+  leitor.readAsText(arquivo);
 }
 
-// ==========================================
-// INICIALIZAÇÃO
-// ==========================================
+/* =========================================
+   CONFIGURAÇÕES
+========================================= */
 
-carregarDados();
-atualizarPainel();
+function carregarConfiguracoes() {
+  const nome = document.getElementById("nomeEmpresa");
+  const principal = document.getElementById("corPrincipal");
+  const secundaria = document.getElementById("corSecundaria");
+
+  if (nome) nome.value = db.configuracoes.nome;
+  if (principal) principal.value = db.configuracoes.corPrincipal;
+  if (secundaria) secundaria.value = db.configuracoes.corSecundaria;
+}
+
+function salvarConfiguracoes() {
+  db.configuracoes.nome =
+    document.getElementById("nomeEmpresa").value.trim() || "Marcus Instrutor";
+
+  db.configuracoes.corPrincipal =
+    document.getElementById("corPrincipal").value;
+
+  db.configuracoes.corSecundaria =
+    document.getElementById("corSecundaria").value;
+
+  const arquivo = document.getElementById("logoEmpresa").files[0];
+
+  const aplicar = () => {
+    document.documentElement.style.setProperty(
+      "--primary",
+      db.configuracoes.corPrincipal
+    );
+
+    document.documentElement.style.setProperty(
+      "--secondary",
+      db.configuracoes.corSecundaria
+    );
+
+    document.querySelector(".brand h1").textContent =
+      db.configuracoes.nome;
+
+    salvarDados();
+    mostrarAviso("Configurações salvas.");
+  };
+
+  if (!arquivo) {
+    aplicar();
+    return;
+  }
+
+  const leitor = new FileReader();
+
+  leitor.onload = () => {
+    db.configuracoes.logo = leitor.result;
+    aplicar();
+  };
+
+  leitor.readAsDataURL(arquivo);
+}
+
+/* =========================================
+   MODAIS
+========================================= */
+
+function abrirModal(conteudo) {
+  const container = document.getElementById("modalContainer");
+
+  container.innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal-box">
+        <button type="button" class="modal-close" data-close aria-label="Fechar">×</button>
+        ${conteudo}
+      </div>
+    </div>
+  `;
+
+  document.body.style.overflow = "hidden";
+}
+
+function fecharModal() {
+  document.getElementById("modalContainer").innerHTML = "";
+  document.body.style.overflow = "";
+}
+
+function opcoes(valores, selecionado) {
+  return valores.map(valor => `
+    <option value="${valor}" ${valor === selecionado ? "selected" : ""}>
+      ${valor}
+    </option>
+  `).join("");
+}
+
+/* =========================================
+   EVENTOS DO APLICATIVO
+========================================= */
+
+document.addEventListener("click", evento => {
+  const pagina = evento.target.closest("[data-page]");
+  if (pagina) {
+    mostrarPagina(pagina.dataset.page);
+    return;
+  }
+
+  if (evento.target.closest("[data-close]")) {
+    fecharModal();
+    return;
+  }
+
+  const editarAluno = evento.target.closest("[data-edit-aluno]");
+  if (editarAluno) {
+    abrirFormularioAluno(editarAluno.dataset.editAluno);
+    return;
+  }
+
+  const excluirAlunoBotao = evento.target.closest("[data-delete-aluno]");
+  if (excluirAlunoBotao) {
+    excluirAluno(excluirAlunoBotao.dataset.deleteAluno);
+    return;
+  }
+
+  const editarVeiculo = evento.target.closest("[data-edit-veiculo]");
+  if (editarVeiculo) {
+    abrirFormularioVeiculo(editarVeiculo.dataset.editVeiculo);
+    return;
+  }
+
+  const excluirVeiculoBotao = evento.target.closest("[data-delete-veiculo]");
+  if (excluirVeiculoBotao) {
+    excluirVeiculo(excluirVeiculoBotao.dataset.deleteVeiculo);
+    return;
+  }
+
+  const editarAula = evento.target.closest("[data-edit-aula]");
+  if (editarAula) {
+    abrirFormularioAula(editarAula.dataset.editAula);
+    return;
+  }
+
+  const excluirAulaBotao = evento.target.closest("[data-delete-aula]");
+  if (excluirAulaBotao) {
+    excluirAula(excluirAulaBotao.dataset.deleteAula);
+    return;
+  }
+
+  const editarProdutoBotao = evento.target.closest("[data-edit-produto]");
+  if (editarProdutoBotao) {
+    editarProduto(editarProdutoBotao.dataset.editProduto);
+    return;
+  }
+
+  const excluirProdutoBotao = evento.target.closest("[data-delete-produto]");
+  if (excluirProdutoBotao) {
+    excluirProduto(excluirProdutoBotao.dataset.deleteProduto);
+    return;
+  }
+
+  if (evento.target.closest("#btnAdicionarProduto")) {
+    editarProduto();
+    return;
+  }
+
+  if (evento.target.closest("#btnImprimirRelatorio")) {
+    window.print();
+  }
+});
+
+document.getElementById("btnNovoAluno").onclick =
+  () => abrirFormularioAluno();
+
+document.getElementById("btnNovoVeiculo").onclick =
+  () => abrirFormularioVeiculo();
+
+document.getElementById("btnNovaAula").onclick =
+  () => abrirFormularioAula();
+
+document.getElementById("btnNovaVenda").onclick = abrirVenda;
+document.getElementById("btnNovaDespesa").onclick = abrirDespesa;
+document.getElementById("btnProdutos").onclick = abrirProdutos;
+
+document.getElementById("btnRelatorioAluno").onclick =
+  gerarRelatorioAluno;
+
+document.getElementById("btnRelatorioPeriodo").onclick =
+  gerarRelatorioPeriodo;
+
+document.getElementById("btnRelatorioDiario").onclick =
+  gerarRelatorioDiario;
+
+document.getElementById("btnExportarBackup").onclick =
+  exportarBackup;
+
+document.getElementById("btnImportarBackup").onclick =
+  importarBackup;
+
+document.getElementById("btnSalvarConfiguracoes").onclick =
+  salvarConfiguracoes;
+
+document.getElementById("btnLogout").onclick = () => {
+  mostrarAviso("Não há sessão de usuário ativa.");
+};
+
+document.getElementById("buscaAlunos").addEventListener(
+  "input", listarAlunos
+);
+
+document.getElementById("buscaVeiculos").addEventListener(
+  "input", listarVeiculos
+);
+
+document.getElementById("filtroDataAulas").addEventListener(
+  "change", listarAulas
+);
+
+document.getElementById("filtroAlunoAulas").addEventListener(
+  "change", listarAulas
+);
+
+/* =========================================
+   INICIALIZAÇÃO
+========================================= */
+
+function iniciarAplicativo() {
+  document.documentElement.style.setProperty(
+    "--primary",
+    db.configuracoes.corPrincipal
+  );
+
+  document.documentElement.style.setProperty(
+    "--secondary",
+    db.configuracoes.corSecundaria
+  );
+
+  document.querySelector(".brand h1").textContent =
+    db.configuracoes.nome;
+
+  atualizarPainel();
+  atualizarSeletoresAlunos();
+  listarAlunos();
+  listarVeiculos();
+  listarAulas();
+  atualizarFinanceiro();
+  mostrarPagina("inicio");
+
+  console.log("Marcus Instrutor iniciado.");
+}
+
+iniciarAplicativo();
