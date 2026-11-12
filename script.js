@@ -1348,23 +1348,54 @@ function abrirDespesa() {
   };
 }
 
+
 function excluirVenda(id) {
   const venda = db.vendas.find(v => v.id === id);
   if (!venda) return;
 
   const aluno = db.alunos.find(a => a.id === venda.alunoId);
-  const aulasLiquidas = Number(venda.aulasVendidas || 0) -
-    Number(venda.aulasDevolvidas || 0);
 
-  if (!aluno || Number(aluno.saldo || 0) < aulasLiquidas) {
-    mostrarAviso("Não é possível excluir: parte das aulas já foi utilizada.");
+  if (!aluno) {
+    mostrarAviso("Aluno da venda não encontrado.");
     return;
   }
 
-  if (!confirmar("Excluir esta venda e seus lançamentos financeiros?")) return;
+  let aulasLiquidas = 0;
 
-  aluno.saldo -= aulasLiquidas;
-  aluno.contratadas = Math.max(0, Number(aluno.contratadas || 0) - aulasLiquidas);
+  if (Array.isArray(venda.itens)) {
+    aulasLiquidas = venda.itens.reduce((total, item) => {
+      if (item.tipo !== "servico") return total;
+
+      const quantidade = Number(item.quantidade || 0);
+      const devolvidas = Number(item.aulasDevolvidas || 0);
+
+      return total + Math.max(0, quantidade - devolvidas);
+    }, 0);
+  } else {
+    aulasLiquidas =
+      Number(venda.aulasVendidas || 0) -
+      Number(venda.aulasDevolvidas || 0);
+  }
+
+  if (Number(aluno.saldo || 0) < aulasLiquidas) {
+    mostrarAviso(
+      "Não é possível excluir: parte das aulas já foi utilizada."
+    );
+    return;
+  }
+
+  if (!confirmar("Excluir esta venda e seus lançamentos financeiros?")) {
+    return;
+  }
+
+  if (aulasLiquidas > 0) {
+    aluno.saldo = Number(aluno.saldo || 0) - aulasLiquidas;
+
+    aluno.contratadas = Math.max(
+      0,
+      Number(aluno.contratadas || 0) - aulasLiquidas
+    );
+  }
 
   db.vendas = db.vendas.filter(v => v.id !== id);
   db.movimentacoes = db.movimentacoes.filter(m => m.vendaId !== id);
@@ -1373,8 +1404,10 @@ function excluirVenda(id) {
   listarAlunos();
   listarMovimentacoes();
   atualizarFinanceiro();
+
   mostrarAviso("Venda excluída e saldo atualizado.");
 }
+
 
 function excluirDespesa(id) {
   const movimento = db.movimentacoes.find(m =>
