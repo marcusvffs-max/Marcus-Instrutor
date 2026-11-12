@@ -2,8 +2,8 @@
 "use strict";
 
 /* =========================================
-   MARCUS INSTRUTOR - NOVA VERSÃO
-   Banco de dados independente e vazio
+   MARCUS INSTRUTOR
+   Controle de aulas e financeiro
 ========================================= */
 
 const STORAGE_KEY = "marcus_instrutor_novo_v1";
@@ -31,6 +31,7 @@ const estadoInicial = {
     { id: "p3", nome: "Pacote de 10 aulas", preco: 0, aulas: 10 },
     { id: "p4", nome: "Pacote de 20 aulas", preco: 0, aulas: 20 }
   ],
+  vendas: [],
   movimentacoes: [],
   configuracoes: {
     nome: "Marcus Instrutor",
@@ -62,7 +63,8 @@ function carregarDados() {
 
     return {
       ...structuredClone(estadoInicial),
-      ...recuperado
+      ...recuperado,
+      vendas: recuperado.vendas || []
     };
   } catch (erro) {
     console.error("Erro ao carregar dados:", erro);
@@ -149,9 +151,7 @@ function mostrarPagina(nome) {
 
   const pagina = document.getElementById("page-" + nome);
 
-  if (pagina) {
-    pagina.classList.add("active");
-  }
+  if (pagina) pagina.classList.add("active");
 
   atualizarTela(nome);
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -185,7 +185,7 @@ function atualizarTela(nome) {
 }
 
 /* =========================================
-   PAINEL INICIAL
+   PAINEL
 ========================================= */
 
 function atualizarPainel() {
@@ -206,9 +206,7 @@ function atualizarPainel() {
       db.aulas.filter(a => a.status === "Realizada").length;
   }
 
-  if (saldoCaixa) {
-    saldoCaixa.textContent = moeda(calcularSaldo());
-  }
+  if (saldoCaixa) saldoCaixa.textContent = moeda(calcularSaldo());
 
   const proximas = document.getElementById("proximasAulas");
 
@@ -277,16 +275,17 @@ function abrirFormularioAluno(id = null) {
 
       <label>Situação</label>
       <select name="situacao">
-        ${opcoes(["Em aberto", "Finalizado", "Aprovado"], aluno.situacao || "Em aberto")}
+        ${opcoes(
+          ["Em aberto", "Finalizado", "Aprovado"],
+          aluno.situacao || "Em aberto"
+        )}
       </select>
 
-      <label>Aulas contratadas</label>
-      <input name="contratadas" type="number" min="0"
-        required value="${aluno.contratadas ?? 0}">
-
-      <label>Aulas restantes</label>
-      <input name="saldo" type="number" min="0"
-        required value="${aluno.saldo ?? aluno.contratadas ?? 0}">
+      <div class="panel">
+        <strong>Controle de aulas</strong>
+        <p>As quantidades serão controladas automaticamente pelas vendas, devoluções e aulas realizadas.</p>
+        <p>Aulas restantes: <strong>${Number(aluno.saldo || 0)}</strong></p>
+      </div>
 
       <div class="modal-actions">
         <button type="button" class="secondary-button" data-close>Cancelar</button>
@@ -322,6 +321,8 @@ function salvarAluno(evento) {
     return;
   }
 
+  const alunoAnterior = db.alunos.find(a => a.id === alunoEditando);
+
   const aluno = {
     id: alunoEditando || gerarId(),
     nome,
@@ -330,8 +331,8 @@ function salvarAluno(evento) {
     endereco: dados.endereco,
     categoria: dados.categoria,
     situacao: dados.situacao,
-    contratadas: numero(dados.contratadas),
-    saldo: numero(dados.saldo)
+    contratadas: Number(alunoAnterior?.contratadas || 0),
+    saldo: Number(alunoAnterior?.saldo || 0)
   };
 
   if (alunoEditando) {
@@ -370,7 +371,7 @@ function listarAlunos() {
             <p>Telefone: ${escapar(a.telefone || "Não informado")}</p>
             <p>Categoria: ${escapar(a.categoria)}</p>
             <p>Situação: ${escapar(a.situacao)}</p>
-            <p>Aulas: ${a.saldo} restantes de ${a.contratadas}</p>
+            <p>Aulas restantes: <strong>${Number(a.saldo || 0)}</strong></p>
           </div>
           <div class="record-actions">
             <button type="button" data-edit-aluno="${a.id}">Editar</button>
@@ -630,6 +631,15 @@ function salvarAula(evento) {
     const indice = db.aulas.findIndex(a => a.id === aulaEditando);
     db.aulas[indice] = aula;
   } else {
+    if (aula.status === "Realizada") {
+      const aluno = db.alunos.find(a => a.id === aula.alunoId);
+
+      if (!aluno || Number(aluno.saldo || 0) < 1) {
+        mostrarAviso("Este aluno não possui aulas disponíveis.");
+        return;
+      }
+    }
+
     ajustarSaldoAula(aula, 1);
     db.aulas.push(aula);
   }
@@ -637,6 +647,7 @@ function salvarAula(evento) {
   salvarDados();
   fecharModal();
   listarAulas();
+  listarAlunos();
   atualizarSeletoresAlunos();
   mostrarAviso("Aula salva com sucesso!");
   aulaEditando = null;
@@ -646,8 +657,9 @@ function ajustarSaldoAula(aula, fator) {
   if (aula.status !== "Realizada") return;
 
   const aluno = db.alunos.find(a => a.id === aula.alunoId);
+
   if (aluno) {
-    aluno.saldo = Math.max(0, Number(aluno.saldo) - fator);
+    aluno.saldo = Math.max(0, Number(aluno.saldo || 0) - fator);
   }
 }
 
@@ -672,6 +684,7 @@ function listarAulas() {
     ? aulas.map(a => {
         const veiculo = db.veiculos.find(v => v.id === a.veiculoId);
         const aluno = db.alunos.find(x => x.id === a.alunoId);
+
         const numeroAula = db.aulas.filter(x =>
           x.alunoId === a.alunoId &&
           x.status === "Realizada" &&
@@ -702,8 +715,10 @@ function excluirAula(id) {
   if (aula) ajustarSaldoAula(aula, -1);
 
   db.aulas = db.aulas.filter(a => a.id !== id);
+
   salvarDados();
   listarAulas();
+  listarAlunos();
   mostrarAviso("Aula excluída.");
 }
 
@@ -733,9 +748,13 @@ function atualizarFinanceiro() {
     .filter(m => m.tipo === "saida")
     .reduce((s, m) => s + Number(m.valor), 0);
 
-  document.getElementById("totalEntradas").textContent = moeda(entradas);
-  document.getElementById("totalDespesas").textContent = moeda(despesas);
-  document.getElementById("saldoFinanceiro").textContent = moeda(entradas - despesas);
+  const elEntradas = document.getElementById("totalEntradas");
+  const elDespesas = document.getElementById("totalDespesas");
+  const elSaldo = document.getElementById("saldoFinanceiro");
+
+  if (elEntradas) elEntradas.textContent = moeda(entradas);
+  if (elDespesas) elDespesas.textContent = moeda(despesas);
+  if (elSaldo) elSaldo.textContent = moeda(entradas - despesas);
 }
 
 function listarMovimentacoes() {
@@ -748,12 +767,16 @@ function listarMovimentacoes() {
     ? movimentacoes.map(m => `
         <div class="record">
           <strong>${escapar(m.descricao)}</strong>
-          <p>${formatarData(m.data)} • ${m.tipo === "entrada" ? "Entrada" : "Saída"}</p>
+          <p>${formatarData(m.data)} • ${
+            m.tipo === "entrada" ? "Entrada" : "Saída"
+          }</p>
           <strong>${moeda(m.valor)}</strong>
         </div>
       `).join("")
     : '<div class="empty-state">Nenhuma movimentação registrada.</div>';
 }
+
+/* NOVA VENDA */
 
 function abrirVenda() {
   if (!db.alunos.length) {
@@ -832,7 +855,9 @@ function salvarVenda(evento) {
 
   const formulario = evento.target;
   const alunoId = formulario.elements.alunoId.value;
-  const selecionados = [...formulario.querySelectorAll('input[name="produto"]:checked')];
+  const selecionados = [
+    ...formulario.querySelectorAll('input[name="produto"]:checked')
+  ];
 
   if (!selecionados.length) {
     mostrarAviso("Selecione pelo menos um produto ou serviço.");
@@ -856,29 +881,235 @@ function salvarVenda(evento) {
     }
   });
 
-  total = Math.max(0, total - numero(formulario.elements.desconto.value));
+  if (totalAulas <= 0) {
+    mostrarAviso("A venda precisa adicionar pelo menos uma aula.");
+    return;
+  }
+
+  const desconto = numero(formulario.elements.desconto.value);
+  total = Math.max(0, total - desconto);
 
   const aluno = db.alunos.find(a => a.id === alunoId);
   if (!aluno) return;
 
-  aluno.saldo += totalAulas;
-  aluno.contratadas += totalAulas;
+  const venda = {
+    id: gerarId(),
+    alunoId,
+    descricao: descricoes.join(", "),
+    aulasVendidas: totalAulas,
+    aulasDevolvidas: 0,
+    valorTotal: total,
+    valorDevolvido: 0,
+    data: dataHoje()
+  };
 
-  registrarMovimentacao(
-    "entrada",
-    `Venda para ${aluno.nome}: ${descricoes.join(", ")}`,
-    total,
-    alunoId
-  );
+  db.vendas.push(venda);
 
+  aluno.saldo = Number(aluno.saldo || 0) + totalAulas;
+  aluno.contratadas = Number(aluno.contratadas || 0) + totalAulas;
+
+  db.movimentacoes.push({
+    id: gerarId(),
+    tipo: "entrada",
+    descricao: `Venda para ${aluno.nome}: ${venda.descricao}`,
+    valor: total,
+    alunoId,
+    vendaId: venda.id,
+    data: dataHoje()
+  });
+
+  salvarDados();
   fecharModal();
   listarAlunos();
+  listarMovimentacoes();
+  atualizarFinanceiro();
+
   mostrarAviso(`${totalAulas} aulas adicionadas ao saldo do aluno.`);
 }
+
+/* DEVOLUÇÃO PARCIAL OU TOTAL */
+
+function abrirDevolucao() {
+  if (!db.vendas.length) {
+    mostrarAviso("Ainda não existem vendas para devolver.");
+    return;
+  }
+
+  const vendasDisponiveis = db.vendas.filter(v =>
+    Number(v.aulasVendidas) > Number(v.aulasDevolvidas || 0)
+  );
+
+  if (!vendasDisponiveis.length) {
+    mostrarAviso("Não existem aulas disponíveis para devolução.");
+    return;
+  }
+
+  abrirModal(`
+    <h2>Devolução de aulas</h2>
+
+    <form id="formDevolucao">
+      <label>Venda / aluno</label>
+      <select name="vendaId" id="selectVendaDevolucao" required>
+        <option value="">Selecione a venda</option>
+        ${vendasDisponiveis.map(v => {
+          const aluno = db.alunos.find(a => a.id === v.alunoId);
+          const disponiveis =
+            Number(v.aulasVendidas) - Number(v.aulasDevolvidas || 0);
+
+          return `
+            <option value="${v.id}">
+              ${escapar(aluno?.nome || "Aluno não encontrado")} —
+              ${escapar(v.descricao)} —
+              ${disponiveis} aula(s) disponíveis
+            </option>
+          `;
+        }).join("")}
+      </select>
+
+      <label>Quantidade de aulas para devolver</label>
+      <input name="quantidade" id="quantidadeDevolucao"
+        type="number" min="1" step="1" required>
+
+      <div class="panel" id="resumoDevolucao">
+        Selecione uma venda para consultar os limites.
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-button" data-close>Cancelar</button>
+        <button type="submit" class="primary-button">Confirmar devolução</button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById("selectVendaDevolucao")
+    .addEventListener("change", atualizarResumoDevolucao);
+
+  document.getElementById("quantidadeDevolucao")
+    .addEventListener("input", atualizarResumoDevolucao);
+
+  document.getElementById("formDevolucao").onsubmit = salvarDevolucao;
+}
+
+function atualizarResumoDevolucao() {
+  const formulario = document.getElementById("formDevolucao");
+  if (!formulario) return;
+
+  const vendaId = formulario.elements.vendaId.value;
+  const venda = db.vendas.find(v => v.id === vendaId);
+  const resumo = document.getElementById("resumoDevolucao");
+
+  if (!venda) {
+    resumo.textContent = "Selecione uma venda para consultar os limites.";
+    return;
+  }
+
+  const quantidadeDisponivel =
+    Number(venda.aulasVendidas) - Number(venda.aulasDevolvidas || 0);
+
+  const quantidade = numero(formulario.elements.quantidade.value);
+  const aluno = db.alunos.find(a => a.id === venda.alunoId);
+
+  const valorPorAula = Number(venda.valorTotal || 0) /
+    Math.max(1, Number(venda.aulasVendidas || 1));
+
+  const valorEstimado = valorPorAula * quantidade;
+
+  resumo.innerHTML = `
+    <p><strong>Aluno:</strong> ${escapar(aluno?.nome || "")}</p>
+    <p><strong>Quantidade disponível nesta venda:</strong> ${quantidadeDisponivel}</p>
+    <p><strong>Saldo atual do aluno:</strong> ${Number(aluno?.saldo || 0)}</p>
+    <p><strong>Valor estimado da devolução:</strong> ${moeda(valorEstimado)}</p>
+    <small>O valor é calculado proporcionalmente ao preço original da venda.</small>
+  `;
+}
+
+function salvarDevolucao(evento) {
+  evento.preventDefault();
+
+  const formulario = evento.target;
+  const vendaId = formulario.elements.vendaId.value;
+  const quantidade = numero(formulario.elements.quantidade.value);
+
+  const venda = db.vendas.find(v => v.id === vendaId);
+  if (!venda) {
+    mostrarAviso("Venda não encontrada.");
+    return;
+  }
+
+  const aluno = db.alunos.find(a => a.id === venda.alunoId);
+  if (!aluno) {
+    mostrarAviso("Aluno não encontrado.");
+    return;
+  }
+
+  const quantidadeDisponivel =
+    Number(venda.aulasVendidas) - Number(venda.aulasDevolvidas || 0);
+
+  if (!Number.isInteger(quantidade) || quantidade < 1) {
+    mostrarAviso("Informe uma quantidade inteira válida.");
+    return;
+  }
+
+  if (quantidade > quantidadeDisponivel) {
+    mostrarAviso("A quantidade supera as aulas disponíveis nesta venda.");
+    return;
+  }
+
+  if (quantidade > Number(aluno.saldo || 0)) {
+    mostrarAviso(
+      "Não é possível devolver aulas que já foram utilizadas."
+    );
+    return;
+  }
+
+  const valorPorAula =
+    Number(venda.valorTotal || 0) /
+    Math.max(1, Number(venda.aulasVendidas || 1));
+
+  const valorDevolvido = Math.min(
+    Number(venda.valorTotal || 0) - Number(venda.valorDevolvido || 0),
+    valorPorAula * quantidade
+  );
+
+  venda.aulasDevolvidas =
+    Number(venda.aulasDevolvidas || 0) + quantidade;
+
+  venda.valorDevolvido =
+    Number(venda.valorDevolvido || 0) + valorDevolvido;
+
+  aluno.saldo = Math.max(0, Number(aluno.saldo || 0) - quantidade);
+  aluno.contratadas = Math.max(
+    0,
+    Number(aluno.contratadas || 0) - quantidade
+  );
+
+  db.movimentacoes.push({
+    id: gerarId(),
+    tipo: "saida",
+    descricao: `Devolução de ${quantidade} aula(s) para ${aluno.nome}`,
+    valor: valorDevolvido,
+    alunoId: aluno.id,
+    vendaId: venda.id,
+    data: dataHoje()
+  });
+
+  salvarDados();
+  fecharModal();
+  listarAlunos();
+  listarMovimentacoes();
+  atualizarFinanceiro();
+
+  mostrarAviso(
+    `Devolução de ${quantidade} aula(s) registrada.`
+  );
+}
+
+/* DESPESAS */
 
 function abrirDespesa() {
   abrirModal(`
     <h2>Nova despesa</h2>
+
     <form id="formDespesa">
       <label>Descrição</label>
       <input name="descricao" required>
@@ -895,20 +1126,30 @@ function abrirDespesa() {
 
   document.getElementById("formDespesa").onsubmit = evento => {
     evento.preventDefault();
-    const dados = Object.fromEntries(new FormData(evento.target).entries());
+
+    const dados = Object.fromEntries(
+      new FormData(evento.target).entries()
+    );
 
     if (numero(dados.valor) <= 0) {
       mostrarAviso("Informe um valor válido.");
       return;
     }
 
-    registrarMovimentacao("saida", dados.descricao, numero(dados.valor));
+    registrarMovimentacao(
+      "saida",
+      dados.descricao,
+      numero(dados.valor)
+    );
+
     fecharModal();
     listarMovimentacoes();
     atualizarFinanceiro();
     mostrarAviso("Despesa registrada.");
   };
 }
+
+/* PRODUTOS E SERVIÇOS */
 
 function abrirProdutos() {
   abrirModal(`
@@ -937,6 +1178,7 @@ function editarProduto(id = null) {
 
   abrirModal(`
     <h2>${id ? "Editar produto" : "Novo produto"}</h2>
+
     <form id="formProduto">
       <label>Nome</label>
       <input name="nome" required value="${escapar(produto.nome)}">
@@ -946,7 +1188,7 @@ function editarProduto(id = null) {
         value="${produto.preco ?? 0}" required>
 
       <label>Quantidade de aulas adicionadas</label>
-      <input name="aulas" type="number" min="0"
+      <input name="aulas" type="number" min="1" step="1"
         value="${produto.aulas ?? 1}" required>
 
       <div class="modal-actions">
@@ -959,18 +1201,28 @@ function editarProduto(id = null) {
   document.getElementById("formProduto").onsubmit = evento => {
     evento.preventDefault();
 
-    const dados = Object.fromEntries(new FormData(evento.target).entries());
+    const dados = Object.fromEntries(
+      new FormData(evento.target).entries()
+    );
+
+    const aulas = numero(dados.aulas);
+    const preco = numero(dados.preco);
+
+    if (!Number.isInteger(aulas) || aulas < 1 || preco < 0) {
+      mostrarAviso("Confira a quantidade de aulas e o preço.");
+      return;
+    }
 
     const novo = {
       id: id || gerarId(),
       nome: dados.nome.trim(),
-      preco: numero(dados.preco),
-      aulas: numero(dados.aulas)
+      preco,
+      aulas
     };
 
     if (id) {
       const indice = db.produtos.findIndex(p => p.id === id);
-      db.produtos[indice] = novo;
+      if (indice >= 0) db.produtos[indice] = novo;
     } else {
       db.produtos.push(novo);
     }
@@ -983,6 +1235,7 @@ function editarProduto(id = null) {
 
 function excluirProduto(id) {
   if (!confirmar("Excluir este produto?")) return;
+
   db.produtos = db.produtos.filter(p => p.id !== id);
   salvarDados();
   abrirProdutos();
@@ -1017,6 +1270,7 @@ function atualizarSeletoresAlunos() {
 
 function gerarRelatorioAluno() {
   const id = document.getElementById("relatorioAluno").value;
+
   if (!id) {
     mostrarAviso("Selecione um aluno.");
     return;
@@ -1027,7 +1281,9 @@ function gerarRelatorioAluno() {
 
   const aulas = db.aulas
     .filter(a => a.alunoId === id)
-    .sort((a, b) => (a.data + a.horario).localeCompare(b.data + b.horario));
+    .sort((a, b) =>
+      (a.data + a.horario).localeCompare(b.data + b.horario)
+    );
 
   const realizadas = aulas.filter(a => a.status === "Realizada").length;
 
@@ -1035,9 +1291,9 @@ function gerarRelatorioAluno() {
     <h2>Relatório individual de aulas</h2>
     <p><strong>Aluno:</strong> ${escapar(aluno.nome)}</p>
     <p><strong>Categoria:</strong> ${escapar(aluno.categoria)}</p>
-    <p><strong>Contratadas:</strong> ${aluno.contratadas}</p>
+    <p><strong>Total contratado:</strong> ${Number(aluno.contratadas || 0)}</p>
     <p><strong>Realizadas:</strong> ${realizadas}</p>
-    <p><strong>Restantes:</strong> ${aluno.saldo}</p>
+    <p><strong>Restantes:</strong> ${Number(aluno.saldo || 0)}</p>
     ${tabelaAulas(aulas)}
   `);
 }
@@ -1051,7 +1307,9 @@ function gerarRelatorioPeriodo() {
     return;
   }
 
-  const aulas = db.aulas.filter(a => a.data >= inicio && a.data <= fim);
+  const aulas = db.aulas.filter(a =>
+    a.data >= inicio && a.data <= fim
+  );
 
   mostrarRelatorio(`
     <h2>Relatório por período</h2>
@@ -1098,6 +1356,7 @@ function tabelaAulas(aulas, assinatura = false) {
         <tbody>
           ${aulas.map(a => {
             const veiculo = db.veiculos.find(v => v.id === a.veiculoId);
+
             return `
               <tr>
                 <td>${formatarData(a.data)}</td>
@@ -1189,7 +1448,8 @@ function importarBackup() {
 
       db = {
         ...structuredClone(estadoInicial),
-        ...dados
+        ...dados,
+        vendas: dados.vendas || []
       };
 
       salvarDados();
@@ -1198,6 +1458,8 @@ function importarBackup() {
       listarAlunos();
       listarVeiculos();
       listarAulas();
+      listarMovimentacoes();
+      atualizarFinanceiro();
 
       mostrarAviso("Backup restaurado com sucesso!");
       input.value = "";
@@ -1306,6 +1568,7 @@ function opcoes(valores, selecionado) {
 
 document.addEventListener("click", evento => {
   const pagina = evento.target.closest("[data-page]");
+
   if (pagina) {
     mostrarPagina(pagina.dataset.page);
     return;
@@ -1371,6 +1634,7 @@ document.addEventListener("click", evento => {
 
   if (evento.target.closest("#btnImprimirRelatorio")) {
     window.print();
+    return;
   }
 });
 
@@ -1386,6 +1650,11 @@ document.getElementById("btnNovaAula").onclick =
 document.getElementById("btnNovaVenda").onclick = abrirVenda;
 document.getElementById("btnNovaDespesa").onclick = abrirDespesa;
 document.getElementById("btnProdutos").onclick = abrirProdutos;
+
+const botaoDevolucao = document.getElementById("btnDevolucao");
+if (botaoDevolucao) {
+  botaoDevolucao.onclick = abrirDevolucao;
+}
 
 document.getElementById("btnRelatorioAluno").onclick =
   gerarRelatorioAluno;
@@ -1448,6 +1717,7 @@ function iniciarAplicativo() {
   listarAlunos();
   listarVeiculos();
   listarAulas();
+  listarMovimentacoes();
   atualizarFinanceiro();
   mostrarPagina("inicio");
 
