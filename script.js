@@ -1,4 +1,3 @@
-
 "use strict";
 
 /* =========================================
@@ -689,7 +688,6 @@ function excluirAula(id) {
   listarAlunos();
   mostrarAviso("Aula excluída.");
 }
-
 /* =========================================
    FINANCEIRO
 ========================================= */
@@ -758,8 +756,6 @@ function listarMovimentacoes() {
 /* =========================================
    PRODUTOS E SERVIÇOS
 ========================================= */
-
-/* Lista agora aparece na página própria page-produtos */
 
 function listarProdutos() {
   const lista = document.getElementById("listaProdutos");
@@ -1141,8 +1137,8 @@ function abrirDespesa() {
     const dados = Object.fromEntries(new FormData(evento.target).entries());
     const valor = numero(dados.valor);
 
-    if (valor <= 0) {
-      mostrarAviso("Informe um valor válido.");
+    if (valor <= 0 || !dados.descricao.trim()) {
+      mostrarAviso("Informe descrição e valor válidos.");
       return;
     }
 
@@ -1331,20 +1327,137 @@ function tabelaAulas(aulas, assinatura = false) {
   `;
 }
 
+/* RELATÓRIO EM NOVA TELA */
+
 function mostrarRelatorio(conteudo) {
-  const resultado = document.getElementById("resultadoRelatorio");
-  if (!resultado) return;
-
-  resultado.innerHTML = `
-    <div class="panel printable-report">
-      ${conteudo}
-      <button id="btnImprimirRelatorio" class="primary-button" type="button">
-        Imprimir / Salvar PDF
-      </button>
-    </div>
-  `;
-
   relatorioAtual = conteudo;
+
+  const janela = window.open("", "_blank");
+
+  if (!janela) {
+    mostrarAviso("Permita janelas pop-up para abrir o relatório.");
+    return;
+  }
+
+  const nomeEmpresa = escapar(db.configuracoes.nome || "Marcus Instrutor");
+
+  janela.document.open();
+  janela.document.write(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Relatório - ${nomeEmpresa}</title>
+
+      <style>
+        * {
+          box-sizing: border-box;
+        }
+
+        body {
+          font-family: Arial, sans-serif;
+          color: #222;
+          margin: 25px;
+          background: #fff;
+        }
+
+        .cabecalho {
+          text-align: center;
+          border-bottom: 2px solid #12345a;
+          padding-bottom: 12px;
+          margin-bottom: 20px;
+        }
+
+        .cabecalho h1 {
+          color: #12345a;
+          margin: 0 0 5px;
+        }
+
+        h2 {
+          color: #12345a;
+          margin-top: 15px;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+        }
+
+        th, td {
+          border: 1px solid #999;
+          padding: 9px 7px;
+          text-align: left;
+          font-size: 13px;
+        }
+
+        th {
+          background: #e8edf3;
+          color: #12345a;
+        }
+
+        .acoes {
+          display: flex;
+          gap: 10px;
+          margin: 20px 0;
+        }
+
+        button {
+          border: 0;
+          border-radius: 6px;
+          padding: 12px 18px;
+          background: #12345a;
+          color: white;
+          font-size: 15px;
+          cursor: pointer;
+        }
+
+        .voltar {
+          background: #555;
+        }
+
+        @media print {
+          body {
+            margin: 10mm;
+          }
+
+          .acoes {
+            display: none !important;
+          }
+
+          th {
+            background: #e8edf3 !important;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+
+          tr {
+            page-break-inside: avoid;
+          }
+        }
+      </style>
+    </head>
+
+    <body>
+      <div class="cabecalho">
+        <h1>${nomeEmpresa}</h1>
+        <p>Relatório de controle de aulas</p>
+      </div>
+
+      <main>
+        ${conteudo}
+      </main>
+
+      <div class="acoes">
+        <button onclick="window.print()">Imprimir / Salvar PDF</button>
+        <button class="voltar" onclick="window.close()">Fechar relatório</button>
+      </div>
+    </body>
+    </html>
+  `);
+
+  janela.document.close();
 }
 
 /* =========================================
@@ -1586,11 +1699,6 @@ document.addEventListener("click", evento => {
     return;
   }
 
-  if (evento.target.closest("#btnImprimirRelatorio")) {
-    window.print();
-    return;
-  }
-
   const excluirVendaBotao = evento.target.closest("[data-delete-venda]");
   if (excluirVendaBotao) {
     excluirVenda(excluirVendaBotao.dataset.deleteVenda);
@@ -1604,78 +1712,117 @@ document.addEventListener("click", evento => {
   }
 });
 
-/* BOTÕES PRINCIPAIS */
+/* =========================================
+   BOTÕES PRINCIPAIS
+========================================= */
 
-document.getElementById("btnNovoAluno").onclick =
-  () => abrirFormularioAluno();
+const botaoNovoAluno = document.getElementById("btnNovoAluno");
+if (botaoNovoAluno) {
+  botaoNovoAluno.onclick = () => abrirFormularioAluno();
+}
 
-document.getElementById("btnNovoVeiculo").onclick =
-  () => abrirFormularioVeiculo();
+const botaoNovoVeiculo = document.getElementById("btnNovoVeiculo");
+if (botaoNovoVeiculo) {
+  botaoNovoVeiculo.onclick = () => abrirFormularioVeiculo();
+}
 
-document.getElementById("btnNovaAula").onclick =
-  () => abrirFormularioAula();
+const botaoNovaAula = document.getElementById("btnNovaAula");
+if (botaoNovaAula) {
+  botaoNovaAula.onclick = () => abrirFormularioAula();
+}
 
-document.getElementById("btnNovaVenda").onclick = abrirVenda;
+const botaoNovaVenda = document.getElementById("btnNovaVenda");
+if (botaoNovaVenda) {
+  botaoNovaVenda.onclick = abrirVenda;
+}
 
-/* CORREÇÃO: ABRIR PÁGINA PRÓPRIA DE PRODUTOS */
+/* BOTÃO NOVA DESPESA */
 
-document.getElementById("btnProdutos").onclick = () => {
-  mostrarPagina("produtos");
-};
+const botaoNovaDespesa = document.getElementById("btnNovaDespesa");
+if (botaoNovaDespesa) {
+  botaoNovaDespesa.onclick = abrirDespesa;
+}
 
-document.getElementById("btnNovoProduto").onclick = () => {
-  editarProduto();
-};
+/* PÁGINA DE PRODUTOS */
+
+const botaoProdutos = document.getElementById("btnProdutos");
+if (botaoProdutos) {
+  botaoProdutos.onclick = () => mostrarPagina("produtos");
+}
+
+const botaoNovoProduto = document.getElementById("btnNovoProduto");
+if (botaoNovoProduto) {
+  botaoNovoProduto.onclick = () => editarProduto();
+}
 
 /* BUSCA DE PRODUTOS */
 
-document.getElementById("buscaProdutos").addEventListener(
-  "input",
-  listarProdutos
-);
+const buscaProdutos = document.getElementById("buscaProdutos");
+if (buscaProdutos) {
+  buscaProdutos.addEventListener("input", listarProdutos);
+}
 
 const botaoDevolucao = document.getElementById("btnDevolucao");
 if (botaoDevolucao) {
   botaoDevolucao.onclick = abrirDevolucao;
 }
 
-document.getElementById("btnRelatorioAluno").onclick =
-  gerarRelatorioAluno;
+const botaoRelatorioAluno = document.getElementById("btnRelatorioAluno");
+if (botaoRelatorioAluno) {
+  botaoRelatorioAluno.onclick = gerarRelatorioAluno;
+}
 
-document.getElementById("btnRelatorioPeriodo").onclick =
-  gerarRelatorioPeriodo;
+const botaoRelatorioPeriodo = document.getElementById("btnRelatorioPeriodo");
+if (botaoRelatorioPeriodo) {
+  botaoRelatorioPeriodo.onclick = gerarRelatorioPeriodo;
+}
 
-document.getElementById("btnRelatorioDiario").onclick =
-  gerarRelatorioDiario;
+const botaoRelatorioDiario = document.getElementById("btnRelatorioDiario");
+if (botaoRelatorioDiario) {
+  botaoRelatorioDiario.onclick = gerarRelatorioDiario;
+}
 
-document.getElementById("btnExportarBackup").onclick =
-  exportarBackup;
+const botaoExportarBackup = document.getElementById("btnExportarBackup");
+if (botaoExportarBackup) {
+  botaoExportarBackup.onclick = exportarBackup;
+}
 
-document.getElementById("btnImportarBackup").onclick =
-  importarBackup;
+const botaoImportarBackup = document.getElementById("btnImportarBackup");
+if (botaoImportarBackup) {
+  botaoImportarBackup.onclick = importarBackup;
+}
 
-document.getElementById("btnSalvarConfiguracoes").onclick =
-  salvarConfiguracoes;
+const botaoSalvarConfiguracoes = document.getElementById("btnSalvarConfiguracoes");
+if (botaoSalvarConfiguracoes) {
+  botaoSalvarConfiguracoes.onclick = salvarConfiguracoes;
+}
 
-document.getElementById("btnLogout").onclick = () => {
-  mostrarAviso("Não há sessão de usuário ativa.");
-};
+const botaoLogout = document.getElementById("btnLogout");
+if (botaoLogout) {
+  botaoLogout.onclick = () => {
+    mostrarAviso("Não há sessão de usuário ativa.");
+  };
+}
 
-document.getElementById("buscaAlunos").addEventListener(
-  "input", listarAlunos
-);
+const buscaAlunos = document.getElementById("buscaAlunos");
+if (buscaAlunos) {
+  buscaAlunos.addEventListener("input", listarAlunos);
+}
 
-document.getElementById("buscaVeiculos").addEventListener(
-  "input", listarVeiculos
-);
+const buscaVeiculos = document.getElementById("buscaVeiculos");
+if (buscaVeiculos) {
+  buscaVeiculos.addEventListener("input", listarVeiculos);
+}
 
-document.getElementById("filtroDataAulas").addEventListener(
-  "change", listarAulas
-);
+const filtroDataAulas = document.getElementById("filtroDataAulas");
+if (filtroDataAulas) {
+  filtroDataAulas.addEventListener("change", listarAulas);
+}
 
-document.getElementById("filtroAlunoAulas").addEventListener(
-  "change", listarAulas
-);
+const filtroAlunoAulas = document.getElementById("filtroAlunoAulas");
+if (filtroAlunoAulas) {
+  filtroAlunoAulas.addEventListener("change", listarAulas);
+}
 
 /* =========================================
    INICIALIZAÇÃO
@@ -1692,8 +1839,8 @@ function iniciarAplicativo() {
     db.configuracoes.corSecundaria
   );
 
-  document.querySelector(".brand h1").textContent =
-    db.configuracoes.nome;
+  const titulo = document.querySelector(".brand h1");
+  if (titulo) titulo.textContent = db.configuracoes.nome;
 
   atualizarPainel();
   atualizarSeletoresAlunos();
@@ -1763,4 +1910,4 @@ if (painelBackup) {
 
   document.getElementById("btnLimparRegistros").onclick =
     limparTodosRegistros;
-}
+         }
