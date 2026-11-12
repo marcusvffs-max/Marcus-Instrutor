@@ -1,7 +1,6 @@
-
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v1";
+const CACHE_NAME = "marcus-instrutor-v2";
 
 const ARQUIVOS = [
   "./",
@@ -17,7 +16,7 @@ self.addEventListener("install", event => {
       Promise.all(
         ARQUIVOS.map(arquivo =>
           cache.add(arquivo).catch(erro => {
-            console.warn("Não foi possível armazenar:", arquivo, erro);
+            console.warn("Erro no cache:", arquivo, erro);
           })
         )
       )
@@ -53,24 +52,17 @@ self.addEventListener("fetch", event => {
       .then(resposta => {
         if (resposta && resposta.status === 200) {
           const copia = resposta.clone();
-
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, copia);
-          });
+          caches.open(CACHE_NAME).then(cache =>
+            cache.put(event.request, copia)
+          );
         }
 
         return resposta;
       })
       .catch(() =>
-        caches.match(event.request).then(resposta => {
-          if (resposta) return resposta;
-
-          if (event.request.mode === "navigate") {
-            return caches.match("./index.html");
-          }
-
-          return Response.error();
-        })
+        caches.match(event.request).then(resposta =>
+          resposta || Response.error()
+        )
       )
   );
 });
