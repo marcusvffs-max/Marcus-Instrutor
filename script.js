@@ -468,13 +468,18 @@ function mostrarAulas() {
     listarAulas();
 }
 
+// FUNÇÃO CORRIGIDA: BLOQUEIA HORÁRIOS DUPLICADOS
+
 function salvarAula(evento) {
     evento.preventDefault();
 
     const id = document.getElementById("aulaId").value;
     const alunoId = document.getElementById("aulaAluno").value;
     const veiculoId = document.getElementById("aulaVeiculo").value;
+    const data = document.getElementById("aulaData").value;
+    const horario = document.getElementById("aulaHorario").value;
     const situacao = document.getElementById("aulaSituacao").value;
+    const observacao = document.getElementById("aulaObservacao").value.trim();
 
     const aluno = dados.alunos.find(a => a.id === alunoId);
     const veiculo = dados.veiculos.find(v => v.id === veiculoId);
@@ -483,19 +488,42 @@ function salvarAula(evento) {
         return alert("Selecione um aluno e um veículo válidos.");
     }
 
-    if (aluno.categoria !== "AB" && aluno.categoria !== veiculo.categoria) {
+    if (!data || !horario) {
+        return alert("Informe a data e o horário da aula.");
+    }
+
+    if (
+        aluno.categoria !== "AB" &&
+        aluno.categoria !== veiculo.categoria
+    ) {
         return alert("A categoria do veículo não corresponde à categoria do aluno.");
     }
 
-    const aula = {
-        id: id || gerarId(),
-        alunoId,
-        veiculoId,
-        data: document.getElementById("aulaData").value,
-        horario: document.getElementById("aulaHorario").value,
-        situacao,
-        observacao: document.getElementById("aulaObservacao").value.trim()
-    };
+    // Verifica conflito de dia e horário.
+    // Aulas canceladas não ocupam horário.
+    // Ignora a própria aula durante a edição.
+
+    const conflito = dados.aulas.find(a =>
+        a.id !== id &&
+        a.data === data &&
+        a.horario === horario &&
+        a.situacao !== "Cancelada"
+    );
+
+    if (situacao !== "Cancelada" && conflito) {
+        const nomeConflito =
+            dados.alunos.find(a => a.id === conflito.alunoId)?.nome
+            || "outro aluno";
+
+        return alert(
+            "HORÁRIO INDISPONÍVEL!\n\n" +
+            data + " às " + horario +
+            " já está reservado para " + nomeConflito +
+            ".\nEscolha outro horário."
+        );
+    }
+
+    // Verifica o saldo de aulas.
 
     const realizadasSemEsta = dados.aulas.filter(a =>
         a.alunoId === alunoId &&
@@ -503,21 +531,39 @@ function salvarAula(evento) {
         a.id !== id
     ).length;
 
-    if (situacao === "Realizada" &&
-        realizadasSemEsta >= Number(aluno.contratadas || 0)) {
+    if (
+        situacao === "Realizada" &&
+        realizadasSemEsta >= Number(aluno.contratadas || 0)
+    ) {
         return alert("O aluno não possui saldo de aulas disponível.");
     }
 
+    const aula = {
+        id: id || gerarId(),
+        alunoId: alunoId,
+        veiculoId: veiculoId,
+        data: data,
+        horario: horario,
+        situacao: situacao,
+        observacao: observacao
+    };
+
     if (id) {
-        dados.aulas = dados.aulas.map(a =>
-            a.id === id ? aula : a
-        );
+        const indice = dados.aulas.findIndex(a => a.id === id);
+
+        if (indice < 0) {
+            return alert("Não foi possível localizar esta aula para edição. Atualize a tela e tente novamente.");
+        }
+
+        dados.aulas[indice] = aula;
     } else {
         dados.aulas.push(aula);
     }
 
     salvarDados();
+
     alert("Aula salva com sucesso!");
+
     mostrarAulas();
 }
 
@@ -734,4 +780,3 @@ function importarBackup() {
 
 carregarDados();
 atualizarPainel();
-
