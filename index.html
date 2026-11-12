@@ -1,0 +1,65 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#12345a">
+    <meta name="description" content="Controle de aulas - Marcus Instrutor">
+    <title>Marcus Instrutor - Controle de Aulas</title>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="topo">
+        <h1>MARCUS INSTRUTOR</h1>
+        <p>Controle de aulas</p>
+    </header>
+
+    <nav class="menu">
+        <button onclick="mostrarPagina('inicio')">Início</button>
+        <button onclick="mostrarPagina('alunos')">Alunos</button>
+        <button onclick="mostrarPagina('veiculos')">Veículos</button>
+        <button onclick="mostrarPagina('aulas')">Aulas</button>
+        <button onclick="mostrarPagina('relatorios')">Relatórios</button>
+        <button onclick="mostrarPagina('backup')">Backup</button>
+    </nav>
+
+    <main>
+        <section id="inicio" class="pagina ativa">
+            <h2>Painel principal</h2>
+            <p>Bem-vindo ao controle de aulas.</p>
+            <div id="resumo"></div>
+        </section>
+
+        <section id="alunos" class="pagina">
+            <h2>Cadastro de alunos</h2>
+            <div id="conteudoAlunos"></div>
+        </section>
+
+        <section id="veiculos" class="pagina">
+            <h2>Cadastro de veículos</h2>
+            <div id="conteudoVeiculos"></div>
+        </section>
+
+        <section id="aulas" class="pagina">
+            <h2>Controle de aulas</h2>
+            <div id="conteudoAulas"></div>
+        </section>
+
+        <section id="relatorios" class="pagina">
+            <h2>Relatórios</h2>
+            <div id="conteudoRelatorios"></div>
+        </section>
+
+        <section id="backup" class="pagina">
+            <h2>Backup dos dados</h2>
+            <div id="conteudoBackup"></div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
