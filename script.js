@@ -911,6 +911,7 @@ function excluirProduto(id) {
    VENDAS
 ========================================= */
 
+
 function abrirVenda() {
   if (!db.alunos.length) {
     mostrarAviso("Cadastre um aluno primeiro.");
@@ -921,6 +922,8 @@ function abrirVenda() {
     mostrarAviso("Cadastre um produto primeiro.");
     return;
   }
+
+  const itensCarrinho = [];
 
   abrirModal(`
     <h2>Nova venda</h2>
@@ -934,32 +937,38 @@ function abrirVenda() {
         ).join("")}
       </select>
 
-      <label>Produto / Pacote</label>
-      <select name="produtoId" id="produtoVenda" required>
+      <label>Produto ou serviço</label>
+      <select id="produtoVenda">
         <option value="">Selecione</option>
         ${db.produtos.map(p =>
           `<option value="${p.id}" data-preco="${p.preco}">
-            ${escapar(p.nome)} — ${moeda(p.preco)} por aula
+            ${escapar(p.nome)} — ${moeda(p.preco)}
           </option>`
         ).join("")}
       </select>
 
-      <label>Quantidade de aulas</label>
-      <input name="quantidade" id="quantidadeVenda"
-        type="number" min="1" step="1" required>
+      <label>Quantidade</label>
+      <input id="quantidadeVenda" type="number" min="1" step="1" value="1">
+
+      <button type="button" id="adicionarItemVenda" class="secondary-button">
+        Adicionar item
+      </button>
 
       <div class="panel">
-        <p>Valor por aula:
-          <strong id="precoUnitarioVenda">R$ 0,00</strong>
-        </p>
-        <p>Total:
-          <strong id="totalVenda">R$ 0,00</strong>
+        <strong>Itens da venda</strong>
+        <div id="itensCarrinhoVenda">
+          <p>Nenhum item adicionado.</p>
+        </div>
+        <p>Total: <strong id="totalVenda">R$ 0,00</strong></p>
+        <p>Aulas que serão adicionadas:
+          <strong id="aulasVenda">0</strong>
         </p>
       </div>
 
       <div class="modal-actions">
-        <button type="button" class="secondary-button"
-          data-close>Cancelar</button>
+        <button type="button" class="secondary-button" data-close>
+          Cancelar
+        </button>
         <button type="submit" class="primary-button">
           Confirmar venda
         </button>
@@ -967,27 +976,94 @@ function abrirVenda() {
     </form>
   `);
 
-  document.getElementById("formVenda").addEventListener("change", calcularVenda);
-  document.getElementById("formVenda").addEventListener("input", calcularVenda);
-  document.getElementById("formVenda").onsubmit = salvarVenda;
+  const formulario = document.getElementById("formVenda");
+  const campoProduto = document.getElementById("produtoVenda");
+  const campoQuantidade = document.getElementById("quantidadeVenda");
+
+  function atualizarCarrinho() {
+    const lista = document.getElementById("itensCarrinhoVenda");
+
+    lista.innerHTML = itensCarrinho.length
+      ? itensCarrinho.map((item, indice) => `
+          <div class="record">
+            <strong>${escapar(item.nome)}</strong>
+            <p>Classificação: ${item.tipo === "servico" ? "Serviço" : "Produto"}</p>
+            <p>Quantidade: ${item.quantidade}</p>
+            <p>Subtotal: ${moeda(item.total)}</p>
+            <button type="button" data-remover-item="${indice}">
+              Remover
+            </button>
+          </div>
+        `).join("")
+      : "<p>Nenhum item adicionado.</p>";
+
+    const total = itensCarrinho.reduce((s, item) => s + item.total, 0);
+    const aulas = itensCarrinho.reduce(
+      (s, item) => s + (item.tipo === "servico" ? item.quantidade : 0),
+      0
+    );
+
+    document.getElementById("totalVenda").textContent = moeda(total);
+    document.getElementById("aulasVenda").textContent = aulas;
+  }
+
+  document.getElementById("adicionarItemVenda").onclick = () => {
+    const produto = db.produtos.find(p => p.id === campoProduto.value);
+    const quantidade = numero(campoQuantidade.value);
+
+    if (!produto || !Number.isInteger(quantidade) || quantidade < 1) {
+      mostrarAviso("Selecione um item e informe uma quantidade válida.");
+      return;
+    }
+
+    const tipo = produto.tipo ||
+      (/pacote\s*(bronze|prata|ouro)|aula avulsa/i.test(produto.nome || "")
+        ? "servico"
+        : "produto");
+
+    const preco = Number(produto.preco);
+
+    if (preco <= 0) {
+      mostrarAviso("O item possui um valor inválido.");
+      return;
+    }
+
+    itensCarrinho.push({
+      produtoId: produto.id,
+      nome: produto.nome,
+      tipo,
+      quantidade,
+      precoUnitario: preco,
+      total: preco * quantidade
+    });
+
+    campoProduto.value = "";
+    campoQuantidade.value = "1";
+    atualizarCarrinho();
+  };
+
+  document.getElementById("itensCarrinhoVenda").onclick = evento => {
+    const botao = evento.target.closest("[data-remover-item]");
+    if (!botao) return;
+
+    const indice = Number(botao.dataset.removerItem);
+    itensCarrinho.splice(indice, 1);
+    atualizarCarrinho();
+  };
+
+  formulario.onsubmit = evento => salvarVenda(evento, itensCarrinho);
 }
 
 function calcularVenda() {
-  const formulario = document.getElementById("formVenda");
-  if (!formulario) return 0;
+  const total = document.getElementById("totalVenda");
+  if (!total) return 0;
 
-  const produto = formulario.elements.produtoId;
-  const preco = Number(produto.selectedOptions[0]?.dataset.preco || 0);
-  const quantidade = numero(formulario.elements.quantidade.value);
-  const total = preco * quantidade;
-
-  document.getElementById("precoUnitarioVenda").textContent = moeda(preco);
-  document.getElementById("totalVenda").textContent = moeda(total);
-
-  return total;
+  return numero(
+    total.textContent.replace(/[^\d,.-]/g, "").replace(",", ".")
+  );
 }
 
-function salvarVenda(evento) {
+function salvarVenda(evento, itensCarrinho) {
   evento.preventDefault();
 
   const formulario = evento.target;
@@ -996,29 +1072,33 @@ function salvarVenda(evento) {
     a.id === formulario.elements.alunoId.value
   );
 
-  const produto = db.produtos.find(p =>
-    p.id === formulario.elements.produtoId.value
-  );
-
-  const quantidade = numero(formulario.elements.quantidade.value);
-
-  if (!aluno || !produto || produto.preco <= 0 ||
-      !Number.isInteger(quantidade) || quantidade < 1) {
-    mostrarAviso("Confira os dados da venda.");
+  if (!aluno || !itensCarrinho.length) {
+    mostrarAviso("Selecione o aluno e adicione pelo menos um item.");
     return;
   }
 
-  const precoUnitario = Number(produto.preco);
-  const total = precoUnitario * quantidade;
+  const total = itensCarrinho.reduce((s, item) => s + item.total, 0);
+
+  const aulasVendidas = itensCarrinho.reduce(
+    (s, item) => s + (item.tipo === "servico" ? item.quantidade : 0),
+    0
+  );
+
+  const descricaoItens = itensCarrinho.map(item =>
+    `${item.nome} (${item.quantidade})`
+  ).join(", ");
 
   const venda = {
     id: gerarId(),
     alunoId: aluno.id,
-    produtoId: produto.id,
-    pacote: produto.nome,
-    descricao: `${produto.nome} - ${quantidade} aulas`,
-    precoUnitario,
-    aulasVendidas: quantidade,
+    itens: itensCarrinho.map(item => ({
+      ...item,
+      aulasDevolvidas: 0,
+      valorDevolvido: 0
+    })),
+    pacote: descricaoItens,
+    descricao: descricaoItens,
+    aulasVendidas,
     aulasDevolvidas: 0,
     valorTotal: total,
     valorDevolvido: 0,
@@ -1027,13 +1107,15 @@ function salvarVenda(evento) {
 
   db.vendas.push(venda);
 
-  aluno.saldo = Number(aluno.saldo || 0) + quantidade;
-  aluno.contratadas = Number(aluno.contratadas || 0) + quantidade;
+  if (aulasVendidas > 0) {
+    aluno.saldo = Number(aluno.saldo || 0) + aulasVendidas;
+    aluno.contratadas = Number(aluno.contratadas || 0) + aulasVendidas;
+  }
 
   db.movimentacoes.push({
     id: gerarId(),
     tipo: "entrada",
-    descricao: `Venda ${produto.nome} para ${aluno.nome} (${quantidade} aulas)`,
+    descricao: `Venda para ${aluno.nome}: ${descricaoItens}`,
     valor: total,
     alunoId: aluno.id,
     vendaId: venda.id,
@@ -1046,7 +1128,11 @@ function salvarVenda(evento) {
   listarMovimentacoes();
   atualizarFinanceiro();
 
-  mostrarAviso(`${quantidade} aulas adicionadas ao aluno.`);
+  mostrarAviso(
+    aulasVendidas > 0
+      ? `Venda registrada! ${aulasVendidas} aulas adicionadas ao aluno.`
+      : "Venda de produtos registrada com sucesso!"
+  );
 }
 
 /* =========================================
@@ -1054,34 +1140,67 @@ function salvarVenda(evento) {
 ========================================= */
 
 function abrirDevolucao() {
-  const vendas = db.vendas.filter(v =>
-    Number(v.aulasVendidas) > Number(v.aulasDevolvidas || 0)
-  );
+  const opcoes = [];
 
-  if (!vendas.length) {
+  db.vendas.forEach(venda => {
+    const aluno = db.alunos.find(a => a.id === venda.alunoId);
+
+    if (Array.isArray(venda.itens)) {
+      venda.itens.forEach((item, indice) => {
+        if (item.tipo !== "servico") return;
+
+        const disponiveis =
+          Number(item.quantidade || 0) -
+          Number(item.aulasDevolvidas || 0);
+
+        if (disponiveis > 0) {
+          opcoes.push({
+            valor: `${venda.id}::${indice}`,
+            texto: `${aluno?.nome || "Aluno"} — ${item.nome} — ${disponiveis} aulas`
+          });
+        }
+      });
+    } else {
+      const disponiveis =
+        Number(venda.aulasVendidas || 0) -
+        Number(venda.aulasDevolvidas || 0);
+
+      if (disponiveis > 0) {
+        opcoes.push({
+          valor: `${venda.id}::legacy`,
+          texto: `${aluno?.nome || "Aluno"} — ${venda.descricao} — ${disponiveis} aulas`
+        });
+      }
+    }
+  });
+
+  if (!opcoes.length) {
     mostrarAviso("Não existem aulas disponíveis para devolução.");
     return;
   }
 
   abrirModal(`
     <h2>Devolução de aulas</h2>
+
     <form id="formDevolucao">
-      <label>Venda</label>
-      <select name="vendaId" required>
+      <label>Item da venda</label>
+      <select name="itemVenda" required>
         <option value="">Selecione</option>
-        ${vendas.map(v => {
-          const aluno = db.alunos.find(a => a.id === v.alunoId);
-          const disponiveis = v.aulasVendidas - (v.aulasDevolvidas || 0);
-          return `<option value="${v.id}">${escapar(aluno?.nome || "")} — ${escapar(v.descricao)} — ${disponiveis} disponíveis</option>`;
-        }).join("")}
+        ${opcoes.map(o =>
+          `<option value="${o.valor}">${escapar(o.texto)}</option>`
+        ).join("")}
       </select>
 
       <label>Quantidade para devolver</label>
       <input name="quantidade" type="number" min="1" step="1" required>
 
       <div class="modal-actions">
-        <button type="button" class="secondary-button" data-close>Cancelar</button>
-        <button type="submit" class="primary-button">Confirmar devolução</button>
+        <button type="button" class="secondary-button" data-close>
+          Cancelar
+        </button>
+        <button type="submit" class="primary-button">
+          Confirmar devolução
+        </button>
       </div>
     </form>
   `);
@@ -1093,7 +1212,9 @@ function salvarDevolucao(evento) {
   evento.preventDefault();
 
   const formulario = evento.target;
-  const venda = db.vendas.find(v => v.id === formulario.elements.vendaId.value);
+  const [vendaId, indiceItem] = formulario.elements.itemVenda.value.split("::");
+
+  const venda = db.vendas.find(v => v.id === vendaId);
   const quantidade = numero(formulario.elements.quantidade.value);
 
   if (!venda || !Number.isInteger(quantidade) || quantidade < 1) {
@@ -1102,24 +1223,73 @@ function salvarDevolucao(evento) {
   }
 
   const aluno = db.alunos.find(a => a.id === venda.alunoId);
-  const disponiveis = venda.aulasVendidas - (venda.aulasDevolvidas || 0);
 
-  if (!aluno || quantidade > disponiveis || quantidade > Number(aluno.saldo || 0)) {
+  if (!aluno || quantidade > Number(aluno.saldo || 0)) {
     mostrarAviso("Quantidade indisponível ou aulas já utilizadas.");
     return;
   }
 
-  const preco = Number(venda.precoUnitario || venda.valorTotal / venda.aulasVendidas);
-  const valor = Math.min(
-    preco * quantidade,
-    Number(venda.valorTotal) - Number(venda.valorDevolvido || 0)
+  let disponiveis;
+  let preco;
+  let valor;
+
+  if (indiceItem === "legacy") {
+    disponiveis =
+      Number(venda.aulasVendidas || 0) -
+      Number(venda.aulasDevolvidas || 0);
+
+    preco = Number(
+      venda.precoUnitario ||
+      venda.valorTotal / venda.aulasVendidas
+    );
+
+    if (quantidade > disponiveis) {
+      mostrarAviso("Quantidade maior que o disponível para devolução.");
+      return;
+    }
+
+    valor = Math.min(
+      preco * quantidade,
+      Number(venda.valorTotal) - Number(venda.valorDevolvido || 0)
+    );
+
+    venda.aulasDevolvidas = Number(venda.aulasDevolvidas || 0) + quantidade;
+    venda.valorDevolvido = Number(venda.valorDevolvido || 0) + valor;
+  } else {
+    const item = venda.itens?.[Number(indiceItem)];
+
+    if (!item || item.tipo !== "servico") {
+      mostrarAviso("Item de serviço não encontrado.");
+      return;
+    }
+
+    disponiveis =
+      Number(item.quantidade || 0) -
+      Number(item.aulasDevolvidas || 0);
+
+    if (quantidade > disponiveis) {
+      mostrarAviso("Quantidade maior que o disponível para devolução.");
+      return;
+    }
+
+    preco = Number(item.precoUnitario || 0);
+    valor = Math.min(
+      preco * quantidade,
+      Number(item.total) - Number(item.valorDevolvido || 0)
+    );
+
+    item.aulasDevolvidas = Number(item.aulasDevolvidas || 0) + quantidade;
+    item.valorDevolvido = Number(item.valorDevolvido || 0) + valor;
+
+    venda.aulasDevolvidas = Number(venda.aulasDevolvidas || 0) + quantidade;
+    venda.valorDevolvido = Number(venda.valorDevolvido || 0) + valor;
+  }
+
+  aluno.saldo = Number(aluno.saldo || 0) - quantidade;
+  aluno.contratadas = Math.max(
+    0,
+    Number(aluno.contratadas || 0) - quantidade
   );
-
-  venda.aulasDevolvidas = Number(venda.aulasDevolvidas || 0) + quantidade;
-  venda.valorDevolvido = Number(venda.valorDevolvido || 0) + valor;
-
-  aluno.saldo -= quantidade;
-  aluno.contratadas = Math.max(0, Number(aluno.contratadas || 0) - quantidade);
 
   db.movimentacoes.push({
     id: gerarId(),
@@ -1138,6 +1308,7 @@ function salvarDevolucao(evento) {
   atualizarFinanceiro();
   mostrarAviso("Devolução registrada.");
 }
+
 
 /* =========================================
    DESPESAS E EXCLUSÕES FINANCEIRAS
