@@ -1,4 +1,3 @@
-
 "use strict";
 
 /* =========================================
@@ -26,10 +25,9 @@ const estadoInicial = {
   veiculos: [],
   aulas: [],
   produtos: [
-    { id: "p1", nome: "Aula avulsa", preco: 0, aulas: 1 },
-    { id: "p2", nome: "Pacote de 5 aulas", preco: 0, aulas: 5 },
-    { id: "p3", nome: "Pacote de 10 aulas", preco: 0, aulas: 10 },
-    { id: "p4", nome: "Pacote de 20 aulas", preco: 0, aulas: 20 }
+    { id: "bronze", nome: "Pacote Bronze", preco: 80 },
+    { id: "prata", nome: "Pacote Prata", preco: 75 },
+    { id: "ouro", nome: "Pacote Ouro", preco: 70 }
   ],
   vendas: [],
   movimentacoes: [],
@@ -61,10 +59,23 @@ function carregarDados() {
 
     const recuperado = JSON.parse(dados);
 
+    const produtosPadrao = [
+      { id: "bronze", nome: "Pacote Bronze", preco: 80 },
+      { id: "prata", nome: "Pacote Prata", preco: 75 },
+      { id: "ouro", nome: "Pacote Ouro", preco: 70 }
+    ];
+
+    const produtosAntigos = recuperado.produtos || [];
+    const manterProdutos = produtosAntigos.some(p =>
+      !["p1", "p2", "p3", "p4"].includes(p.id)
+    );
+
     return {
       ...structuredClone(estadoInicial),
       ...recuperado,
-      vendas: recuperado.vendas || []
+      produtos: manterProdutos ? produtosAntigos : produtosPadrao,
+      vendas: recuperado.vendas || [],
+      movimentacoes: recuperado.movimentacoes || []
     };
   } catch (erro) {
     console.error("Erro ao carregar dados:", erro);
@@ -381,7 +392,6 @@ function listarAlunos() {
       `).join("")
     : '<div class="empty-state">Nenhum aluno encontrado.</div>';
 }
-
 function excluirAluno(id) {
   if (db.aulas.some(a => a.alunoId === id)) {
     mostrarAviso("Este aluno possui aulas vinculadas. Não é possível excluí-lo.");
@@ -407,7 +417,6 @@ function abrirFormularioVeiculo(id = null) {
 
   abrirModal(`
     <h2>${id ? "Editar veículo" : "Novo veículo"}</h2>
-
     <form id="formVeiculo">
       <label>Tipo de veículo</label>
       <select name="tipo">
@@ -438,10 +447,7 @@ function abrirFormularioVeiculo(id = null) {
 function salvarVeiculo(evento) {
   evento.preventDefault();
 
-  const dados = Object.fromEntries(
-    new FormData(evento.target).entries()
-  );
-
+  const dados = Object.fromEntries(new FormData(evento.target).entries());
   const placa = dados.placa.trim().toUpperCase();
 
   const duplicado = db.veiculos.find(v =>
@@ -521,7 +527,6 @@ function excluirVeiculo(id) {
 /* =========================================
    AULAS
 ========================================= */
-
 function abrirFormularioAula(id = null) {
   aulaEditando = id;
   const aula = db.aulas.find(a => a.id === id) || {};
@@ -538,40 +543,26 @@ function abrirFormularioAula(id = null) {
 
   abrirModal(`
     <h2>${id ? "Editar aula" : "Agendar aula"}</h2>
-
     <form id="formAula">
       <label>Aluno</label>
       <select name="alunoId" required>
         <option value="">Selecione</option>
-        ${db.alunos.map(a => `
-          <option value="${a.id}" ${aula.alunoId === a.id ? "selected" : ""}>
-            ${escapar(a.nome)}
-          </option>
-        `).join("")}
+        ${db.alunos.map(a => `<option value="${a.id}" ${aula.alunoId === a.id ? "selected" : ""}>${escapar(a.nome)}</option>`).join("")}
       </select>
 
       <label>Data</label>
-      <input name="data" type="date" required
-        value="${escapar(aula.data || dataHoje())}">
+      <input name="data" type="date" required value="${escapar(aula.data || dataHoje())}">
 
       <label>Horário</label>
       <select name="horario" required>
         <option value="">Selecione</option>
-        ${HORARIOS.map(h => `
-          <option value="${h}" ${aula.horario === h ? "selected" : ""}>
-            ${h}
-          </option>
-        `).join("")}
+        ${HORARIOS.map(h => `<option value="${h}" ${aula.horario === h ? "selected" : ""}>${h}</option>`).join("")}
       </select>
 
       <label>Veículo</label>
       <select name="veiculoId" required>
         <option value="">Selecione</option>
-        ${db.veiculos.map(v => `
-          <option value="${v.id}" ${aula.veiculoId === v.id ? "selected" : ""}>
-            ${escapar(v.modelo)} - ${escapar(v.placa)}
-          </option>
-        `).join("")}
+        ${db.veiculos.map(v => `<option value="${v.id}" ${aula.veiculoId === v.id ? "selected" : ""}>${escapar(v.modelo)} - ${escapar(v.placa)}</option>`).join("")}
       </select>
 
       <label>Situação</label>
@@ -595,9 +586,8 @@ function abrirFormularioAula(id = null) {
 function salvarAula(evento) {
   evento.preventDefault();
 
-  const dados = Object.fromEntries(
-    new FormData(evento.target).entries()
-  );
+  const dados = Object.fromEntries(new FormData(evento.target).entries());
+  const anterior = db.aulas.find(a => a.id === aulaEditando);
 
   const conflito = db.aulas.find(a =>
     a.id !== aulaEditando &&
@@ -612,7 +602,14 @@ function salvarAula(evento) {
     return;
   }
 
-  const anterior = db.aulas.find(a => a.id === aulaEditando);
+  const alunoNovo = db.alunos.find(a => a.id === dados.alunoId);
+  const saldoDisponivel = Number(alunoNovo?.saldo || 0) +
+    (anterior?.status === "Realizada" && anterior.alunoId === dados.alunoId ? 1 : 0);
+
+  if (dados.status === "Realizada" && saldoDisponivel < 1) {
+    mostrarAviso("Este aluno não possui aulas disponíveis.");
+    return;
+  }
 
   const aula = {
     id: aulaEditando || gerarId(),
@@ -627,19 +624,9 @@ function salvarAula(evento) {
   if (anterior) {
     ajustarSaldoAula(anterior, -1);
     ajustarSaldoAula(aula, 1);
-
     const indice = db.aulas.findIndex(a => a.id === aulaEditando);
     db.aulas[indice] = aula;
   } else {
-    if (aula.status === "Realizada") {
-      const aluno = db.alunos.find(a => a.id === aula.alunoId);
-
-      if (!aluno || Number(aluno.saldo || 0) < 1) {
-        mostrarAviso("Este aluno não possui aulas disponíveis.");
-        return;
-      }
-    }
-
     ajustarSaldoAula(aula, 1);
     db.aulas.push(aula);
   }
@@ -657,7 +644,6 @@ function ajustarSaldoAula(aula, fator) {
   if (aula.status !== "Realizada") return;
 
   const aluno = db.alunos.find(a => a.id === aula.alunoId);
-
   if (aluno) {
     aluno.saldo = Math.max(0, Number(aluno.saldo || 0) - fator);
   }
@@ -667,18 +653,13 @@ function listarAulas() {
   const lista = document.getElementById("listaAulas");
   if (!lista) return;
 
-  const filtroData =
-    document.getElementById("filtroDataAulas")?.value || "";
-
-  const filtroAluno =
-    document.getElementById("filtroAlunoAulas")?.value || "";
+  const filtroData = document.getElementById("filtroDataAulas")?.value || "";
+  const filtroAluno = document.getElementById("filtroAlunoAulas")?.value || "";
 
   const aulas = db.aulas
     .filter(a => !filtroData || a.data === filtroData)
     .filter(a => !filtroAluno || a.alunoId === filtroAluno)
-    .sort((a, b) =>
-      (a.data + a.horario).localeCompare(b.data + b.horario)
-    );
+    .sort((a, b) => (a.data + a.horario).localeCompare(b.data + b.horario));
 
   lista.innerHTML = aulas.length
     ? aulas.map(a => {
@@ -737,83 +718,68 @@ function registrarMovimentacao(tipo, descricao, valor, alunoId = null) {
   });
 
   salvarDados();
-}
 
 function atualizarFinanceiro() {
-  const entradas = db.movimentacoes
-    .filter(m => m.tipo === "entrada")
-    .reduce((s, m) => s + Number(m.valor), 0);
+  const entradas = db.movimentacoes.filter(m => m.tipo === "entrada")
+    .reduce((s, m) => s + Number(m.valor || 0), 0);
 
-  const despesas = db.movimentacoes
-    .filter(m => m.tipo === "saida")
-    .reduce((s, m) => s + Number(m.valor), 0);
+  const saidas = db.movimentacoes.filter(m => m.tipo === "saida")
+    .reduce((s, m) => s + Number(m.valor || 0), 0);
 
   const elEntradas = document.getElementById("totalEntradas");
   const elDespesas = document.getElementById("totalDespesas");
   const elSaldo = document.getElementById("saldoFinanceiro");
 
   if (elEntradas) elEntradas.textContent = moeda(entradas);
-  if (elDespesas) elDespesas.textContent = moeda(despesas);
-  if (elSaldo) elSaldo.textContent = moeda(entradas - despesas);
+  if (elDespesas) elDespesas.textContent = moeda(saidas);
+  if (elSaldo) elSaldo.textContent = moeda(entradas - saidas);
 }
 
 function listarMovimentacoes() {
   const lista = document.getElementById("listaMovimentacoes");
   if (!lista) return;
 
-  const movimentacoes = [...db.movimentacoes].reverse();
-
-  lista.innerHTML = movimentacoes.length
-    ? movimentacoes.map(m => `
-        <div class="record">
-          <strong>${escapar(m.descricao)}</strong>
-          <p>${formatarData(m.data)} • ${
-            m.tipo === "entrada" ? "Entrada" : "Saída"
-          }</p>
-          <strong>${moeda(m.valor)}</strong>
-        </div>
-      `).join("")
-    : '<div class="empty-state">Nenhuma movimentação registrada.</div>';
+  lista.innerHTML = [...db.movimentacoes].reverse().map(m => `
+    <div class="record">
+      <strong>${escapar(m.descricao)}</strong>
+      <p>${formatarData(m.data)} • ${m.tipo === "entrada" ? "Entrada" : "Saída"}</p>
+      <strong>${moeda(m.valor)}</strong>
+      ${m.tipo === "saida" && !m.vendaId
+        ? `<button type="button" data-delete-despesa="${m.id}">Excluir despesa</button>`
+        : ""}
+    </div>
+  `).join("") || '<div class="empty-state">Nenhuma movimentação.</div>';
 }
-
-/* NOVA VENDA */
 
 function abrirVenda() {
   if (!db.alunos.length) {
-    mostrarAviso("Cadastre um aluno antes de realizar uma venda.");
+    mostrarAviso("Cadastre um aluno primeiro.");
     return;
   }
 
   abrirModal(`
     <h2>Nova venda</h2>
-
     <form id="formVenda">
       <label>Aluno</label>
       <select name="alunoId" required>
-        <option value="">Selecione o aluno</option>
-        ${db.alunos.map(a => `
-          <option value="${a.id}">${escapar(a.nome)}</option>
-        `).join("")}
+        <option value="">Selecione</option>
+        ${db.alunos.map(a => `<option value="${a.id}">${escapar(a.nome)}</option>`).join("")}
       </select>
 
-      <div id="itensVenda">
-        ${db.produtos.map(p => `
-          <div class="sale-item">
-            <label>
-              <input type="checkbox" name="produto" value="${p.id}">
-              ${escapar(p.nome)} - ${moeda(p.preco)}
-            </label>
-            <input type="number" min="1" value="1"
-              data-quantidade="${p.id}" aria-label="Quantidade">
-          </div>
-        `).join("")}
-      </div>
+      <label>Pacote</label>
+      <select name="pacote" id="pacoteVenda" required>
+        <option value="">Selecione</option>
+        <option value="Bronze" data-preco="80">Bronze — R$ 80,00 por aula</option>
+        <option value="Prata" data-preco="75">Prata — R$ 75,00 por aula</option>
+        <option value="Ouro" data-preco="70">Ouro — R$ 70,00 por aula</option>
+      </select>
 
-      <label>Desconto (R$)</label>
-      <input name="desconto" type="number" min="0" step="0.01" value="0">
+      <label>Quantidade de aulas</label>
+      <input name="quantidade" id="quantidadeVenda" type="number" min="1" step="1" required>
 
       <div class="panel">
-        Total: <strong id="totalVenda">${moeda(0)}</strong>
+        <p>Valor por aula: <strong id="precoUnitarioVenda">R$ 0,00</strong></p>
+        <p>Total: <strong id="totalVenda">R$ 0,00</strong></p>
       </div>
 
       <div class="modal-actions">
@@ -832,21 +798,14 @@ function calcularVenda() {
   const formulario = document.getElementById("formVenda");
   if (!formulario) return 0;
 
-  let total = 0;
+  const pacote = formulario.elements.pacote;
+  const preco = Number(pacote.selectedOptions[0]?.dataset.preco || 0);
+  const quantidade = numero(formulario.elements.quantidade.value);
+  const total = preco * quantidade;
 
-  formulario.querySelectorAll('input[name="produto"]:checked').forEach(check => {
-    const produto = db.produtos.find(p => p.id === check.value);
-    const quantidade = numero(
-      formulario.querySelector(`[data-quantidade="${check.value}"]`)?.value
-    );
-
-    if (produto) total += produto.preco * quantidade;
-  });
-
-  total -= numero(formulario.elements.desconto?.value);
-  total = Math.max(0, total);
-
+  document.getElementById("precoUnitarioVenda").textContent = moeda(preco);
   document.getElementById("totalVenda").textContent = moeda(total);
+
   return total;
 }
 
@@ -854,49 +813,27 @@ function salvarVenda(evento) {
   evento.preventDefault();
 
   const formulario = evento.target;
-  const alunoId = formulario.elements.alunoId.value;
-  const selecionados = [
-    ...formulario.querySelectorAll('input[name="produto"]:checked')
-  ];
+  const aluno = db.alunos.find(a => a.id === formulario.elements.alunoId.value);
+  const pacote = formulario.elements.pacote.value;
+  const quantidade = numero(formulario.elements.quantidade.value);
 
-  if (!selecionados.length) {
-    mostrarAviso("Selecione pelo menos um produto ou serviço.");
+  const precos = { Bronze: 80, Prata: 75, Ouro: 70 };
+  const precoUnitario = precos[pacote];
+
+  if (!aluno || !precoUnitario || !Number.isInteger(quantidade) || quantidade < 1) {
+    mostrarAviso("Confira os dados da venda.");
     return;
   }
 
-  let total = 0;
-  let totalAulas = 0;
-  const descricoes = [];
-
-  selecionados.forEach(check => {
-    const produto = db.produtos.find(p => p.id === check.value);
-    const quantidade = numero(
-      formulario.querySelector(`[data-quantidade="${check.value}"]`).value
-    );
-
-    if (produto && quantidade > 0) {
-      total += produto.preco * quantidade;
-      totalAulas += produto.aulas * quantidade;
-      descricoes.push(`${produto.nome} x${quantidade}`);
-    }
-  });
-
-  if (totalAulas <= 0) {
-    mostrarAviso("A venda precisa adicionar pelo menos uma aula.");
-    return;
-  }
-
-  const desconto = numero(formulario.elements.desconto.value);
-  total = Math.max(0, total - desconto);
-
-  const aluno = db.alunos.find(a => a.id === alunoId);
-  if (!aluno) return;
+  const total = precoUnitario * quantidade;
 
   const venda = {
     id: gerarId(),
-    alunoId,
-    descricao: descricoes.join(", "),
-    aulasVendidas: totalAulas,
+    alunoId: aluno.id,
+    pacote,
+    descricao: `Pacote ${pacote} - ${quantidade} aulas`,
+    precoUnitario,
+    aulasVendidas: quantidade,
     aulasDevolvidas: 0,
     valorTotal: total,
     valorDevolvido: 0,
@@ -904,190 +841,14 @@ function salvarVenda(evento) {
   };
 
   db.vendas.push(venda);
-
-  aluno.saldo = Number(aluno.saldo || 0) + totalAulas;
-  aluno.contratadas = Number(aluno.contratadas || 0) + totalAulas;
+  aluno.saldo = Number(aluno.saldo || 0) + quantidade;
+  aluno.contratadas = Number(aluno.contratadas || 0) + quantidade;
 
   db.movimentacoes.push({
     id: gerarId(),
     tipo: "entrada",
-    descricao: `Venda para ${aluno.nome}: ${venda.descricao}`,
+    descricao: `Venda ${pacote} para ${aluno.nome} (${quantidade} aulas)`,
     valor: total,
-    alunoId,
-    vendaId: venda.id,
-    data: dataHoje()
-  });
-
-  salvarDados();
-  fecharModal();
-  listarAlunos();
-  listarMovimentacoes();
-  atualizarFinanceiro();
-
-  mostrarAviso(`${totalAulas} aulas adicionadas ao saldo do aluno.`);
-}
-
-/* DEVOLUÇÃO PARCIAL OU TOTAL */
-
-function abrirDevolucao() {
-  if (!db.vendas.length) {
-    mostrarAviso("Ainda não existem vendas para devolver.");
-    return;
-  }
-
-  const vendasDisponiveis = db.vendas.filter(v =>
-    Number(v.aulasVendidas) > Number(v.aulasDevolvidas || 0)
-  );
-
-  if (!vendasDisponiveis.length) {
-    mostrarAviso("Não existem aulas disponíveis para devolução.");
-    return;
-  }
-
-  abrirModal(`
-    <h2>Devolução de aulas</h2>
-
-    <form id="formDevolucao">
-      <label>Venda / aluno</label>
-      <select name="vendaId" id="selectVendaDevolucao" required>
-        <option value="">Selecione a venda</option>
-        ${vendasDisponiveis.map(v => {
-          const aluno = db.alunos.find(a => a.id === v.alunoId);
-          const disponiveis =
-            Number(v.aulasVendidas) - Number(v.aulasDevolvidas || 0);
-
-          return `
-            <option value="${v.id}">
-              ${escapar(aluno?.nome || "Aluno não encontrado")} —
-              ${escapar(v.descricao)} —
-              ${disponiveis} aula(s) disponíveis
-            </option>
-          `;
-        }).join("")}
-      </select>
-
-      <label>Quantidade de aulas para devolver</label>
-      <input name="quantidade" id="quantidadeDevolucao"
-        type="number" min="1" step="1" required>
-
-      <div class="panel" id="resumoDevolucao">
-        Selecione uma venda para consultar os limites.
-      </div>
-
-      <div class="modal-actions">
-        <button type="button" class="secondary-button" data-close>Cancelar</button>
-        <button type="submit" class="primary-button">Confirmar devolução</button>
-      </div>
-    </form>
-  `);
-
-  document.getElementById("selectVendaDevolucao")
-    .addEventListener("change", atualizarResumoDevolucao);
-
-  document.getElementById("quantidadeDevolucao")
-    .addEventListener("input", atualizarResumoDevolucao);
-
-  document.getElementById("formDevolucao").onsubmit = salvarDevolucao;
-}
-
-function atualizarResumoDevolucao() {
-  const formulario = document.getElementById("formDevolucao");
-  if (!formulario) return;
-
-  const vendaId = formulario.elements.vendaId.value;
-  const venda = db.vendas.find(v => v.id === vendaId);
-  const resumo = document.getElementById("resumoDevolucao");
-
-  if (!venda) {
-    resumo.textContent = "Selecione uma venda para consultar os limites.";
-    return;
-  }
-
-  const quantidadeDisponivel =
-    Number(venda.aulasVendidas) - Number(venda.aulasDevolvidas || 0);
-
-  const quantidade = numero(formulario.elements.quantidade.value);
-  const aluno = db.alunos.find(a => a.id === venda.alunoId);
-
-  const valorPorAula = Number(venda.valorTotal || 0) /
-    Math.max(1, Number(venda.aulasVendidas || 1));
-
-  const valorEstimado = valorPorAula * quantidade;
-
-  resumo.innerHTML = `
-    <p><strong>Aluno:</strong> ${escapar(aluno?.nome || "")}</p>
-    <p><strong>Quantidade disponível nesta venda:</strong> ${quantidadeDisponivel}</p>
-    <p><strong>Saldo atual do aluno:</strong> ${Number(aluno?.saldo || 0)}</p>
-    <p><strong>Valor estimado da devolução:</strong> ${moeda(valorEstimado)}</p>
-    <small>O valor é calculado proporcionalmente ao preço original da venda.</small>
-  `;
-}
-
-function salvarDevolucao(evento) {
-  evento.preventDefault();
-
-  const formulario = evento.target;
-  const vendaId = formulario.elements.vendaId.value;
-  const quantidade = numero(formulario.elements.quantidade.value);
-
-  const venda = db.vendas.find(v => v.id === vendaId);
-  if (!venda) {
-    mostrarAviso("Venda não encontrada.");
-    return;
-  }
-
-  const aluno = db.alunos.find(a => a.id === venda.alunoId);
-  if (!aluno) {
-    mostrarAviso("Aluno não encontrado.");
-    return;
-  }
-
-  const quantidadeDisponivel =
-    Number(venda.aulasVendidas) - Number(venda.aulasDevolvidas || 0);
-
-  if (!Number.isInteger(quantidade) || quantidade < 1) {
-    mostrarAviso("Informe uma quantidade inteira válida.");
-    return;
-  }
-
-  if (quantidade > quantidadeDisponivel) {
-    mostrarAviso("A quantidade supera as aulas disponíveis nesta venda.");
-    return;
-  }
-
-  if (quantidade > Number(aluno.saldo || 0)) {
-    mostrarAviso(
-      "Não é possível devolver aulas que já foram utilizadas."
-    );
-    return;
-  }
-
-  const valorPorAula =
-    Number(venda.valorTotal || 0) /
-    Math.max(1, Number(venda.aulasVendidas || 1));
-
-  const valorDevolvido = Math.min(
-    Number(venda.valorTotal || 0) - Number(venda.valorDevolvido || 0),
-    valorPorAula * quantidade
-  );
-
-  venda.aulasDevolvidas =
-    Number(venda.aulasDevolvidas || 0) + quantidade;
-
-  venda.valorDevolvido =
-    Number(venda.valorDevolvido || 0) + valorDevolvido;
-
-  aluno.saldo = Math.max(0, Number(aluno.saldo || 0) - quantidade);
-  aluno.contratadas = Math.max(
-    0,
-    Number(aluno.contratadas || 0) - quantidade
-  );
-
-  db.movimentacoes.push({
-    id: gerarId(),
-    tipo: "saida",
-    descricao: `Devolução de ${quantidade} aula(s) para ${aluno.nome}`,
-    valor: valorDevolvido,
     alunoId: aluno.id,
     vendaId: venda.id,
     data: dataHoje()
@@ -1098,25 +859,103 @@ function salvarDevolucao(evento) {
   listarAlunos();
   listarMovimentacoes();
   atualizarFinanceiro();
-
-  mostrarAviso(
-    `Devolução de ${quantidade} aula(s) registrada.`
-  );
+  mostrarAviso(`${quantidade} aulas adicionadas ao aluno.`);
 }
 
-/* DESPESAS */
+function abrirDevolucao() {
+  const vendas = db.vendas.filter(v =>
+    Number(v.aulasVendidas) > Number(v.aulasDevolvidas || 0)
+  );
+
+  if (!vendas.length) {
+    mostrarAviso("Não existem aulas disponíveis para devolução.");
+    return;
+  }
+
+  abrirModal(`
+    <h2>Devolução de aulas</h2>
+    <form id="formDevolucao">
+      <label>Venda</label>
+      <select name="vendaId" required>
+        <option value="">Selecione</option>
+        ${vendas.map(v => {
+          const aluno = db.alunos.find(a => a.id === v.alunoId);
+          const disponiveis = v.aulasVendidas - (v.aulasDevolvidas || 0);
+          return `<option value="${v.id}">${escapar(aluno?.nome || "")} — ${escapar(v.descricao)} — ${disponiveis} disponíveis</option>`;
+        }).join("")}
+      </select>
+
+      <label>Quantidade para devolver</label>
+      <input name="quantidade" type="number" min="1" step="1" required>
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-button" data-close>Cancelar</button>
+        <button type="submit" class="primary-button">Confirmar devolução</button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById("formDevolucao").onsubmit = salvarDevolucao;
+}
+
+function salvarDevolucao(evento) {
+  evento.preventDefault();
+
+  const formulario = evento.target;
+  const venda = db.vendas.find(v => v.id === formulario.elements.vendaId.value);
+  const quantidade = numero(formulario.elements.quantidade.value);
+
+  if (!venda || !Number.isInteger(quantidade) || quantidade < 1) {
+    mostrarAviso("Informe uma devolução válida.");
+    return;
+  }
+
+  const aluno = db.alunos.find(a => a.id === venda.alunoId);
+  const disponiveis = venda.aulasVendidas - (venda.aulasDevolvidas || 0);
+
+  if (!aluno || quantidade > disponiveis || quantidade > Number(aluno.saldo || 0)) {
+    mostrarAviso("Quantidade indisponível ou aulas já utilizadas.");
+    return;
+  }
+
+  const preco = Number(venda.precoUnitario || venda.valorTotal / venda.aulasVendidas);
+  const valor = Math.min(
+    preco * quantidade,
+    Number(venda.valorTotal) - Number(venda.valorDevolvido || 0)
+  );
+
+  venda.aulasDevolvidas = Number(venda.aulasDevolvidas || 0) + quantidade;
+  venda.valorDevolvido = Number(venda.valorDevolvido || 0) + valor;
+
+  aluno.saldo -= quantidade;
+  aluno.contratadas = Math.max(0, Number(aluno.contratadas || 0) - quantidade);
+
+  db.movimentacoes.push({
+    id: gerarId(),
+    tipo: "saida",
+    descricao: `Devolução de ${quantidade} aula(s) para ${aluno.nome}`,
+    valor,
+    alunoId: aluno.id,
+    vendaId: venda.id,
+    data: dataHoje()
+  });
+
+  salvarDados();
+  fecharModal();
+  listarAlunos();
+  listarMovimentacoes();
+  atualizarFinanceiro();
+  mostrarAviso("Devolução registrada.");
+}
 
 function abrirDespesa() {
   abrirModal(`
     <h2>Nova despesa</h2>
-
     <form id="formDespesa">
       <label>Descrição</label>
       <input name="descricao" required>
-
       <label>Valor (R$)</label>
       <input name="valor" type="number" min="0.01" step="0.01" required>
-
       <div class="modal-actions">
         <button type="button" class="secondary-button" data-close>Cancelar</button>
         <button type="submit" class="primary-button">Registrar despesa</button>
@@ -1126,22 +965,15 @@ function abrirDespesa() {
 
   document.getElementById("formDespesa").onsubmit = evento => {
     evento.preventDefault();
+    const dados = Object.fromEntries(new FormData(evento.target).entries());
+    const valor = numero(dados.valor);
 
-    const dados = Object.fromEntries(
-      new FormData(evento.target).entries()
-    );
-
-    if (numero(dados.valor) <= 0) {
+    if (valor <= 0) {
       mostrarAviso("Informe um valor válido.");
       return;
     }
 
-    registrarMovimentacao(
-      "saida",
-      dados.descricao,
-      numero(dados.valor)
-    );
-
+    registrarMovimentacao("saida", dados.descricao.trim(), valor);
     fecharModal();
     listarMovimentacoes();
     atualizarFinanceiro();
@@ -1149,103 +981,50 @@ function abrirDespesa() {
   };
 }
 
-/* PRODUTOS E SERVIÇOS */
+function excluirVenda(id) {
+  const venda = db.vendas.find(v => v.id === id);
+  if (!venda) return;
 
-function abrirProdutos() {
-  abrirModal(`
-    <h2>Produtos e serviços</h2>
-    <p>Cadastre pacotes e serviços com seus preços e quantidades de aulas.</p>
+  const aluno = db.alunos.find(a => a.id === venda.alunoId);
+  const aulasLiquidas = Number(venda.aulasVendidas || 0) -
+    Number(venda.aulasDevolvidas || 0);
 
-    <div id="listaProdutos">
-      ${db.produtos.map(p => `
-        <div class="record">
-          <strong>${escapar(p.nome)}</strong>
-          <p>${moeda(p.preco)} • ${p.aulas} aula(s)</p>
-          <button type="button" data-edit-produto="${p.id}">Editar</button>
-          <button type="button" data-delete-produto="${p.id}">Excluir</button>
-        </div>
-      `).join("")}
-    </div>
+  if (!aluno || Number(aluno.saldo || 0) < aulasLiquidas) {
+    mostrarAviso("Não é possível excluir: parte das aulas já foi utilizada.");
+    return;
+  }
 
-    <button id="btnAdicionarProduto" class="primary-button" type="button">
-      + Adicionar produto
-    </button>
-  `);
-}
+  if (!confirmar("Excluir esta venda e seus lançamentos financeiros?")) return;
 
-function editarProduto(id = null) {
-  const produto = db.produtos.find(p => p.id === id) || {};
+  aluno.saldo -= aulasLiquidas;
+  aluno.contratadas = Math.max(0, Number(aluno.contratadas || 0) - aulasLiquidas);
 
-  abrirModal(`
-    <h2>${id ? "Editar produto" : "Novo produto"}</h2>
+  db.vendas = db.vendas.filter(v => v.id !== id);
+  db.movimentacoes = db.movimentacoes.filter(m => m.vendaId !== id);
 
-    <form id="formProduto">
-      <label>Nome</label>
-      <input name="nome" required value="${escapar(produto.nome)}">
-
-      <label>Preço (R$)</label>
-      <input name="preco" type="number" min="0" step="0.01"
-        value="${produto.preco ?? 0}" required>
-
-      <label>Quantidade de aulas adicionadas</label>
-      <input name="aulas" type="number" min="1" step="1"
-        value="${produto.aulas ?? 1}" required>
-
-      <div class="modal-actions">
-        <button type="button" class="secondary-button" data-close>Cancelar</button>
-        <button type="submit" class="primary-button">Salvar</button>
-      </div>
-    </form>
-  `);
-
-  document.getElementById("formProduto").onsubmit = evento => {
-    evento.preventDefault();
-
-    const dados = Object.fromEntries(
-      new FormData(evento.target).entries()
-    );
-
-    const aulas = numero(dados.aulas);
-    const preco = numero(dados.preco);
-
-    if (!Number.isInteger(aulas) || aulas < 1 || preco < 0) {
-      mostrarAviso("Confira a quantidade de aulas e o preço.");
-      return;
-    }
-
-    const novo = {
-      id: id || gerarId(),
-      nome: dados.nome.trim(),
-      preco,
-      aulas
-    };
-
-    if (id) {
-      const indice = db.produtos.findIndex(p => p.id === id);
-      if (indice >= 0) db.produtos[indice] = novo;
-    } else {
-      db.produtos.push(novo);
-    }
-
-    salvarDados();
-    abrirProdutos();
-    mostrarAviso("Produto salvo.");
-  };
-}
-
-function excluirProduto(id) {
-  if (!confirmar("Excluir este produto?")) return;
-
-  db.produtos = db.produtos.filter(p => p.id !== id);
   salvarDados();
-  abrirProdutos();
+  listarAlunos();
+  listarMovimentacoes();
+  atualizarFinanceiro();
+  mostrarAviso("Venda excluída e saldo atualizado.");
 }
 
-/* =========================================
-   RELATÓRIOS
-========================================= */
+function excluirDespesa(id) {
+  const movimento = db.movimentacoes.find(m =>
+    m.id === id && m.tipo === "saida" && !m.vendaId
+  );
 
-function atualizarSeletoresAlunos() {
+  if (!movimento) return;
+  if (!confirmar("Excluir esta despesa?")) return;
+
+  db.movimentacoes = db.movimentacoes.filter(m => m.id !== id);
+
+  salvarDados();
+  listarMovimentacoes();
+  atualizarFinanceiro();
+  mostrarAviso("Despesa excluída.");
+}
+   function atualizarSeletoresAlunos() {
   const selects = [
     document.getElementById("filtroAlunoAulas"),
     document.getElementById("relatorioAluno")
@@ -1376,6 +1155,7 @@ function tabelaAulas(aulas, assinatura = false) {
 
 function mostrarRelatorio(conteudo) {
   const resultado = document.getElementById("resultadoRelatorio");
+  if (!resultado) return;
 
   resultado.innerHTML = `
     <div class="panel printable-report">
@@ -1389,9 +1169,7 @@ function mostrarRelatorio(conteudo) {
   relatorioAtual = conteudo;
 }
 
-/* =========================================
-   BACKUP E RESTAURAÇÃO
-========================================= */
+/* BACKUP */
 
 function exportarBackup() {
   const arquivo = new Blob(
@@ -1412,7 +1190,7 @@ function exportarBackup() {
 
 function importarBackup() {
   const input = document.getElementById("arquivoBackup");
-  const arquivo = input.files[0];
+  const arquivo = input?.files?.[0];
 
   if (!arquivo) {
     mostrarAviso("Selecione um arquivo de backup.");
@@ -1442,7 +1220,7 @@ function importarBackup() {
         throw new Error("Dados inválidos");
       }
 
-      if (!confirmar("Restaurar este backup substituirá os dados atuais. Continuar?")) {
+      if (!confirmar("Restaurar o backup e substituir os dados atuais?")) {
         return;
       }
 
@@ -1461,7 +1239,7 @@ function importarBackup() {
       listarMovimentacoes();
       atualizarFinanceiro();
 
-      mostrarAviso("Backup restaurado com sucesso!");
+      mostrarAviso("Backup restaurado!");
       input.value = "";
     } catch (erro) {
       mostrarAviso("Arquivo de backup inválido.");
@@ -1471,9 +1249,7 @@ function importarBackup() {
   leitor.readAsText(arquivo);
 }
 
-/* =========================================
-   CONFIGURAÇÕES
-========================================= */
+/* CONFIGURAÇÕES */
 
 function carregarConfiguracoes() {
   const nome = document.getElementById("nomeEmpresa");
@@ -1528,13 +1304,8 @@ function salvarConfiguracoes() {
   };
 
   leitor.readAsDataURL(arquivo);
-}
-
-/* =========================================
-   MODAIS
-========================================= */
-
-function abrirModal(conteudo) {
+     }
+   function abrirModal(conteudo) {
   const container = document.getElementById("modalContainer");
 
   container.innerHTML = `
@@ -1562,9 +1333,7 @@ function opcoes(valores, selecionado) {
   `).join("");
 }
 
-/* =========================================
-   EVENTOS DO APLICATIVO
-========================================= */
+/* EVENTOS DO APLICATIVO */
 
 document.addEventListener("click", evento => {
   const pagina = evento.target.closest("[data-page]");
@@ -1636,6 +1405,18 @@ document.addEventListener("click", evento => {
     window.print();
     return;
   }
+
+  const excluirVendaBotao = evento.target.closest("[data-delete-venda]");
+  if (excluirVendaBotao) {
+    excluirVenda(excluirVendaBotao.dataset.deleteVenda);
+    return;
+  }
+
+  const excluirDespesaBotao = evento.target.closest("[data-delete-despesa]");
+  if (excluirDespesaBotao) {
+    excluirDespesa(excluirDespesaBotao.dataset.deleteDespesa);
+    return;
+  }
 });
 
 document.getElementById("btnNovoAluno").onclick =
@@ -1694,9 +1475,7 @@ document.getElementById("filtroAlunoAulas").addEventListener(
   "change", listarAulas
 );
 
-/* =========================================
-   INICIALIZAÇÃO
-========================================= */
+/* INICIALIZAÇÃO */
 
 function iniciarAplicativo() {
   document.documentElement.style.setProperty(
@@ -1725,3 +1504,4 @@ function iniciarAplicativo() {
 }
 
 iniciarAplicativo();
+   
