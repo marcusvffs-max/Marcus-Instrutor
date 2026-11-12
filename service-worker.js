@@ -1,11 +1,11 @@
 
-const CACHE_NAME = "marcus-instrutor-v1";
+const CACHE_NAME = "marcus-instrutor-v2";
 
 const ARQUIVOS = [
     "./",
     "./index.html",
     "./style.css",
-    "./script.js",
+    "./script.js?v=2",
     "./manifest.json"
 ];
 
@@ -23,7 +23,10 @@ self.addEventListener("activate", event => {
         caches.keys().then(chaves =>
             Promise.all(
                 chaves
-                    .filter(chave => chave !== CACHE_NAME)
+                    .filter(chave =>
+                        chave.startsWith("marcus-instrutor-") &&
+                        chave !== CACHE_NAME
+                    )
                     .map(chave => caches.delete(chave))
             )
         )
@@ -35,20 +38,36 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
     if (event.request.method !== "GET") return;
 
-    event.respondWith(
-        caches.match(event.request).then(resposta => {
-            if (resposta) return resposta;
+    const url = new URL(event.request.url);
 
-            return fetch(event.request).catch(() => {
-                if (event.request.mode === "navigate") {
-                    return caches.match("./index.html");
+    if (url.origin !== self.location.origin) return;
+
+    event.respondWith(
+        fetch(event.request)
+            .then(resposta => {
+                if (resposta && resposta.ok) {
+                    const copia = resposta.clone();
+
+                    caches.open(CACHE_NAME).then(cache =>
+                        cache.put(event.request, copia)
+                    );
                 }
 
-                return new Response("", {
-                    status: 503,
-                    statusText: "Offline"
-                });
-            });
-        })
+                return resposta;
+            })
+            .catch(() =>
+                caches.match(event.request).then(resposta => {
+                    if (resposta) return resposta;
+
+                    if (event.request.mode === "navigate") {
+                        return caches.match("./index.html");
+                    }
+
+                    return new Response("", {
+                        status: 503,
+                        statusText: "Offline"
+                    });
+                })
+            )
     );
 });
