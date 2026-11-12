@@ -2110,6 +2110,8 @@ function iniciarAplicativo() {
   const titulo = document.querySelector(".brand h1");
   if (titulo) titulo.textContent = db.configuracoes.nome;
 
+  aplicarLogo();
+
   atualizarPainel();
   atualizarSeletoresAlunos();
   listarAlunos();
@@ -2121,7 +2123,7 @@ function iniciarAplicativo() {
   mostrarPagina("inicio");
 
   console.log("Marcus Instrutor iniciado.");
-}
+          }
 
 iniciarAplicativo();
 
