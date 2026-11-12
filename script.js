@@ -1542,3 +1542,53 @@ function iniciarAplicativo() {
 
 iniciarAplicativo();
    
+function limparTodosRegistros() {
+  if (!confirmar(
+    "ATENÇÃO!\n\nDeseja apagar TODOS os alunos, veículos, aulas, vendas, despesas e movimentações?\n\nEssa ação não poderá ser desfeita."
+  )) {
+    return;
+  }
+
+  db.alunos = [];
+  db.veiculos = [];
+  db.aulas = [];
+  db.vendas = [];
+  db.movimentacoes = [];
+
+  salvarDados();
+
+  atualizarSeletoresAlunos();
+  listarAlunos();
+  listarVeiculos();
+  listarAulas();
+  listarMovimentacoes();
+  atualizarFinanceiro();
+  atualizarPainel();
+
+  mostrarAviso("Todos os registros foram apagados.");
+}
+
+const painelBackup = document.querySelector("#page-backup");
+
+if (painelBackup) {
+  const painelLimpeza = document.createElement("div");
+
+  painelLimpeza.className = "panel";
+  painelLimpeza.innerHTML = `
+    <h3>Limpar todos os registros</h3>
+    <p>Apaga alunos, veículos, aulas, vendas e despesas.</p>
+    <button
+      id="btnLimparRegistros"
+      type="button"
+      class="primary-button"
+      style="background:#b42318"
+    >
+      Limpar todos os registros
+    </button>
+  `;
+
+  painelBackup.appendChild(painelLimpeza);
+
+  document.getElementById("btnLimparRegistros").onclick =
+    limparTodosRegistros;
+}
