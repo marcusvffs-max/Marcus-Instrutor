@@ -2,84 +2,344 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#12345a">
-    <meta name="description" content="Controle de aulas - Marcus Instrutor">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#12345a">
+  <meta name="description" content="Sistema de gerenciamento de aulas e alunos - Marcus Instrutor">
+  <title>Marcus Instrutor</title>
 
-    <title>Marcus Instrutor - Controle de Aulas</title>
-
-    <link rel="manifest" href="./manifest.json">
-    <link rel="stylesheet" href="./style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="icon-192.png" type="image/png">
 </head>
 
 <body>
+  <div id="app">
 
-    <header class="topo">
-        <h1>MARCUS INSTRUTOR</h1>
-        <p>Controle de aulas</p>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">MI</div>
+        <div>
+          <h1>Marcus Instrutor</h1>
+          <span>Gestão de aulas</span>
+        </div>
+      </div>
+      <button id="btnLogout" class="icon-button" type="button">Sair</button>
     </header>
 
-    <nav class="menu">
-        <button onclick="mostrarPagina('inicio')">Início</button>
-        <button onclick="mostrarPagina('alunos')">Alunos</button>
-        <button onclick="mostrarPagina('veiculos')">Veículos</button>
-        <button onclick="mostrarPagina('aulas')">Aulas</button>
-        <button onclick="mostrarPagina('relatorios')">Relatórios</button>
-        <button onclick="mostrarPagina('backup')">Backup</button>
-    </nav>
+    <main id="mainContent">
 
-    <main>
+      <!-- INÍCIO -->
+      <section id="page-inicio" class="page active">
+        <div class="welcome">
+          <span class="eyebrow">PAINEL PRINCIPAL</span>
+          <h2>Bem-vindo!</h2>
+          <p>Gerencie seus alunos, aulas, veículos e financeiro.</p>
+        </div>
 
-        <section id="inicio" class="pagina ativa">
-            <h2>Painel principal</h2>
-            <p>Bem-vindo ao controle de aulas.</p>
-            <div id="resumo"></div>
-        </section>
+        <div class="dashboard-grid">
+          <article class="dashboard-card">
+            <span class="card-label">Alunos cadastrados</span>
+            <strong id="totalAlunos">0</strong>
+          </article>
+          <article class="dashboard-card">
+            <span class="card-label">Aulas agendadas</span>
+            <strong id="totalAgendadas">0</strong>
+          </article>
+          <article class="dashboard-card">
+            <span class="card-label">Aulas realizadas</span>
+            <strong id="totalRealizadas">0</strong>
+          </article>
+          <article class="dashboard-card">
+            <span class="card-label">Saldo em caixa</span>
+            <strong id="saldoCaixa">R$ 0,00</strong>
+          </article>
+        </div>
 
-        <section id="alunos" class="pagina">
-            <h2>Cadastro de alunos</h2>
-            <div id="conteudoAlunos"></div>
-        </section>
+        <div class="section-heading">
+          <h3>Acesso rápido</h3>
+        </div>
 
-        <section id="veiculos" class="pagina">
-            <h2>Cadastro de veículos</h2>
-            <div id="conteudoVeiculos"></div>
-        </section>
+        <div class="quick-actions">
+          <button type="button" data-page="alunos">+ Novo aluno</button>
+          <button type="button" data-page="aulas">+ Agendar aula</button>
+          <button type="button" data-page="financeiro">Financeiro</button>
+          <button type="button" data-page="relatorios">Relatórios</button>
+        </div>
 
-        <section id="aulas" class="pagina">
-            <h2>Controle de aulas</h2>
-            <div id="conteudoAulas"></div>
-        </section>
+        <div class="panel">
+          <h3>Próximas aulas</h3>
+          <div id="proximasAulas" class="empty-state">
+            Nenhuma aula agendada.
+          </div>
+        </div>
+      </section>
 
-        <section id="relatorios" class="pagina">
+      <!-- ALUNOS -->
+      <section id="page-alunos" class="page">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">CADASTROS</span>
+            <h2>Alunos</h2>
+          </div>
+          <button id="btnNovoAluno" class="primary-button" type="button">
+            + Novo aluno
+          </button>
+        </div>
+
+        <input id="buscaAlunos" class="search-input" type="search"
+          placeholder="Buscar aluno pelo nome ou CPF">
+
+        <div id="listaAlunos" class="list-container">
+          <div class="empty-state">Nenhum aluno cadastrado.</div>
+        </div>
+      </section>
+
+      <!-- VEÍCULOS -->
+      <section id="page-veiculos" class="page">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">CADASTROS</span>
+            <h2>Veículos</h2>
+          </div>
+          <button id="btnNovoVeiculo" class="primary-button" type="button">
+            + Novo veículo
+          </button>
+        </div>
+
+        <input id="buscaVeiculos" class="search-input" type="search"
+          placeholder="Buscar por modelo ou placa">
+
+        <div id="listaVeiculos" class="list-container">
+          <div class="empty-state">Nenhum veículo cadastrado.</div>
+        </div>
+      </section>
+
+      <!-- AULAS -->
+      <section id="page-aulas" class="page">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">AGENDA</span>
+            <h2>Aulas</h2>
+          </div>
+          <button id="btnNovaAula" class="primary-button" type="button">
+            + Agendar aula
+          </button>
+        </div>
+
+        <div class="filter-row">
+          <input id="filtroDataAulas" type="date" aria-label="Filtrar por data">
+          <select id="filtroAlunoAulas" aria-label="Filtrar por aluno">
+            <option value="">Todos os alunos</option>
+          </select>
+        </div>
+
+        <div id="listaAulas" class="list-container">
+          <div class="empty-state">Nenhuma aula cadastrada.</div>
+        </div>
+      </section>
+
+      <!-- FINANCEIRO -->
+      <section id="page-financeiro" class="page">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">CONTROLE FINANCEIRO</span>
+            <h2>Financeiro</h2>
+          </div>
+        </div>
+
+        <div class="finance-summary">
+          <article class="dashboard-card">
+            <span class="card-label">Entradas</span>
+            <strong id="totalEntradas">R$ 0,00</strong>
+          </article>
+          <article class="dashboard-card">
+            <span class="card-label">Despesas</span>
+            <strong id="totalDespesas">R$ 0,00</strong>
+          </article>
+          <article class="dashboard-card">
+            <span class="card-label">Saldo atual</span>
+            <strong id="saldoFinanceiro">R$ 0,00</strong>
+          </article>
+        </div>
+
+        <div class="quick-actions">
+          <button id="btnNovaVenda" type="button">+ Nova venda</button>
+          <button id="btnNovaDespesa" type="button">+ Nova despesa</button>
+          <button id="btnProdutos" type="button">Produtos e serviços</button>
+        </div>
+
+        <div class="panel">
+          <h3>Movimentações da conta corrente</h3>
+          <div id="listaMovimentacoes" class="empty-state">
+            Nenhuma movimentação registrada.
+          </div>
+        </div>
+      </section>
+
+      <!-- RELATÓRIOS -->
+      <section id="page-relatorios" class="page">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">CONSULTAS E IMPRESSÃO</span>
             <h2>Relatórios</h2>
-            <div id="conteudoRelatorios"></div>
-        </section>
+          </div>
+        </div>
 
-        <section id="backup" class="pagina">
-            <h2>Backup dos dados</h2>
-            <div id="conteudoBackup"></div>
-        </section>
+        <div class="panel">
+          <h3>Relatório por aluno</h3>
+          <select id="relatorioAluno">
+            <option value="">Selecione um aluno</option>
+          </select>
+          <button id="btnRelatorioAluno" class="primary-button" type="button">
+            Gerar relatório
+          </button>
+        </div>
+
+        <div class="panel">
+          <h3>Relatório por período</h3>
+          <label for="relatorioInicio">Data inicial</label>
+          <input id="relatorioInicio" type="date">
+          <label for="relatorioFim">Data final</label>
+          <input id="relatorioFim" type="date">
+          <button id="btnRelatorioPeriodo" class="primary-button" type="button">
+            Gerar relatório
+          </button>
+        </div>
+
+        <div class="panel">
+          <h3>Lista diária de aulas</h3>
+          <input id="relatorioData" type="date">
+          <button id="btnRelatorioDiario" class="primary-button" type="button">
+            Gerar lista diária
+          </button>
+        </div>
+
+        <div id="resultadoRelatorio"></div>
+      </section>
+
+      <!-- BACKUP -->
+      <section id="page-backup" class="page">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">SEGURANÇA DOS DADOS</span>
+            <h2>Backup</h2>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Exportar dados</h3>
+          <p>Salve uma cópia dos dados do aplicativo em um arquivo.</p>
+          <button id="btnExportarBackup" class="primary-button" type="button">
+            Exportar backup
+          </button>
+        </div>
+
+        <div class="panel">
+          <h3>Restaurar dados</h3>
+          <p>Importe um backup salvo anteriormente.</p>
+          <input id="arquivoBackup" type="file" accept=".json,application/json">
+          <button id="btnImportarBackup" class="primary-button" type="button">
+            Restaurar backup
+          </button>
+        </div>
+      </section>
+
+      <!-- CONFIGURAÇÕES -->
+      <section id="page-configuracoes" class="page">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">PERSONALIZAÇÃO</span>
+            <h2>Configurações</h2>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Aparência do aplicativo</h3>
+
+          <label for="nomeEmpresa">Nome do aplicativo</label>
+          <input id="nomeEmpresa" type="text" value="Marcus Instrutor">
+
+          <label for="corPrincipal">Cor principal</label>
+          <input id="corPrincipal" type="color" value="#12345a">
+
+          <label for="corSecundaria">Cor secundária</label>
+          <input id="corSecundaria" type="color" value="#e8edf3">
+
+          <label for="logoEmpresa">Logo do aplicativo</label>
+          <input id="logoEmpresa" type="file" accept="image/*">
+
+          <button id="btnSalvarConfiguracoes" class="primary-button" type="button">
+            Salvar configurações
+          </button>
+        </div>
+
+        <div class="panel">
+          <h3>Gerenciamento de usuários</h3>
+          <p>Cadastro e controle de acesso de usuários do sistema.</p>
+          <button id="btnUsuarios" class="primary-button" type="button">
+            Gerenciar usuários
+          </button>
+        </div>
+      </section>
 
     </main>
 
-    <script src="./script.js?v=2"></script>
+    <!-- MENU INFERIOR -->
+    <nav class="bottom-menu" aria-label="Menu principal">
+      <button type="button" data-page="inicio" class="menu-item active">
+        <span class="menu-icon">⌂</span>
+        <span>Início</span>
+      </button>
+      <button type="button" data-page="alunos" class="menu-item">
+        <span class="menu-icon">♙</span>
+        <span>Alunos</span>
+      </button>
+      <button type="button" data-page="veiculos" class="menu-item">
+        <span class="menu-icon">▣</span>
+        <span>Veículos</span>
+      </button>
+      <button type="button" data-page="aulas" class="menu-item">
+        <span class="menu-icon">▦</span>
+        <span>Aulas</span>
+      </button>
+      <button type="button" data-page="financeiro" class="menu-item">
+        <span class="menu-icon">$</span>
+        <span>Financeiro</span>
+      </button>
+      <button type="button" data-page="relatorios" class="menu-item">
+        <span class="menu-icon">▤</span>
+        <span>Relatórios</span>
+      </button>
+      <button type="button" data-page="backup" class="menu-item">
+        <span class="menu-icon">⇧</span>
+        <span>Backup</span>
+      </button>
+      <button type="button" data-page="configuracoes" class="menu-item">
+        <span class="menu-icon">⚙</span>
+        <span>Ajustes</span>
+      </button>
+    </nav>
 
-    <script>
-        if ("serviceWorker" in navigator) {
-            window.addEventListener("load", function () {
-                navigator.serviceWorker.register("./service-worker.js")
-                    .then(function (registro) {
-                        registro.update();
-                        console.log("Aplicativo preparado para uso offline.");
-                    })
-                    .catch(function (erro) {
-                        console.error("Erro ao ativar modo offline:", erro);
-                    });
-            });
-        }
-    </script>
+    <!-- ÁREA DE MODAIS -->
+    <div id="modalContainer"></div>
 
+    <!-- AVISOS -->
+    <div id="toastContainer" aria-live="polite"></div>
+
+  </div>
+
+  <script src="script.js"></script>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("./service-worker.js")
+          .catch(function (error) {
+            console.error("Erro ao registrar o aplicativo:", error);
+          });
+      });
+    }
+  </script>
 </body>
 </html>
