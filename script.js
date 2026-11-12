@@ -785,47 +785,212 @@ function listarMovimentacoes() {
     '<div class="empty-state">Nenhuma movimentação.</div>';
 }
 
+function listarProdutos() {
+  const painel = document.getElementById("page-financeiro");
+  if (!painel) return;
 
+  let area = document.getElementById("areaProdutos");
+
+  if (!area) {
+    area = document.createElement("div");
+    area.id = "areaProdutos";
+    area.className = "panel";
+    painel.appendChild(area);
+  }
+
+  area.innerHTML = `
+    <h3>Produtos e serviços</h3>
+
+    <button type="button" class="primary-button"
+      id="btnAdicionarProduto">
+      + Cadastrar produto
+    </button>
+
+    <div class="list-container">
+      ${db.produtos.length
+        ? db.produtos.map(p => `
+          <div class="record">
+            <strong>${escapar(p.nome)}</strong>
+            <p>Valor por aula: ${moeda(p.preco)}</p>
+
+            <div class="record-actions">
+              <button type="button"
+                data-edit-produto="${p.id}">
+                Editar
+              </button>
+
+              <button type="button"
+                data-delete-produto="${p.id}">
+                Excluir
+              </button>
+            </div>
+          </div>
+        `).join("")
+        : '<p>Nenhum produto cadastrado.</p>'
+      }
+    </div>
+  `;
+}
+
+function editarProduto(id = null) {
+  const produto = db.produtos.find(p => p.id === id) || {};
+
+  abrirModal(`
+    <h2>${id ? "Editar produto" : "Cadastrar produto"}</h2>
+
+    <form id="formProduto">
+      <label>Nome do produto</label>
+      <input name="nome" required
+        value="${escapar(produto.nome || "")}">
+
+      <label>Valor por aula (R$)</label>
+      <input name="preco" type="number"
+        min="0.01" step="0.01" required
+        value="${produto.preco || ""}">
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-button"
+          data-close>Cancelar</button>
+
+        <button type="submit" class="primary-button">
+          Salvar produto
+        </button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById("formProduto").onsubmit = evento => {
+    evento.preventDefault();
+
+    const dados = Object.fromEntries(
+      new FormData(evento.target).entries()
+    );
+
+    const nome = dados.nome.trim();
+    const preco = numero(dados.preco);
+
+    if (!nome || preco <= 0) {
+      mostrarAviso("Informe nome e valor válidos.");
+      return;
+    }
+
+    const duplicado = db.produtos.find(p =>
+      p.nome.toLowerCase() === nome.toLowerCase() &&
+      p.id !== id
+    );
+
+    if (duplicado) {
+      mostrarAviso("Já existe um produto com esse nome.");
+      return;
+    }
+
+    if (id) {
+      const indice = db.produtos.findIndex(p => p.id === id);
+
+      if (indice >= 0) {
+        db.produtos[indice] = {
+          ...db.produtos[indice],
+          nome,
+          preco
+        };
+      }
+    } else {
+      db.produtos.push({
+        id: gerarId(),
+        nome,
+        preco
+      });
+    }
+
+    salvarDados();
+    fecharModal();
+    listarProdutos();
+
+    mostrarAviso("Produto salvo com sucesso!");
+  };
+}
+
+function excluirProduto(id) {
+  const produto = db.produtos.find(p => p.id === id);
+  if (!produto) return;
+
+  if (!confirmar(`Excluir o produto "${produto.nome}"?`)) {
+    return;
+  }
+
+  db.produtos = db.produtos.filter(p => p.id !== id);
+
+  salvarDados();
+  listarProdutos();
+
+  mostrarAviso("Produto excluído.");
+}
 function abrirVenda() {
   if (!db.alunos.length) {
     mostrarAviso("Cadastre um aluno primeiro.");
     return;
   }
 
+  if (!db.produtos.length) {
+    mostrarAviso("Cadastre um produto primeiro.");
+    return;
+  }
+
   abrirModal(`
     <h2>Nova venda</h2>
+
     <form id="formVenda">
       <label>Aluno</label>
       <select name="alunoId" required>
         <option value="">Selecione</option>
-        ${db.alunos.map(a => `<option value="${a.id}">${escapar(a.nome)}</option>`).join("")}
+        ${db.alunos.map(a =>
+          `<option value="${a.id}">${escapar(a.nome)}</option>`
+        ).join("")}
       </select>
 
-      <label>Pacote</label>
-      <select name="pacote" id="pacoteVenda" required>
+      <label>Produto / Pacote</label>
+      <select name="produtoId" id="produtoVenda" required>
         <option value="">Selecione</option>
-        <option value="Bronze" data-preco="80">Bronze — R$ 80,00 por aula</option>
-        <option value="Prata" data-preco="75">Prata — R$ 75,00 por aula</option>
-        <option value="Ouro" data-preco="70">Ouro — R$ 70,00 por aula</option>
+        ${db.produtos.map(p =>
+          `<option value="${p.id}" data-preco="${p.preco}">
+            ${escapar(p.nome)} — ${moeda(p.preco)} por aula
+          </option>`
+        ).join("")}
       </select>
 
       <label>Quantidade de aulas</label>
-      <input name="quantidade" id="quantidadeVenda" type="number" min="1" step="1" required>
+      <input name="quantidade" id="quantidadeVenda"
+        type="number" min="1" step="1" required>
 
       <div class="panel">
-        <p>Valor por aula: <strong id="precoUnitarioVenda">R$ 0,00</strong></p>
-        <p>Total: <strong id="totalVenda">R$ 0,00</strong></p>
+        <p>Valor por aula:
+          <strong id="precoUnitarioVenda">R$ 0,00</strong>
+        </p>
+
+        <p>Total:
+          <strong id="totalVenda">R$ 0,00</strong>
+        </p>
       </div>
 
       <div class="modal-actions">
-        <button type="button" class="secondary-button" data-close>Cancelar</button>
-        <button type="submit" class="primary-button">Confirmar venda</button>
+        <button type="button" class="secondary-button"
+          data-close>Cancelar</button>
+
+        <button type="submit" class="primary-button">
+          Confirmar venda
+        </button>
       </div>
     </form>
   `);
 
-  document.getElementById("formVenda").addEventListener("change", calcularVenda);
-  document.getElementById("formVenda").addEventListener("input", calcularVenda);
+  document.getElementById("formVenda").addEventListener(
+    "change", calcularVenda
+  );
+
+  document.getElementById("formVenda").addEventListener(
+    "input", calcularVenda
+  );
+
   document.getElementById("formVenda").onsubmit = salvarVenda;
 }
 
@@ -833,40 +998,62 @@ function calcularVenda() {
   const formulario = document.getElementById("formVenda");
   if (!formulario) return 0;
 
-  const pacote = formulario.elements.pacote;
-  const preco = Number(pacote.selectedOptions[0]?.dataset.preco || 0);
-  const quantidade = numero(formulario.elements.quantidade.value);
+  const produto = formulario.elements.produtoId;
+  const preco = Number(
+    produto.selectedOptions[0]?.dataset.preco || 0
+  );
+
+  const quantidade = numero(
+    formulario.elements.quantidade.value
+  );
+
   const total = preco * quantidade;
 
-  document.getElementById("precoUnitarioVenda").textContent = moeda(preco);
-  document.getElementById("totalVenda").textContent = moeda(total);
+  document.getElementById("precoUnitarioVenda").textContent =
+    moeda(preco);
+
+  document.getElementById("totalVenda").textContent =
+    moeda(total);
 
   return total;
 }
-
 function salvarVenda(evento) {
   evento.preventDefault();
 
   const formulario = evento.target;
-  const aluno = db.alunos.find(a => a.id === formulario.elements.alunoId.value);
-  const pacote = formulario.elements.pacote.value;
-  const quantidade = numero(formulario.elements.quantidade.value);
 
-  const precos = { Bronze: 80, Prata: 75, Ouro: 70 };
-  const precoUnitario = precos[pacote];
+  const aluno = db.alunos.find(a =>
+    a.id === formulario.elements.alunoId.value
+  );
 
-  if (!aluno || !precoUnitario || !Number.isInteger(quantidade) || quantidade < 1) {
+  const produto = db.produtos.find(p =>
+    p.id === formulario.elements.produtoId.value
+  );
+
+  const quantidade = numero(
+    formulario.elements.quantidade.value
+  );
+
+  if (
+    !aluno ||
+    !produto ||
+    produto.preco <= 0 ||
+    !Number.isInteger(quantidade) ||
+    quantidade < 1
+  ) {
     mostrarAviso("Confira os dados da venda.");
     return;
   }
 
+  const precoUnitario = Number(produto.preco);
   const total = precoUnitario * quantidade;
 
   const venda = {
     id: gerarId(),
     alunoId: aluno.id,
-    pacote,
-    descricao: `Pacote ${pacote} - ${quantidade} aulas`,
+    produtoId: produto.id,
+    pacote: produto.nome,
+    descricao: `${produto.nome} - ${quantidade} aulas`,
     precoUnitario,
     aulasVendidas: quantidade,
     aulasDevolvidas: 0,
@@ -876,13 +1063,14 @@ function salvarVenda(evento) {
   };
 
   db.vendas.push(venda);
+
   aluno.saldo = Number(aluno.saldo || 0) + quantidade;
   aluno.contratadas = Number(aluno.contratadas || 0) + quantidade;
 
   db.movimentacoes.push({
     id: gerarId(),
     tipo: "entrada",
-    descricao: `Venda ${pacote} para ${aluno.nome} (${quantidade} aulas)`,
+    descricao: `Venda ${produto.nome} para ${aluno.nome} (${quantidade} aulas)`,
     valor: total,
     alunoId: aluno.id,
     vendaId: venda.id,
@@ -894,8 +1082,9 @@ function salvarVenda(evento) {
   listarAlunos();
   listarMovimentacoes();
   atualizarFinanceiro();
+
   mostrarAviso(`${quantidade} aulas adicionadas ao aluno.`);
-}
+     }
 
 function abrirDevolucao() {
   const vendas = db.vendas.filter(v =>
