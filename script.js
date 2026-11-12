@@ -1847,8 +1847,10 @@ function salvarConfiguracoes() {
       db.configuracoes.corSecundaria
     );
 
-    document.querySelector(".brand h1").textContent =
-      db.configuracoes.nome;
+    const titulo = document.querySelector(".brand h1");
+    if (titulo) titulo.textContent = db.configuracoes.nome;
+
+    aplicarLogo();
 
     salvarDados();
     mostrarAviso("Configurações salvas.");
@@ -1868,7 +1870,6 @@ function salvarConfiguracoes() {
 
   leitor.readAsDataURL(arquivo);
 }
-
 /* =========================================
    MODAIS
 ========================================= */
