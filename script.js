@@ -1798,7 +1798,22 @@ function importarBackup() {
 /* =========================================
    CONFIGURAÇÕES
 ========================================= */
+function aplicarLogo() {
+  const elemento = document.querySelector(".brand-icon");
 
+  if (!elemento) return;
+
+  const logo = db.configuracoes?.logo;
+
+  if (logo) {
+    const imagem = document.createElement("img");
+    imagem.src = logo;
+    imagem.alt = "Logo do aplicativo";
+    elemento.replaceChildren(imagem);
+  } else {
+    elemento.textContent = "MI";
+  }
+                                 }
 function carregarConfiguracoes() {
   const nome = document.getElementById("nomeEmpresa");
   const principal = document.getElementById("corPrincipal");
