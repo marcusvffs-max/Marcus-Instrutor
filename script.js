@@ -1653,9 +1653,7 @@ document.getElementById("btnNovaAula").onclick =
   () => abrirFormularioAula();
 
 document.getElementById("btnNovaVenda").onclick = abrirVenda;
-document.getElementById("btnProdutos").onclick = () => {
-  mostrarAviso("Os pacotes Bronze, Prata e Ouro são selecionados durante a venda.");
-};
+document.getElementById("btnProdutos").onclick = listarProdutos;
 
 const botaoDevolucao = document.getElementById("btnDevolucao");
 if (botaoDevolucao) {
