@@ -1,0 +1,190 @@
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f1f3f6;
+    color: #263445;
+    padding-bottom: 30px;
+}
+
+.topo {
+    background: #12345a;
+    color: white;
+    padding: 25px 15px;
+    text-align: center;
+}
+
+.topo h1 {
+    font-size: 22px;
+    letter-spacing: 1px;
+}
+
+.topo p {
+    margin-top: 6px;
+    color: #c8d7e8;
+}
+
+.menu {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    justify-content: center;
+    background: #ffffff;
+    padding: 12px;
+    box-shadow: 0 2px 6px #00000015;
+}
+
+.menu button {
+    border: none;
+    border-radius: 8px;
+    background: #e6edf5;
+    color: #12345a;
+    padding: 11px 13px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.menu button:active {
+    background: #12345a;
+    color: white;
+}
+
+main {
+    padding: 18px;
+    max-width: 850px;
+    margin: auto;
+}
+
+.pagina {
+    display: none;
+    background: white;
+    padding: 20px;
+    border-radius: 14px;
+    box-shadow: 0 3px 12px #0000000d;
+}
+
+.pagina.ativa {
+    display: block;
+}
+
+h2 {
+    color: #12345a;
+    margin-bottom: 18px;
+}
+
+h3 {
+    margin: 20px 0 10px;
+}
+
+button, input, select, textarea {
+    font-family: inherit;
+    font-size: 15px;
+}
+
+button {
+    cursor: pointer;
+}
+
+input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    margin: 7px 0 15px;
+    border: 1px solid #cbd3dc;
+    border-radius: 8px;
+    background: white;
+}
+
+label {
+    display: block;
+    font-weight: bold;
+    color: #34495e;
+    margin-top: 8px;
+}
+
+textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.btn, button.principal {
+    background: #12345a;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-weight: bold;
+}
+
+.card {
+    background: #f1f5f9;
+    border-left: 4px solid #12345a;
+    border-radius: 8px;
+    padding: 14px;
+    margin: 10px 0;
+}
+
+.item {
+    border: 1px solid #dce2e8;
+    border-radius: 10px;
+    padding: 14px;
+    margin: 12px 0;
+    overflow-wrap: anywhere;
+}
+
+.item button {
+    margin: 8px 5px 0 0;
+}
+
+.secundario {
+    background: #e6edf5;
+    color: #12345a;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.perigo {
+    background: #a52a2a;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+@media (max-width: 600px) {
+    main {
+        padding: 10px;
+    }
+
+    .pagina {
+        padding: 15px;
+    }
+
+    .menu button {
+        flex: 1 1 28%;
+    }
+}
+
+@media print {
+    .topo, .menu, button {
+        display: none !important;
+    }
+
+    .pagina {
+        display: none !important;
+        box-shadow: none;
+    }
+
+    #relatorios {
+        display: block !important;
+    }
+
+    body {
+        background: white;
+    }
+}
