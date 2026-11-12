@@ -944,6 +944,104 @@ function editarProduto(id = null) {
 
     if (!nome || preco <= 0 ||
         !["servico", "produto"].includes(tipo)) {
+
+
+function listarProdutos() {
+  const lista = document.getElementById("listaProdutos");
+  if (!lista) return;
+
+  const campoBusca = document.getElementById("buscaProdutos");
+  const busca = (campoBusca?.value || "").trim().toLowerCase();
+
+  const produtos = db.produtos.filter(p =>
+    String(p.nome || "").toLowerCase().includes(busca)
+  );
+
+  lista.innerHTML = produtos.length
+    ? produtos.map(p => {
+        const tipo = p.tipo ||
+          (/pacote\s*(bronze|prata|ouro)|aula avulsa/i.test(p.nome || "")
+            ? "servico"
+            : "produto");
+
+        return `
+          <div class="record">
+            <div class="record-info">
+              <strong>${escapar(p.nome)}</strong>
+              <p>Classificação: <strong>${tipo === "servico" ? "Serviço" : "Produto"}</strong></p>
+              <p>Valor: <strong>${moeda(p.preco)}</strong></p>
+            </div>
+
+            <div class="record-actions">
+              <button type="button" data-edit-produto="${escapar(p.id)}">
+                Editar
+              </button>
+
+              <button type="button" data-delete-produto="${escapar(p.id)}">
+                Excluir
+              </button>
+            </div>
+          </div>
+        `;
+      }).join("")
+    : '<div class="empty-state">Nenhum produto encontrado.</div>';
+}
+
+function editarProduto(id = null) {
+  const produto = db.produtos.find(p => p.id === id) || {};
+
+  const tipoAtual = produto.tipo ||
+    (/pacote\s*(bronze|prata|ouro)|aula avulsa/i.test(produto.nome || "")
+      ? "servico"
+      : "produto");
+
+  abrirModal(`
+    <h2>${id ? "Editar produto" : "Cadastrar produto"}</h2>
+
+    <form id="formProduto">
+      <label>Nome do produto ou serviço</label>
+      <input name="nome" required
+        value="${escapar(produto.nome || "")}">
+
+      <label>Classificação</label>
+      <select name="tipo" required>
+        <option value="servico" ${tipoAtual === "servico" ? "selected" : ""}>
+          Serviço
+        </option>
+        <option value="produto" ${tipoAtual === "produto" ? "selected" : ""}>
+          Produto
+        </option>
+      </select>
+
+      <label>Valor (R$)</label>
+      <input name="preco" type="number"
+        min="0.01" step="0.01" required
+        value="${produto.preco ?? ""}">
+
+      <div class="modal-actions">
+        <button type="button" class="secondary-button"
+          data-close>Cancelar</button>
+
+        <button type="submit" class="primary-button">
+          Salvar
+        </button>
+      </div>
+    </form>
+  `);
+
+  document.getElementById("formProduto").onsubmit = evento => {
+    evento.preventDefault();
+
+    const dados = Object.fromEntries(
+      new FormData(evento.target).entries()
+    );
+
+    const nome = dados.nome.trim();
+    const preco = numero(dados.preco);
+    const tipo = dados.tipo;
+
+    if (!nome || preco <= 0 ||
+        !["servico", "produto"].includes(tipo)) {
       mostrarAviso("Confira o nome, a classificação e o valor.");
       return;
     }
@@ -984,7 +1082,6 @@ function editarProduto(id = null) {
     mostrarAviso("Cadastro salvo com sucesso!");
   };
 }
-
 
 function excluirProduto(id) {
   const produto = db.produtos.find(p => p.id === id);
