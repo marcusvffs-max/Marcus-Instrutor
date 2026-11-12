@@ -1,0 +1,13 @@
+
+{
+  "name": "Marcus Instrutor - Controle de Aulas",
+  "short_name": "Marcus Instrutor",
+  "description": "Controle de alunos, veículos e aulas.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f1f3f6",
+  "theme_color": "#12345a"
+}
