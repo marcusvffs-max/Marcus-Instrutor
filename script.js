@@ -657,6 +657,7 @@ function abrirFormularioAula(id = null) {
   document.getElementById("formAula").onsubmit = salvarAula;
 }
 
+
 function salvarAula(evento) {
   evento.preventDefault();
 
@@ -699,6 +700,7 @@ function salvarAula(evento) {
   if (anterior) {
     ajustarSaldoAula(anterior, -1);
     ajustarSaldoAula(aula, 1);
+
     const indice = db.aulas.findIndex(a => a.id === aulaEditando);
     db.aulas[indice] = aula;
   } else {
@@ -706,14 +708,49 @@ function salvarAula(evento) {
     db.aulas.push(aula);
   }
 
-  salvarDados();
-  fecharModal();
-  listarAulas();
-  listarAlunos();
-  atualizarSeletoresAlunos();
-  mostrarAviso("Aula salva com sucesso!");
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  } catch (erro) {
+    console.error("Erro ao salvar aula:", erro);
+    mostrarAviso("Não foi possível salvar a aula.");
+    return;
+  }
+
   aulaEditando = null;
+
+  try {
+    fecharModal();
+  } catch (erro) {
+    console.error("Erro ao fechar formulário:", erro);
+  }
+
+  try {
+    listarAulas();
+  } catch (erro) {
+    console.error("Erro ao atualizar aulas:", erro);
+  }
+
+  try {
+    listarAlunos();
+  } catch (erro) {
+    console.error("Erro ao atualizar alunos:", erro);
+  }
+
+  try {
+    atualizarSeletoresAlunos();
+  } catch (erro) {
+    console.error("Erro ao atualizar seletores:", erro);
+  }
+
+  try {
+    atualizarPainel();
+  } catch (erro) {
+    console.error("Erro ao atualizar painel:", erro);
+  }
+
+  mostrarAviso("Aula salva com sucesso!");
 }
+
 
 /* =========================================
    AGENDAMENTO DE VÁRIAS AULAS
