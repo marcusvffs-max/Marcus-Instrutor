@@ -190,6 +190,7 @@ function atualizarTela(nome) {
 ========================================= */
 
 
+
 function atualizarPainel() {
   const totalAlunos = document.getElementById("totalAlunos");
   const totalAgendadas = document.getElementById("totalAgendadas");
@@ -210,25 +211,41 @@ function atualizarPainel() {
       db.aulas.filter(a => a.status === "Realizada").length;
   }
 
-  // Calcula o saldo pelas movimentações
-  const entradas = db.movimentacoes
+  // Calcula somente o saldo das movimentações de hoje
+  const hoje = dataHoje();
+
+  const movimentacoesHoje = db.movimentacoes.filter(m => {
+    if (!m.data) return false;
+
+    const data = String(m.data).trim();
+    let dataNormalizada = data;
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(data)) {
+      const partes = data.split("/");
+      dataNormalizada = `${partes[2]}-${partes[1]}-${partes[0]}`;
+    } else if (/^\d{4}-\d{2}-\d{2}/.test(data)) {
+      dataNormalizada = data.substring(0, 10);
+    }
+
+    return dataNormalizada === hoje;
+  });
+
+  const entradasHoje = movimentacoesHoje
     .filter(m => m.tipo === "entrada")
     .reduce((total, m) => total + Number(m.valor || 0), 0);
 
-  const saidas = db.movimentacoes
+  const saidasHoje = movimentacoesHoje
     .filter(m => m.tipo === "saida")
     .reduce((total, m) => total + Number(m.valor || 0), 0);
 
   if (saldoCaixa) {
-    saldoCaixa.textContent = moeda(entradas - saidas);
+    saldoCaixa.textContent = moeda(entradasHoje - saidasHoje);
   }
 
   // Atualiza as próximas aulas
   const proximas = document.getElementById("proximasAulas");
 
   if (proximas) {
-    const hoje = dataHoje();
-
     function normalizarData(data) {
       if (!data) return "";
 
@@ -303,6 +320,7 @@ function atualizarPainel() {
     };
   }
 }
+
 
 
 
