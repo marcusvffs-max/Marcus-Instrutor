@@ -2255,7 +2255,10 @@ const botaoNovaAula = document.getElementById("btnNovaAula");
 if (botaoNovaAula) {
   botaoNovaAula.onclick = () => abrirFormularioAula();
 }
-
+const botaoAgendamentoLote = document.getElementById("btnAgendamentoLote");
+if (botaoAgendamentoLote) {
+  botaoAgendamentoLote.onclick = abrirAgendamentoLote;
+     }
 const botaoNovaVenda = document.getElementById("btnNovaVenda");
 if (botaoNovaVenda) {
   botaoNovaVenda.onclick = abrirVenda;
