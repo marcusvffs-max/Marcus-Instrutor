@@ -208,15 +208,37 @@ function atualizarPainel() {
       db.aulas.filter(a => a.status === "Realizada").length;
   }
 
-  if (saldoCaixa) saldoCaixa.textContent = moeda(calcularSaldo());
+  if (saldoCaixa) {
+    saldoCaixa.textContent = moeda(calcularSaldo());
+  }
 
   const proximas = document.getElementById("proximasAulas");
 
   if (proximas) {
     const hoje = dataHoje();
 
+    function normalizarData(data) {
+      if (!data) return "";
+
+      const valor = String(data).trim();
+
+      if (/^\d{4}-\d{2}-\d{2}/.test(valor)) {
+        return valor.substring(0, 10);
+      }
+
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(valor)) {
+        const partes = valor.split("/");
+        return `${partes[2]}-${partes[1]}-${partes[0]}`;
+      }
+
+      return valor;
+    }
+
     const aulas = db.aulas
-      .filter(a => a.status === "Agendada" && a.data === hoje)
+      .filter(a =>
+        String(a.status || "").trim() === "Agendada" &&
+        normalizarData(a.data) === hoje
+      )
       .sort((a, b) =>
         (a.horario || "").localeCompare(b.horario || "")
       )
@@ -269,6 +291,7 @@ function atualizarPainel() {
     };
   }
 }
+
 
 function alterarStatusAulaPainel(id, novoStatus) {
   const aula = db.aulas.find(a => a.id === id);
