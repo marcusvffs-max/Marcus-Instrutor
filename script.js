@@ -189,6 +189,7 @@ function atualizarTela(nome) {
    PAINEL
 ========================================= */
 
+
 function atualizarPainel() {
   const totalAlunos = document.getElementById("totalAlunos");
   const totalAgendadas = document.getElementById("totalAgendadas");
@@ -226,21 +227,85 @@ function atualizarPainel() {
           <div class="record">
             <strong>${escapar(nomeAluno(a.alunoId))}</strong>
             <p>${formatarData(a.data)} • ${escapar(a.horario)}</p>
+
+            <div class="record-actions">
+              <button
+                type="button"
+                data-realizar-aula="${a.id}"
+                class="primary-button"
+              >
+                Realizada
+              </button>
+
+              <button
+                type="button"
+                data-cancelar-aula="${a.id}"
+                class="secondary-button"
+              >
+                Cancelada
+              </button>
+            </div>
           </div>
         `).join("")
       : '<div class="empty-state">Nenhuma aula agendada para hoje.</div>';
+
+    proximas.onclick = evento => {
+      const realizar = evento.target.closest("[data-realizar-aula]");
+      const cancelar = evento.target.closest("[data-cancelar-aula]");
+
+      if (realizar) {
+        alterarStatusAulaPainel(
+          realizar.dataset.realizarAula,
+          "Realizada"
+        );
+      }
+
+      if (cancelar) {
+        alterarStatusAulaPainel(
+          cancelar.dataset.cancelarAula,
+          "Cancelada"
+        );
+      }
+    };
   }
 }
 
-function calcularSaldo() {
-  return db.movimentacoes.reduce((total, item) => {
-    return total + (
-      item.tipo === "entrada"
-        ? Number(item.valor)
-        : -Number(item.valor)
-    );
-  }, 0);
+function alterarStatusAulaPainel(id, novoStatus) {
+  const aula = db.aulas.find(a => a.id === id);
+
+  if (!aula || aula.status !== "Agendada") return;
+
+  if (novoStatus === "Realizada") {
+    const aluno = db.alunos.find(a => a.id === aula.alunoId);
+
+    if (!aluno || Number(aluno.saldo || 0) < 1) {
+      mostrarAviso("Este aluno não possui aulas disponíveis.");
+      return;
+    }
+
+    aula.status = "Realizada";
+    ajustarSaldoAula(aula, 1);
+
+  } else if (novoStatus === "Cancelada") {
+    if (!confirmar("Deseja realmente cancelar esta aula?")) return;
+
+    aula.status = "Cancelada";
+  } else {
+    return;
+  }
+
+  salvarDados();
+  listarAlunos();
+  listarAulas();
+  atualizarPainel();
+
+  mostrarAviso(
+    novoStatus === "Realizada"
+      ? "Aula marcada como realizada. Saldo atualizado."
+      : "Aula cancelada. Nenhuma aula foi descontada."
+  );
 }
+
 
 /* =========================================
    ALUNOS
