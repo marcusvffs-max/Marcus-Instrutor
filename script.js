@@ -2183,134 +2183,140 @@ function mostrarRelatorio(conteudo) {
   if (!estilo) {
     estilo = document.createElement("style");
     estilo.id = "estiloRelatorio";
+    document.head.appendChild(estilo);
+  }
 
-    estilo.textContent = `
+  // ATUALIZA O CSS SEMPRE, MESMO QUE JÁ EXISTA
+  estilo.textContent = `
+    #resultadoRelatorio {
+      background: #fff;
+      color: #222;
+      padding: 18px;
+      margin-top: 20px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+    }
+
+    #resultadoRelatorio .cabecalho-relatorio {
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      justify-content: flex-start !important;
+      gap: 16px !important;
+      text-align: left !important;
+      border-bottom: 2px solid #12345a;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+
+    #resultadoRelatorio .logo-relatorio {
+      display: block !important;
+      width: auto !important;
+      max-width: 110px !important;
+      max-height: 85px !important;
+      height: auto !important;
+      object-fit: contain;
+      margin: 0 !important;
+      flex: 0 0 auto !important;
+    }
+
+    #resultadoRelatorio .identificacao-relatorio {
+      display: block !important;
+      flex: 1 1 auto !important;
+      text-align: left !important;
+    }
+
+    #resultadoRelatorio .identificacao-relatorio h1 {
+      color: #12345a;
+      margin: 0 0 5px;
+      text-align: left !important;
+    }
+
+    #resultadoRelatorio .identificacao-relatorio p {
+      margin: 0;
+      text-align: left !important;
+    }
+
+    #resultadoRelatorio h2 {
+      color: #12345a;
+    }
+
+    #resultadoRelatorio table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    #resultadoRelatorio th,
+    #resultadoRelatorio td {
+      border: 1px solid #999;
+      padding: 8px;
+      text-align: left;
+      font-size: 13px;
+    }
+
+    #resultadoRelatorio th {
+      background: #e8edf3;
+      color: #12345a;
+    }
+
+    #resultadoRelatorio .acoes-relatorio {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    #resultadoRelatorio .acoes-relatorio button {
+      padding: 12px 16px;
+      border: 0;
+      border-radius: 6px;
+      background: #12345a;
+      color: white;
+      cursor: pointer;
+    }
+
+    #resultadoRelatorio .acoes-relatorio .fechar {
+      background: #555;
+    }
+
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+
+      #resultadoRelatorio,
+      #resultadoRelatorio * {
+        visibility: visible !important;
+      }
+
       #resultadoRelatorio {
-        background: #fff;
-        color: #222;
-        padding: 18px;
-        margin-top: 20px;
-        border-radius: 10px;
-        border: 1px solid #ddd;
-      }
-
-      #resultadoRelatorio .cabecalho-relatorio {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 16px;
-        text-align: left;
-        border-bottom: 2px solid #12345a;
-        padding-bottom: 12px;
-        margin-bottom: 20px;
-      }
-
-      #resultadoRelatorio .logo-relatorio {
-        display: block;
-        max-width: 110px;
-        max-height: 85px;
-        width: auto;
-        height: auto;
-        object-fit: contain;
-        margin: 0;
-        flex-shrink: 0;
-      }
-
-      #resultadoRelatorio .identificacao-relatorio {
-        text-align: left;
-      }
-
-      #resultadoRelatorio .identificacao-relatorio h1 {
-        color: #12345a;
-        margin: 0 0 5px;
-      }
-
-      #resultadoRelatorio .identificacao-relatorio p {
-        margin: 0;
-      }
-
-      #resultadoRelatorio h2 {
-        color: #12345a;
-      }
-
-      #resultadoRelatorio table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 15px;
-      }
-
-      #resultadoRelatorio th,
-      #resultadoRelatorio td {
-        border: 1px solid #999;
-        padding: 8px;
-        text-align: left;
-        font-size: 13px;
-      }
-
-      #resultadoRelatorio th {
-        background: #e8edf3;
-        color: #12345a;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 10mm !important;
+        border: 0 !important;
+        box-shadow: none !important;
       }
 
       #resultadoRelatorio .acoes-relatorio {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin: 20px 0;
+        display: none !important;
       }
 
-      #resultadoRelatorio .acoes-relatorio button {
-        padding: 12px 16px;
-        border: 0;
-        border-radius: 6px;
-        background: #12345a;
-        color: white;
-        cursor: pointer;
+      #resultadoRelatorio th {
+        background: #e8edf3 !important;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
       }
 
-      #resultadoRelatorio .acoes-relatorio .fechar {
-        background: #555;
+      #resultadoRelatorio tr {
+        page-break-inside: avoid;
       }
-
-      @media print {
-        body * {
-          visibility: hidden !important;
-        }
-
-        #resultadoRelatorio,
-        #resultadoRelatorio * {
-          visibility: visible !important;
-        }
-
-        #resultadoRelatorio {
-          position: absolute !important;
-          left: 0 !important;
-          top: 0 !important;
-          width: 100% !important;
-          margin: 0 !important;
-          padding: 10mm !important;
-          border: 0 !important;
-          box-shadow: none !important;
-        }
-
-        #resultadoRelatorio .acoes-relatorio {
-          display: none !important;
-        }
-
-        #resultadoRelatorio th {
-          background: #e8edf3 !important;
-          print-color-adjust: exact;
-          -webkit-print-color-adjust: exact;
-        }
-
-        #resultadoRelatorio tr {
-          page-break-inside: avoid;
-        }
-      }
-    `;
-
-    document.head.appendChild(estilo);
-  }
+    }
+  `;
 
   resultado.innerHTML = `
     <div class="cabecalho-relatorio">
@@ -2337,15 +2343,36 @@ function mostrarRelatorio(conteudo) {
 
   if (logoEmpresa) {
     const cabecalho = resultado.querySelector(".cabecalho-relatorio");
+    const identificacao = resultado.querySelector(".identificacao-relatorio");
 
-    if (cabecalho) {
+    if (cabecalho && identificacao) {
       const imagemLogo = document.createElement("img");
 
       imagemLogo.className = "logo-relatorio";
       imagemLogo.alt = "Logo da empresa";
       imagemLogo.src = logoEmpresa;
 
-      cabecalho.insertBefore(imagemLogo, cabecalho.firstChild);
+      // FORÇA O ALINHAMENTO LADO A LADO
+      cabecalho.style.setProperty("display", "flex", "important");
+      cabecalho.style.setProperty("flex-direction", "row", "important");
+      cabecalho.style.setProperty("align-items", "center", "important");
+      cabecalho.style.setProperty("justify-content", "flex-start", "important");
+      cabecalho.style.setProperty("text-align", "left", "important");
+      cabecalho.style.setProperty("gap", "16px", "important");
+
+      imagemLogo.style.setProperty("display", "block", "important");
+      imagemLogo.style.setProperty("width", "auto", "important");
+      imagemLogo.style.setProperty("max-width", "110px", "important");
+      imagemLogo.style.setProperty("max-height", "85px", "important");
+      imagemLogo.style.setProperty("height", "auto", "important");
+      imagemLogo.style.setProperty("margin", "0", "important");
+      imagemLogo.style.setProperty("flex", "0 0 auto", "important");
+
+      identificacao.style.setProperty("display", "block", "important");
+      identificacao.style.setProperty("flex", "1 1 auto", "important");
+      identificacao.style.setProperty("text-align", "left", "important");
+
+      cabecalho.insertBefore(imagemLogo, identificacao);
     }
   }
 
