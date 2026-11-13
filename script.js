@@ -362,6 +362,7 @@ function abrirFormularioAluno(id = null) {
   document.getElementById("formAluno").onsubmit = salvarAluno;
 }
 
+
 function salvarAluno(evento) {
   evento.preventDefault();
 
@@ -404,12 +405,16 @@ function salvarAluno(evento) {
     db.alunos.push(aluno);
   }
 
-  salvarDados();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+
+  alunoEditando = null;
   fecharModal();
+
   listarAlunos();
   atualizarSeletoresAlunos();
+  atualizarPainel();
+
   mostrarAviso("Aluno salvo com sucesso!");
-  alunoEditando = null;
 }
 
 function listarAlunos() {
