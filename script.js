@@ -1164,12 +1164,86 @@ function registrarMovimentacao(tipo, descricao, valor, alunoId = null) {
   salvarDados();
 }
 
+
+function normalizarDataFinanceira(data) {
+  if (!data) return "";
+
+  const texto = String(data).trim();
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+    return texto;
+  }
+
+  const brasileira = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+
+  if (brasileira) {
+    return `${brasileira[3]}-${brasileira[2]}-${brasileira[1]}`;
+  }
+
+  return "";
+}
+
+function obterPeriodoFinanceiro() {
+  const tipo = document.getElementById("filtroFinanceiroTipo")?.value || "diario";
+  const hoje = normalizarDataFinanceira(dataHoje());
+
+  const campoDia = document.getElementById("dataFinanceiroDia");
+  const campoMes = document.getElementById("dataFinanceiroMes");
+  const campoAno = document.getElementById("dataFinanceiroAno");
+
+  if (tipo === "mensal") {
+    const mesAtual = hoje ? hoje.slice(0, 7) : "";
+    const mes = campoMes?.value || mesAtual;
+
+    return {
+      tipo,
+      inicio: mes ? `${mes}-01` : "",
+      fim: mes ? `${mes}-31` : "",
+      titulo: mes ? `Mês: ${mes.split("-").reverse().join("/")}` : "Relatório mensal"
+    };
+  }
+
+  if (tipo === "anual") {
+    const anoAtual = hoje ? hoje.slice(0, 4) : "";
+    const ano = campoAno?.value || anoAtual;
+
+    return {
+      tipo,
+      inicio: ano ? `${ano}-01-01` : "",
+      fim: ano ? `${ano}-12-31` : "",
+      titulo: ano ? `Ano: ${ano}` : "Relatório anual"
+    };
+  }
+
+  const dia = campoDia?.value || hoje;
+
+  return {
+    tipo: "diario",
+    inicio: dia,
+    fim: dia,
+    titulo: dia ? `Dia: ${dia.split("-").reverse().join("/")}` : "Relatório diário"
+  };
+}
+
+function obterMovimentacoesFiltradas() {
+  const periodo = obterPeriodoFinanceiro();
+
+  if (!periodo.inicio || !periodo.fim) return [];
+
+  return db.movimentacoes.filter(m => {
+    const data = normalizarDataFinanceira(m.data);
+    return data >= periodo.inicio && data <= periodo.fim;
+  });
+}
+
 function atualizarFinanceiro() {
-  const entradas = db.movimentacoes
+  const movimentos = obterMovimentacoesFiltradas();
+
+  const entradas = movimentos
     .filter(m => m.tipo === "entrada")
     .reduce((s, m) => s + Number(m.valor || 0), 0);
 
-  const saidas = db.movimentacoes
+  const saidas = movimentos
     .filter(m => m.tipo === "saida")
     .reduce((s, m) => s + Number(m.valor || 0), 0);
 
@@ -1186,7 +1260,7 @@ function listarMovimentacoes() {
   const lista = document.getElementById("listaMovimentacoes");
   if (!lista) return;
 
-  const movimentos = [...db.movimentacoes].reverse();
+  const movimentos = obterMovimentacoesFiltradas().reverse();
 
   lista.innerHTML = movimentos.map(m => {
     const venda = m.vendaId
@@ -1209,8 +1283,112 @@ function listarMovimentacoes() {
         <div class="record-actions">${acao}</div>
       </div>
     `;
-  }).join("") || '<div class="empty-state">Nenhuma movimentação.</div>';
+  }).join("") || '<div class="empty-state">Nenhuma movimentação neste período.</div>';
 }
+
+function gerarRelatorioFinanceiro() {
+  const periodo = obterPeriodoFinanceiro();
+  const movimentos = obterMovimentacoesFiltradas();
+
+  const entradas = movimentos
+    .filter(m => m.tipo === "entrada")
+    .reduce((s, m) => s + Number(m.valor || 0), 0);
+
+  const saidas = movimentos
+    .filter(m => m.tipo === "saida")
+    .reduce((s, m) => s + Number(m.valor || 0), 0);
+
+  const linhas = movimentos.map(m => `
+    <tr>
+      <td>${escapar(formatarData(m.data))}</td>
+      <td>${escapar(m.descricao)}</td>
+      <td>${m.tipo === "entrada" ? "Entrada" : "Saída"}</td>
+      <td class="valor">${moeda(m.valor)}</td>
+    </tr>
+  `).join("");
+
+  const janela = window.open("", "_blank");
+
+  if (!janela) {
+    mostrarAviso("Permita a abertura de janelas para imprimir o relatório.");
+    return;
+  }
+
+  janela.document.write(`
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8">
+      <title>Relatório Financeiro</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          padding: 25px;
+          color: #222;
+        }
+        h1, h2 {
+          text-align: center;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 25px;
+        }
+        th, td {
+          border: 1px solid #ccc;
+          padding: 9px;
+          text-align: left;
+        }
+        th {
+          background: #eee;
+        }
+        .valor {
+          text-align: right;
+          white-space: nowrap;
+        }
+        .resumo {
+          margin-top: 25px;
+          line-height: 1.8;
+          font-size: 16px;
+        }
+        @media print {
+          body { padding: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <h1>Marcus Instrutor</h1>
+      <h2>Relatório Financeiro</h2>
+      <p><strong>${escapar(periodo.titulo)}</strong></p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Descrição</th>
+            <th>Tipo</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${linhas || '<tr><td colspan="4">Nenhuma movimentação neste período.</td></tr>'}
+        </tbody>
+      </table>
+
+      <div class="resumo">
+        <strong>Total de entradas:</strong> ${moeda(entradas)}<br>
+        <strong>Total de despesas:</strong> ${moeda(saidas)}<br>
+        <strong>Saldo do período:</strong> ${moeda(entradas - saidas)}
+      </div>
+    </body>
+    </html>
+  `);
+
+  janela.document.close();
+  janela.focus();
+  janela.print();
+}
+
 
 /* =========================================
    PRODUTOS E SERVIÇOS
