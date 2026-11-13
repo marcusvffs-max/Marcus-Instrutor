@@ -316,9 +316,13 @@ function nomeAluno(id) {
   return aluno ? aluno.nome : "Aluno não encontrado";
 }
 
+
 function abrirFormularioAluno(id = null) {
   alunoEditando = id;
-  const aluno = db.alunos.find(a => a.id === id) || {};
+
+  const aluno = id !== null
+    ? db.alunos.find(a => String(a.id) === String(id)) || {}
+    : {};
 
   abrirModal(`
     <h2>${id ? "Editar aluno" : "Novo aluno"}</h2>
@@ -361,6 +365,7 @@ function abrirFormularioAluno(id = null) {
 
   document.getElementById("formAluno").onsubmit = salvarAluno;
 }
+
 
 
 function salvarAluno(evento) {
