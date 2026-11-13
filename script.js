@@ -368,6 +368,7 @@ function abrirFormularioAluno(id = null) {
 
 
 
+
 function salvarAluno(evento) {
   evento.preventDefault();
 
@@ -379,9 +380,18 @@ function salvarAluno(evento) {
     return;
   }
 
+  const alunoAnterior = alunoEditando !== null
+    ? db.alunos.find(a => String(a.id) === String(alunoEditando))
+    : null;
+
+  if (alunoEditando !== null && !alunoAnterior) {
+    mostrarAviso("Não foi possível localizar o aluno para edição.");
+    return;
+  }
+
   const duplicado = db.alunos.find(a =>
     a.nome.toLowerCase() === nome.toLowerCase() &&
-    a.id !== alunoEditando
+    String(a.id) !== String(alunoEditando)
   );
 
   if (duplicado) {
@@ -389,10 +399,8 @@ function salvarAluno(evento) {
     return;
   }
 
-  const alunoAnterior = db.alunos.find(a => a.id === alunoEditando);
-
   const aluno = {
-    id: alunoEditando || gerarId(),
+    id: alunoAnterior ? alunoAnterior.id : gerarId(),
     nome,
     telefone: dados.telefone,
     cpf: dados.cpf,
@@ -403,9 +411,12 @@ function salvarAluno(evento) {
     saldo: Number(alunoAnterior?.saldo || 0)
   };
 
-  if (alunoEditando) {
-    const indice = db.alunos.findIndex(a => a.id === alunoEditando);
-    if (indice >= 0) db.alunos[indice] = aluno;
+  if (alunoAnterior) {
+    const indice = db.alunos.findIndex(
+      a => String(a.id) === String(alunoEditando)
+    );
+
+    db.alunos[indice] = aluno;
   } else {
     db.alunos.push(aluno);
   }
@@ -413,14 +424,15 @@ function salvarAluno(evento) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
 
   alunoEditando = null;
-  fecharModal();
 
+  fecharModal();
   listarAlunos();
   atualizarSeletoresAlunos();
   atualizarPainel();
 
   mostrarAviso("Aluno salvo com sucesso!");
 }
+
 
 function listarAlunos() {
   const lista = document.getElementById("listaAlunos");
