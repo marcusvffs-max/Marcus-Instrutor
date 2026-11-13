@@ -2161,6 +2161,7 @@ function tabelaAulas(aulas, assinatura = false) {
 
 /* RELATÓRIO EM NOVA TELA */
 
+
 function mostrarRelatorio(conteudo) {
   relatorioAtual = conteudo;
 
@@ -2174,6 +2175,11 @@ function mostrarRelatorio(conteudo) {
   const nomeEmpresa = escapar(
     db.configuracoes.nome || "Marcus Instrutor"
   );
+
+  const logoEmpresa = db.configuracoes?.logo;
+  const logoHtml = logoEmpresa
+    ? `<img class="logo-relatorio" src="${escapar(logoEmpresa)}" alt="Logo da empresa">`
+    : "";
 
   let estilo = document.getElementById("estiloRelatorio");
 
@@ -2196,6 +2202,16 @@ function mostrarRelatorio(conteudo) {
         border-bottom: 2px solid #12345a;
         padding-bottom: 12px;
         margin-bottom: 20px;
+      }
+
+      #resultadoRelatorio .logo-relatorio {
+        display: block;
+        max-width: 150px;
+        max-height: 100px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        margin: 0 auto 12px;
       }
 
       #resultadoRelatorio h1,
@@ -2284,6 +2300,7 @@ function mostrarRelatorio(conteudo) {
 
   resultado.innerHTML = `
     <div class="cabecalho-relatorio">
+      ${logoHtml}
       <h1>${nomeEmpresa}</h1>
       <p>Relatório de controle de aulas</p>
     </div>
