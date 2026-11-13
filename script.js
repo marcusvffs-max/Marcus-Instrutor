@@ -212,12 +212,14 @@ function atualizarPainel() {
   const proximas = document.getElementById("proximasAulas");
 
   if (proximas) {
+    const hoje = dataHoje();
+
     const aulas = db.aulas
-      .filter(a => a.status === "Agendada")
+      .filter(a => a.status === "Agendada" && a.data === hoje)
       .sort((a, b) =>
-        (a.data + a.horario).localeCompare(b.data + b.horario)
+        (a.horario || "").localeCompare(b.horario || "")
       )
-      .slice(0, 5);
+      .slice(0, 12);
 
     proximas.innerHTML = aulas.length
       ? aulas.map(a => `
@@ -226,7 +228,7 @@ function atualizarPainel() {
             <p>${formatarData(a.data)} • ${escapar(a.horario)}</p>
           </div>
         `).join("")
-      : '<div class="empty-state">Nenhuma aula agendada.</div>';
+      : '<div class="empty-state">Nenhuma aula agendada para hoje.</div>';
   }
 }
 
