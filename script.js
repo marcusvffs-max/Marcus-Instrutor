@@ -2176,10 +2176,7 @@ function mostrarRelatorio(conteudo) {
     db.configuracoes.nome || "Marcus Instrutor"
   );
 
-  const logoEmpresa = db.configuracoes?.logo;
-  const logoHtml = logoEmpresa
-    ? `<img class="logo-relatorio" src="${escapar(logoEmpresa)}" alt="Logo da empresa">`
-    : "";
+  const logoEmpresa = db.configuracoes?.logo || "";
 
   let estilo = document.getElementById("estiloRelatorio");
 
@@ -2300,7 +2297,6 @@ function mostrarRelatorio(conteudo) {
 
   resultado.innerHTML = `
     <div class="cabecalho-relatorio">
-      ${logoHtml}
       <h1>${nomeEmpresa}</h1>
       <p>Relatório de controle de aulas</p>
     </div>
@@ -2320,6 +2316,29 @@ function mostrarRelatorio(conteudo) {
     </div>
   `;
 
+  // INSERE A LOGO DIRETAMENTE NO CABEÇALHO
+  if (logoEmpresa) {
+    const cabecalho = resultado.querySelector(".cabecalho-relatorio");
+
+    if (cabecalho) {
+      const imagemLogo = document.createElement("img");
+
+      imagemLogo.className = "logo-relatorio";
+      imagemLogo.alt = "Logo da empresa";
+      imagemLogo.src = logoEmpresa;
+
+      imagemLogo.style.display = "block";
+      imagemLogo.style.maxWidth = "150px";
+      imagemLogo.style.maxHeight = "100px";
+      imagemLogo.style.width = "auto";
+      imagemLogo.style.height = "auto";
+      imagemLogo.style.objectFit = "contain";
+      imagemLogo.style.margin = "0 auto 12px";
+
+      cabecalho.insertBefore(imagemLogo, cabecalho.firstChild);
+    }
+  }
+
   document.getElementById("imprimirRelatorio").onclick = () => {
     window.print();
   };
@@ -2334,6 +2353,7 @@ function mostrarRelatorio(conteudo) {
     block: "start"
   });
 }
+
 
 
 /* =========================================
