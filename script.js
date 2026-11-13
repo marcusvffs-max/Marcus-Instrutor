@@ -2801,6 +2801,7 @@ function iniciarAplicativo() {
   listarAlunos();
   listarVeiculos();
   listarAulas();
+  configurarFiltrosFinanceiros();
   listarMovimentacoes();
   atualizarFinanceiro();
   listarProdutos();
