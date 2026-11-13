@@ -580,12 +580,13 @@ function salvarAula(evento) {
     a.id !== aulaEditando &&
     a.data === dados.data &&
     a.horario === dados.horario &&
+    a.veiculoId === dados.veiculoId &&
     a.status !== "Cancelada" &&
     dados.status !== "Cancelada"
   );
 
   if (conflito) {
-    mostrarAviso("Este dia e horário já estão ocupados.");
+    mostrarAviso("Este veículo já possui uma aula neste dia e horário.");
     return;
   }
 
@@ -626,6 +627,7 @@ function salvarAula(evento) {
   mostrarAviso("Aula salva com sucesso!");
   aulaEditando = null;
 }
+
 
 function ajustarSaldoAula(aula, fator) {
   if (aula.status !== "Realizada") return;
