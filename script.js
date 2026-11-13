@@ -2676,6 +2676,49 @@ if (botaoDevolucao) {
   botaoDevolucao.onclick = abrirDevolucao;
 }
 
+function configurarFiltrosFinanceiros() {
+  const tipo = document.getElementById("filtroFinanceiroTipo");
+  const campoDia = document.getElementById("dataFinanceiroDia");
+  const campoMes = document.getElementById("dataFinanceiroMes");
+  const campoAno = document.getElementById("dataFinanceiroAno");
+
+  const areaDia = document.getElementById("filtroFinanceiroDia");
+  const areaMes = document.getElementById("filtroFinanceiroMes");
+  const areaAno = document.getElementById("filtroFinanceiroAno");
+
+  const botaoImprimir = document.getElementById("btnImprimirRelatorioFinanceiro");
+
+  if (!tipo || !campoDia || !campoMes || !campoAno) return;
+
+  const hoje = normalizarDataFinanceira(dataHoje());
+
+  if (!campoDia.value) campoDia.value = hoje;
+  if (!campoMes.value) campoMes.value = hoje.slice(0, 7);
+  if (!campoAno.value) campoAno.value = hoje.slice(0, 4);
+
+  function atualizarFiltros() {
+    const periodo = tipo.value;
+
+    if (areaDia) areaDia.hidden = periodo !== "diario";
+    if (areaMes) areaMes.hidden = periodo !== "mensal";
+    if (areaAno) areaAno.hidden = periodo !== "anual";
+
+    atualizarFinanceiro();
+    listarMovimentacoes();
+  }
+
+  tipo.addEventListener("change", atualizarFiltros);
+  campoDia.addEventListener("change", atualizarFiltros);
+  campoMes.addEventListener("change", atualizarFiltros);
+  campoAno.addEventListener("change", atualizarFiltros);
+
+  if (botaoImprimir) {
+    botaoImprimir.onclick = gerarRelatorioFinanceiro;
+  }
+
+  atualizarFiltros();
+}
+
 const botaoRelatorioAluno = document.getElementById("btnRelatorioAluno");
 if (botaoRelatorioAluno) {
   botaoRelatorioAluno.onclick = gerarRelatorioAluno;
