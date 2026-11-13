@@ -196,7 +196,9 @@ function atualizarPainel() {
   const totalRealizadas = document.getElementById("totalRealizadas");
   const saldoCaixa = document.getElementById("saldoCaixa");
 
-  if (totalAlunos) totalAlunos.textContent = db.alunos.length;
+  if (totalAlunos) {
+    totalAlunos.textContent = db.alunos.length;
+  }
 
   if (totalAgendadas) {
     totalAgendadas.textContent =
@@ -208,10 +210,20 @@ function atualizarPainel() {
       db.aulas.filter(a => a.status === "Realizada").length;
   }
 
+  // Calcula o saldo pelas movimentações
+  const entradas = db.movimentacoes
+    .filter(m => m.tipo === "entrada")
+    .reduce((total, m) => total + Number(m.valor || 0), 0);
+
+  const saidas = db.movimentacoes
+    .filter(m => m.tipo === "saida")
+    .reduce((total, m) => total + Number(m.valor || 0), 0);
+
   if (saldoCaixa) {
-    saldoCaixa.textContent = moeda(calcularSaldo());
+    saldoCaixa.textContent = moeda(entradas - saidas);
   }
 
+  // Atualiza as próximas aulas
   const proximas = document.getElementById("proximasAulas");
 
   if (proximas) {
@@ -291,6 +303,7 @@ function atualizarPainel() {
     };
   }
 }
+
 
 
 function alterarStatusAulaPainel(id, novoStatus) {
