@@ -2195,7 +2195,11 @@ function mostrarRelatorio(conteudo) {
       }
 
       #resultadoRelatorio .cabecalho-relatorio {
-        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 16px;
+        text-align: left;
         border-bottom: 2px solid #12345a;
         padding-bottom: 12px;
         margin-bottom: 20px;
@@ -2203,15 +2207,28 @@ function mostrarRelatorio(conteudo) {
 
       #resultadoRelatorio .logo-relatorio {
         display: block;
-        max-width: 150px;
-        max-height: 100px;
+        max-width: 110px;
+        max-height: 85px;
         width: auto;
         height: auto;
         object-fit: contain;
-        margin: 0 auto 12px;
+        margin: 0;
+        flex-shrink: 0;
       }
 
-      #resultadoRelatorio h1,
+      #resultadoRelatorio .identificacao-relatorio {
+        text-align: left;
+      }
+
+      #resultadoRelatorio .identificacao-relatorio h1 {
+        color: #12345a;
+        margin: 0 0 5px;
+      }
+
+      #resultadoRelatorio .identificacao-relatorio p {
+        margin: 0;
+      }
+
       #resultadoRelatorio h2 {
         color: #12345a;
       }
@@ -2297,8 +2314,10 @@ function mostrarRelatorio(conteudo) {
 
   resultado.innerHTML = `
     <div class="cabecalho-relatorio">
-      <h1>${nomeEmpresa}</h1>
-      <p>Relatório de controle de aulas</p>
+      <div class="identificacao-relatorio">
+        <h1>${nomeEmpresa}</h1>
+        <p>Relatório de controle de aulas</p>
+      </div>
     </div>
 
     <main>
@@ -2316,7 +2335,6 @@ function mostrarRelatorio(conteudo) {
     </div>
   `;
 
-  // INSERE A LOGO DIRETAMENTE NO CABEÇALHO
   if (logoEmpresa) {
     const cabecalho = resultado.querySelector(".cabecalho-relatorio");
 
@@ -2326,14 +2344,6 @@ function mostrarRelatorio(conteudo) {
       imagemLogo.className = "logo-relatorio";
       imagemLogo.alt = "Logo da empresa";
       imagemLogo.src = logoEmpresa;
-
-      imagemLogo.style.display = "block";
-      imagemLogo.style.maxWidth = "150px";
-      imagemLogo.style.maxHeight = "100px";
-      imagemLogo.style.width = "auto";
-      imagemLogo.style.height = "auto";
-      imagemLogo.style.objectFit = "contain";
-      imagemLogo.style.margin = "0 auto 12px";
 
       cabecalho.insertBefore(imagemLogo, cabecalho.firstChild);
     }
@@ -2353,7 +2363,6 @@ function mostrarRelatorio(conteudo) {
     block: "start"
   });
 }
-
 
 
 /* =========================================
