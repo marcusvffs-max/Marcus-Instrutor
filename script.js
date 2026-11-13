@@ -1287,6 +1287,7 @@ function listarMovimentacoes() {
 }
 
 
+
 function gerarRelatorioFinanceiro() {
   const periodo = obterPeriodoFinanceiro();
   const movimentos = obterMovimentacoesFiltradas();
@@ -1307,6 +1308,8 @@ function gerarRelatorioFinanceiro() {
       <td>${moeda(m.valor)}</td>
     </tr>
   `).join("");
+
+  mostrarPagina("relatorios");
 
   mostrarRelatorio(`
     <h2>Relatório Financeiro</h2>
