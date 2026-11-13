@@ -1016,14 +1016,32 @@ function listarAulas() {
 function excluirAula(id) {
   if (!confirmar("Deseja excluir esta aula?")) return;
 
-  const aula = db.aulas.find(a => a.id === id);
-  if (aula) ajustarSaldoAula(aula, -1);
+  const aula = db.aulas.find(
+    a => String(a.id) === String(id)
+  );
 
-  db.aulas = db.aulas.filter(a => a.id !== id);
+  if (aula) {
+    ajustarSaldoAula(aula, -1);
+  }
 
-  salvarDados();
+  db.aulas = db.aulas.filter(
+    a => String(a.id) !== String(id)
+  );
+
+  // Salva os dados diretamente
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+
+  // Atualiza as listas
   listarAulas();
   listarAlunos();
+
+  // Atualiza o painel sem impedir a exclusão
+  try {
+    atualizarPainel();
+  } catch (erro) {
+    console.error("Erro ao atualizar painel:", erro);
+  }
+
   mostrarAviso("Aula excluída.");
 }
 /* =========================================
