@@ -1288,6 +1288,7 @@ function listarMovimentacoes() {
 
 
 
+
 function gerarRelatorioFinanceiro() {
   const periodo = obterPeriodoFinanceiro();
   const movimentos = obterMovimentacoesFiltradas();
@@ -1308,8 +1309,6 @@ function gerarRelatorioFinanceiro() {
       <td>${moeda(m.valor)}</td>
     </tr>
   `).join("");
-
-  mostrarPagina("relatorios");
 
   mostrarRelatorio(`
     <h2>Relatório Financeiro</h2>
@@ -1344,7 +1343,15 @@ function gerarRelatorioFinanceiro() {
   if (cabecalho) {
     cabecalho.textContent = "Relatório financeiro";
   }
+
+  mostrarPagina("relatorios");
+
+  resultado?.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
 }
+
 
 
 /* =========================================
