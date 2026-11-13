@@ -1286,6 +1286,7 @@ function listarMovimentacoes() {
   }).join("") || '<div class="empty-state">Nenhuma movimentação neste período.</div>';
 }
 
+
 function gerarRelatorioFinanceiro() {
   const periodo = obterPeriodoFinanceiro();
   const movimentos = obterMovimentacoesFiltradas();
@@ -1303,64 +1304,15 @@ function gerarRelatorioFinanceiro() {
       <td>${escapar(formatarData(m.data))}</td>
       <td>${escapar(m.descricao)}</td>
       <td>${m.tipo === "entrada" ? "Entrada" : "Saída"}</td>
-      <td class="valor">${moeda(m.valor)}</td>
+      <td>${moeda(m.valor)}</td>
     </tr>
   `).join("");
 
-  const janela = window.open("", "_blank");
+  mostrarRelatorio(`
+    <h2>Relatório Financeiro</h2>
+    <p><strong>${escapar(periodo.titulo)}</strong></p>
 
-  if (!janela) {
-    mostrarAviso("Permita a abertura de janelas para imprimir o relatório.");
-    return;
-  }
-
-  janela.document.write(`
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-      <meta charset="UTF-8">
-      <title>Relatório Financeiro</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          padding: 25px;
-          color: #222;
-        }
-        h1, h2 {
-          text-align: center;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 25px;
-        }
-        th, td {
-          border: 1px solid #ccc;
-          padding: 9px;
-          text-align: left;
-        }
-        th {
-          background: #eee;
-        }
-        .valor {
-          text-align: right;
-          white-space: nowrap;
-        }
-        .resumo {
-          margin-top: 25px;
-          line-height: 1.8;
-          font-size: 16px;
-        }
-        @media print {
-          body { padding: 0; }
-        }
-      </style>
-    </head>
-    <body>
-      <h1>Marcus Instrutor</h1>
-      <h2>Relatório Financeiro</h2>
-      <p><strong>${escapar(periodo.titulo)}</strong></p>
-
+    <div class="report-table">
       <table>
         <thead>
           <tr>
@@ -1374,19 +1326,21 @@ function gerarRelatorioFinanceiro() {
           ${linhas || '<tr><td colspan="4">Nenhuma movimentação neste período.</td></tr>'}
         </tbody>
       </table>
+    </div>
 
-      <div class="resumo">
-        <strong>Total de entradas:</strong> ${moeda(entradas)}<br>
-        <strong>Total de despesas:</strong> ${moeda(saidas)}<br>
-        <strong>Saldo do período:</strong> ${moeda(entradas - saidas)}
-      </div>
-    </body>
-    </html>
+    <div class="resumo-financeiro">
+      <p><strong>Total de entradas:</strong> ${moeda(entradas)}</p>
+      <p><strong>Total de despesas:</strong> ${moeda(saidas)}</p>
+      <h3>Saldo do período: ${moeda(entradas - saidas)}</h3>
+    </div>
   `);
 
-  janela.document.close();
-  janela.focus();
-  janela.print();
+  const resultado = document.getElementById("resultadoRelatorio");
+  const cabecalho = resultado?.querySelector(".cabecalho-relatorio p");
+
+  if (cabecalho) {
+    cabecalho.textContent = "Relatório financeiro";
+  }
 }
 
 
