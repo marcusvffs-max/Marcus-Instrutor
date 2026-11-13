@@ -628,6 +628,254 @@ function salvarAula(evento) {
   aulaEditando = null;
 }
 
+/* =========================================
+   AGENDAMENTO DE VÁRIAS AULAS
+========================================= */
+
+function abrirAgendamentoLote() {
+  if (!db.alunos.length) {
+    mostrarAviso("Cadastre um aluno primeiro.");
+    return;
+  }
+
+  if (!db.veiculos.length) {
+    mostrarAviso("Cadastre um veículo primeiro.");
+    return;
+  }
+
+  abrirModal(`
+    <h2>Agendar várias aulas</h2>
+
+    <form id="formAgendamentoLote">
+
+      <label>Aluno</label>
+      <select name="alunoId" required>
+        <option value="">Selecione o aluno</option>
+        ${db.alunos.map(a => `
+          <option value="${a.id}">
+            ${escapar(a.nome)}
+          </option>
+        `).join("")}
+      </select>
+
+      <label>Veículo para todas as aulas</label>
+      <select name="veiculoId" required>
+        <option value="">Selecione o veículo</option>
+        ${db.veiculos.map(v => `
+          <option value="${v.id}">
+            ${escapar(v.modelo)} - ${escapar(v.placa)}
+          </option>
+        `).join("")}
+      </select>
+
+      <label>Quantidade de aulas</label>
+      <input
+        id="quantidadeAulasLote"
+        type="number"
+        min="1"
+        max="50"
+        value="10"
+        required
+      >
+
+      <p class="muted">
+        Escolha uma data e um horário para cada aula.
+      </p>
+
+      <div id="camposAulasLote"></div>
+
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="secondary-button"
+          data-close
+        >
+          Cancelar
+        </button>
+
+        <button
+          type="submit"
+          class="primary-button"
+        >
+          Salvar todas as aulas
+        </button>
+      </div>
+
+    </form>
+  `);
+
+  const quantidade = document.getElementById("quantidadeAulasLote");
+  const formulario = document.getElementById("formAgendamentoLote");
+
+  quantidade.addEventListener("change", () => {
+    renderizarCamposAgendamentoLote();
+  });
+
+  formulario.onsubmit = salvarAgendamentoLote;
+
+  renderizarCamposAgendamentoLote(false);
+}
+
+
+function renderizarCamposAgendamentoLote(preservar = true) {
+  const quantidadeInput = document.getElementById("quantidadeAulasLote");
+  const container = document.getElementById("camposAulasLote");
+
+  if (!quantidadeInput || !container) return;
+
+  const dadosAnteriores = [];
+
+  if (preservar) {
+    container.querySelectorAll(".campo-aula-lote").forEach(campo => {
+      dadosAnteriores.push({
+        data: campo.querySelector(".lote-data")?.value || "",
+        horario: campo.querySelector(".lote-horario")?.value || ""
+      });
+    });
+  }
+
+  const quantidade = Math.max(
+    1,
+    Math.min(50, Number(quantidadeInput.value) || 1)
+  );
+
+  quantidadeInput.value = quantidade;
+
+  container.innerHTML = Array.from(
+    { length: quantidade },
+    (_, indice) => {
+      const anterior = dadosAnteriores[indice] || {};
+      const data = anterior.data || dataHoje();
+
+      return `
+        <div class="campo-aula-lote panel">
+          <h3>Aula ${indice + 1}</h3>
+
+          <label>Data</label>
+          <input
+            class="lote-data"
+            name="data_${indice}"
+            type="date"
+            value="${escapar(data)}"
+            required
+          >
+
+          <label>Horário</label>
+          <select
+            class="lote-horario"
+            name="horario_${indice}"
+            required
+          >
+            <option value="">Selecione o horário</option>
+
+            ${HORARIOS.map(h => `
+              <option
+                value="${h}"
+                ${anterior.horario === h ? "selected" : ""}
+              >
+                ${h}
+              </option>
+            `).join("")}
+
+          </select>
+        </div>
+      `;
+    }
+  ).join("");
+}
+
+
+function salvarAgendamentoLote(evento) {
+  evento.preventDefault();
+
+  const formulario = evento.target;
+  const dados = new FormData(formulario);
+
+  const alunoId = dados.get("alunoId");
+  const veiculoId = dados.get("veiculoId");
+
+  const quantidade = Math.max(
+    1,
+    Math.min(
+      50,
+      Number(document.getElementById("quantidadeAulasLote").value) || 1
+    )
+  );
+
+  if (!db.alunos.some(a => a.id === alunoId)) {
+    mostrarAviso("Selecione um aluno válido.");
+    return;
+  }
+
+  if (!db.veiculos.some(v => v.id === veiculoId)) {
+    mostrarAviso("Selecione um veículo válido.");
+    return;
+  }
+
+  const novasAulas = [];
+
+  for (let i = 0; i < quantidade; i++) {
+    const data = dados.get(`data_${i}`);
+    const horario = dados.get(`horario_${i}`);
+
+    if (!data || !horario) {
+      mostrarAviso(`Preencha a data e o horário da aula ${i + 1}.`);
+      return;
+    }
+
+    const conflitoExistente = db.aulas.find(a =>
+      a.data === data &&
+      a.horario === horario &&
+      a.veiculoId === veiculoId &&
+      a.status !== "Cancelada"
+    );
+
+    if (conflitoExistente) {
+      mostrarAviso(
+        `Aula ${i + 1}: este veículo já possui aula nessa data e horário.`
+      );
+      return;
+    }
+
+    const conflitoLote = novasAulas.find(a =>
+      a.data === data &&
+      a.horario === horario &&
+      a.veiculoId === veiculoId
+    );
+
+    if (conflitoLote) {
+      mostrarAviso(
+        `Aula ${i + 1}: existe outra aula deste lote no mesmo dia e horário.`
+      );
+      return;
+    }
+
+    novasAulas.push({
+      id: gerarId(),
+      alunoId,
+      data,
+      horario,
+      veiculoId,
+      status: "Agendada",
+      observacoes: ""
+    });
+  }
+
+  db.aulas.push(...novasAulas);
+
+  salvarDados();
+  fecharModal();
+
+  listarAulas();
+  listarAlunos();
+  atualizarSeletoresAlunos();
+  atualizarPainel();
+
+  mostrarAviso(
+    `${novasAulas.length} aulas agendadas com sucesso!`
+  );
+}
+
 
 function ajustarSaldoAula(aula, fator) {
   if (aula.status !== "Realizada") return;
