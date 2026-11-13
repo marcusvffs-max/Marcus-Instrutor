@@ -2122,6 +2122,7 @@ function gerarRelatorioDiario() {
   `);
 }
 
+
 function tabelaAulas(aulas, assinatura = false) {
   if (!aulas.length) return "<p>Nenhuma aula encontrada.</p>";
 
@@ -2149,7 +2150,7 @@ function tabelaAulas(aulas, assinatura = false) {
                 <td>${escapar(nomeAluno(a.alunoId))}</td>
                 <td>${escapar(veiculo?.modelo || "")}</td>
                 <td>${escapar(a.status)}</td>
-                ${assinatura ? "<td>__________________</td>" : ""}
+                ${assinatura ? '<td class="celula-assinatura"></td>' : ""}
               </tr>
             `;
           }).join("")}
@@ -2158,6 +2159,7 @@ function tabelaAulas(aulas, assinatura = false) {
     </div>
   `;
 }
+
 
 /* RELATÓRIO EM NOVA TELA */
 
