@@ -1016,33 +1016,45 @@ function listarAulas() {
 function excluirAula(id) {
   if (!confirmar("Deseja excluir esta aula?")) return;
 
-  const aula = db.aulas.find(
-    a => String(a.id) === String(id)
-  );
-
-  if (aula) {
-    ajustarSaldoAula(aula, -1);
-  }
-
-  db.aulas = db.aulas.filter(
-    a => String(a.id) !== String(id)
-  );
-
-  // Salva os dados diretamente
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
-
-  // Atualiza as listas
-  listarAulas();
-  listarAlunos();
-
-  // Atualiza o painel sem impedir a exclusão
   try {
-    atualizarPainel();
-  } catch (erro) {
-    console.error("Erro ao atualizar painel:", erro);
-  }
+    const aula = db.aulas.find(
+      a => String(a.id) === String(id)
+    );
 
-  mostrarAviso("Aula excluída.");
+    if (aula) {
+      ajustarSaldoAula(aula, -1);
+    }
+
+    db.aulas = db.aulas.filter(
+      a => String(a.id) !== String(id)
+    );
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+
+    mostrarAviso("Aula excluída.");
+
+    try {
+      listarAulas();
+    } catch (erro) {
+      console.error("Erro ao atualizar aulas:", erro);
+    }
+
+    try {
+      listarAlunos();
+    } catch (erro) {
+      console.error("Erro ao atualizar alunos:", erro);
+    }
+
+    try {
+      atualizarPainel();
+    } catch (erro) {
+      console.error("Erro ao atualizar painel:", erro);
+    }
+
+  } catch (erro) {
+    console.error("Erro ao excluir aula:", erro);
+    mostrarAviso("Erro ao excluir a aula. Tente novamente.");
+  }
 }
 /* =========================================
    FINANCEIRO
