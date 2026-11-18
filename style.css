@@ -1299,26 +1299,26 @@ label {
   min-height:8.28em!important;
 }
 
-/* Parceiros: dez linhas com altura fixa em pixels, independentes da fonte e do line-height. */
+/* Parceiros: seis linhas de assinatura, usando a mesma altura de linha do texto impresso (9,6px). */
 .contrato-folha.contrato-parceiro .contrato-espaco-assinatura{
   display:block!important;
-  height:108px!important;
-  min-height:108px!important;
-  max-height:108px!important;
+  height:57.6px!important;
+  min-height:57.6px!important;
+  max-height:57.6px!important;
   margin:0!important;
   padding:0!important;
-  overflow:visible!important;
+  overflow:hidden!important;
 }
 .contrato-folha.contrato-parceiro .contrato-linha-assinatura{
   display:block!important;
   box-sizing:border-box!important;
   width:100%!important;
-  height:18px!important;
-  min-height:18px!important;
-  max-height:18px!important;
+  height:9.6px!important;
+  min-height:9.6px!important;
+  max-height:9.6px!important;
   margin:0!important;
   padding:0!important;
-  line-height:18px!important;
+  line-height:9.6px!important;
   font-size:1px!important;
   overflow:hidden!important;
 }
