@@ -2284,39 +2284,94 @@ function mostrarRelatorio(conteudo) {
       background: #555;
     }
 
+    @page relatorio {
+      size: A4;
+      margin: 15mm 12mm 12mm 12mm;
+    }
+
     @media print {
-      body * {
+      body.relatorio-impressao {
+        page: relatorio !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+      }
+
+      body.relatorio-impressao * {
         visibility: hidden !important;
       }
 
-      #resultadoRelatorio,
-      #resultadoRelatorio * {
+      /* Mantém somente os elementos necessários para chegar ao relatório. */
+      body.relatorio-impressao #app,
+      body.relatorio-impressao #mainContent,
+      body.relatorio-impressao #page-relatorios {
+        display: block !important;
+        position: static !important;
+        transform: none !important;
+        animation: none !important;
+        break-before: auto !important;
+        page-break-before: auto !important;
+        break-after: auto !important;
+        page-break-after: auto !important;
+        width: auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+      }
+
+      body.relatorio-impressao #app > .topbar,
+      body.relatorio-impressao #app > .bottom-menu,
+      body.relatorio-impressao #app > #modalContainer,
+      body.relatorio-impressao #app > #toastContainer,
+      body.relatorio-impressao #mainContent > .page:not(#page-relatorios),
+      body.relatorio-impressao #page-relatorios > :not(#resultadoRelatorio) {
+        display: none !important;
+      }
+
+      body.relatorio-impressao #resultadoRelatorio,
+      body.relatorio-impressao #resultadoRelatorio * {
         visibility: visible !important;
       }
 
-      #resultadoRelatorio {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
+      body.relatorio-impressao #resultadoRelatorio {
+        display: block !important;
+        position: static !important;
+        box-sizing: border-box !important;
         width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
         margin: 0 !important;
         padding: 10mm !important;
         border: 0 !important;
         box-shadow: none !important;
+        overflow: visible !important;
+        transform: none !important;
+        animation: none !important;
+        break-before: auto !important;
+        page-break-before: auto !important;
+        break-after: auto !important;
+        page-break-after: auto !important;
+        break-inside: auto !important;
+        page-break-inside: auto !important;
       }
 
-      #resultadoRelatorio .acoes-relatorio {
+      body.relatorio-impressao #resultadoRelatorio .acoes-relatorio {
         display: none !important;
       }
 
-      #resultadoRelatorio th {
+      body.relatorio-impressao #resultadoRelatorio th {
         background: #e8edf3 !important;
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
       }
 
-      #resultadoRelatorio tr {
+      body.relatorio-impressao #resultadoRelatorio tr {
         page-break-inside: avoid;
+        break-inside: avoid;
       }
     }
   `;
@@ -2380,6 +2435,13 @@ function mostrarRelatorio(conteudo) {
   }
 
   document.getElementById("imprimirRelatorio").onclick = () => {
+    document.body.classList.add("relatorio-impressao");
+
+    const limparModoImpressao = () => {
+      document.body.classList.remove("relatorio-impressao");
+    };
+
+    window.addEventListener("afterprint", limparModoImpressao, { once: true });
     window.print();
   };
 
@@ -2585,6 +2647,42 @@ function opcoes(valores, selecionado) {
 ========================================= */
 
 document.addEventListener("click", evento => {
+  const tipoContrato = evento.target.closest("[data-tipo-contrato]");
+
+  if (tipoContrato) {
+    const tipo = tipoContrato.dataset.tipoContrato;
+    if (typeof window.tipoC === "function") {
+      window.tipoC(tipo);
+    } else {
+      // Alternância de emergência: permite voltar entre as abas
+      // mesmo quando o arquivo contratos.js não foi carregado.
+      const cliente = document.getElementById("formContratoCliente");
+      const parceiro = document.getElementById("formContratoParceiro");
+      const titulo = document.getElementById("tituloTipoContrato");
+      const preview = document.getElementById("contratoPreview");
+
+      if (cliente && parceiro && titulo) {
+        cliente.hidden = tipo !== "cliente";
+        parceiro.hidden = tipo !== "parceiro";
+        cliente.style.display = tipo === "cliente" ? "block" : "none";
+        parceiro.style.display = tipo === "parceiro" ? "block" : "none";
+        titulo.textContent = tipo === "cliente"
+          ? "Contrato de cliente"
+          : "Contrato de parceiro";
+
+        if (preview) preview.innerHTML = "";
+
+        document.querySelectorAll("[data-tipo-contrato]").forEach(botao => {
+          const ativo = botao.dataset.tipoContrato === tipo;
+          botao.classList.toggle("active", ativo);
+          botao.classList.toggle("primary-button", ativo);
+          botao.classList.toggle("secondary-button", !ativo);
+        });
+      }
+    }
+    return;
+  }
+
   const pagina = evento.target.closest("[data-page]");
 
   if (pagina) {

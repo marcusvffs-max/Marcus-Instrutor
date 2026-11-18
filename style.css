@@ -698,3 +698,627 @@ label {
     padding: 20px 15px;
   }
 }
+
+/* CONTRATOS */
+.contrato-tipos,.contrato-acoes{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.contrato-tipos button,.contrato-acoes button{flex:1;min-width:130px}
+.contrato-check{display:flex;align-items:center;gap:9px;margin:12px 0}
+.contrato-check input{width:auto}
+.contrato-preview{margin-top:20px}
+.contrato-folha{background:#fff;color:#111;max-width:800px;margin:18px auto;padding:34px 42px;box-shadow:0 2px 12px #0002;min-height:1050px;position:relative;font-family:Arial,sans-serif;line-height:1.38}
+.contrato-folha header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #777;padding-bottom:12px;margin-bottom:18px}
+.contrato-logo{max-width:145px;max-height:70px;object-fit:contain}
+.contrato-logo-texto{font-size:20px;color:#12345a}
+.contrato-folha h1{text-align:center;font-size:16px;margin:10px 0 18px}
+.contrato-folha h3{font-size:13px;margin:14px 0 6px}
+.contrato-folha p{font-size:11px;text-align:justify;margin:7px 0}
+.contrato-folha footer{position:static;margin-top:24px;text-align:center;font-size:9px;border-top:1px solid #aaa;padding-top:8px}
+.contrato-folha .contrato-pagina{position:absolute;bottom:8px;right:25px;font-size:9px}
+@media print{
+  body.contrato-impressao *{visibility:hidden}
+  body.contrato-impressao #contratoPreview,body.contrato-impressao #contratoPreview *{visibility:visible}
+  body.contrato-impressao #contratoPreview{position:absolute;left:0;top:0;width:100%}
+  body.contrato-impressao .contrato-folha{width:210mm;min-height:297mm;max-width:none;margin:0;padding:0 12mm;box-shadow:none;page-break-after:auto;break-after:auto;break-inside:auto}
+}
+/* A impressão usa a página A4 padrão; não aplicar página nomeada com margem zero. */
+
+/* Garante que o formulário inativo permaneça oculto */
+#formContratoCliente[hidden],
+#formContratoParceiro[hidden]{display:none!important}
+
+
+/* Contratos: cabeçalho alinhado ao padrão dos relatórios e rodapé editável */
+.campo-rodape-contrato{margin-top:18px;padding:14px;border:1px solid #d7dce2;border-radius:10px;background:#f8fafc}
+.campo-rodape-contrato label{display:block;font-weight:600;margin-bottom:7px}
+.campo-rodape-contrato textarea{width:100%;box-sizing:border-box;min-height:76px;resize:vertical}
+.campo-rodape-contrato small{display:block;margin-top:6px;color:#667085;font-size:12px}
+.contrato-folha .contrato-cabecalho{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:16px;text-align:left;border-bottom:2px solid #12345a;padding-bottom:12px;margin-bottom:20px;width:100%}
+.contrato-folha .contrato-cabecalho .contrato-logo{display:block;width:auto;max-width:110px;max-height:85px;height:auto;object-fit:contain;flex:0 0 auto}
+.contrato-folha .contrato-cabecalho .identificacao-relatorio{display:block;flex:1 1 auto;text-align:left}
+.contrato-folha .contrato-cabecalho .identificacao-relatorio h2{color:#12345a;margin:0 0 5px;text-align:left;font-size:20px}
+.contrato-folha .contrato-cabecalho .identificacao-relatorio h1{color:#12345a;margin:0 0 5px;text-align:left;font-size:20px}
+.contrato-folha .contrato-cabecalho .identificacao-relatorio p{margin:0;text-align:left;font-size:12px}
+.contrato-folha footer{white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* Ajuste fino do cabeçalho impresso: elimina o espaço superior excedente */
+@media print{
+  body.contrato-impressao .contrato-folha{padding-top:0!important}
+  body.contrato-impressao .contrato-folha .contrato-cabecalho{
+    margin-top:0!important;
+    margin-bottom:7px!important;
+    padding-top:0!important;
+    padding-bottom:5px!important;
+    gap:8px!important;
+    align-items:center!important;
+  }
+  body.contrato-impressao .contrato-folha .contrato-cabecalho .contrato-logo{
+    max-height:58px!important;
+    max-width:90px!important;
+  }
+}
+
+/* Formatação compacta exclusiva do contrato de parceiro para caber em uma A4 */
+@media print{
+  body.contrato-impressao .contrato-folha.contrato-parceiro{
+    min-height:0!important;
+    height:auto!important;
+    padding:0 8mm!important;
+    overflow:visible!important;
+    font-size:8px!important;
+    line-height:1.05!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro .contrato-cabecalho{
+    margin-bottom:4px!important;
+    padding-bottom:3px!important;
+    gap:7px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro .contrato-logo{
+    max-height:42px!important;
+    max-width:75px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro .identificacao-relatorio h1{
+    font-size:15px!important;
+    margin:0 0 2px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro .identificacao-relatorio p{
+    font-size:8px!important;
+    line-height:1.05!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h1{
+    font-size:10px!important;
+    line-height:1.05!important;
+    margin:3px 0 5px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h3{
+    font-size:8px!important;
+    line-height:1.05!important;
+    margin:4px 0 2px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main p{
+    font-size:7.5px!important;
+    line-height:1.05!important;
+    margin:2px 0!important;
+    text-align:justify!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro footer{
+    font-size:7px!important;
+    line-height:1.05!important;
+    margin-top:5px!important;
+    padding-top:3px!important;
+  }
+}
+
+
+/* Impressão dos contratos: rodapé em uma linha e conteúdo sem cortes */
+@media print{
+  body.contrato-impressao .contrato-folha{
+    position:relative!important;
+  }
+  body.contrato-impressao .contrato-folha main{
+    padding-bottom:18mm!important;
+  }
+  body.contrato-impressao .contrato-folha footer{
+    position:fixed!important;
+    left:12mm!important;
+    right:12mm!important;
+    bottom:5mm!important;
+    width:auto!important;
+    margin:0!important;
+    padding:2mm 0 0!important;
+    background:#fff!important;
+    text-align:center!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:clip!important;
+    font-size:7px!important;
+    line-height:1!important;
+    border-top:1px solid #aaa!important;
+    z-index:10!important;
+  }
+
+  /* Parceiro: não ampliar a largura nem aplicar zoom, evitando cortes laterais */
+  body.contrato-impressao .contrato-folha.contrato-parceiro{
+    min-height:0!important;
+    height:auto!important;
+    overflow:visible!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main{
+    zoom:1!important;
+    width:100%!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+    padding-bottom:0!important;
+    overflow:visible!important;
+    break-inside:auto!important;
+    page-break-inside:auto!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main p,
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h1,
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h3{
+    break-inside:auto!important;
+    page-break-inside:auto!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro footer{
+    left:8mm!important;
+    right:8mm!important;
+    font-size:7px!important;
+  }
+}
+
+
+/* CORREÇÃO DEFINITIVA DA PAGINAÇÃO DOS CONTRATOS
+   O conteúdo segue o fluxo natural entre páginas; o rodapé não cobre cláusulas. */
+@media print{
+  body.contrato-impressao #contratoPreview{
+    position:static!important;
+    left:auto!important;
+    top:auto!important;
+    width:100%!important;
+    margin:0!important;
+  }
+  body.contrato-impressao .contrato-folha,
+  body.contrato-impressao .contrato-folha.contrato-parceiro{
+    position:static!important;
+    display:block!important;
+    width:100%!important;
+    max-width:none!important;
+    min-height:0!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0 12mm 8mm!important;
+    overflow:visible!important;
+    box-shadow:none!important;
+    page-break-after:auto!important;
+    break-after:auto!important;
+    page-break-inside:auto!important;
+    break-inside:auto!important;
+  }
+  body.contrato-impressao .contrato-folha main,
+  body.contrato-impressao .contrato-folha.contrato-parceiro main{
+    display:block!important;
+    width:100%!important;
+    max-width:100%!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:visible!important;
+    zoom:1!important;
+    page-break-inside:auto!important;
+    break-inside:auto!important;
+  }
+  body.contrato-impressao .contrato-folha footer,
+  body.contrato-impressao .contrato-folha.contrato-parceiro footer{
+    position:static!important;
+    display:block!important;
+    left:auto!important;
+    right:auto!important;
+    bottom:auto!important;
+    width:100%!important;
+    margin:12mm 0 0!important;
+    padding:3mm 0 0!important;
+    border-top:1px solid #aaa!important;
+    background:transparent!important;
+    text-align:center!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    overflow-wrap:anywhere!important;
+    font-size:8px!important;
+    line-height:1.2!important;
+    page-break-inside:avoid!important;
+    break-inside:avoid!important;
+  }
+  body.contrato-impressao .contrato-folha main p,
+  body.contrato-impressao .contrato-folha main h3{
+    orphans:2!important;
+    widows:2!important;
+    page-break-inside:auto!important;
+    break-inside:auto!important;
+  }
+  /* Parceiro: tipografia legível e paginação natural, sem cortes ou zoom. */
+  body.contrato-impressao .contrato-folha.contrato-parceiro{
+    padding:0 10mm 8mm!important;
+    font-size:10px!important;
+    line-height:1.25!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro .contrato-cabecalho{
+    margin:0 0 8px!important;
+    padding:0 0 5px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro .contrato-cabecalho .contrato-logo{
+    max-height:50px!important;
+    max-width:85px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h1{
+    font-size:12px!important;
+    line-height:1.2!important;
+    margin:6px 0 9px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h3{
+    font-size:10px!important;
+    line-height:1.2!important;
+    margin:8px 0 4px!important;
+    break-after:avoid-page!important;
+    page-break-after:avoid!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main p{
+    font-size:9px!important;
+    line-height:1.25!important;
+    margin:4px 0!important;
+    text-align:justify!important;
+  }
+}
+
+
+/* REORGANIZAÇÃO DA IMPRESSÃO DOS CONTRATOS — A4 COM MARGEM SUPERIOR DE 1,5 CM */
+@page{
+  size:A4;
+  margin:15mm 12mm 12mm 12mm;
+}
+@media print{
+  html,body{
+    width:auto!important;
+    min-height:0!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    background:#fff!important;
+    overflow:visible!important;
+  }
+  body.contrato-impressao #app{
+    display:block!important;
+    width:auto!important;
+    min-height:0!important;
+    height:auto!important;
+    padding:0!important;
+    margin:0!important;
+    overflow:visible!important;
+  }
+  body.contrato-impressao #mainContent{
+    display:block!important;
+    width:auto!important;
+    max-width:none!important;
+    min-height:0!important;
+    height:auto!important;
+    padding:0!important;
+    margin:0!important;
+    overflow:visible!important;
+  }
+  body.contrato-impressao #page-contratos{
+    display:block!important;
+    position:static!important;
+    width:auto!important;
+    min-height:0!important;
+    height:auto!important;
+    padding:0!important;
+    margin:0!important;
+    transform:none!important;
+    animation:none!important;
+    overflow:visible!important;
+    break-before:auto!important;
+    page-break-before:auto!important;
+  }
+  body.contrato-impressao #page-contratos > .page-heading,
+  body.contrato-impressao #page-contratos > .panel{
+    display:none!important;
+  }
+  body.contrato-impressao #contratoPreview{
+    display:block!important;
+    position:static!important;
+    inset:auto!important;
+    width:100%!important;
+    max-width:none!important;
+    min-height:0!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:visible!important;
+    transform:none!important;
+    animation:none!important;
+    break-before:auto!important;
+    page-break-before:auto!important;
+  }
+  body.contrato-impressao .contrato-folha,
+  body.contrato-impressao .contrato-folha.contrato-parceiro{
+    display:block!important;
+    position:static!important;
+    page:auto!important;
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    min-height:0!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:visible!important;
+    box-shadow:none!important;
+    background:#fff!important;
+    color:#111!important;
+    break-before:auto!important;
+    page-break-before:auto!important;
+    break-after:auto!important;
+    page-break-after:auto!important;
+    break-inside:auto!important;
+    page-break-inside:auto!important;
+  }
+  body.contrato-impressao .contrato-folha .contrato-cabecalho{
+    display:flex!important;
+    position:static!important;
+    width:100%!important;
+    margin:0 0 8px!important;
+    padding:0 0 5px!important;
+    gap:8px!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    border-bottom:2px solid #12345a!important;
+    break-after:avoid-page!important;
+    page-break-after:avoid!important;
+  }
+  body.contrato-impressao .contrato-folha .contrato-cabecalho .contrato-logo{
+    display:block!important;
+    width:auto!important;
+    max-width:90px!important;
+    max-height:58px!important;
+    height:auto!important;
+    margin:0!important;
+  }
+  body.contrato-impressao .contrato-folha .contrato-cabecalho .identificacao-relatorio{
+    display:block!important;
+    flex:1 1 auto!important;
+    text-align:left!important;
+  }
+  body.contrato-impressao .contrato-folha main{
+    display:block!important;
+    position:static!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-height:0!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:visible!important;
+    zoom:1!important;
+    break-inside:auto!important;
+    page-break-inside:auto!important;
+  }
+  body.contrato-impressao .contrato-folha footer{
+    display:block!important;
+    position:static!important;
+    left:auto!important;
+    right:auto!important;
+    bottom:auto!important;
+    width:100%!important;
+    margin:10mm 0 0!important;
+    padding:3mm 0 0!important;
+    border-top:1px solid #aaa!important;
+    background:transparent!important;
+    text-align:center!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    overflow-wrap:anywhere!important;
+    font-size:8px!important;
+    line-height:1.2!important;
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+  body.contrato-impressao .contrato-folha main p,
+  body.contrato-impressao .contrato-folha main h3{
+    orphans:2!important;
+    widows:2!important;
+    break-inside:auto!important;
+    page-break-inside:auto!important;
+  }
+  /* Texto do parceiro legível, sem redução artificial ou corte. */
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h1{
+    font-size:12px!important;
+    line-height:1.2!important;
+    margin:6px 0 9px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h3{
+    font-size:10px!important;
+    line-height:1.2!important;
+    margin:8px 0 4px!important;
+    break-after:avoid-page!important;
+    page-break-after:avoid!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main p{
+    font-size:9px!important;
+    line-height:1.25!important;
+    margin:4px 0!important;
+    text-align:justify!important;
+  }
+}
+
+
+
+/* IMPRESSAO ISOLADA DOS CONTRATOS — evita paginas vazias do restante do app */
+@page{size:A4;margin:15mm 12mm 12mm 12mm}
+@media print{
+  html,body{
+    width:auto!important;height:auto!important;min-height:0!important;
+    margin:0!important;padding:0!important;background:#fff!important;
+    overflow:visible!important;
+  }
+  body.contrato-impressao #app,
+  body.contrato-impressao #app *{
+    visibility:visible!important;
+  }
+  body.contrato-impressao #app{
+    display:block!important;width:auto!important;height:auto!important;
+    min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important;
+  }
+  body.contrato-impressao #app > .topbar,
+  body.contrato-impressao #app > .bottom-menu,
+  body.contrato-impressao #app > #modalContainer,
+  body.contrato-impressao #app > #toastContainer{
+    display:none!important;
+  }
+  body.contrato-impressao #mainContent{
+    display:block!important;width:auto!important;max-width:none!important;
+    height:auto!important;min-height:0!important;margin:0!important;
+    padding:0!important;overflow:visible!important;
+  }
+  body.contrato-impressao #mainContent > .page:not(#page-contratos){
+    display:none!important;
+  }
+  body.contrato-impressao #page-contratos{
+    display:block!important;position:static!important;width:auto!important;
+    height:auto!important;min-height:0!important;margin:0!important;padding:0!important;
+    transform:none!important;animation:none!important;overflow:visible!important;
+  }
+  body.contrato-impressao #page-contratos > .page-heading,
+  body.contrato-impressao #page-contratos > .panel{
+    display:none!important;
+  }
+  body.contrato-impressao #contratoPreview{
+    display:block!important;position:static!important;inset:auto!important;
+    width:100%!important;max-width:none!important;height:auto!important;
+    min-height:0!important;margin:0!important;padding:0!important;
+    overflow:visible!important;transform:none!important;animation:none!important;
+  }
+  body.contrato-impressao .contrato-folha,
+  body.contrato-impressao .contrato-folha.contrato-parceiro{
+    display:block!important;position:static!important;page:auto!important;
+    width:100%!important;max-width:none!important;min-width:0!important;
+    min-height:0!important;height:auto!important;margin:0!important;
+    padding:0!important;overflow:visible!important;box-shadow:none!important;
+    background:#fff!important;color:#111!important;
+    break-before:auto!important;page-break-before:auto!important;
+    break-after:auto!important;page-break-after:auto!important;
+    break-inside:auto!important;page-break-inside:auto!important;
+  }
+  body.contrato-impressao .contrato-folha .contrato-cabecalho{
+    display:flex!important;position:static!important;width:100%!important;
+    margin:0 0 8px!important;padding:0 0 5px!important;gap:8px!important;
+    align-items:center!important;justify-content:flex-start!important;
+    border-bottom:2px solid #12345a!important;
+    break-after:avoid-page!important;page-break-after:avoid!important;
+  }
+  body.contrato-impressao .contrato-folha .contrato-cabecalho .contrato-logo{
+    display:block!important;width:auto!important;max-width:90px!important;
+    max-height:58px!important;height:auto!important;margin:0!important;
+  }
+  body.contrato-impressao .contrato-folha .contrato-cabecalho .identificacao-relatorio{
+    display:block!important;flex:1 1 auto!important;text-align:left!important;
+  }
+  body.contrato-impressao .contrato-folha .contrato-cabecalho .identificacao-relatorio h1{
+    color:#12345a!important;margin:0 0 3px!important;text-align:left!important;font-size:20px!important;
+  }
+  body.contrato-impressao .contrato-folha .contrato-cabecalho .identificacao-relatorio p{
+    margin:0!important;text-align:left!important;font-size:12px!important;
+  }
+  body.contrato-impressao .contrato-folha main{
+    display:block!important;position:static!important;width:100%!important;
+    max-width:100%!important;min-height:0!important;height:auto!important;
+    margin:0!important;padding:0!important;overflow:visible!important;zoom:1!important;
+    break-inside:auto!important;page-break-inside:auto!important;
+  }
+  body.contrato-impressao .contrato-folha footer{
+    display:block!important;position:static!important;width:100%!important;
+    margin:10mm 0 0!important;padding:3mm 0 0!important;
+    border-top:1px solid #aaa!important;background:transparent!important;
+    text-align:center!important;white-space:normal!important;overflow:visible!important;
+    overflow-wrap:anywhere!important;font-size:8px!important;line-height:1.2!important;
+    break-inside:avoid!important;page-break-inside:avoid!important;
+  }
+  body.contrato-impressao .contrato-folha main p,
+  body.contrato-impressao .contrato-folha main h3{
+    orphans:2!important;widows:2!important;
+    break-inside:auto!important;page-break-inside:auto!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h1{
+    font-size:12px!important;line-height:1.2!important;margin:6px 0 9px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h3{
+    font-size:10px!important;line-height:1.2!important;margin:8px 0 4px!important;
+    break-after:avoid-page!important;page-break-after:avoid!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main p{
+    font-size:9px!important;line-height:1.25!important;margin:4px 0!important;text-align:justify!important;
+  }
+}
+
+
+/* IMPRESSÃO A4: rodapé repetido junto ao limite inferior de cada folha */
+@page{
+  size:A4;
+  margin:15mm 12mm 10mm 12mm;
+}
+@media print{
+  /* Redução de um ponto na tipografia do contrato de parceiro. */
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h1{
+    font-size:11px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h3{
+    font-size:9px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main p{
+    font-size:10px!important;
+    line-height:9.6px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main > h1{
+    margin-bottom:24px!important;
+  }
+}
+
+
+/* Espaço de assinatura: 6 linhas em cada modelo, respeitando a tipografia de impressão. */
+.contrato-espaco-assinatura{
+  display:block!important;
+  height:7.2em!important;
+  min-height:7.2em!important;
+  margin:0!important;
+  padding:0!important;
+  line-height:1.2!important;
+  break-inside:avoid!important;
+  page-break-inside:avoid!important;
+}
+
+/* No contrato de clientes, o texto usa line-height 1.38: 6 linhas = 8.28em. */
+.contrato-folha:not(.contrato-parceiro) .contrato-espaco-assinatura{
+  height:8.28em!important;
+  min-height:8.28em!important;
+}
+
+/* Parceiros: seis linhas de assinatura, usando a mesma altura de linha do texto impresso (9,6px). */
+.contrato-folha.contrato-parceiro .contrato-espaco-assinatura{
+  display:block!important;
+  height:57.6px!important;
+  min-height:57.6px!important;
+  max-height:57.6px!important;
+  margin:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+.contrato-folha.contrato-parceiro .contrato-linha-assinatura{
+  display:block!important;
+  box-sizing:border-box!important;
+  width:100%!important;
+  height:9.6px!important;
+  min-height:9.6px!important;
+  max-height:9.6px!important;
+  margin:0!important;
+  padding:0!important;
+  line-height:9.6px!important;
+  font-size:1px!important;
+  overflow:hidden!important;
+}
