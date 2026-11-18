@@ -2285,8 +2285,40 @@ function mostrarRelatorio(conteudo) {
     }
 
     @media print {
+      html,
+      body {
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+      }
+
       body * {
         visibility: hidden !important;
+      }
+
+      /* Mantém somente os elementos necessários para chegar ao relatório. */
+      #app,
+      #mainContent,
+      #page-relatorios {
+        display: block !important;
+        position: static !important;
+        width: auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+      }
+
+      #app > .topbar,
+      #app > .bottom-menu,
+      #app > #modalContainer,
+      #app > #toastContainer,
+      #mainContent > .page:not(#page-relatorios),
+      #page-relatorios > :not(#resultadoRelatorio) {
+        display: none !important;
       }
 
       #resultadoRelatorio,
@@ -2295,14 +2327,17 @@ function mostrarRelatorio(conteudo) {
       }
 
       #resultadoRelatorio {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
+        display: block !important;
+        position: static !important;
+        box-sizing: border-box !important;
         width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
         margin: 0 !important;
         padding: 10mm !important;
         border: 0 !important;
         box-shadow: none !important;
+        overflow: visible !important;
       }
 
       #resultadoRelatorio .acoes-relatorio {
@@ -2317,6 +2352,7 @@ function mostrarRelatorio(conteudo) {
 
       #resultadoRelatorio tr {
         page-break-inside: avoid;
+        break-inside: avoid;
       }
     }
   `;
