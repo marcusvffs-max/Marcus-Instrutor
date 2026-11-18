@@ -28,7 +28,7 @@ function inteiroExtensoMoedaC(n){
   if(unidades)partes.push(ate999(unidades));
   if(partes.length===1)return partes[0];
   const ultima=partes[partes.length-1];
-  const usarE=(unidades>0&&unidades<100)||(unidades===0&&milhares>0&&milhares%1000===0);
+  const usarE=(unidades>0&&(unidades<100||unidades%100===0))||(unidades===0&&milhares>0);
   return partes.slice(0,-1).join(" ") + (usarE?" e ":", ") + ultima;
 }
 function valorMonetarioPorExtensoC(valor){
