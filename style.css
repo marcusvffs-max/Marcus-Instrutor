@@ -1284,8 +1284,8 @@ label {
 /* Espaço reservado para assinatura: 10 linhas de texto */
 .contrato-espaco-assinatura{
   display:block!important;
-  height:12em!important;
-  min-height:12em!important;
+  height:7.2em!important;
+  min-height:7.2em!important;
   margin:0!important;
   padding:0!important;
   line-height:1.2!important;
