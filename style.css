@@ -698,3 +698,27 @@ label {
     padding: 20px 15px;
   }
 }
+
+/* CONTRATOS */
+.contrato-tipos,.contrato-acoes{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+.contrato-tipos button,.contrato-acoes button{flex:1;min-width:130px}
+.contrato-check{display:flex;align-items:center;gap:9px;margin:12px 0}
+.contrato-check input{width:auto}
+.contrato-preview{margin-top:20px}
+.contrato-folha{background:#fff;color:#111;max-width:800px;margin:18px auto;padding:34px 42px;box-shadow:0 2px 12px #0002;min-height:1050px;position:relative;font-family:Arial,sans-serif;line-height:1.38}
+.contrato-folha header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #777;padding-bottom:12px;margin-bottom:18px}
+.contrato-logo{max-width:145px;max-height:70px;object-fit:contain}
+.contrato-logo-texto{font-size:20px;color:#12345a}
+.contrato-folha h1{text-align:center;font-size:16px;margin:10px 0 18px}
+.contrato-folha h3{font-size:13px;margin:14px 0 6px}
+.contrato-folha p{font-size:11px;text-align:justify;margin:7px 0}
+.contrato-folha footer{position:absolute;bottom:24px;left:35px;right:35px;text-align:center;font-size:9px;border-top:1px solid #aaa;padding-top:8px}
+.contrato-folha .contrato-pagina{position:absolute;bottom:8px;right:25px;font-size:9px}
+@media print{
+  body.contrato-impressao *{visibility:hidden}
+  body.contrato-impressao #contratoPreview,body.contrato-impressao #contratoPreview *{visibility:visible}
+  body.contrato-impressao #contratoPreview{position:absolute;left:0;top:0;width:100%}
+  body.contrato-impressao .contrato-folha{width:210mm;min-height:297mm;max-width:none;margin:0;padding:15mm 17mm;box-shadow:none;page-break-after:always;break-after:page}
+  body.contrato-impressao .contrato-folha:last-child{page-break-after:auto;break-after:auto}
+}
+@page{size:A4;margin:0}
