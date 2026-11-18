@@ -726,3 +726,16 @@ label {
 /* Garante que o formulário inativo permaneça oculto */
 #formContratoCliente[hidden],
 #formContratoParceiro[hidden]{display:none!important}
+
+
+/* Contratos: cabeçalho alinhado ao padrão dos relatórios e rodapé editável */
+.campo-rodape-contrato{margin-top:18px;padding:14px;border:1px solid #d7dce2;border-radius:10px;background:#f8fafc}
+.campo-rodape-contrato label{display:block;font-weight:600;margin-bottom:7px}
+.campo-rodape-contrato textarea{width:100%;box-sizing:border-box;min-height:76px;resize:vertical}
+.campo-rodape-contrato small{display:block;margin-top:6px;color:#667085;font-size:12px}
+.contrato-folha .contrato-cabecalho{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:16px;text-align:left;border-bottom:2px solid #12345a;padding-bottom:12px;margin-bottom:20px;width:100%}
+.contrato-folha .contrato-cabecalho .contrato-logo{display:block;width:auto;max-width:110px;max-height:85px;height:auto;object-fit:contain;flex:0 0 auto}
+.contrato-folha .contrato-cabecalho .identificacao-relatorio{display:block;flex:1 1 auto;text-align:left}
+.contrato-folha .contrato-cabecalho .identificacao-relatorio h2{color:#12345a;margin:0 0 5px;text-align:left;font-size:20px}
+.contrato-folha .contrato-cabecalho .identificacao-relatorio p{margin:0;text-align:left;font-size:12px}
+.contrato-folha footer{white-space:pre-wrap;overflow-wrap:anywhere}
