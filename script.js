@@ -2585,6 +2585,18 @@ function opcoes(valores, selecionado) {
 ========================================= */
 
 document.addEventListener("click", evento => {
+  const tipoContrato = evento.target.closest("[data-tipo-contrato]");
+
+  if (tipoContrato) {
+    if (typeof window.tipoC === "function") {
+      window.tipoC(tipoContrato.dataset.tipoContrato);
+    } else {
+      const titulo = document.getElementById("tituloTipoContrato");
+      if (titulo) titulo.textContent = "ERRO: módulo de contratos não carregado";
+    }
+    return;
+  }
+
   const pagina = evento.target.closest("[data-page]");
 
   if (pagina) {
