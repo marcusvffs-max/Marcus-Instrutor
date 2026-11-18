@@ -761,9 +761,9 @@ label {
 @media print{
   body.contrato-impressao .contrato-folha.contrato-parceiro{
     min-height:0!important;
-    height:297mm!important;
+    height:auto!important;
     padding:0 8mm!important;
-    overflow:hidden!important;
+    overflow:visible!important;
     font-size:8px!important;
     line-height:1.05!important;
   }
