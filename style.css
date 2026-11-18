@@ -718,7 +718,7 @@ label {
   body.contrato-impressao *{visibility:hidden}
   body.contrato-impressao #contratoPreview,body.contrato-impressao #contratoPreview *{visibility:visible}
   body.contrato-impressao #contratoPreview{position:absolute;left:0;top:0;width:100%}
-  body.contrato-impressao .contrato-folha{width:210mm;min-height:297mm;max-width:none;margin:0;padding:15mm 17mm;box-shadow:none;page-break-after:auto;break-after:auto;break-inside:auto}
+  body.contrato-impressao .contrato-folha{width:210mm;min-height:297mm;max-width:none;margin:0;padding:15mm 12mm;box-shadow:none;page-break-after:auto;break-after:auto;break-inside:auto}
 }
 .contrato-folha{page:contrato}\n@page contrato{size:A4;margin:0}
 
