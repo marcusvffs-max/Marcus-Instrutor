@@ -1264,28 +1264,6 @@ label {
   margin:15mm 12mm 10mm 12mm;
 }
 @media print{
-  body.contrato-impressao #contratoPreview .contrato-rodape-pagina{
-    display:block!important;
-    position:fixed!important;
-    left:0!important;
-    right:0!important;
-    bottom:-7mm!important;
-    width:100%!important;
-    box-sizing:border-box!important;
-    margin:0!important;
-    padding:2mm 0 0!important;
-    border-top:1px solid #aaa!important;
-    background:#fff!important;
-    text-align:center!important;
-    white-space:normal!important;
-    overflow:visible!important;
-    overflow-wrap:anywhere!important;
-    font-size:8px!important;
-    line-height:1.15!important;
-    z-index:9999!important;
-    break-inside:avoid!important;
-    page-break-inside:avoid!important;
-  }
   /* Redução de um ponto na tipografia do contrato de parceiro. */
   body.contrato-impressao .contrato-folha.contrato-parceiro main h1{
     font-size:11px!important;
