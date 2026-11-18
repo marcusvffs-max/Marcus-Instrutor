@@ -1257,3 +1257,38 @@ label {
     font-size:9px!important;line-height:1.25!important;margin:4px 0!important;text-align:justify!important;
   }
 }
+
+
+/* AJUSTE FINAL: espacamento do titulo do parceiro e rodape repetido no pe de cada pagina */
+@page{
+  size:A4;
+  margin:15mm 12mm 20mm 12mm;
+}
+@media print{
+  body.contrato-impressao .contrato-folha footer{
+    position:fixed!important;
+    left:12mm!important;
+    right:12mm!important;
+    bottom:5mm!important;
+    width:auto!important;
+    margin:0!important;
+    padding:3mm 0 0!important;
+    border-top:1px solid #aaa!important;
+    background:#fff!important;
+    text-align:center!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    overflow-wrap:anywhere!important;
+    font-size:8px!important;
+    line-height:1.2!important;
+    z-index:20!important;
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+  body.contrato-impressao .contrato-folha main{
+    padding-bottom:0!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main > h1{
+    margin-bottom:24px!important;
+  }
+}
