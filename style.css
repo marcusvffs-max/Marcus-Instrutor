@@ -720,7 +720,8 @@ label {
   body.contrato-impressao #contratoPreview{position:absolute;left:0;top:0;width:100%}
   body.contrato-impressao .contrato-folha{width:210mm;min-height:297mm;max-width:none;margin:0;padding:0 12mm;box-shadow:none;page-break-after:auto;break-after:auto;break-inside:auto}
 }
-.contrato-folha{page:contrato}\n@page contrato{size:A4;margin:0}
+.contrato-folha{page:contrato}
+@page contrato{size:A4;margin:0}
 
 /* Garante que o formulário inativo permaneça oculto */
 #formContratoCliente[hidden],
