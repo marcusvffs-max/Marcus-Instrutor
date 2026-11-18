@@ -1298,3 +1298,24 @@ label {
   height:8.28em!important;
   min-height:8.28em!important;
 }
+
+/* Parceiros: seis linhas físicas, visíveis tanto na pré-visualização quanto no PDF. */
+.contrato-folha.contrato-parceiro .contrato-espaco-assinatura{
+  display:block!important;
+  height:auto!important;
+  min-height:0!important;
+  margin:0!important;
+  padding:0!important;
+  font-size:8px!important;
+  line-height:1.2!important;
+}
+.contrato-folha.contrato-parceiro .contrato-linha-assinatura{
+  display:block!important;
+  box-sizing:border-box!important;
+  height:1.2em!important;
+  min-height:1.2em!important;
+  margin:0!important;
+  padding:0!important;
+  font-size:8px!important;
+  line-height:1.2em!important;
+}
