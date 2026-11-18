@@ -739,3 +739,71 @@ label {
 .contrato-folha .contrato-cabecalho .identificacao-relatorio h1{color:#12345a;margin:0 0 5px;text-align:left;font-size:20px}
 .contrato-folha .contrato-cabecalho .identificacao-relatorio p{margin:0;text-align:left;font-size:12px}
 .contrato-folha footer{white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* Ajuste fino do cabeçalho impresso: elimina o espaço superior excedente */
+@media print{
+  body.contrato-impressao .contrato-folha{padding-top:0!important}
+  body.contrato-impressao .contrato-folha .contrato-cabecalho{
+    margin-top:0!important;
+    margin-bottom:7px!important;
+    padding-top:0!important;
+    padding-bottom:5px!important;
+    gap:8px!important;
+    align-items:center!important;
+  }
+  body.contrato-impressao .contrato-folha .contrato-cabecalho .contrato-logo{
+    max-height:58px!important;
+    max-width:90px!important;
+  }
+}
+
+/* Formatação compacta exclusiva do contrato de parceiro para caber em uma A4 */
+@media print{
+  body.contrato-impressao .contrato-folha.contrato-parceiro{
+    min-height:0!important;
+    height:297mm!important;
+    padding:0 8mm!important;
+    overflow:hidden!important;
+    font-size:8px!important;
+    line-height:1.05!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro .contrato-cabecalho{
+    margin-bottom:4px!important;
+    padding-bottom:3px!important;
+    gap:7px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro .contrato-logo{
+    max-height:42px!important;
+    max-width:75px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro .identificacao-relatorio h1{
+    font-size:15px!important;
+    margin:0 0 2px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro .identificacao-relatorio p{
+    font-size:8px!important;
+    line-height:1.05!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h1{
+    font-size:10px!important;
+    line-height:1.05!important;
+    margin:3px 0 5px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h3{
+    font-size:8px!important;
+    line-height:1.05!important;
+    margin:4px 0 2px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main p{
+    font-size:7.5px!important;
+    line-height:1.05!important;
+    margin:2px 0!important;
+    text-align:justify!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro footer{
+    font-size:7px!important;
+    line-height:1.05!important;
+    margin-top:5px!important;
+    padding-top:3px!important;
+  }
+}
