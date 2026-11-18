@@ -25,4 +25,4 @@ document.getElementById("contratoPreview").innerHTML=paginaC(p1,"1")+paginaC(p2,
 }
 function iniciarContratos(){carregarAlunosContrato();document.addEventListener("click",evento=>{const botao=evento.target.closest("[data-page=\"contratos\"]");if(botao)carregarAlunosContrato();});document.querySelectorAll("[data-tipo-contrato]").forEach(b=>b.addEventListener("click",()=>tipoC(b.dataset.tipoContrato)));document.getElementById("contratoAluno").addEventListener("change",selecionarAlunoContrato);document.getElementById("btnGerarContrato").addEventListener("click",gerarC);document.getElementById("btnImprimirContrato").addEventListener("click",()=>{if(!document.querySelector(".contrato-folha")){mostrarAviso("Gere a pré-visualização antes de imprimir.");return;}document.body.classList.add("contrato-impressao");window.print();});}
 window.addEventListener("afterprint",()=>document.body.classList.remove("contrato-impressao"));
-window.addEventListener("load",iniciarContratos);
+if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",iniciarContratos,{once:true});}else{iniciarContratos();}
