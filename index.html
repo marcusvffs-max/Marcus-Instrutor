@@ -9,7 +9,7 @@
   <title>Marcus Instrutor</title>
 
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=contratos3">
   <link rel="icon" href="icon-192.png" type="image/png">
 </head>
 
@@ -346,7 +346,7 @@
         <div class="page-heading"><div><span class="eyebrow">DOCUMENTOS</span><h2>Contratos</h2></div></div>
         <div class="panel">
           <h3 id="tituloTipoContrato">Contrato de cliente</h3>
-          <div class="contrato-tipos"><button type="button" class="primary-button active" data-tipo-contrato="cliente">Cliente</button><button type="button" class="secondary-button" data-tipo-contrato="parceiro">Parceiro</button></div>
+          <div class="contrato-tipos"><button type="button" class="primary-button active" data-tipo-contrato="cliente" onclick="tipoC('cliente')">Cliente</button><button type="button" class="secondary-button" data-tipo-contrato="parceiro" onclick="tipoC('parceiro')">Parceiro</button></div>
           <div id="formContratoCliente">
             <label for="contratoAluno">Usar aluno cadastrado</label><select id="contratoAluno"><option value="">Preencher manualmente</option></select>
             <label for="clienteNome">Nome completo</label><input id="clienteNome" type="text">
@@ -426,6 +426,6 @@
       });
     }
   </script>
-  <script src="contratos.js"></script>
+  <script src="contratos.js?v=contratos3"></script>
 </body>
 </html>
