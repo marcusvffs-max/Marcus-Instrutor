@@ -1299,23 +1299,36 @@ label {
   min-height:8.28em!important;
 }
 
-/* Parceiros: seis linhas físicas, visíveis tanto na pré-visualização quanto no PDF. */
+/* Parceiros: cada elemento corresponde a uma linha do texto do contrato.
+   Na tela usa a tipografia normal (11px / 1.38); no PDF acompanha a tipografia compacta. */
 .contrato-folha.contrato-parceiro .contrato-espaco-assinatura{
   display:block!important;
   height:auto!important;
   min-height:0!important;
   margin:0!important;
   padding:0!important;
-  font-size:8px!important;
-  line-height:1.2!important;
+  font-size:11px!important;
+  line-height:1.38!important;
 }
 .contrato-folha.contrato-parceiro .contrato-linha-assinatura{
   display:block!important;
   box-sizing:border-box!important;
-  height:1.2em!important;
-  min-height:1.2em!important;
+  height:1.38em!important;
+  min-height:1.38em!important;
   margin:0!important;
   padding:0!important;
-  font-size:8px!important;
-  line-height:1.2em!important;
+  font-size:11px!important;
+  line-height:1.38em!important;
+}
+@media print{
+  body.contrato-impressao .contrato-folha.contrato-parceiro .contrato-espaco-assinatura{
+    font-size:7.5px!important;
+    line-height:1.05!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro .contrato-linha-assinatura{
+    height:1.05em!important;
+    min-height:1.05em!important;
+    font-size:7.5px!important;
+    line-height:1.05em!important;
+  }
 }
