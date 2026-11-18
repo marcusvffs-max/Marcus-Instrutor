@@ -722,3 +722,7 @@ label {
   body.contrato-impressao .contrato-folha:last-child{page-break-after:auto;break-after:auto}
 }
 .contrato-folha{page:contrato}\n@page contrato{size:A4;margin:0}
+
+/* Garante que o formulário inativo permaneça oculto */
+#formContratoCliente[hidden],
+#formContratoParceiro[hidden]{display:none!important}
