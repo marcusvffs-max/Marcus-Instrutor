@@ -342,6 +342,35 @@
         </div>
       </section>
 
+      <section id="page-contratos" class="page">
+        <div class="page-heading"><div><span class="eyebrow">DOCUMENTOS</span><h2>Contratos</h2></div></div>
+        <div class="panel">
+          <h3 id="tituloTipoContrato">Contrato de cliente</h3>
+          <div class="contrato-tipos"><button type="button" class="primary-button active" data-tipo-contrato="cliente">Cliente</button><button type="button" class="secondary-button" data-tipo-contrato="parceiro">Parceiro</button></div>
+          <div id="formContratoCliente">
+            <label for="contratoAluno">Usar aluno cadastrado</label><select id="contratoAluno"><option value="">Preencher manualmente</option></select>
+            <label for="clienteNome">Nome completo</label><input id="clienteNome" type="text">
+            <label for="clienteCpf">CPF</label><input id="clienteCpf" type="text">
+            <label for="clienteCategoria">Categoria desejada</label><select id="clienteCategoria"><option value="">Selecione</option><option>A</option><option>B</option><option>AB</option></select>
+            <label for="clienteAulas">Quantidade de aulas</label><input id="clienteAulas" type="number" min="1" placeholder="Ex.: 20">
+            <label class="contrato-check"><input id="clienteCartao" type="checkbox" checked> Cartão Moto Pista</label>
+            <label class="contrato-check"><input id="clienteAluguel" type="checkbox" checked> Aluguel do veículo para exame</label>
+            <label for="clienteValor">Valor do pacote (R$)</label><input id="clienteValor" type="number" min="0" step="0.01">
+            <label for="clientePagamento">Forma de pagamento</label><input id="clientePagamento" type="text" placeholder="Ex.: Pix, dinheiro, cartão...">
+          </div>
+          <div id="formContratoParceiro" hidden>
+            <label for="parceiroNome">Nome / razão social</label><input id="parceiroNome" type="text">
+            <label for="parceiroNacionalidade">Nacionalidade</label><input id="parceiroNacionalidade" type="text" value="brasileiro(a)">
+            <label for="parceiroCivil">Estado civil</label><input id="parceiroCivil" type="text">
+            <label for="parceiroProfissao">Profissão</label><input id="parceiroProfissao" type="text">
+            <label for="parceiroDocumento">CPF / CNPJ</label><input id="parceiroDocumento" type="text">
+            <label for="parceiroEndereco">Endereço completo</label><textarea id="parceiroEndereco" rows="2"></textarea>
+            <label for="parceiroComissao">Comissão (%)</label><input id="parceiroComissao" type="number" min="0" max="100" step="0.01" value="5">
+          </div>
+          <div class="contrato-acoes"><button id="btnGerarContrato" class="primary-button" type="button">Gerar pré-visualização</button><button id="btnImprimirContrato" class="secondary-button" type="button">Imprimir / Salvar PDF</button></div>
+        </div>
+        <div id="contratoPreview" class="contrato-preview"><div class="empty-state">Preencha os dados e gere a pré-visualização do contrato.</div></div>
+      </section>
     </main>
 
     <nav class="bottom-menu" aria-label="Menu principal">
@@ -369,6 +398,7 @@
         <span class="menu-icon">▤</span>
         <span>Relatórios</span>
       </button>
+      <button type="button" data-page="contratos" class="menu-item"><span class="menu-icon">▧</span><span>Contratos</span></button>
       <button type="button" data-page="backup" class="menu-item">
         <span class="menu-icon">⇧</span>
         <span>Backup</span>
@@ -396,5 +426,6 @@
       });
     }
   </script>
+  <script src="contratos.js"></script>
 </body>
 </html>
