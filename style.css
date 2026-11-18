@@ -737,5 +737,6 @@ label {
 .contrato-folha .contrato-cabecalho .contrato-logo{display:block;width:auto;max-width:110px;max-height:85px;height:auto;object-fit:contain;flex:0 0 auto}
 .contrato-folha .contrato-cabecalho .identificacao-relatorio{display:block;flex:1 1 auto;text-align:left}
 .contrato-folha .contrato-cabecalho .identificacao-relatorio h2{color:#12345a;margin:0 0 5px;text-align:left;font-size:20px}
+.contrato-folha .contrato-cabecalho .identificacao-relatorio h1{color:#12345a;margin:0 0 5px;text-align:left;font-size:20px}
 .contrato-folha .contrato-cabecalho .identificacao-relatorio p{margin:0;text-align:left;font-size:12px}
 .contrato-folha footer{white-space:pre-wrap;overflow-wrap:anywhere}
