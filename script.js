@@ -2588,11 +2588,35 @@ document.addEventListener("click", evento => {
   const tipoContrato = evento.target.closest("[data-tipo-contrato]");
 
   if (tipoContrato) {
+    const tipo = tipoContrato.dataset.tipoContrato;
     if (typeof window.tipoC === "function") {
-      window.tipoC(tipoContrato.dataset.tipoContrato);
+      window.tipoC(tipo);
     } else {
+      // Alternância de emergência: permite voltar entre as abas
+      // mesmo quando o arquivo contratos.js não foi carregado.
+      const cliente = document.getElementById("formContratoCliente");
+      const parceiro = document.getElementById("formContratoParceiro");
       const titulo = document.getElementById("tituloTipoContrato");
-      if (titulo) titulo.textContent = "ERRO: módulo de contratos não carregado";
+      const preview = document.getElementById("contratoPreview");
+
+      if (cliente && parceiro && titulo) {
+        cliente.hidden = tipo !== "cliente";
+        parceiro.hidden = tipo !== "parceiro";
+        cliente.style.display = tipo === "cliente" ? "block" : "none";
+        parceiro.style.display = tipo === "parceiro" ? "block" : "none";
+        titulo.textContent = tipo === "cliente"
+          ? "Contrato de cliente"
+          : "Contrato de parceiro";
+
+        if (preview) preview.innerHTML = "";
+
+        document.querySelectorAll("[data-tipo-contrato]").forEach(botao => {
+          const ativo = botao.dataset.tipoContrato === tipo;
+          botao.classList.toggle("active", ativo);
+          botao.classList.toggle("primary-button", ativo);
+          botao.classList.toggle("secondary-button", !ativo);
+        });
+      }
     }
     return;
   }
