@@ -720,8 +720,7 @@ label {
   body.contrato-impressao #contratoPreview{position:absolute;left:0;top:0;width:100%}
   body.contrato-impressao .contrato-folha{width:210mm;min-height:297mm;max-width:none;margin:0;padding:0 12mm;box-shadow:none;page-break-after:auto;break-after:auto;break-inside:auto}
 }
-.contrato-folha{page:contrato}
-@page contrato{size:A4;margin:0}
+/* A impressão usa a página A4 padrão; não aplicar página nomeada com margem zero. */
 
 /* Garante que o formulário inativo permaneça oculto */
 #formContratoCliente[hidden],
@@ -1259,18 +1258,19 @@ label {
 }
 
 
-/* AJUSTE FINAL: espacamento do titulo do parceiro e rodape repetido no pe de cada pagina */
+/* IMPRESSÃO A4: rodapé fora do fluxo do texto para repetir em todas as páginas */
 @page{
   size:A4;
   margin:15mm 12mm 20mm 12mm;
 }
 @media print{
-  body.contrato-impressao .contrato-folha footer{
+  body.contrato-impressao #contratoPreview .contrato-rodape-pagina{
+    display:block!important;
     position:fixed!important;
-    left:12mm!important;
-    right:12mm!important;
-    bottom:5mm!important;
-    width:auto!important;
+    left:0!important;
+    right:0!important;
+    bottom:-15mm!important;
+    width:100%!important;
     margin:0!important;
     padding:3mm 0 0!important;
     border-top:1px solid #aaa!important;
@@ -1284,9 +1284,6 @@ label {
     z-index:20!important;
     break-inside:avoid!important;
     page-break-inside:avoid!important;
-  }
-  body.contrato-impressao .contrato-folha main{
-    padding-bottom:0!important;
   }
   body.contrato-impressao .contrato-folha.contrato-parceiro main > h1{
     margin-bottom:24px!important;
