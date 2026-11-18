@@ -1322,3 +1322,50 @@ label {
   font-size:1px!important;
   overflow:hidden!important;
 }
+
+
+/* IMPRESSÃO: ocultar todos os formulários e controles do aplicativo.
+   Exibir exclusivamente o documento que foi solicitado para impressão. */
+@media print {
+  body.contrato-impressao #app,
+  body.contrato-impressao #app * {
+    visibility: hidden !important;
+  }
+
+  body.contrato-impressao #contratoPreview,
+  body.contrato-impressao #contratoPreview * {
+    visibility: visible !important;
+  }
+
+  body.contrato-impressao #page-contratos > .page-heading,
+  body.contrato-impressao #page-contratos > .panel,
+  body.contrato-impressao #contratoPreview input,
+  body.contrato-impressao #contratoPreview textarea,
+  body.contrato-impressao #contratoPreview select,
+  body.contrato-impressao #contratoPreview button {
+    display: none !important;
+  }
+
+  body.relatorio-impressao #app,
+  body.relatorio-impressao #app * {
+    visibility: hidden !important;
+  }
+
+  body.relatorio-impressao #resultadoRelatorio,
+  body.relatorio-impressao #resultadoRelatorio * {
+    visibility: visible !important;
+  }
+
+  body.relatorio-impressao #page-relatorios > .page-heading,
+  body.relatorio-impressao #page-relatorios > .panel,
+  body.relatorio-impressao #resultadoRelatorio input,
+  body.relatorio-impressao #resultadoRelatorio textarea,
+  body.relatorio-impressao #resultadoRelatorio select,
+  body.relatorio-impressao #resultadoRelatorio button {
+    display: none !important;
+  }
+
+  body.relatorio-impressao #resultadoRelatorio .acoes-relatorio {
+    display: none !important;
+  }
+}
