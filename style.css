@@ -1281,7 +1281,7 @@ label {
 }
 
 
-/* Espaço reservado para assinatura: 10 linhas de texto */
+/* Espaço de assinatura: 6 linhas em cada modelo, respeitando a tipografia de impressão. */
 .contrato-espaco-assinatura{
   display:block!important;
   height:7.2em!important;
@@ -1291,4 +1291,10 @@ label {
   line-height:1.2!important;
   break-inside:avoid!important;
   page-break-inside:avoid!important;
+}
+
+/* No contrato de clientes, o texto usa line-height 1.38: 6 linhas = 8.28em. */
+.contrato-folha:not(.contrato-parceiro) .contrato-espaco-assinatura{
+  height:8.28em!important;
+  min-height:8.28em!important;
 }
