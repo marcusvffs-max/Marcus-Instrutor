@@ -36,7 +36,9 @@ function valorMonetarioPorExtensoC(valor){
   if(!Number.isFinite(numero)||numero<0)throw new Error("Valor do pacote inválido.");
   const totalCentavos=Math.round((numero+Number.EPSILON)*100);
   const reais=Math.floor(totalCentavos/100), centavos=totalCentavos%100;
-  const moeda=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL",minimumFractionDigits:2,maximumFractionDigits:2}).format(totalCentavos/100);
+  const partesMoeda=(totalCentavos/100).toFixed(2).split(".");
+  const inteiroFormatado=partesMoeda[0].replace(/\B(?=(\d{3})+(?!\d))/g,".");
+  const moeda="R$ "+inteiroFormatado+","+partesMoeda[1];
   const textoReais=reais===1?"um real":inteiroExtensoMoedaC(reais)+" reais";
   const textoCentavos=centavos?(centavos===1?"um centavo":inteiroExtensoMoedaC(centavos)+" centavos"):"";
   return moeda+" ("+textoReais+(textoCentavos?" e "+textoCentavos:"")+")";
