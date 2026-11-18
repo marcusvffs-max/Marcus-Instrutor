@@ -1258,10 +1258,10 @@ label {
 }
 
 
-/* IMPRESSÃO A4: rodapé fora do fluxo do texto para repetir em todas as páginas */
+/* IMPRESSÃO A4: rodapé repetido junto ao limite inferior de cada folha */
 @page{
   size:A4;
-  margin:15mm 12mm 20mm 12mm;
+  margin:15mm 12mm 10mm 12mm;
 }
 @media print{
   body.contrato-impressao #contratoPreview .contrato-rodape-pagina{
@@ -1269,10 +1269,11 @@ label {
     position:fixed!important;
     left:0!important;
     right:0!important;
-    bottom:-15mm!important;
+    bottom:-7mm!important;
     width:100%!important;
+    box-sizing:border-box!important;
     margin:0!important;
-    padding:3mm 0 0!important;
+    padding:2mm 0 0!important;
     border-top:1px solid #aaa!important;
     background:#fff!important;
     text-align:center!important;
@@ -1280,10 +1281,21 @@ label {
     overflow:visible!important;
     overflow-wrap:anywhere!important;
     font-size:8px!important;
-    line-height:1.2!important;
-    z-index:20!important;
+    line-height:1.15!important;
+    z-index:9999!important;
     break-inside:avoid!important;
     page-break-inside:avoid!important;
+  }
+  /* Redução de um ponto na tipografia do contrato de parceiro. */
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h1{
+    font-size:11px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h3{
+    font-size:9px!important;
+  }
+  body.contrato-impressao .contrato-folha.contrato-parceiro main p{
+    font-size:8px!important;
+    line-height:1.2!important;
   }
   body.contrato-impressao .contrato-folha.contrato-parceiro main > h1{
     margin-bottom:24px!important;
