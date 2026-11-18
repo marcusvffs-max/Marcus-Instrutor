@@ -420,7 +420,10 @@
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("./service-worker.js")
+        navigator.serviceWorker.register("./service-worker.js?v=impressao-campos2", { updateViaCache: "none" })
+          .then(function (registro) {
+            return registro.update();
+          })
           .catch(function (error) {
             console.error("Erro ao registrar o aplicativo:", error);
           });
