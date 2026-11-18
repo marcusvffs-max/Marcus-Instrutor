@@ -2284,7 +2284,16 @@ function mostrarRelatorio(conteudo) {
       background: #555;
     }
 
+    @page relatorio {
+      size: A4;
+      margin: 15mm 12mm 12mm 12mm;
+    }
+
     @media print {
+      body.relatorio-impressao {
+        page: relatorio !important;
+      }
+
       html,
       body {
         height: auto !important;
@@ -2304,6 +2313,12 @@ function mostrarRelatorio(conteudo) {
       #page-relatorios {
         display: block !important;
         position: static !important;
+        transform: none !important;
+        animation: none !important;
+        break-before: auto !important;
+        page-break-before: auto !important;
+        break-after: auto !important;
+        page-break-after: auto !important;
         width: auto !important;
         height: auto !important;
         min-height: 0 !important;
@@ -2338,6 +2353,14 @@ function mostrarRelatorio(conteudo) {
         border: 0 !important;
         box-shadow: none !important;
         overflow: visible !important;
+        transform: none !important;
+        animation: none !important;
+        break-before: auto !important;
+        page-break-before: auto !important;
+        break-after: auto !important;
+        page-break-after: auto !important;
+        break-inside: auto !important;
+        page-break-inside: auto !important;
       }
 
       #resultadoRelatorio .acoes-relatorio {
@@ -2416,6 +2439,13 @@ function mostrarRelatorio(conteudo) {
   }
 
   document.getElementById("imprimirRelatorio").onclick = () => {
+    document.body.classList.add("relatorio-impressao");
+
+    const limparModoImpressao = () => {
+      document.body.classList.remove("relatorio-impressao");
+    };
+
+    window.addEventListener("afterprint", limparModoImpressao, { once: true });
     window.print();
   };
 
