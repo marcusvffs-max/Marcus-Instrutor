@@ -2292,10 +2292,6 @@ function mostrarRelatorio(conteudo) {
     @media print {
       body.relatorio-impressao {
         page: relatorio !important;
-      }
-
-      html,
-      body {
         height: auto !important;
         min-height: 0 !important;
         margin: 0 !important;
@@ -2303,14 +2299,14 @@ function mostrarRelatorio(conteudo) {
         overflow: visible !important;
       }
 
-      body * {
+      body.relatorio-impressao * {
         visibility: hidden !important;
       }
 
       /* Mantém somente os elementos necessários para chegar ao relatório. */
-      #app,
-      #mainContent,
-      #page-relatorios {
+      body.relatorio-impressao #app,
+      body.relatorio-impressao #mainContent,
+      body.relatorio-impressao #page-relatorios {
         display: block !important;
         position: static !important;
         transform: none !important;
@@ -2327,21 +2323,21 @@ function mostrarRelatorio(conteudo) {
         overflow: visible !important;
       }
 
-      #app > .topbar,
-      #app > .bottom-menu,
-      #app > #modalContainer,
-      #app > #toastContainer,
-      #mainContent > .page:not(#page-relatorios),
-      #page-relatorios > :not(#resultadoRelatorio) {
+      body.relatorio-impressao #app > .topbar,
+      body.relatorio-impressao #app > .bottom-menu,
+      body.relatorio-impressao #app > #modalContainer,
+      body.relatorio-impressao #app > #toastContainer,
+      body.relatorio-impressao #mainContent > .page:not(#page-relatorios),
+      body.relatorio-impressao #page-relatorios > :not(#resultadoRelatorio) {
         display: none !important;
       }
 
-      #resultadoRelatorio,
-      #resultadoRelatorio * {
+      body.relatorio-impressao #resultadoRelatorio,
+      body.relatorio-impressao #resultadoRelatorio * {
         visibility: visible !important;
       }
 
-      #resultadoRelatorio {
+      body.relatorio-impressao #resultadoRelatorio {
         display: block !important;
         position: static !important;
         box-sizing: border-box !important;
@@ -2363,17 +2359,17 @@ function mostrarRelatorio(conteudo) {
         page-break-inside: auto !important;
       }
 
-      #resultadoRelatorio .acoes-relatorio {
+      body.relatorio-impressao #resultadoRelatorio .acoes-relatorio {
         display: none !important;
       }
 
-      #resultadoRelatorio th {
+      body.relatorio-impressao #resultadoRelatorio th {
         background: #e8edf3 !important;
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
       }
 
-      #resultadoRelatorio tr {
+      body.relatorio-impressao #resultadoRelatorio tr {
         page-break-inside: avoid;
         break-inside: avoid;
       }
