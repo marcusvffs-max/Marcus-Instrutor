@@ -504,7 +504,7 @@
         return;
       }
       const clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-        auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
+        auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage }
       });
       window.getMarcusSupabase = function () { return clienteSupabase; };
       async function conferirAdministrador(usuario) {
