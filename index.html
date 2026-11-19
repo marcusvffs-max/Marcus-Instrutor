@@ -485,7 +485,6 @@
       const mensagemRecuperacao = document.getElementById("recuperarMensagem");
       const mensagemNovaSenha = document.getElementById("novaSenhaMensagem");
       const btnMostrarRecuperacao = document.getElementById("btnMostrarRecuperacao");
-      const formLogin = document.getElementById("formLogin");
       function mostrarLogin(mensagem) {
         document.body.classList.remove("autenticado");
         if (mensagemLogin) mensagemLogin.textContent = mensagem || "";
@@ -502,7 +501,7 @@
         return;
       }
       const clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-        auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: false }
+        auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true }
       });
       window.getMarcusSupabase = function () { return clienteSupabase; };
       async function conferirAdministrador(usuario) {
