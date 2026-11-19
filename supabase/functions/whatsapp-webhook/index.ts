@@ -150,38 +150,59 @@ async function sendInteractiveServiceMenu(
   page: "principal" | "complementar",
 ) {
   const isMain = page === "principal";
-  const options = isMain
+  const rows = isMain
     ? [
-        "1️⃣ Falar com Instrutor",
-        "2️⃣ Consultar pacotes e valores",
-        "3️⃣ Contratar serviços",
-        "4️⃣ Agendar aulas",
-        "5️⃣ Consultar aulas e saldos",
-        "6️⃣ Reagendar ou cancelar aulas",
-        "7️⃣ Menu do Detran",
+        { id: "menu_talk_marcus", title: "Falar com Instrutor", description: "Fale diretamente com o Instrutor Marcus." },
+        { id: "service_packages", title: "Pacotes e valores", description: "Consulte os pacotes disponíveis e seus preços." },
+        { id: "service_contract", title: "Contratar serviços", description: "Escolha um serviço para solicitar contratação." },
+        { id: "service_schedule", title: "Agendar aulas", description: "Consulte horários e solicite o agendamento de aulas." },
+        { id: "service_balance", title: "Aulas e saldos", description: "Consulte suas aulas agendadas, realizadas e saldo." },
+        { id: "service_reschedule", title: "Reagendar/cancelar", description: "Solicite alteração ou cancelamento de aulas." },
+        { id: "menu_second", title: "Abrir Menu do Detran", description: "Acesse documentos, taxas e exames da habilitação." },
       ]
     : [
-        "1️⃣ Consultar documentos e etapas da habilitação",
-        "2️⃣ Emitir taxa de inscrição (Detran-MG)",
-        "3️⃣ Exame médico",
-        "4️⃣ Emitir taxa exame Legislação (Detran-MG)",
-        "5️⃣ Emitir taxa exame direção (Detran-MG)",
-        "6️⃣ Outros assuntos",
-        "7️⃣ Menu do Instrutor",
+        { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
+        { id: "service_registration_fee", title: "Taxa de inscrição", description: "Informações para emitir a taxa da primeira habilitação." },
+        { id: "service_medical", title: "Exame médico", description: "Informações sobre o exame médico da habilitação." },
+        { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
+        { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
+        { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
+        { id: "menu_main", title: "Abrir Menu do Instrutor", description: "Acesse pacotes, aulas e serviços do instrutor." },
       ];
 
-  const title = isMain ? "📘 MENU DO INSTRUTOR" : "🚦 MENU DO DETRAN";
-  const body = [
-    title,
-    "",
-    "Escolha uma opção respondendo com o nome dela:",
-    "",
-    ...options,
-    "",
-    "Você pode trocar de menu a qualquer momento.",
-  ].join("\n");
+  const menu = {
+    type: "interactive",
+    interactive: {
+      type: "list",
+      body: {
+        text: isMain
+          ? "📘 Menu do Instrutor\n\nEscolha uma opção para continuar:"
+          : "🚦 Menu do Detran\n\nEscolha uma opção para continuar:",
+      },
+      footer: { text: "Selecione uma opção da lista." },
+      action: {
+        button: "Ver opções",
+        sections: [{ title: isMain ? "Menu do Instrutor" : "Menu do Detran", rows }],
+      },
+    },
+  };
 
-  await sendWhatsAppText(supabase, conversationId, recipient, body);
+  const sent = await sendWhatsAppPayload(
+    supabase,
+    conversationId,
+    recipient,
+    menu,
+    isMain ? "Menu do Instrutor" : "Menu do Detran",
+  );
+  if (!sent) {
+    const fallback = rows.map((row) => `${row.title} — ${row.description}`).join("\n");
+    await sendWhatsAppText(
+      supabase,
+      conversationId,
+      recipient,
+      `${isMain ? "Menu do Instrutor" : "Menu do Detran"}:\n${fallback}\n\nResponda com o nome da opção desejada.`,
+    );
+  }
 }
 
 async function sendInitialMenuSelection(
@@ -256,7 +277,7 @@ async function sendReturnToMainMenu(
   conversationId: string,
   recipient: string,
 ) {
-  // Reutiliza exatamente a mesma mensagem e os mesmos dois botões da abertura inicial.
+  // Após cada resposta, reapresenta os mesmos dois botões da abertura inicial.
   await sendInitialMenuSelection(supabase, conversationId, recipient);
 }
 
