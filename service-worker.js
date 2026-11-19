@@ -1,12 +1,12 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v5";
+const CACHE_NAME = "marcus-instrutor-v6-login";
 
 const ARQUIVOS = [
   "./",
   "./index.html",
-  "./style.css",
-  "./script.js?v=relatorios3",
+  "./style.css?v=login-v1",
+  "./script.js?v=login-v1",
   "./contratos.js?v=contratos30",
   "./manifest.json"
 ];
