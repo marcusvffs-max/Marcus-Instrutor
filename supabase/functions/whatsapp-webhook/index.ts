@@ -199,7 +199,7 @@ async function sendInteractiveServiceMenu(
       supabase,
       conversationId,
       recipient,
-      `${isMain ? "Menu principal" : "Menu complementar"}:\n${fallback}\n\nResponda com o número da opção desejada.`,
+      `${isMain ? "Menu principal" : "Menu complementar"}:\n${fallback}\n\nResponda com o nome da opção desejada.`,
     );
   }
 }
@@ -715,6 +715,28 @@ Deno.serve(async (req: Request) => {
           }
           stored++;
 
+          if (typeof content === "string" && /^falar com assistente$/i.test(content.trim())) {
+            const { error: reactivateError } = await supabase
+              .from("whatsapp_conversations")
+              .update({ status: "atendimento_ia", updated_at: new Date().toISOString() })
+              .eq("id", conversation.id);
+            if (reactivateError) {
+              console.error("Customer AI reactivation failed:", reactivateError.message);
+              continue;
+            }
+            await updateMessageMetadata(supabase, providerId, {
+              menu_choice: "customer_reactivated_assistant",
+              ai_status: "awaiting_next_message",
+            });
+            await sendWhatsAppText(
+              supabase,
+              conversation.id,
+              phone,
+              "Perfeito! 😊 Sou a Assistente do Instrutor Marcus e vou continuar seu atendimento. Como posso ajudar?",
+            );
+            continue;
+          }
+
           if (conversationStatus === "aguardando_escolha") {
             if (menuChoice === "menu_second") {
               await updateMessageMetadata(supabase, providerId, {
@@ -855,28 +877,6 @@ Deno.serve(async (req: Request) => {
             });
             await sendAttendanceMenu(supabase, conversation.id, phone);
             menusSent++;
-            continue;
-          }
-
-          if (conversationStatus === "atendimento_humano" && typeof content === "string" && /^falar com assistente$/i.test(content.trim())) {
-            const { error: reactivateError } = await supabase
-              .from("whatsapp_conversations")
-              .update({ status: "atendimento_ia", updated_at: new Date().toISOString() })
-              .eq("id", conversation.id);
-            if (reactivateError) {
-              console.error("Customer AI reactivation failed:", reactivateError.message);
-              continue;
-            }
-            await updateMessageMetadata(supabase, providerId, {
-              menu_choice: "customer_reactivated_assistant",
-              ai_status: "awaiting_next_message",
-            });
-            await sendWhatsAppText(
-              supabase,
-              conversation.id,
-              phone,
-              "Perfeito! 😊 Sou a Assistente do Instrutor Marcus e vou continuar seu atendimento. Como posso ajudar?",
-            );
             continue;
           }
 
