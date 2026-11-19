@@ -485,6 +485,9 @@
       const mensagemRecuperacao = document.getElementById("recuperarMensagem");
       const mensagemNovaSenha = document.getElementById("novaSenhaMensagem");
       const btnMostrarRecuperacao = document.getElementById("btnMostrarRecuperacao");
+      const parametrosUrl = new URLSearchParams(window.location.search);
+      const parametrosHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      let modoRecuperacao = parametrosUrl.has("code") || parametrosUrl.get("type") === "recovery" || parametrosHash.get("type") === "recovery";
       function mostrarLogin(mensagem) {
         document.body.classList.remove("autenticado");
         if (mensagemLogin) mensagemLogin.textContent = mensagem || "";
@@ -505,6 +508,10 @@
       });
       window.getMarcusSupabase = function () { return clienteSupabase; };
       async function conferirAdministrador(usuario) {
+        if (modoRecuperacao) {
+          mostrarFormularioRecuperacao();
+          return false;
+        }
         if (!usuario || !usuario.id) { mostrarLogin("Entre com sua conta para continuar."); return false; }
         const { data: perfil, error } = await clienteSupabase.from("profiles")
           .select("id, role").eq("id", usuario.id).maybeSingle();
@@ -624,6 +631,8 @@
         try {
           const { error } = await clienteSupabase.auth.updateUser({ password: senha });
           if (error) throw error;
+          modoRecuperacao = false;
+          window.history.replaceState({}, document.title, window.location.pathname);
           await clienteSupabase.auth.signOut({ scope: "local" });
           formNovaSenha.hidden = true;
           formLogin.hidden = false;
@@ -643,6 +652,7 @@
 
       clienteSupabase.auth.onAuthStateChange(function (evento, sessao) {
         if (evento === "PASSWORD_RECOVERY") {
+          modoRecuperacao = true;
           mostrarFormularioRecuperacao();
           return;
         }
@@ -653,6 +663,10 @@
       });
       (async function iniciarAutenticacao() {
         try {
+          if (modoRecuperacao) {
+            mostrarFormularioRecuperacao();
+            return;
+          }
           const { data, error } = await clienteSupabase.auth.getSession();
           if (error) { mostrarLogin("Não foi possível recuperar sua sessão. Entre novamente."); return; }
           if (data.session && data.session.user) await conferirAdministrador(data.session.user);
