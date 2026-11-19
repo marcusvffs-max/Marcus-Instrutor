@@ -733,17 +733,27 @@ Deno.serve(async (req: Request) => {
             continue;
           }
 
-          if (conversationStatus === "aguardando_escolha") {
-            if (menuChoice === "menu_second") {
-              await updateMessageMetadata(supabase, providerId, {
-                menu_choice: "menu_complementar",
-                ai_status: "waiting_for_service_choice",
-              });
-              await sendSecondServiceMenu(supabase, conversation.id, phone);
-              menusSent++;
+          // The interactive list reply is authoritative: open the second menu
+          // even if an older conversation has an outdated status in the database.
+          if (menuChoice === "menu_second") {
+            const { error: menuStateError } = await supabase
+              .from("whatsapp_conversations")
+              .update({ status: "aguardando_escolha", updated_at: new Date().toISOString() })
+              .eq("id", conversation.id);
+            if (menuStateError) {
+              console.error("Second menu state update failed:", menuStateError.message);
               continue;
             }
+            await updateMessageMetadata(supabase, providerId, {
+              menu_choice: "menu_complementar",
+              ai_status: "waiting_for_service_choice",
+            });
+            await sendSecondServiceMenu(supabase, conversation.id, phone);
+            menusSent++;
+            continue;
+          }
 
+          if (conversationStatus === "aguardando_escolha") {
             if (typeof menuChoice === "string" && menuChoice.startsWith("service_")) {
               const selectedService = serviceChoiceLabel(menuChoice);
               const { error: serviceStateError } = await supabase
