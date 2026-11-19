@@ -66,6 +66,140 @@ function getAdminClient() {
   });
 }
 
+const WHATSAPP_ACCESS_TOKEN = Deno.env.get("WHATSAPP_ACCESS_TOKEN") ?? "";
+const WHATSAPP_PHONE_NUMBER_ID = Deno.env.get("WHATSAPP_PHONE_NUMBER_ID") ?? "";
+const GRAPH_API_VERSION = "v27.0";
+
+async function sendWhatsAppPayload(
+  supabase: ReturnType<typeof getAdminClient>,
+  conversationId: string,
+  recipient: string,
+  payload: Record<string, unknown>,
+  logContent: string,
+) {
+  if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+    console.error("WhatsApp sending credentials are not configured.");
+    return false;
+  }
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/${GRAPH_API_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: recipient,
+          ...payload,
+        }),
+      },
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      console.error("WhatsApp message send failed:", response.status, data?.error?.code ?? "unknown");
+      return false;
+    }
+
+    const providerId = data?.messages?.[0]?.id;
+    if (typeof providerId === "string") {
+      const { error } = await supabase.from("whatsapp_messages").insert({
+        owner_id: OWNER_ID,
+        conversation_id: conversationId,
+        provider_message_id: providerId,
+        direcao: "saida",
+        tipo_mensagem: String(payload.type ?? "text"),
+        conteudo: logContent,
+        status_provedor: "sent",
+        metadados: { source: "whatsapp_webhook_automation" },
+      });
+      if (error) console.error("Outgoing WhatsApp message log failed:", error.message);
+    }
+    return true;
+  } catch (error) {
+    console.error("WhatsApp send request failed:", error instanceof Error ? error.message : "unknown");
+    return false;
+  }
+}
+
+async function sendWhatsAppText(
+  supabase: ReturnType<typeof getAdminClient>,
+  conversationId: string,
+  recipient: string,
+  text: string,
+) {
+  return await sendWhatsAppPayload(
+    supabase,
+    conversationId,
+    recipient,
+    { type: "text", text: { preview_url: false, body: text } },
+    text,
+  );
+}
+
+async function sendAttendanceMenu(
+  supabase: ReturnType<typeof getAdminClient>,
+  conversationId: string,
+  recipient: string,
+) {
+  const menu = {
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: {
+        text: "Olá! 👋 Bem-vindo(a) ao Marcus Instrutor!\n\nComo você prefere continuar o atendimento?",
+      },
+      footer: { text: "Escolha uma opção abaixo." },
+      action: {
+        buttons: [
+          {
+            type: "reply",
+            reply: { id: "menu_continue_ai", title: "Continuar com IA" },
+          },
+          {
+            type: "reply",
+            reply: { id: "menu_talk_marcus", title: "Falar com Marcus" },
+          },
+        ],
+      },
+    },
+  };
+  const sent = await sendWhatsAppPayload(
+    supabase,
+    conversationId,
+    recipient,
+    menu,
+    "Menu inicial: Continuar com IA ou Falar com Marcus",
+  );
+  if (!sent) {
+    await sendWhatsAppText(
+      supabase,
+      conversationId,
+      recipient,
+      "Olá! 👋 Bem-vindo(a) ao Marcus Instrutor!\n\nComo prefere continuar?\n1 - Continuar com a assistente virtual\n2 - Falar diretamente com Marcus\n\nResponda 1 ou 2.",
+    );
+  }
+}
+
+function readMenuChoice(message: any, content: unknown): "ia" | "humano" | null {
+  const buttonId = String(
+    message.interactive?.button_reply?.id ??
+    message.button?.payload ??
+    "",
+  ).trim().toLowerCase();
+  if (buttonId === "menu_continue_ai" || buttonId === "continuar_ia") return "ia";
+  if (buttonId === "menu_talk_marcus" || buttonId === "falar_marcus") return "humano";
+
+  const text = typeof content === "string" ? content.trim().toLowerCase() : "";
+  if (/^(1|ia|continuar com ia|assistente virtual)$/i.test(text)) return "ia";
+  if (/^(2|marcus|falar com marcus|atendimento humano)$/i.test(text)) return "humano";
+  return null;
+}
+
 /**
  * Conservative privacy gate.
  * Messages with details that cannot be reliably anonymized are not sent to Gemini.
@@ -346,6 +480,8 @@ Deno.serve(async (req: Request) => {
     let stored = 0;
     let processed = 0;
     let duplicates = 0;
+    let menusSent = 0;
+    let humanHandoffs = 0;
 
     for (const entry of payload.entry ?? []) {
       for (const change of entry.changes ?? []) {
@@ -366,26 +502,82 @@ Deno.serve(async (req: Request) => {
             message.image?.caption ??
             message.video?.caption ??
             null;
+          const menuChoice = readMenuChoice(message, content);
 
-          const { data: conversation, error: conversationError } = await supabase
+          let { data: conversation, error: conversationError } = await supabase
             .from("whatsapp_conversations")
-            .upsert({
-              owner_id: OWNER_ID,
-              telefone: phone,
-              nome_contato: contactName,
-              status: "aberta",
-              ultima_mensagem_em: new Date(Number(message.timestamp ?? Date.now() / 1000) * 1000).toISOString(),
-              updated_at: new Date().toISOString(),
-            }, { onConflict: "owner_id,telefone" })
-            .select("id")
-            .single();
+            .select("id,status")
+            .eq("owner_id", OWNER_ID)
+            .eq("telefone", phone)
+            .maybeSingle();
+
+          if (conversationError) {
+            console.error("Conversation lookup failed:", conversationError.message);
+            continue;
+          }
+
+          const messageTime = new Date(
+            Number(message.timestamp ?? Date.now() / 1000) * 1000,
+          ).toISOString();
+
+          if (!conversation) {
+            const { data: created, error: createError } = await supabase
+              .from("whatsapp_conversations")
+              .insert({
+                owner_id: OWNER_ID,
+                telefone: phone,
+                nome_contato: contactName,
+                status: "aguardando_escolha",
+                ultima_mensagem_em: messageTime,
+                updated_at: new Date().toISOString(),
+              })
+              .select("id,status")
+              .single();
+
+            if (createError?.code === "23505") {
+              const retry = await supabase
+                .from("whatsapp_conversations")
+                .select("id,status")
+                .eq("owner_id", OWNER_ID)
+                .eq("telefone", phone)
+                .single();
+              conversation = retry.data;
+              conversationError = retry.error;
+            } else {
+              conversation = created;
+              conversationError = createError;
+            }
+          } else {
+            const { error: updateConversationError } = await supabase
+              .from("whatsapp_conversations")
+              .update({
+                nome_contato: contactName,
+                ultima_mensagem_em: messageTime,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", conversation.id);
+            if (updateConversationError) {
+              console.error("Conversation update failed:", updateConversationError.message);
+            }
+          }
 
           if (conversationError || !conversation) {
             console.error("Conversation persistence failed:", conversationError?.message);
             continue;
           }
 
-          // INSERT + unique constraint makes processing idempotent. Only newly inserted messages reach Gemini.
+          // Legacy conversations are asked to choose a service mode on their next message.
+          let conversationStatus = String(conversation.status ?? "aguardando_escolha");
+          if (conversationStatus === "aberta") {
+            const { error } = await supabase
+              .from("whatsapp_conversations")
+              .update({ status: "aguardando_escolha", updated_at: new Date().toISOString() })
+              .eq("id", conversation.id);
+            if (error) console.error("Conversation state update failed:", error.message);
+            conversationStatus = "aguardando_escolha";
+          }
+
+          // INSERT + unique constraint makes message processing idempotent.
           const { data: insertedMessage, error: messageError } = await supabase
             .from("whatsapp_messages")
             .insert({
@@ -410,27 +602,120 @@ Deno.serve(async (req: Request) => {
           }
           stored++;
 
-          if (typeof content === "string" && content.trim()) {
-            const outcome = await processIncomingMessage(
-              supabase,
-              conversation.id,
-              insertedMessage.id,
-              providerId,
-              phone,
-              content,
-            );
-            if (outcome !== "analysis_failed" && outcome !== "blocked_privacy") processed++;
-          } else {
+          if (conversationStatus === "aguardando_escolha") {
+            if (menuChoice === "ia") {
+              const { error } = await supabase
+                .from("whatsapp_conversations")
+                .update({ status: "atendimento_ia", updated_at: new Date().toISOString() })
+                .eq("id", conversation.id);
+              if (error) {
+                console.error("AI mode selection failed:", error.message);
+                continue;
+              }
+              conversationStatus = "atendimento_ia";
+              await updateMessageMetadata(supabase, providerId, {
+                menu_choice: "atendimento_ia",
+                ai_status: "awaiting_next_message",
+              });
+              await sendWhatsAppText(
+                supabase,
+                conversation.id,
+                phone,
+                "Perfeito! 😊 Você escolheu continuar com nossa assistente virtual. Pode me contar como posso ajudar.",
+              );
+              continue;
+            }
+
+            if (menuChoice === "humano") {
+              const { error: stateError } = await supabase
+                .from("whatsapp_conversations")
+                .update({ status: "atendimento_humano", updated_at: new Date().toISOString() })
+                .eq("id", conversation.id);
+
+              if (stateError) {
+                console.error("Human mode selection failed:", stateError.message);
+                continue;
+              }
+
+              const { data: handoff, error: handoffError } = await supabase
+                .from("ai_requests")
+                .insert({
+                  owner_id: OWNER_ID,
+                  canal: "whatsapp",
+                  telefone_solicitante: phone,
+                  nome_solicitante: null,
+                  tipo_solicitacao: "atendimento_humano",
+                  dados_propostos: {},
+                  status: "pendente",
+                  resultado: {
+                    intencao: "Cliente solicitou atendimento direto com Marcus.",
+                    whatsapp_message_id: insertedMessage.id,
+                    conversation_id: conversation.id,
+                    origem: "menu_inicial_whatsapp",
+                  },
+                })
+                .select("id")
+                .single();
+
+              if (handoffError) {
+                console.error("Human handoff request failed:", handoffError.message);
+              } else {
+                humanHandoffs++;
+              }
+
+              await updateMessageMetadata(supabase, providerId, {
+                menu_choice: "atendimento_humano",
+                human_handoff: true,
+                handoff_request_id: handoff?.id ?? null,
+              });
+              await sendWhatsAppText(
+                supabase,
+                conversation.id,
+                phone,
+                "Claro! 😊 Registrei seu pedido para falar diretamente com Marcus. A assistente virtual ficará pausada nesta conversa até o atendimento humano.",
+              );
+              continue;
+            }
+
             await updateMessageMetadata(supabase, providerId, {
-              ai_status: "not_analyzed_non_text",
-              reason: "No readable text was provided.",
+              ai_status: "waiting_for_service_choice",
             });
+            await sendAttendanceMenu(supabase, conversation.id, phone);
+            menusSent++;
+            continue;
+          }
+
+          if (conversationStatus === "atendimento_humano") {
+            await updateMessageMetadata(supabase, providerId, {
+              ai_status: "paused_for_human",
+              human_handoff: true,
+            });
+            continue;
+          }
+
+          if (conversationStatus === "atendimento_ia") {
+            if (typeof content === "string" && content.trim()) {
+              const outcome = await processIncomingMessage(
+                supabase,
+                conversation.id,
+                insertedMessage.id,
+                providerId,
+                phone,
+                content,
+              );
+              if (outcome !== "analysis_failed" && outcome !== "blocked_privacy") processed++;
+            } else {
+              await updateMessageMetadata(supabase, providerId, {
+                ai_status: "not_analyzed_non_text",
+                reason: "No readable text was provided.",
+              });
+            }
           }
         }
       }
     }
 
-    return json({ received: true, stored, processed, duplicates });
+    return json({ received: true, stored, processed, duplicates, menusSent, humanHandoffs });
   } catch (error) {
     console.error("Webhook processing failed:", error instanceof Error ? error.message : "unknown");
     return json({ error: "Webhook processing failed." }, 500);
