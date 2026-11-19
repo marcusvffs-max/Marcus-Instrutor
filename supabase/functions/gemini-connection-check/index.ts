@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
-const MODEL = "gemini-2.5-flash-lite";
+const MODEL = "gemini-3.5-flash-lite";
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -54,6 +54,8 @@ Deno.serve(async (req: Request) => {
       let message = "O Google Gemini recusou a solicitação.";
       if (apiStatus === 400 || apiStatus === 401 || apiStatus === 403) {
         message = "A chave ou a configuração da API Gemini foi recusada. Confira a chave e o projeto no Google AI Studio.";
+      } else if (apiStatus === 404) {
+        message = "O modelo solicitado não está disponível para este projeto. Verifique o identificador do modelo no Google AI Studio.";
       } else if (apiStatus === 429) {
         message = "O limite gratuito de solicitações do Gemini foi atingido ou a cota está temporariamente indisponível.";
       } else if (apiStatus >= 500) {
