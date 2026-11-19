@@ -968,6 +968,39 @@ Deno.serve(async (req: Request) => {
                 continue;
               }
 
+              if (menuChoice === "service_driving_fee") {
+                const drivingFeeReply =
+                  "Para realizar o exame prático de direção veicular em Minas Gerais, siga estas orientações do Detran-MG. 😊\n\n" +
+                  "QUANDO EMITIR A TAXA:\n" +
+                  "Depois de concluir as etapas anteriores e cumprir as aulas práticas exigidas. Para a primeira habilitação, o Portal MG informa o mínimo de 2 horas/aula. O cumprimento das aulas precisa estar lançado no Renach para liberar o agendamento.\n\n" +
+                  "COMO EMITIR E PAGAR:\n" +
+                  "1. Acesse o formulário oficial para emitir o Documento de Arrecadação Estadual (DAE): https://detran.mg.gov.br/habilitacao/taxas-1/emitir-taxa-de-servico-de-habilitacao/preencher-dados-da-habilitacao/19\n" +
+                  "2. Preencha os dados diretamente no site oficial e gere o DAE.\n" +
+                  "3. Pague por PIX ou boleto em uma instituição bancária credenciada. O PIX tem compensação instantânea; o boleto pode levar até 2 dias úteis.\n\n" +
+                  "VALOR INFORMADO PELO PORTAL MG:\n" +
+                  "• Exame de direção: R$ 115,80.\n" +
+                  "• Em caso de reprovação ou necessidade de repetir o exame, a nova taxa também é de R$ 115,80.\n" +
+                  "• Para habilitação nas categorias A e B (AB), são necessárias duas taxas: uma para a prova da categoria A e outra para a categoria B.\n\n" +
+                  "COMO AGENDAR A PROVA:\n" +
+                  "Após a confirmação do pagamento, o exame pode ser agendado pelo CFC, pelo próprio candidato ou pelo instrutor autônomo. Se você for fazer o agendamento diretamente, acesse a página oficial: https://detran.mg.gov.br/habilitacao/1-habilitacao-quero-ser-condutor/agendar-prova-de-direcao-cidadao-ou-instrutor-autonomo\n" +
+                  "O sistema apresenta as datas, horários e locais disponíveis para escolha. Para a categoria A, a prova é realizada em motopista.\n\n" +
+                  "Atenção: faça a emissão da taxa e o agendamento somente pelos canais oficiais do Governo de Minas. Não envie CPF, documentos ou dados pessoais por esta conversa. 😊\n\n" +
+                  "Fonte oficial: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc";
+                const sent = await sendWhatsAppText(
+                  supabase,
+                  conversation.id,
+                  phone,
+                  drivingFeeReply,
+                );
+                await updateMessageMetadata(supabase, providerId, {
+                  ai_status: sent ? "static_service_reply_sent" : "static_service_reply_failed",
+                  reply_type: "driving_exam_fee_instructions",
+                  reply_sent: sent,
+                });
+                if (sent) await sendReturnToMainMenu(supabase, conversation.id, phone);
+                continue;
+              }
+
               if (AI_AUTOREPLY_ENABLED && typeof content === "string") {
                 await processIncomingMessage(
                   supabase,
