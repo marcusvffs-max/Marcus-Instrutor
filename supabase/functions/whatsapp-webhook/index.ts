@@ -5,6 +5,8 @@ const OWNER_ID = "8da26777-dad7-46dd-a332-4b5b80b027c7";
 const VERIFY_TOKEN = Deno.env.get("WHATSAPP_VERIFY_TOKEN") ?? "";
 const APP_SECRET = Deno.env.get("WHATSAPP_APP_SECRET") ?? "";
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") ?? "";
+// Temporary pause: keep WhatsApp webhook and manual service active, but do not call Gemini or auto-reply.
+const AI_AUTOREPLY_ENABLED = false;
 const GEMINI_MODEL = "gemini-3.5-flash-lite";
 
 type GeminiAnalysis = {
@@ -742,6 +744,13 @@ Deno.serve(async (req: Request) => {
           }
 
           if (conversationStatus === "atendimento_ia") {
+            if (!AI_AUTOREPLY_ENABLED) {
+              await updateMessageMetadata(supabase, providerId, {
+                ai_status: "paused_by_instructor",
+                ai_paused_at: new Date().toISOString(),
+              });
+              continue;
+            }
             if (typeof content === "string" && content.trim()) {
               console.log("Processing incoming customer message with Gemini.", {
                 conversationId: conversation.id,
