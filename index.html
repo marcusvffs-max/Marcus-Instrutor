@@ -9,7 +9,7 @@
   <title>Marcus Instrutor</title>
 
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=login-v1">
+  <link rel="stylesheet" href="style.css?v=whatsapp-panel-v1">
   <link rel="icon" href="icon-192.png" type="image/png">
 </head>
 
@@ -446,7 +446,7 @@
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("./service-worker.js?v=impressao-campos2", { updateViaCache: "none" })
+        navigator.serviceWorker.register("./service-worker.js?v=whatsapp-panel-v1", { updateViaCache: "none" })
           .then(function (registro) {
             return registro.update();
           })
@@ -457,6 +457,7 @@
     }
   </script>
   <script src="contratos.js?v=contratos30"></script>
+  <script src="whatsapp-panel.js?v=whatsapp-panel-v1"></script>
 
   <script>
     (function () {
@@ -486,6 +487,7 @@
       function mostrarAplicativo() {
         document.body.classList.add("autenticado");
         if (mensagemLogin) mensagemLogin.textContent = "";
+        window.dispatchEvent(new Event("marcus-authenticated"));
       }
 
       if (!window.supabase || typeof window.supabase.createClient !== "function") {
@@ -504,6 +506,10 @@
           }
         }
       );
+
+      window.getMarcusSupabase = function () {
+        return clienteSupabase;
+      };
 
       async function conferirAdministrador(usuario) {
         if (!usuario || !usuario.id) {
