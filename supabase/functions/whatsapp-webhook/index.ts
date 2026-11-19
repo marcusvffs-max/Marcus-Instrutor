@@ -497,6 +497,33 @@ async function updateMessageMetadata(
   if (error) console.error("Message metadata update failed:", error.message);
 }
 
+async function clearPendingOtherDetails(
+  supabase: ReturnType<typeof getAdminClient>,
+  conversationId: string,
+  reason: string,
+) {
+  const { data, error } = await supabase
+    .from("whatsapp_messages")
+    .select("provider_message_id")
+    .eq("conversation_id", conversationId)
+    .eq("direcao", "entrada")
+    .filter("metadados->>ai_status", "eq", "awaiting_other_details")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Pending other-details lookup failed:", error.message);
+    return;
+  }
+  if (data?.provider_message_id) {
+    await updateMessageMetadata(supabase, data.provider_message_id, {
+      ai_status: "other_details_cancelled",
+      other_details_cancel_reason: reason,
+    });
+  }
+}
+
 function requiresApprovalByRules(text: string): boolean {
   return /\b(?:agendar|agendamento|marcar aula|remarcar|cancelar|cadastro|cadastrar|registrar|comprar|vender|venda|pacote|pagar|pagamento|pix|saldo|aula extra|contrato|excluir|apagar|alterar cadastro|mudar horário|mudar horario)\b/i.test(text);
 }
@@ -782,6 +809,7 @@ Deno.serve(async (req: Request) => {
               console.error("Customer AI reactivation failed:", reactivateError.message);
               continue;
             }
+            await clearPendingOtherDetails(supabase, conversation.id, "customer_reopened_assistant");
             await updateMessageMetadata(supabase, providerId, {
               menu_choice: "customer_opened_assistant_menu",
               ai_status: "waiting_for_service_choice",
@@ -801,6 +829,7 @@ Deno.serve(async (req: Request) => {
               console.error("Main menu state update failed:", mainMenuStateError.message);
               continue;
             }
+            await clearPendingOtherDetails(supabase, conversation.id, "customer_returned_to_instructor_menu");
             await updateMessageMetadata(supabase, providerId, {
               menu_choice: "open_instructor_menu",
               ai_status: "waiting_for_service_choice",
@@ -821,6 +850,7 @@ Deno.serve(async (req: Request) => {
               console.error("Second menu state update failed:", menuStateError.message);
               continue;
             }
+            await clearPendingOtherDetails(supabase, conversation.id, "customer_returned_to_detran_menu");
             await updateMessageMetadata(supabase, providerId, {
               menu_choice: "open_detran_menu",
               ai_status: "waiting_for_service_choice",
@@ -846,6 +876,23 @@ Deno.serve(async (req: Request) => {
                 selected_service: selectedService,
                 ai_status: AI_AUTOREPLY_ENABLED ? "service_selected" : "paused_by_instructor",
               });
+              if (menuChoice === "service_other") {
+                await updateMessageMetadata(supabase, providerId, {
+                  ai_status: "awaiting_other_details",
+                  other_details_requested_at: new Date().toISOString(),
+                });
+                const sent = await sendWhatsAppText(
+                  supabase,
+                  conversation.id,
+                  phone,
+                  "Você selecionou: Outros. 😊\\n\\nComo posso ajudar?\\n\\nDigite sua dúvida ou descreva o serviço que deseja consultar. Vou encaminhar sua mensagem ao Instrutor Marcus para que ele possa verificar e orientar você.\\n\\nSe preferir, você também pode voltar ao menu principal.",
+                );
+                await updateMessageMetadata(supabase, providerId, {
+                  other_details_prompt_sent: sent,
+                });
+                continue;
+              }
+
               if (menuChoice === "service_documents") {
                 const documentsAndStepsReply =
                   "Para iniciar a primeira habilitação em Minas Gerais (CNH nas categorias A, B ou AB, ou ACC), confira os requisitos e siga as etapas abaixo. 😊\n\n" +
@@ -1145,6 +1192,90 @@ Deno.serve(async (req: Request) => {
 
           if (conversationStatus === "atendimento_ia") {
             if (!AI_AUTOREPLY_ENABLED) {
+              const { data: pendingOtherMessage, error: pendingOtherError } = await supabase
+                .from("whatsapp_messages")
+                .select("provider_message_id")
+                .eq("conversation_id", conversation.id)
+                .eq("direcao", "entrada")
+                .filter("metadados->>ai_status", "eq", "awaiting_other_details")
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+              if (pendingOtherError) {
+                console.error("Pending other-details lookup failed:", pendingOtherError.message);
+              }
+
+              if (pendingOtherMessage?.provider_message_id && typeof content === "string" && content.trim()) {
+                const isHumanRequest = menuChoice === "humano";
+                const { data: otherRequest, error: otherRequestError } = await supabase
+                  .from("ai_requests")
+                  .insert({
+                    owner_id: OWNER_ID,
+                    canal: "whatsapp",
+                    telefone_solicitante: phone,
+                    nome_solicitante: null,
+                    tipo_solicitacao: isHumanRequest ? "atendimento_humano" : "duvida_outros_detran",
+                    dados_propostos: {
+                      mensagem: content.trim().slice(0, 4000),
+                      origem: "menu_detran_outros",
+                    },
+                    status: "pendente",
+                    resultado: {
+                      intencao: isHumanRequest
+                        ? "Cliente solicitou atendimento humano após selecionar Outros no Menu do Detran."
+                        : "Cliente enviou uma dúvida após selecionar Outros no Menu do Detran.",
+                      whatsapp_message_id: insertedMessage.id,
+                      conversation_id: conversation.id,
+                      origem: "menu_detran_outros",
+                    },
+                  })
+                  .select("id")
+                  .single();
+
+                if (otherRequestError || !otherRequest) {
+                  console.error("Other-details request registration failed:", otherRequestError?.message ?? "No request returned.");
+                  await updateMessageMetadata(supabase, providerId, {
+                    ai_status: "other_details_registration_failed",
+                  });
+                  await sendWhatsAppText(
+                    supabase,
+                    conversation.id,
+                    phone,
+                    "Não consegui registrar sua mensagem agora. Por favor, tente enviá-la novamente em instantes. 😊",
+                  );
+                  continue;
+                }
+
+                await updateMessageMetadata(supabase, pendingOtherMessage.provider_message_id, {
+                  ai_status: "other_details_received",
+                  other_details_request_id: otherRequest.id,
+                  other_details_received_at: new Date().toISOString(),
+                });
+                const { error: handoffStateError } = await supabase
+                  .from("whatsapp_conversations")
+                  .update({ status: "atendimento_humano", updated_at: new Date().toISOString() })
+                  .eq("id", conversation.id);
+
+                if (handoffStateError) {
+                  console.error("Other-details handoff state update failed:", handoffStateError.message);
+                }
+
+                await updateMessageMetadata(supabase, providerId, {
+                  ai_status: "other_details_forwarded_to_instructor",
+                  other_details_request_id: otherRequest.id,
+                });
+                await sendWhatsAppText(
+                  supabase,
+                  conversation.id,
+                  phone,
+                  isHumanRequest
+                    ? "Claro! 😊 Registrei seu pedido para falar diretamente com o Instrutor Marcus. A Assistente Virtual ficará pausada nesta conversa até o atendimento humano."
+                    : "Obrigado! 😊 Recebi sua dúvida e encaminhei sua mensagem ao Instrutor Marcus. A Assistente Virtual ficará pausada nesta conversa enquanto ele analisa sua solicitação.",
+                );
+                continue;
+              }
+
               await updateMessageMetadata(supabase, providerId, {
                 ai_status: "paused_by_instructor",
                 ai_paused_at: new Date().toISOString(),
