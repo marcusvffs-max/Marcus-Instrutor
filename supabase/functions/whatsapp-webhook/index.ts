@@ -657,16 +657,31 @@ Deno.serve(async (req: Request) => {
                 .select("id")
                 .single();
 
-              if (handoffError) {
-                console.error("Human handoff request failed:", handoffError.message);
-              } else {
-                humanHandoffs++;
+              if (handoffError || !handoff) {
+                console.error("Human handoff request failed:", handoffError?.message ?? "No request returned.");
+                await supabase
+                  .from("whatsapp_conversations")
+                  .update({ status: "aguardando_escolha", updated_at: new Date().toISOString() })
+                  .eq("id", conversation.id);
+                await updateMessageMetadata(supabase, providerId, {
+                  menu_choice: "atendimento_humano",
+                  human_handoff: false,
+                  handoff_error: "request_persistence_failed",
+                });
+                await sendWhatsAppText(
+                  supabase,
+                  conversation.id,
+                  phone,
+                  "Não consegui registrar seu pedido de atendimento humano agora. Por favor, tente selecionar essa opção novamente.",
+                );
+                continue;
               }
 
+              humanHandoffs++;
               await updateMessageMetadata(supabase, providerId, {
                 menu_choice: "atendimento_humano",
                 human_handoff: true,
-                handoff_request_id: handoff?.id ?? null,
+                handoff_request_id: handoff.id,
               });
               await sendWhatsAppText(
                 supabase,
