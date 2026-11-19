@@ -150,59 +150,38 @@ async function sendInteractiveServiceMenu(
   page: "principal" | "complementar",
 ) {
   const isMain = page === "principal";
-  const rows = isMain
+  const options = isMain
     ? [
-        { id: "menu_talk_marcus", title: "Falar com Instrutor", description: "Fale diretamente com o Instrutor Marcus." },
-        { id: "service_packages", title: "Pacotes e valores", description: "Consulte os pacotes disponíveis e seus preços." },
-        { id: "service_contract", title: "Contratar serviços", description: "Escolha um serviço para solicitar contratação." },
-        { id: "service_schedule", title: "Agendar aulas", description: "Consulte horários e solicite o agendamento de aulas." },
-        { id: "service_balance", title: "Aulas e saldos", description: "Consulte suas aulas agendadas, realizadas e saldo." },
-        { id: "service_reschedule", title: "Reagendar/cancelar", description: "Solicite alteração ou cancelamento de aulas." },
-        { id: "menu_second", title: "Abrir Menu do Detran", description: "Acesse documentos, taxas e exames da habilitação." },
+        "1️⃣ Falar com Instrutor",
+        "2️⃣ Consultar pacotes e valores",
+        "3️⃣ Contratar serviços",
+        "4️⃣ Agendar aulas",
+        "5️⃣ Consultar aulas e saldos",
+        "6️⃣ Reagendar ou cancelar aulas",
+        "7️⃣ Menu do Detran",
       ]
     : [
-        { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
-        { id: "service_registration_fee", title: "Taxa de inscrição", description: "Informações para emitir a taxa da primeira habilitação." },
-        { id: "service_medical", title: "Exame médico", description: "Informações sobre o exame médico da habilitação." },
-        { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
-        { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
-        { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
-        { id: "menu_main", title: "Abrir Menu do Instrutor", description: "Acesse pacotes, aulas e serviços do instrutor." },
+        "1️⃣ Consultar documentos e etapas da habilitação",
+        "2️⃣ Emitir taxa de inscrição (Detran-MG)",
+        "3️⃣ Exame médico",
+        "4️⃣ Emitir taxa exame Legislação (Detran-MG)",
+        "5️⃣ Emitir taxa exame direção (Detran-MG)",
+        "6️⃣ Outros assuntos",
+        "7️⃣ Menu do Instrutor",
       ];
 
-  const menu = {
-    type: "interactive",
-    interactive: {
-      type: "list",
-      body: {
-        text: isMain
-          ? "📘 Menu do Instrutor\n\nEscolha uma opção para continuar:"
-          : "🚦 Menu do Detran\n\nEscolha uma opção para continuar:",
-      },
-      footer: { text: "Selecione uma opção da lista." },
-      action: {
-        button: "Ver opções",
-        sections: [{ title: isMain ? "Menu do Instrutor" : "Menu do Detran", rows }],
-      },
-    },
-  };
+  const title = isMain ? "📘 MENU DO INSTRUTOR" : "🚦 MENU DO DETRAN";
+  const body = [
+    title,
+    "",
+    "Escolha uma opção respondendo com o nome dela:",
+    "",
+    ...options,
+    "",
+    "Você pode trocar de menu a qualquer momento.",
+  ].join("\n");
 
-  const sent = await sendWhatsAppPayload(
-    supabase,
-    conversationId,
-    recipient,
-    menu,
-    isMain ? "Menu do Instrutor" : "Menu do Detran",
-  );
-  if (!sent) {
-    const fallback = rows.map((row) => `${row.title} — ${row.description}`).join("\n");
-    await sendWhatsAppText(
-      supabase,
-      conversationId,
-      recipient,
-      `${isMain ? "Menu do Instrutor" : "Menu do Detran"}:\n${fallback}\n\nResponda com o nome da opção desejada.`,
-    );
-  }
+  await sendWhatsAppText(supabase, conversationId, recipient, body);
 }
 
 async function sendInitialMenuSelection(
@@ -277,46 +256,8 @@ async function sendReturnToMainMenu(
   conversationId: string,
   recipient: string,
 ) {
-  const navigationMenu = {
-    type: "interactive",
-    interactive: {
-      type: "list",
-      body: { text: "Se desejar consultar outro serviço, escolha para qual menu deseja voltar:" },
-      footer: { text: "Você pode continuar navegando." },
-      action: {
-        button: "Escolher menu",
-        sections: [{
-          title: "Navegação",
-          rows: [
-            {
-              id: "menu_main",
-              title: "Menu do Instrutor",
-            },
-            {
-              id: "menu_second",
-              title: "Menu do Detran",
-            },
-          ],
-        }],
-      },
-    },
-  };
-
-  const sent = await sendWhatsAppPayload(
-    supabase,
-    conversationId,
-    recipient,
-    navigationMenu,
-    "Opções para voltar aos menus",
-  );
-  if (!sent) {
-    await sendWhatsAppText(
-      supabase,
-      conversationId,
-      recipient,
-      'Para continuar, responda "Menu do Instrutor" ou "Menu do Detran".',
-    );
-  }
+  // Reutiliza exatamente a mesma mensagem e os mesmos dois botões da abertura inicial.
+  await sendInitialMenuSelection(supabase, conversationId, recipient);
 }
 
 function readMenuChoice(message: any, content: unknown): string | null {
@@ -328,38 +269,31 @@ function readMenuChoice(message: any, content: unknown): string | null {
   ).trim().toLowerCase();
 
   const validChoices = new Set([
-    "menu_talk_marcus",
-    "menu_second",
-    "menu_main",
-    "service_packages",
-    "service_contract",
-    "service_schedule",
-    "service_balance",
-    "service_reschedule",
-    "service_documents",
-    "service_registration_fee",
-    "service_medical",
-    "service_theory_fee",
-    "service_driving_fee",
-    "service_other",
+    "menu_talk_marcus", "menu_second", "menu_main",
+    "service_packages", "service_contract", "service_schedule",
+    "service_balance", "service_reschedule", "service_documents",
+    "service_registration_fee", "service_medical", "service_theory_fee",
+    "service_driving_fee", "service_other",
   ]);
   if (validChoices.has(choiceId)) return choiceId === "menu_talk_marcus" ? "humano" : choiceId;
 
-  const text = typeof content === "string" ? content.trim().toLowerCase() : "";
+  const text = typeof content === "string"
+    ? content.trim().toLowerCase().replace(/[️⃣︎]/g, "").replace(/^\d+\s*/, "").trim()
+    : "";
   if (/^(falar com assistente|continuar|continuar com ia|continuar com o assistente|assistente virtual)$/i.test(text)) return "ia";
-  if (/^(1|marcus|falar com instrutor|falar com marcus|atendimento humano)$/i.test(text)) return "humano";
-  if (/^(ver segundo menu|segundo menu|mais opções|mais opcoes|menu do detran)$/i.test(text)) return "menu_second";
-  if (/^(voltar ao menu principal|menu principal|voltar ao início|voltar ao inicio|menu do instrutor)$/i.test(text)) return "menu_main";
-  if (/^(2|consultar pacotes e valores|pacotes e valores)$/i.test(text)) return "service_packages";
-  if (/^(3|contratar serviços|contratar servicos)$/i.test(text)) return "service_contract";
-  if (/^(4|agendar aulas)$/i.test(text)) return "service_schedule";
-  if (/^(5|consultar aulas e saldos|aulas e saldos)$/i.test(text)) return "service_balance";
-  if (/^(6|reagendar ou cancelar aulas|reagendar\/cancelar)$/i.test(text)) return "service_reschedule";
+  if (/^(falar com instrutor|falar com marcus|atendimento humano)$/i.test(text)) return "humano";
+  if (/^(menu do detran|abrir menu do detran|ver segundo menu|segundo menu|mais opções|mais opcoes)$/i.test(text)) return "menu_second";
+  if (/^(menu do instrutor|abrir menu do instrutor|voltar ao menu principal|menu principal|voltar ao início|voltar ao inicio)$/i.test(text)) return "menu_main";
+  if (/^(consultar pacotes e valores|pacotes e valores)$/i.test(text)) return "service_packages";
+  if (/^contratar serviços?$|^contratar servicos?$/i.test(text)) return "service_contract";
+  if (/^agendar aulas$/i.test(text)) return "service_schedule";
+  if (/^(consultar aulas e saldos|aulas e saldos)$/i.test(text)) return "service_balance";
+  if (/^(reagendar ou cancelar aulas|reagendar\/cancelar)$/i.test(text)) return "service_reschedule";
   if (/^(consultar documentos e etapas da habilitação|documentos e etapas)$/i.test(text)) return "service_documents";
-  if (/^(emitir taxa de inscrição|taxa de inscrição)$/i.test(text)) return "service_registration_fee";
+  if (/^(emitir taxa de inscrição( \\(detran-mg\\))?|taxa de inscrição)$/i.test(text)) return "service_registration_fee";
   if (/^exame médico$/i.test(text)) return "service_medical";
-  if (/^(emitir taxa exame legislação|taxa exame legislação)$/i.test(text)) return "service_theory_fee";
-  if (/^(emitir taxa exame direção|taxa exame direção)$/i.test(text)) return "service_driving_fee";
+  if (/^(emitir taxa exame legislação( \\(detran-mg\\))?|taxa exame legislação)$/i.test(text)) return "service_theory_fee";
+  if (/^(emitir taxa exame direção( \\(detran-mg\\))?|taxa exame direção)$/i.test(text)) return "service_driving_fee";
   if (/^(outros|outros assuntos)$/i.test(text)) return "service_other";
   return null;
 }
