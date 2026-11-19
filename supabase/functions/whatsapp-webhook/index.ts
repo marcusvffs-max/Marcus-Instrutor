@@ -152,21 +152,21 @@ async function sendInteractiveServiceMenu(
   const isMain = page === "principal";
   const rows = isMain
     ? [
-        { id: "menu_talk_marcus", title: "Falar com Instrutor" },
-        { id: "service_packages", title: "Pacotes e valores" },
-        { id: "service_contract", title: "Contratar serviços" },
-        { id: "service_schedule", title: "Agendar aulas" },
-        { id: "service_balance", title: "Aulas e saldos" },
-        { id: "service_reschedule", title: "Reagendar/cancelar" },
-        { id: "menu_second", title: "Ver segundo menu" },
+        { id: "menu_talk_marcus", title: "Falar com Instrutor", description: "Fale diretamente com o Instrutor Marcus." },
+        { id: "service_packages", title: "Pacotes e valores", description: "Consulte os pacotes disponíveis e seus preços." },
+        { id: "service_contract", title: "Contratar serviços", description: "Escolha um serviço para solicitar contratação." },
+        { id: "service_schedule", title: "Agendar aulas", description: "Consulte horários e solicite o agendamento de aulas." },
+        { id: "service_balance", title: "Aulas e saldos", description: "Consulte suas aulas agendadas, realizadas e saldo." },
+        { id: "service_reschedule", title: "Reagendar/cancelar", description: "Solicite alteração ou cancelamento de aulas." },
+        { id: "menu_second", title: "Ver segundo menu", description: "Acesse documentos, taxas e exames da habilitação." },
       ]
     : [
-        { id: "service_documents", title: "Documentos e etapas" },
-        { id: "service_registration_fee", title: "Taxa de inscrição" },
-        { id: "service_medical", title: "Exame médico" },
-        { id: "service_theory_fee", title: "Taxa exame legislação" },
-        { id: "service_driving_fee", title: "Taxa exame direção" },
-        { id: "service_other", title: "Outros assuntos" },
+        { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
+        { id: "service_registration_fee", title: "Taxa de inscrição", description: "Informações para emitir a taxa da primeira habilitação." },
+        { id: "service_medical", title: "Exame médico", description: "Informações sobre o exame médico da habilitação." },
+        { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
+        { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
+        { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
         { id: "menu_main", title: "Voltar ao menu principal" },
       ];
 
@@ -195,7 +195,7 @@ async function sendInteractiveServiceMenu(
     isMain ? "Menu principal de atendimento" : "Menu complementar de atendimento",
   );
   if (!sent) {
-    const fallback = rows.map((row) => row.title).join("\n");
+    const fallback = rows.map((row) => `${row.title} — ${row.description}`).join("\n");
     await sendWhatsAppText(
       supabase,
       conversationId,
