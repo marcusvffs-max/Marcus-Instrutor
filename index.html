@@ -429,6 +429,24 @@
         <p id="loginMensagem" class="login-message" role="alert" aria-live="polite"></p>
         <button id="btnEntrar" class="login-button" type="submit">Entrar</button>
       </form>
+      <button id="btnMostrarRecuperacao" type="button" class="login-recovery-link" style="display:block;margin:14px auto 0;background:none;border:0;color:#2563eb;text-decoration:underline;cursor:pointer;font:inherit;">Esqueci minha senha</button>
+      <form id="formRecuperarSenha" hidden>
+        <p class="login-description">Informe seu e-mail. Enviaremos um link para cadastrar uma nova senha.</p>
+        <label for="recuperarEmail">E-mail</label>
+        <input id="recuperarEmail" name="email" type="email" autocomplete="email" placeholder="Seu e-mail" required>
+        <p id="recuperarMensagem" class="login-message" role="alert" aria-live="polite"></p>
+        <button id="btnEnviarRecuperacao" class="login-button" type="submit">Enviar link de recuperação</button>
+        <button id="btnVoltarLogin" type="button" class="login-recovery-link" style="display:block;margin:14px auto 0;background:none;border:0;color:#2563eb;text-decoration:underline;cursor:pointer;font:inherit;">Voltar ao login</button>
+      </form>
+      <form id="formNovaSenha" hidden>
+        <p class="login-description">Crie uma nova senha para sua conta.</p>
+        <label for="novaSenha">Nova senha</label>
+        <input id="novaSenha" type="password" autocomplete="new-password" minlength="8" placeholder="Mínimo de 8 caracteres" required>
+        <label for="confirmarNovaSenha">Confirmar nova senha</label>
+        <input id="confirmarNovaSenha" type="password" autocomplete="new-password" minlength="8" placeholder="Repita a nova senha" required>
+        <p id="novaSenhaMensagem" class="login-message" role="alert" aria-live="polite"></p>
+        <button id="btnSalvarNovaSenha" class="login-button" type="submit">Salvar nova senha</button>
+      </form>
       <p class="login-security">Acesso permitido somente à conta de administrador cadastrada.</p>
     </div>
   </section>
@@ -462,6 +480,12 @@
       const campoSenha = document.getElementById("loginSenha");
       const mensagemLogin = document.getElementById("loginMensagem");
       const botaoEntrar = document.getElementById("btnEntrar");
+      const formRecuperarSenha = document.getElementById("formRecuperarSenha");
+      const formNovaSenha = document.getElementById("formNovaSenha");
+      const mensagemRecuperacao = document.getElementById("recuperarMensagem");
+      const mensagemNovaSenha = document.getElementById("novaSenhaMensagem");
+      const btnMostrarRecuperacao = document.getElementById("btnMostrarRecuperacao");
+      const formLogin = document.getElementById("formLogin");
       function mostrarLogin(mensagem) {
         document.body.classList.remove("autenticado");
         if (mensagemLogin) mensagemLogin.textContent = mensagem || "";
@@ -533,7 +557,96 @@
           botaoEntrar.textContent = "Entrar";
         }
       });
+      function mostrarFormularioRecuperacao() {
+        document.body.classList.remove("autenticado");
+        formLogin.hidden = true;
+        formRecuperarSenha.hidden = true;
+        formNovaSenha.hidden = false;
+        btnMostrarRecuperacao.hidden = true;
+        document.querySelector(".login-security").hidden = true;
+        if (mensagemNovaSenha) mensagemNovaSenha.textContent = "";
+      }
+
+      btnMostrarRecuperacao.addEventListener("click", function () {
+        formLogin.hidden = true;
+        formRecuperarSenha.hidden = false;
+        formNovaSenha.hidden = true;
+        btnMostrarRecuperacao.hidden = true;
+        if (mensagemRecuperacao) mensagemRecuperacao.textContent = "";
+        document.getElementById("recuperarEmail").value = campoEmail.value.trim();
+      });
+
+      document.getElementById("btnVoltarLogin").addEventListener("click", function () {
+        formRecuperarSenha.hidden = true;
+        formNovaSenha.hidden = true;
+        formLogin.hidden = false;
+        btnMostrarRecuperacao.hidden = false;
+      });
+
+      formRecuperarSenha.addEventListener("submit", async function (evento) {
+        evento.preventDefault();
+        const email = document.getElementById("recuperarEmail").value.trim();
+        const botao = document.getElementById("btnEnviarRecuperacao");
+        if (!email) return;
+        botao.disabled = true;
+        botao.textContent = "Enviando...";
+        mensagemRecuperacao.textContent = "";
+        try {
+          const { error } = await clienteSupabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + window.location.pathname
+          });
+          if (error) throw error;
+          mensagemRecuperacao.textContent = "Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha. Verifique também o spam.";
+        } catch (erro) {
+          console.error("Erro ao solicitar recuperação:", erro);
+          mensagemRecuperacao.textContent = "Não foi possível enviar o link. Verifique a conexão e tente novamente.";
+        } finally {
+          botao.disabled = false;
+          botao.textContent = "Enviar link de recuperação";
+        }
+      });
+
+      formNovaSenha.addEventListener("submit", async function (evento) {
+        evento.preventDefault();
+        const senha = document.getElementById("novaSenha").value;
+        const confirmacao = document.getElementById("confirmarNovaSenha").value;
+        const botao = document.getElementById("btnSalvarNovaSenha");
+        if (senha.length < 8) {
+          mensagemNovaSenha.textContent = "A senha precisa ter pelo menos 8 caracteres.";
+          return;
+        }
+        if (senha !== confirmacao) {
+          mensagemNovaSenha.textContent = "As senhas não conferem.";
+          return;
+        }
+        botao.disabled = true;
+        botao.textContent = "Salvando...";
+        mensagemNovaSenha.textContent = "";
+        try {
+          const { error } = await clienteSupabase.auth.updateUser({ password: senha });
+          if (error) throw error;
+          await clienteSupabase.auth.signOut({ scope: "local" });
+          formNovaSenha.hidden = true;
+          formLogin.hidden = false;
+          btnMostrarRecuperacao.hidden = false;
+          document.querySelector(".login-security").hidden = false;
+          mensagemLogin.textContent = "Senha alterada com sucesso. Entre com sua nova senha.";
+          document.getElementById("novaSenha").value = "";
+          document.getElementById("confirmarNovaSenha").value = "";
+        } catch (erro) {
+          console.error("Erro ao atualizar senha:", erro);
+          mensagemNovaSenha.textContent = "Não foi possível alterar a senha. Solicite um novo link de recuperação.";
+        } finally {
+          botao.disabled = false;
+          botao.textContent = "Salvar nova senha";
+        }
+      });
+
       clienteSupabase.auth.onAuthStateChange(function (evento, sessao) {
+        if (evento === "PASSWORD_RECOVERY") {
+          mostrarFormularioRecuperacao();
+          return;
+        }
         if (evento === "SIGNED_OUT" || !sessao) {
           mostrarLogin("Sua sessão foi encerrada. Entre novamente para continuar.");
           window.dispatchEvent(new Event("marcus-unauthenticated"));
