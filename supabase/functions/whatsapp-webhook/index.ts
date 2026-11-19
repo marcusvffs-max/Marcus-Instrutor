@@ -681,7 +681,7 @@ Deno.serve(async (req: Request) => {
 
           // Legacy conversations are asked to choose a service mode on their next message.
           let conversationStatus = String(conversation.status ?? "aguardando_escolha");
-          if (conversationStatus === "aberta" || conversationStatus === "aguardando_escolha") {
+          if (conversationStatus === "aberta") {
             const { error } = await supabase
               .from("whatsapp_conversations")
               .update({ status: "aguardando", updated_at: new Date().toISOString() })
