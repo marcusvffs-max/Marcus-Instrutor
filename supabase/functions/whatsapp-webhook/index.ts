@@ -253,7 +253,7 @@ function readMenuChoice(message: any, content: unknown): string | null {
   if (/^(3|contratar serviços|contratar servicos)$/i.test(text)) return "service_contract";
   if (/^(4|agendar aulas)$/i.test(text)) return "service_schedule";
   if (/^(5|consultar aulas e saldos|aulas e saldos)$/i.test(text)) return "service_balance";
-  if (/^(6|reagendar ou cancelar aulas|reagendar\\/cancelar)$/i.test(text)) return "service_reschedule";
+  if (/^(6|reagendar ou cancelar aulas|reagendar\/cancelar)$/i.test(text)) return "service_reschedule";
   if (/^(consultar documentos e etapas da habilitação|documentos e etapas)$/i.test(text)) return "service_documents";
   if (/^(emitir taxa de inscrição|taxa de inscrição)$/i.test(text)) return "service_registration_fee";
   if (/^exame médico$/i.test(text)) return "service_medical";
