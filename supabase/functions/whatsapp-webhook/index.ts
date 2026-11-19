@@ -846,6 +846,57 @@ Deno.serve(async (req: Request) => {
                 selected_service: selectedService,
                 ai_status: AI_AUTOREPLY_ENABLED ? "service_selected" : "paused_by_instructor",
               });
+              if (menuChoice === "service_documents") {
+                const documentsAndStepsReply =
+                  "Para iniciar a primeira habilitação em Minas Gerais (CNH nas categorias A, B ou AB, ou ACC), confira os requisitos e siga as etapas abaixo. 😊\n\n" +
+                  "REQUISITOS BÁSICOS:\n" +
+                  "• Ter 18 anos completos.\n" +
+                  "• Saber ler e escrever.\n" +
+                  "• Possuir documento oficial de identificação atualizado com foto e CPF.\n\n" +
+                  "ETAPAS DA PRIMEIRA HABILITAÇÃO:\n\n" +
+                  "1. CADASTRO E TAXA DE INSCRIÇÃO\n" +
+                  "Faça o cadastro no processo de Minas Gerais e emita a taxa de inscrição (DAE). O valor informado pelo Portal MG é R$ 115,80. O pagamento pode ser feito por PIX ou boleto em banco credenciado.\n\n" +
+                  "2. AGENDAMENTO DOS EXAMES E BIOMETRIA\n" +
+                  "Depois da compensação da taxa, agende digitalmente a coleta biométrica, o exame médico e a avaliação psicológica. Você escolhe a data e o horário disponíveis, mas não escolhe a clínica.\n\n" +
+                  "3. BIOMETRIA, EXAME MÉDICO E AVALIAÇÃO PSICOLÓGICA\n" +
+                  "Compareça no dia marcado com documento oficial atualizado com foto e CPF. Serão coletados fotografia, assinatura e impressões digitais. Os valores informados são R$ 232,23 para o exame médico e R$ 232,23 para a avaliação psicológica, pagos diretamente na clínica.\n\n" +
+                  "4. CURSO DE LEGISLAÇÃO DE TRÂNSITO\n" +
+                  "Você pode fazer o curso gratuito pelo aplicativo CNH do Brasil, com acesso pela conta Gov.br, ou realizar o curso presencial ou a distância em um Centro de Formação de Condutores (CFC/autoescola). Se optar pelo curso da CNH do Brasil, conclua e faça a integração pelo próprio aplicativo antes da prova de legislação.\n\n" +
+                  "5. TAXA DA PROVA DE LEGISLAÇÃO\n" +
+                  "Depois de concluir as etapas anteriores, emita e pague a taxa da prova teórica. O valor informado pelo Portal MG é R$ 115,80. Consulte a opção específica 'Taxa exame Legislação' no Menu do Detran.\n\n" +
+                  "6. AGENDAMENTO DA PROVA DE LEGISLAÇÃO\n" +
+                  "Faça o agendamento pelo site oficial. O Portal MG informa que o agendamento ocorre no período das 13h às 18h. Você escolhe a data e o local, mas não o horário.\n\n" +
+                  "7. PROVA DE LEGISLAÇÃO\n" +
+                  "Compareça com documento oficial de identificação com foto. A prova tem 30 questões e é necessário alcançar pelo menos 20 acertos para aprovação.\n\n" +
+                  "8. AULAS PRÁTICAS DE DIREÇÃO\n" +
+                  "Após cumprir as etapas anteriores e estar liberado para a aprendizagem, faça as aulas com um CFC ou instrutor autônomo autorizado. Para CNH, o mínimo informado é de 2 horas/aula. Para ACC, não há carga horária mínima.\n\n" +
+                  "9. TAXA E EXAME PRÁTICO DE DIREÇÃO\n" +
+                  "Emita e pague a taxa do exame prático, informada em R$ 115,80. O agendamento pode ser feito pelo CFC, pelo candidato ou pelo instrutor autônomo. Na categoria A, a prova é realizada em motopista. Para categoria AB, são necessárias duas taxas para a prova prática: uma da categoria A e outra da B. Consulte a opção 'Taxa exame direção' no Menu do Detran.\n\n" +
+                  "10. EXAME TOXICOLÓGICO\n" +
+                  "O Portal MG também lista a etapa de exame toxicológico e orienta consultar os laboratórios credenciados pela Senatran. Confira no serviço oficial as instruções e exigências aplicáveis ao seu processo.\n\n" +
+                  "11. EMISSÃO E ENTREGA DA PERMISSÃO PARA DIRIGIR (PPD)\n" +
+                  "Depois da aprovação nas provas e da conclusão dos registros, a PPD é enviada pelos Correios. O Portal MG informa prazo de até 10 dias úteis para entrega. A PPD vale por 12 meses; para obter a CNH definitiva, é necessário cumprir as regras de trânsito durante esse período.\n\n" +
+                  "PRAZO DO PROCESSO:\n" +
+                  "Segundo o Portal MG, atualmente não há prazo limite para concluir o processo de primeira habilitação.\n\n" +
+                  "IMPORTANTE:\n" +
+                  "Se você iniciou o processo pelo aplicativo CNH do Brasil, também precisa cumprir as etapas de continuidade em Minas Gerais e integrar as informações pelo aplicativo quando solicitado.\n\n" +
+                  "Consulte a página oficial, que reúne os documentos, valores, formulários e orientações atualizadas: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc\n\n" +
+                  "Por segurança, informe CPF e outros dados pessoais somente nos canais oficiais do Governo de Minas. Não envie documentos ou dados pessoais por esta conversa. 😊";
+                const sent = await sendWhatsAppText(
+                  supabase,
+                  conversation.id,
+                  phone,
+                  documentsAndStepsReply,
+                );
+                await updateMessageMetadata(supabase, providerId, {
+                  ai_status: sent ? "static_service_reply_sent" : "static_service_reply_failed",
+                  reply_type: "first_license_documents_and_steps",
+                  reply_sent: sent,
+                });
+                if (sent) await sendReturnToMainMenu(supabase, conversation.id, phone);
+                continue;
+              }
+
               if (menuChoice === "service_registration_fee") {
                 const registrationFeeReply =
                   "Para emitir a taxa de inscrição da primeira habilitação em Minas Gerais, siga estes passos:\n\n" +
