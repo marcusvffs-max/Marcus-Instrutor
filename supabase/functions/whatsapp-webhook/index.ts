@@ -152,22 +152,22 @@ async function sendInteractiveServiceMenu(
   const isMain = page === "principal";
   const rows = isMain
     ? [
-        { id: "menu_talk_marcus", title: "Falar com Instrutor", description: "Falar diretamente com o Instrutor Marcus." },
-        { id: "service_packages", title: "Pacotes e valores", description: "Consultar pacotes e valores disponíveis." },
-        { id: "service_contract", title: "Contratar serviços", description: "Conhecer e solicitar a contratação de serviços." },
-        { id: "service_schedule", title: "Agendar aulas", description: "Consultar como solicitar o agendamento de aulas." },
-        { id: "service_balance", title: "Aulas e saldos", description: "Consultar aulas agendadas, realizadas e saldo." },
-        { id: "service_reschedule", title: "Reagendar/cancelar", description: "Solicitar reagendamento ou cancelamento de aulas." },
-        { id: "menu_second", title: "Ver segundo menu", description: "Documentos, etapas da habilitação e taxas do Detran-MG." },
+        { id: "menu_talk_marcus", title: "Falar com Instrutor" },
+        { id: "service_packages", title: "Pacotes e valores" },
+        { id: "service_contract", title: "Contratar serviços" },
+        { id: "service_schedule", title: "Agendar aulas" },
+        { id: "service_balance", title: "Aulas e saldos" },
+        { id: "service_reschedule", title: "Reagendar/cancelar" },
+        { id: "menu_second", title: "Ver segundo menu" },
       ]
     : [
-        { id: "service_documents", title: "Documentos e etapas", description: "Consultar documentos e etapas da habilitação." },
-        { id: "service_registration_fee", title: "Taxa de inscrição", description: "Como emitir a taxa de inscrição no Detran-MG." },
-        { id: "service_medical", title: "Exame médico", description: "Informações sobre o exame médico da habilitação." },
-        { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir a taxa do exame de legislação no Detran-MG." },
-        { id: "service_driving_fee", title: "Taxa exame direção", description: "Como emitir a taxa do exame de direção no Detran-MG." },
-        { id: "service_other", title: "Outros assuntos", description: "Tirar dúvidas sobre outros assuntos." },
-        { id: "menu_main", title: "Voltar ao menu principal", description: "Retornar às opções principais de atendimento." },
+        { id: "service_documents", title: "Documentos e etapas" },
+        { id: "service_registration_fee", title: "Taxa de inscrição" },
+        { id: "service_medical", title: "Exame médico" },
+        { id: "service_theory_fee", title: "Taxa exame legislação" },
+        { id: "service_driving_fee", title: "Taxa exame direção" },
+        { id: "service_other", title: "Outros assuntos" },
+        { id: "menu_main", title: "Voltar ao menu principal" },
       ];
 
   const menu = {
@@ -195,7 +195,7 @@ async function sendInteractiveServiceMenu(
     isMain ? "Menu principal de atendimento" : "Menu complementar de atendimento",
   );
   if (!sent) {
-    const fallback = rows.map((row) => `${row.title}: ${row.description}`).join("\n");
+    const fallback = rows.map((row) => row.title).join("\n");
     await sendWhatsAppText(
       supabase,
       conversationId,
@@ -230,17 +230,22 @@ async function sendReturnToMainMenu(
     type: "interactive",
     interactive: {
       type: "list",
-      body: { text: "Se desejar consultar outro serviço, você pode voltar ao menu principal:" },
-      footer: { text: "Escolha quando quiser continuar." },
+      body: { text: "Se desejar consultar outro serviço, escolha para qual menu deseja voltar:" },
+      footer: { text: "Você pode continuar navegando." },
       action: {
-        button: "Voltar ao menu",
+        button: "Escolher menu",
         sections: [{
           title: "Navegação",
-          rows: [{
-            id: "menu_main",
-            title: "Voltar ao menu principal",
-            description: "Retornar às opções principais de atendimento.",
-          }],
+          rows: [
+            {
+              id: "menu_main",
+              title: "Voltar ao menu principal",
+            },
+            {
+              id: "menu_second",
+              title: "Voltar ao segundo menu",
+            },
+          ],
         }],
       },
     },
@@ -251,14 +256,14 @@ async function sendReturnToMainMenu(
     conversationId,
     recipient,
     navigationMenu,
-    "Opção para voltar ao menu principal",
+    "Opções para voltar aos menus",
   );
   if (!sent) {
     await sendWhatsAppText(
       supabase,
       conversationId,
       recipient,
-      'Para consultar outro serviço, responda "Voltar ao menu principal".',
+      'Para continuar, responda "Voltar ao menu principal" ou "Voltar ao segundo menu".',
     );
   }
 }
