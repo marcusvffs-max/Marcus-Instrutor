@@ -143,63 +143,141 @@ async function sendWhatsAppText(
   );
 }
 
-async function sendAttendanceMenu(
+async function sendInteractiveServiceMenu(
   supabase: ReturnType<typeof getAdminClient>,
   conversationId: string,
   recipient: string,
+  page: "principal" | "complementar",
 ) {
+  const isMain = page === "principal";
+  const rows = isMain
+    ? [
+        { id: "menu_talk_marcus", title: "Falar com Instrutor", description: "Falar diretamente com o Instrutor Marcus." },
+        { id: "service_packages", title: "Pacotes e valores", description: "Consultar pacotes e valores disponíveis." },
+        { id: "service_contract", title: "Contratar serviços", description: "Conhecer e solicitar a contratação de serviços." },
+        { id: "service_schedule", title: "Agendar aulas", description: "Consultar como solicitar o agendamento de aulas." },
+        { id: "service_balance", title: "Aulas e saldos", description: "Consultar aulas agendadas, realizadas e saldo." },
+        { id: "service_reschedule", title: "Reagendar/cancelar", description: "Solicitar reagendamento ou cancelamento de aulas." },
+        { id: "menu_second", title: "Ver segundo menu", description: "Documentos, etapas da habilitação e taxas do Detran-MG." },
+      ]
+    : [
+        { id: "service_documents", title: "Documentos e etapas", description: "Consultar documentos e etapas da habilitação." },
+        { id: "service_registration_fee", title: "Taxa de inscrição", description: "Como emitir a taxa de inscrição no Detran-MG." },
+        { id: "service_medical", title: "Exame médico", description: "Informações sobre o exame médico da habilitação." },
+        { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir a taxa do exame de legislação no Detran-MG." },
+        { id: "service_driving_fee", title: "Taxa exame direção", description: "Como emitir a taxa do exame de direção no Detran-MG." },
+        { id: "service_other", title: "Outros assuntos", description: "Tirar dúvidas sobre outros assuntos." },
+      ];
+
   const menu = {
     type: "interactive",
     interactive: {
-      type: "button",
+      type: "list",
       body: {
-        text: "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nComo prefere continuar o atendimento?\n\n1️⃣ Continuar o atendimento com o Assistente\n2️⃣ Falar diretamente com o Instrutor Marcus.",
+        text: isMain
+          ? "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha como deseja ser atendido:"
+          : "Veja as opções complementares de atendimento. Escolha uma opção:",
       },
-      footer: { text: "Escolha uma opção abaixo." },
+      footer: { text: "Selecione uma opção da lista." },
       action: {
-        buttons: [
-          {
-            type: "reply",
-            reply: { id: "menu_continue_ai", title: "Continuar" },
-          },
-          {
-            type: "reply",
-            reply: { id: "menu_talk_marcus", title: "Falar com Marcus" },
-          },
-        ],
+        button: "Ver opções",
+        sections: [{ title: isMain ? "Atendimento" : "Mais opções", rows }],
       },
     },
   };
+
   const sent = await sendWhatsAppPayload(
     supabase,
     conversationId,
     recipient,
     menu,
-    "Menu inicial: Continuar o atendimento com o Assistente ou Falar diretamente com o Instrutor Marcus",
+    isMain ? "Menu principal de atendimento" : "Menu complementar de atendimento",
   );
   if (!sent) {
+    const fallback = rows.map((row, index) => `${index + 1}. ${row.description}`).join("\n");
     await sendWhatsAppText(
       supabase,
       conversationId,
       recipient,
-      "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nComo prefere continuar o atendimento?\n1 - Continuar o atendimento com o Assistente\n2 - Falar diretamente com o Instrutor Marcus\n\nResponda 1 ou 2.",
+      `${isMain ? "Menu principal" : "Menu complementar"}:\n${fallback}\n\nResponda com o número da opção desejada.`,
     );
   }
 }
 
-function readMenuChoice(message: any, content: unknown): "ia" | "humano" | null {
-  const buttonId = String(
+async function sendAttendanceMenu(
+  supabase: ReturnType<typeof getAdminClient>,
+  conversationId: string,
+  recipient: string,
+) {
+  await sendInteractiveServiceMenu(supabase, conversationId, recipient, "principal");
+}
+
+async function sendSecondServiceMenu(
+  supabase: ReturnType<typeof getAdminClient>,
+  conversationId: string,
+  recipient: string,
+) {
+  await sendInteractiveServiceMenu(supabase, conversationId, recipient, "complementar");
+}
+
+function readMenuChoice(message: any, content: unknown): string | null {
+  const choiceId = String(
+    message.interactive?.list_reply?.id ??
     message.interactive?.button_reply?.id ??
     message.button?.payload ??
     "",
   ).trim().toLowerCase();
-  if (buttonId === "menu_continue_ai" || buttonId === "continuar_ia") return "ia";
-  if (buttonId === "menu_talk_marcus" || buttonId === "falar_marcus") return "humano";
+
+  const validChoices = new Set([
+    "menu_talk_marcus",
+    "menu_second",
+    "service_packages",
+    "service_contract",
+    "service_schedule",
+    "service_balance",
+    "service_reschedule",
+    "service_documents",
+    "service_registration_fee",
+    "service_medical",
+    "service_theory_fee",
+    "service_driving_fee",
+    "service_other",
+  ]);
+  if (validChoices.has(choiceId)) return choiceId;
 
   const text = typeof content === "string" ? content.trim().toLowerCase() : "";
-  if (/^(1|ia|continuar|continuar com ia|continuar com o assistente|continuar o atendimento com o assistente|assistente virtual)$/i.test(text)) return "ia";
-  if (/^(2|marcus|falar com marcus|atendimento humano)$/i.test(text)) return "humano";
+  if (/^(falar com assistente|continuar|continuar com ia|continuar com o assistente|assistente virtual)$/i.test(text)) return "ia";
+  if (/^(1|marcus|falar com instrutor|falar com marcus|atendimento humano)$/i.test(text)) return "menu_talk_marcus";
+  if (/^(ver segundo menu|segundo menu|mais opções|mais opcoes)$/i.test(text)) return "menu_second";
+  if (/^(2|consultar pacotes e valores|pacotes e valores)$/i.test(text)) return "service_packages";
+  if (/^(3|contratar serviços|contratar servicos)$/i.test(text)) return "service_contract";
+  if (/^(4|agendar aulas)$/i.test(text)) return "service_schedule";
+  if (/^(5|consultar aulas e saldos|aulas e saldos)$/i.test(text)) return "service_balance";
+  if (/^(6|reagendar ou cancelar aulas|reagendar/cancelar)$/i.test(text)) return "service_reschedule";
+  if (/^(consultar documentos e etapas da habilitação|documentos e etapas)$/i.test(text)) return "service_documents";
+  if (/^(emitir taxa de inscrição|taxa de inscrição)$/i.test(text)) return "service_registration_fee";
+  if (/^exame médico$/i.test(text)) return "service_medical";
+  if (/^(emitir taxa exame legislação|taxa exame legislação)$/i.test(text)) return "service_theory_fee";
+  if (/^(emitir taxa exame direção|taxa exame direção)$/i.test(text)) return "service_driving_fee";
+  if (/^outros$/i.test(text)) return "service_other";
   return null;
+}
+
+function serviceChoiceLabel(choice: string): string {
+  const labels: Record<string, string> = {
+    service_packages: "Consultar pacotes e valores",
+    service_contract: "Contratar serviços",
+    service_schedule: "Agendar aulas",
+    service_balance: "Consultar aulas e saldos",
+    service_reschedule: "Reagendar ou cancelar aulas",
+    service_documents: "Consultar documentos e etapas da habilitação",
+    service_registration_fee: "Emitir taxa de inscrição (Detran-MG)",
+    service_medical: "Exame médico",
+    service_theory_fee: "Emitir taxa exame Legislação (Detran-MG)",
+    service_driving_fee: "Emitir taxa exame direção (Detran-MG)",
+    service_other: "Outros",
+  };
+  return labels[choice] ?? "Atendimento";
 }
 
 /**
@@ -638,6 +716,51 @@ Deno.serve(async (req: Request) => {
           stored++;
 
           if (conversationStatus === "aguardando_escolha") {
+            if (menuChoice === "menu_second") {
+              await updateMessageMetadata(supabase, providerId, {
+                menu_choice: "menu_complementar",
+                ai_status: "waiting_for_service_choice",
+              });
+              await sendSecondServiceMenu(supabase, conversation.id, phone);
+              menusSent++;
+              continue;
+            }
+
+            if (typeof menuChoice === "string" && menuChoice.startsWith("service_")) {
+              const selectedService = serviceChoiceLabel(menuChoice);
+              const { error: serviceStateError } = await supabase
+                .from("whatsapp_conversations")
+                .update({ status: "atendimento_ia", updated_at: new Date().toISOString() })
+                .eq("id", conversation.id);
+              if (serviceStateError) {
+                console.error("Service selection state update failed:", serviceStateError.message);
+                continue;
+              }
+              await updateMessageMetadata(supabase, providerId, {
+                menu_choice: menuChoice,
+                selected_service: selectedService,
+                ai_status: AI_AUTOREPLY_ENABLED ? "service_selected" : "paused_by_instructor",
+              });
+              if (AI_AUTOREPLY_ENABLED && typeof content === "string") {
+                await processIncomingMessage(
+                  supabase,
+                  conversation.id,
+                  insertedMessage.id,
+                  providerId,
+                  phone,
+                  selectedService,
+                );
+              } else {
+                await sendWhatsAppText(
+                  supabase,
+                  conversation.id,
+                  phone,
+                  `Você selecionou: ${selectedService}. 😊\\n\\nA Assistente Virtual está temporariamente pausada durante a configuração. Se desejar atendimento humano, escolha “Falar com Instrutor” no menu.`,
+                );
+              }
+              continue;
+            }
+
             if (menuChoice === "ia") {
               const { error } = await supabase
                 .from("whatsapp_conversations")
@@ -732,6 +855,28 @@ Deno.serve(async (req: Request) => {
             });
             await sendAttendanceMenu(supabase, conversation.id, phone);
             menusSent++;
+            continue;
+          }
+
+          if (conversationStatus === "atendimento_humano" && typeof content === "string" && /^falar com assistente$/i.test(content.trim())) {
+            const { error: reactivateError } = await supabase
+              .from("whatsapp_conversations")
+              .update({ status: "atendimento_ia", updated_at: new Date().toISOString() })
+              .eq("id", conversation.id);
+            if (reactivateError) {
+              console.error("Customer AI reactivation failed:", reactivateError.message);
+              continue;
+            }
+            await updateMessageMetadata(supabase, providerId, {
+              menu_choice: "customer_reactivated_assistant",
+              ai_status: "awaiting_next_message",
+            });
+            await sendWhatsAppText(
+              supabase,
+              conversation.id,
+              phone,
+              "Perfeito! 😊 Sou a Assistente do Instrutor Marcus e vou continuar seu atendimento. Como posso ajudar?",
+            );
             continue;
           }
 
