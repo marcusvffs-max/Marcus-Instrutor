@@ -194,7 +194,7 @@ async function sendInteractiveServiceMenu(
     isMain ? "Menu principal de atendimento" : "Menu complementar de atendimento",
   );
   if (!sent) {
-    const fallback = rows.map((row, index) => `${index + 1}. ${row.description}`).join("\n");
+    const fallback = rows.map((row) => `${row.title}: ${row.description}`).join("\n");
     await sendWhatsAppText(
       supabase,
       conversationId,
@@ -243,11 +243,11 @@ function readMenuChoice(message: any, content: unknown): string | null {
     "service_driving_fee",
     "service_other",
   ]);
-  if (validChoices.has(choiceId)) return choiceId;
+  if (validChoices.has(choiceId)) return choiceId === "menu_talk_marcus" ? "humano" : choiceId;
 
   const text = typeof content === "string" ? content.trim().toLowerCase() : "";
   if (/^(falar com assistente|continuar|continuar com ia|continuar com o assistente|assistente virtual)$/i.test(text)) return "ia";
-  if (/^(1|marcus|falar com instrutor|falar com marcus|atendimento humano)$/i.test(text)) return "menu_talk_marcus";
+  if (/^(1|marcus|falar com instrutor|falar com marcus|atendimento humano)$/i.test(text)) return "humano";
   if (/^(ver segundo menu|segundo menu|mais opções|mais opcoes)$/i.test(text)) return "menu_second";
   if (/^(2|consultar pacotes e valores|pacotes e valores)$/i.test(text)) return "service_packages";
   if (/^(3|contratar serviços|contratar servicos)$/i.test(text)) return "service_contract";
@@ -259,7 +259,7 @@ function readMenuChoice(message: any, content: unknown): string | null {
   if (/^exame médico$/i.test(text)) return "service_medical";
   if (/^(emitir taxa exame legislação|taxa exame legislação)$/i.test(text)) return "service_theory_fee";
   if (/^(emitir taxa exame direção|taxa exame direção)$/i.test(text)) return "service_driving_fee";
-  if (/^outros$/i.test(text)) return "service_other";
+  if (/^(outros|outros assuntos)$/i.test(text)) return "service_other";
   return null;
 }
 
