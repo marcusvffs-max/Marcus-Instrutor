@@ -205,11 +205,27 @@ async function updateMessageMetadata(
   providerId: string,
   metadata: Record<string, unknown>,
 ) {
+  const { data: current, error: readError } = await supabase
+    .from("whatsapp_messages")
+    .select("metadados")
+    .eq("provider_message_id", providerId)
+    .maybeSingle();
+  if (readError) {
+    console.error("Message metadata read failed:", readError.message);
+    return;
+  }
+  const existing = current?.metadados && typeof current.metadados === "object"
+    ? current.metadados as Record<string, unknown>
+    : {};
   const { error } = await supabase
     .from("whatsapp_messages")
-    .update({ metadados: metadata })
+    .update({ metadados: { ...existing, ...metadata } })
     .eq("provider_message_id", providerId);
   if (error) console.error("Message metadata update failed:", error.message);
+}
+
+function requiresApprovalByRules(text: string): boolean {
+  return /\\b(?:agendar|agendamento|marcar aula|remarcar|cancelar|cadastro|cadastrar|registrar|comprar|vender|venda|pacote|pagar|pagamento|pix|saldo|aula extra|contrato|excluir|apagar|alterar cadastro|mudar horário|mudar horario)\\b/i.test(text);
 }
 
 async function processIncomingMessage(
@@ -233,9 +249,12 @@ async function processIncomingMessage(
   try {
     const analysis = await analyzeWithGemini(privacy.text);
 
+    const needsApproval = analysis.requires_approval || requiresApprovalByRules(privacy.text);
     let requestId: string | null = null;
-    if (analysis.requires_approval) {
-      const requestType = analysis.request_type || "solicitacao_cliente";
+    if (needsApproval) {
+      const requestType = analysis.request_type === "atendimento"
+        ? "solicitacao_cliente"
+        : (analysis.request_type || "solicitacao_cliente");
       const { data: request, error: requestError } = await supabase
         .from("ai_requests")
         .insert({
@@ -271,12 +290,12 @@ async function processIncomingMessage(
       ai_status: "analyzed",
       intent: analysis.intent,
       reply_suggestion: analysis.reply_suggestion,
-      requires_approval: analysis.requires_approval,
+      requires_approval: needsApproval,
       request_id: requestId,
       analyzed_at: new Date().toISOString(),
       model: GEMINI_MODEL,
     });
-    return analysis.requires_approval ? "pending_approval" : "suggestion_ready";
+    return needsApproval ? "pending_approval" : "suggestion_ready";
   } catch (error) {
     console.error("AI message processing failed:", error instanceof Error ? error.message : "unknown");
     await updateMessageMetadata(supabase, providerId, {
