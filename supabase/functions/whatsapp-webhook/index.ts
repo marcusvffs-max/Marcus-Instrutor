@@ -1031,7 +1031,7 @@ Deno.serve(async (req: Request) => {
                   supabase,
                   conversation.id,
                   phone,
-                  `Você selecionou: ${selectedService}. 😊\\n\\nA Assistente Virtual está temporariamente pausada durante a configuração. Se desejar consultar outro serviço, selecione “Voltar ao menu principal”. Se preferir atendimento humano, escolha “Falar com Instrutor”.`,
+                  `Você selecionou: ${selectedService}. 😊\n\nA Assistente Virtual está temporariamente pausada durante a configuração. Se desejar consultar outro serviço, selecione “Voltar ao menu principal”. Se preferir atendimento humano, escolha “Falar com Instrutor”.`,
                 );
                 await sendReturnToMainMenu(supabase, conversation.id, phone);
               }
