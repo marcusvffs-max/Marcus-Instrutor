@@ -213,18 +213,28 @@ async function sendInitialMenuSelection(
   const selection = {
     type: "interactive",
     interactive: {
-      type: "list",
-      body: { text: "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha por qual menu deseja começar:" },
+      type: "button",
+      body: {
+        text: "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma das opções abaixo para começar:",
+      },
       footer: { text: "Você pode trocar de menu quando quiser." },
       action: {
-        button: "Abrir menu",
-        sections: [{
-          title: "Escolha o menu",
-          rows: [
-            { id: "menu_main", title: "Menu do Instrutor", description: "Pacotes, contratação, agendamento e aulas." },
-            { id: "menu_second", title: "Menu do Detran", description: "Documentos, etapas, taxas e exames." },
-          ],
-        }],
+        buttons: [
+          {
+            type: "reply",
+            reply: {
+              id: "menu_main",
+              title: "Menu do Instrutor",
+            },
+          },
+          {
+            type: "reply",
+            reply: {
+              id: "menu_second",
+              title: "Menu do Detran",
+            },
+          },
+        ],
       },
     },
   };
@@ -241,7 +251,7 @@ async function sendInitialMenuSelection(
       supabase,
       conversationId,
       recipient,
-      "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma opção:\n1. Menu do Instrutor — pacotes, contratação, agendamento e aulas.\n2. Menu do Detran — documentos, etapas, taxas e exames.\n\nResponda Menu do Instrutor ou Menu do Detran.",
+      "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma opção:\n1️⃣ Menu do Instrutor — pacotes, contratação, agendamento e aulas.\n2️⃣ Menu do Detran — documentos, etapas, taxas e exames.\n\nResponda 1 ou 2.",
     );
   }
 }
