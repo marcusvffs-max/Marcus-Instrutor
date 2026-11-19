@@ -885,7 +885,7 @@ Deno.serve(async (req: Request) => {
                   supabase,
                   conversation.id,
                   phone,
-                  "Você selecionou: Outros. 😊\\n\\nComo posso ajudar?\\n\\nDigite sua dúvida ou descreva o serviço que deseja consultar. Vou encaminhar sua mensagem ao Instrutor Marcus para que ele possa verificar e orientar você.\\n\\nSe preferir, você também pode voltar ao menu principal.",
+                  "Você selecionou: Outros. 😊\n\nComo posso ajudar?\n\nDigite sua dúvida ou descreva o serviço que deseja consultar. Vou encaminhar sua mensagem ao Instrutor Marcus para que ele possa verificar e orientar você.\n\nSe preferir, você também pode voltar ao menu principal.",
                 );
                 await updateMessageMetadata(supabase, providerId, {
                   other_details_prompt_sent: sent,
