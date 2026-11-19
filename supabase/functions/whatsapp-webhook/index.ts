@@ -158,7 +158,7 @@ async function sendInteractiveServiceMenu(
         { id: "service_schedule", title: "Agendar aulas", description: "Consulte horários e solicite o agendamento de aulas." },
         { id: "service_balance", title: "Aulas e saldos", description: "Consulte suas aulas agendadas, realizadas e saldo." },
         { id: "service_reschedule", title: "Reagendar/cancelar", description: "Solicite alteração ou cancelamento de aulas." },
-        { id: "menu_second", title: "Ver segundo menu", description: "Acesse documentos, taxas e exames da habilitação." },
+        { id: "menu_second", title: "Abrir Menu do Detran", description: "Acesse documentos, taxas e exames da habilitação." },
       ]
     : [
         { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
@@ -167,7 +167,7 @@ async function sendInteractiveServiceMenu(
         { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
         { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
         { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
-        { id: "menu_main", title: "Voltar ao menu principal" },
+        { id: "menu_main", title: "Abrir Menu do Instrutor", description: "Acesse pacotes, aulas e serviços do instrutor." },
       ];
 
   const menu = {
@@ -176,13 +176,13 @@ async function sendInteractiveServiceMenu(
       type: "list",
       body: {
         text: isMain
-          ? "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha como deseja ser atendido:"
-          : "Veja as opções complementares de atendimento. Escolha uma opção:",
+          ? "📘 Menu do Instrutor\n\nEscolha uma opção para continuar:"
+          : "🚦 Menu do Detran\n\nEscolha uma opção para continuar:",
       },
       footer: { text: "Selecione uma opção da lista." },
       action: {
         button: "Ver opções",
-        sections: [{ title: isMain ? "Atendimento" : "Mais opções", rows }],
+        sections: [{ title: isMain ? "Menu do Instrutor" : "Menu do Detran", rows }],
       },
     },
   };
@@ -192,7 +192,7 @@ async function sendInteractiveServiceMenu(
     conversationId,
     recipient,
     menu,
-    isMain ? "Menu principal de atendimento" : "Menu complementar de atendimento",
+    isMain ? "Menu do Instrutor" : "Menu do Detran",
   );
   if (!sent) {
     const fallback = rows.map((row) => `${row.title} — ${row.description}`).join("\n");
@@ -200,7 +200,48 @@ async function sendInteractiveServiceMenu(
       supabase,
       conversationId,
       recipient,
-      `${isMain ? "Menu principal" : "Menu complementar"}:\n${fallback}\n\nResponda com o nome da opção desejada.`,
+      `${isMain ? "Menu do Instrutor" : "Menu do Detran"}:\n${fallback}\n\nResponda com o nome da opção desejada.`,
+    );
+  }
+}
+
+async function sendInitialMenuSelection(
+  supabase: ReturnType<typeof getAdminClient>,
+  conversationId: string,
+  recipient: string,
+) {
+  const selection = {
+    type: "interactive",
+    interactive: {
+      type: "list",
+      body: { text: "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha por qual menu deseja começar:" },
+      footer: { text: "Você pode trocar de menu quando quiser." },
+      action: {
+        button: "Abrir menu",
+        sections: [{
+          title: "Escolha o menu",
+          rows: [
+            { id: "menu_main", title: "Menu do Instrutor", description: "Pacotes, contratação, agendamento e aulas." },
+            { id: "menu_second", title: "Menu do Detran", description: "Documentos, etapas, taxas e exames." },
+          ],
+        }],
+      },
+    },
+  };
+
+  const sent = await sendWhatsAppPayload(
+    supabase,
+    conversationId,
+    recipient,
+    selection,
+    "Escolha inicial: Menu do Instrutor ou Menu do Detran",
+  );
+  if (!sent) {
+    await sendWhatsAppText(
+      supabase,
+      conversationId,
+      recipient,
+      "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma opção:\n1. Menu do Instrutor — pacotes, contratação, agendamento e aulas.\n2. Menu do Detran — documentos, etapas, taxas e exames.\n\nResponda Menu do Instrutor ou Menu do Detran.",
     );
   }
 }
@@ -239,11 +280,11 @@ async function sendReturnToMainMenu(
           rows: [
             {
               id: "menu_main",
-              title: "Voltar ao menu principal",
+              title: "Menu do Instrutor",
             },
             {
               id: "menu_second",
-              title: "Voltar ao segundo menu",
+              title: "Menu do Detran",
             },
           ],
         }],
@@ -263,7 +304,7 @@ async function sendReturnToMainMenu(
       supabase,
       conversationId,
       recipient,
-      'Para continuar, responda "Voltar ao menu principal" ou "Voltar ao segundo menu".',
+      'Para continuar, responda "Menu do Instrutor" ou "Menu do Detran".',
     );
   }
 }
@@ -297,8 +338,8 @@ function readMenuChoice(message: any, content: unknown): string | null {
   const text = typeof content === "string" ? content.trim().toLowerCase() : "";
   if (/^(falar com assistente|continuar|continuar com ia|continuar com o assistente|assistente virtual)$/i.test(text)) return "ia";
   if (/^(1|marcus|falar com instrutor|falar com marcus|atendimento humano)$/i.test(text)) return "humano";
-  if (/^(ver segundo menu|segundo menu|mais opções|mais opcoes)$/i.test(text)) return "menu_second";
-  if (/^(voltar ao menu principal|menu principal|voltar ao início|voltar ao inicio)$/i.test(text)) return "menu_main";
+  if (/^(ver segundo menu|segundo menu|mais opções|mais opcoes|menu do detran)$/i.test(text)) return "menu_second";
+  if (/^(voltar ao menu principal|menu principal|voltar ao início|voltar ao inicio|menu do instrutor)$/i.test(text)) return "menu_main";
   if (/^(2|consultar pacotes e valores|pacotes e valores)$/i.test(text)) return "service_packages";
   if (/^(3|contratar serviços|contratar servicos)$/i.test(text)) return "service_contract";
   if (/^(4|agendar aulas)$/i.test(text)) return "service_schedule";
@@ -780,12 +821,12 @@ Deno.serve(async (req: Request) => {
               menu_choice: "customer_opened_assistant_menu",
               ai_status: "waiting_for_service_choice",
             });
-            await sendAttendanceMenu(supabase, conversation.id, phone);
+            await sendInitialMenuSelection(supabase, conversation.id, phone);
             menusSent++;
             continue;
           }
 
-          // Return to the main menu from any active assistant state.
+          // Open the selected top-level menu.
           if (menuChoice === "menu_main") {
             const { error: mainMenuStateError } = await supabase
               .from("whatsapp_conversations")
@@ -796,7 +837,7 @@ Deno.serve(async (req: Request) => {
               continue;
             }
             await updateMessageMetadata(supabase, providerId, {
-              menu_choice: "return_to_main_menu",
+              menu_choice: "open_instructor_menu",
               ai_status: "waiting_for_service_choice",
             });
             await sendAttendanceMenu(supabase, conversation.id, phone);
@@ -816,7 +857,7 @@ Deno.serve(async (req: Request) => {
               continue;
             }
             await updateMessageMetadata(supabase, providerId, {
-              menu_choice: "menu_complementar",
+              menu_choice: "open_detran_menu",
               ai_status: "waiting_for_service_choice",
             });
             await sendSecondServiceMenu(supabase, conversation.id, phone);
