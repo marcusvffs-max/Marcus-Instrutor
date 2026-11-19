@@ -523,9 +523,10 @@ async function processIncomingMessage(
       model: GEMINI_MODEL,
     });
 
-    const customerReply = needsApproval
+    const customerReply = (needsApproval
       ? "Recebi sua solicitação! 😊 Vou encaminhá-la para análise do Instrutor Marcus. Nenhuma alteração será realizada sem a aprovação dele."
-      : (analysis.reply_suggestion.trim() || "Como posso ajudar com sua habilitação?");
+      : (analysis.reply_suggestion.trim() || "Como posso ajudar com sua habilitação?")) +
+      "\\n\\nPara consultar outra opção, envie *Falar com assistente*. Assim eu reabro o menu para você.";
 
     const replySent = await sendWhatsAppText(
       supabase,
@@ -778,7 +779,7 @@ Deno.serve(async (req: Request) => {
                   "O Portal MG informa o valor de R$ 115,80 para essa taxa. O PIX tem compensação instantânea; o boleto pode levar até 2 dias úteis. Atenção: boletos pagos fora da rede bancária credenciada podem não ser reconhecidos.\n\n" +
                   "Depois que o pagamento for compensado, você poderá agendar a coleta biométrica, o exame médico e a avaliação psicológica.\n\n" +
                   "Por segurança, informe CPF e outros dados pessoais somente no site oficial do Governo de Minas. Não envie esses dados por esta conversa. 😊\n\n" +
-                  "Fonte oficial: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc";
+                  "Fonte oficial: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc\\n\\nPara consultar outra opção, envie *Falar com assistente*. Assim eu reabro o menu para você.";
                 const sent = await sendWhatsAppText(
                   supabase,
                   conversation.id,
@@ -806,7 +807,7 @@ Deno.serve(async (req: Request) => {
                   "• Avaliação psicológica: R$ 232,23, paga diretamente na clínica. É uma etapa separada do exame médico.\n\n" +
                   "A clínica deve informar o resultado em até 2 dias úteis. Se não puder comparecer, é possível marcar uma nova data sem custo adicional.\n\n" +
                   "Consulte as orientações e faça o agendamento somente pelos canais oficiais: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc\n\n" +
-                  "Por segurança, não envie CPF, documentos ou dados pessoais por esta conversa.";
+                  "Por segurança, não envie CPF, documentos ou dados pessoais por esta conversa.\\n\\nPara consultar outra opção, envie *Falar com assistente*. Assim eu reabro o menu para você.";
                 const sent = await sendWhatsAppText(
                   supabase,
                   conversation.id,
@@ -835,7 +836,7 @@ Deno.serve(async (req: Request) => {
                   supabase,
                   conversation.id,
                   phone,
-                  `Você selecionou: ${selectedService}. 😊\\n\\nA Assistente Virtual está temporariamente pausada durante a configuração. Se desejar atendimento humano, escolha “Falar com Instrutor” no menu.`,
+                  `Você selecionou: ${selectedService}. 😊\\n\\nA Assistente Virtual está temporariamente pausada durante a configuração. Para consultar outra opção, envie “Falar com assistente”. Se desejar atendimento humano, escolha “Falar com Instrutor”.`,
                 );
               }
               continue;
