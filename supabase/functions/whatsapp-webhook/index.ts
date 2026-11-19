@@ -380,6 +380,16 @@ async function processIncomingMessage(
       privacy_reason: privacy.reason,
       analyzed_at: new Date().toISOString(),
     });
+    const sent = await sendWhatsAppText(
+      supabase,
+      conversationId,
+      phone,
+      "Para proteger seus dados, não consigo processar essa mensagem porque ela pode conter informações pessoais ou financeiras. Por favor, envie novamente apenas sua dúvida geral, sem CPF, telefone, endereço ou dados de pagamento.",
+    );
+    await updateMessageMetadata(supabase, providerId, {
+      reply_sent: sent,
+      reply_type: "privacy_notice",
+    });
     return "blocked_privacy";
   }
 
@@ -432,7 +442,24 @@ async function processIncomingMessage(
       analyzed_at: new Date().toISOString(),
       model: GEMINI_MODEL,
     });
-    return needsApproval ? "pending_approval" : "suggestion_ready";
+
+    const customerReply = needsApproval
+      ? "Recebi sua solicitação! 😊 Vou encaminhá-la para análise do Instrutor Marcus. Nenhuma alteração será realizada sem a aprovação dele."
+      : (analysis.reply_suggestion.trim() || "Como posso ajudar com sua habilitação?");
+
+    const replySent = await sendWhatsAppText(
+      supabase,
+      conversationId,
+      phone,
+      customerReply,
+    );
+    await updateMessageMetadata(supabase, providerId, {
+      reply_sent: replySent,
+      reply_sent_at: replySent ? new Date().toISOString() : null,
+      reply_type: needsApproval ? "approval_required_acknowledgement" : "gemini_answer",
+    });
+    if (!replySent) console.error("AI reply could not be delivered to WhatsApp.");
+    return needsApproval ? "pending_approval" : (replySent ? "reply_sent" : "reply_send_failed");
   } catch (error) {
     console.error("AI message processing failed:", error instanceof Error ? error.message : "unknown");
     await updateMessageMetadata(supabase, providerId, {
@@ -440,6 +467,12 @@ async function processIncomingMessage(
       error: error instanceof Error ? error.message : "unknown",
       analyzed_at: new Date().toISOString(),
     });
+    await sendWhatsAppText(
+      supabase,
+      conversationId,
+      phone,
+      "Desculpe, tive uma dificuldade para entender sua mensagem agora. Pode tentar novamente com outras palavras? Se preferir, você também pode escolher falar diretamente com o Instrutor Marcus.",
+    );
     return "analysis_failed";
   }
 }
@@ -710,6 +743,11 @@ Deno.serve(async (req: Request) => {
 
           if (conversationStatus === "atendimento_ia") {
             if (typeof content === "string" && content.trim()) {
+              console.log("Processing incoming customer message with Gemini.", {
+                conversationId: conversation.id,
+                messageId: insertedMessage.id,
+                messageType,
+              });
               const outcome = await processIncomingMessage(
                 supabase,
                 conversation.id,
@@ -718,7 +756,8 @@ Deno.serve(async (req: Request) => {
                 phone,
                 content,
               );
-              if (outcome !== "analysis_failed" && outcome !== "blocked_privacy") processed++;
+              console.log("Gemini customer message processing outcome:", outcome);
+              if (outcome !== "analysis_failed" && outcome !== "blocked_privacy" && outcome !== "reply_send_failed") processed++;
             } else {
               await updateMessageMetadata(supabase, providerId, {
                 ai_status: "not_analyzed_non_text",
