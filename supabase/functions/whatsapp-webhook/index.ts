@@ -793,6 +793,34 @@ Deno.serve(async (req: Request) => {
                 continue;
               }
 
+              if (menuChoice === "service_medical") {
+                const medicalExamReply =
+                  "Em Minas Gerais, o exame médico da primeira habilitação é realizado em clínica credenciada pelo Detran-MG. 😊\n\n" +
+                  "COMO FUNCIONA:\n" +
+                  "1. Primeiro, aguarde a compensação do pagamento da taxa de inscrição.\n" +
+                  "2. Depois, faça o agendamento digital da coleta biométrica, do exame médico e da avaliação psicológica.\n" +
+                  "3. No agendamento, você escolhe a data e o horário disponíveis. A clínica não pode ser escolhida pelo candidato.\n" +
+                  "4. Compareça à clínica na data marcada, levando documento oficial de identificação atualizado com foto e CPF. No local também serão coletadas foto, assinatura e impressões digitais.\n\n" +
+                  "VALORES INFORMADOS PELO PORTAL MG:\n" +
+                  "• Exame médico: R$ 232,23, pago diretamente na clínica.\n" +
+                  "• Avaliação psicológica: R$ 232,23, paga diretamente na clínica. É uma etapa separada do exame médico.\n\n" +
+                  "A clínica deve informar o resultado em até 2 dias úteis. Se não puder comparecer, é possível marcar uma nova data sem custo adicional.\n\n" +
+                  "Consulte as orientações e faça o agendamento somente pelos canais oficiais: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc\n\n" +
+                  "Por segurança, não envie CPF, documentos ou dados pessoais por esta conversa.";
+                const sent = await sendWhatsAppText(
+                  supabase,
+                  conversation.id,
+                  phone,
+                  medicalExamReply,
+                );
+                await updateMessageMetadata(supabase, providerId, {
+                  ai_status: sent ? "static_service_reply_sent" : "static_service_reply_failed",
+                  reply_type: "medical_exam_information",
+                  reply_sent: sent,
+                });
+                continue;
+              }
+
               if (AI_AUTOREPLY_ENABLED && typeof content === "string") {
                 await processIncomingMessage(
                   supabase,
