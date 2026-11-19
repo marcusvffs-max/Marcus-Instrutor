@@ -771,13 +771,13 @@ Deno.serve(async (req: Request) => {
               });
               if (menuChoice === "service_registration_fee") {
                 const registrationFeeReply =
-                  "Para emitir a taxa de inscrição da primeira habilitação em Minas Gerais, siga estes passos:\\n\\n" +
-                  "1. Acesse o formulário oficial do Detran-MG: https://www.transito.mg.gov.br/habilitacao/1-habilitacao-quero-ser-condutor/taxa-para-obter-a-1-habilitacao\\n" +
-                  "2. Preencha o formulário de cadastro e emissão do Documento de Arrecadação Estadual (DAE). Confira os dados antes de concluir.\\n" +
-                  "3. Gere o DAE e faça o pagamento por PIX ou boleto em uma unidade de banco credenciado.\\n\\n" +
-                  "O Portal MG informa o valor de R$ 115,80 para essa taxa. O PIX tem compensação instantânea; o boleto pode levar até 2 dias úteis. Atenção: boletos pagos fora da rede bancária credenciada podem não ser reconhecidos.\\n\\n" +
-                  "Depois que o pagamento for compensado, você poderá agendar a coleta biométrica, o exame médico e a avaliação psicológica.\\n\\n" +
-                  "Por segurança, informe CPF e outros dados pessoais somente no site oficial do Governo de Minas. Não envie esses dados por esta conversa. 😊\\n\\n" +
+                  "Para emitir a taxa de inscrição da primeira habilitação em Minas Gerais, siga estes passos:\n\n" +
+                  "1. Acesse o formulário oficial do Detran-MG: https://www.transito.mg.gov.br/habilitacao/1-habilitacao-quero-ser-condutor/taxa-para-obter-a-1-habilitacao\n" +
+                  "2. Preencha o formulário de cadastro e emissão do Documento de Arrecadação Estadual (DAE). Confira os dados antes de concluir.\n" +
+                  "3. Gere o DAE e faça o pagamento por PIX ou boleto em uma unidade de banco credenciado.\n\n" +
+                  "O Portal MG informa o valor de R$ 115,80 para essa taxa. O PIX tem compensação instantânea; o boleto pode levar até 2 dias úteis. Atenção: boletos pagos fora da rede bancária credenciada podem não ser reconhecidos.\n\n" +
+                  "Depois que o pagamento for compensado, você poderá agendar a coleta biométrica, o exame médico e a avaliação psicológica.\n\n" +
+                  "Por segurança, informe CPF e outros dados pessoais somente no site oficial do Governo de Minas. Não envie esses dados por esta conversa. 😊\n\n" +
                   "Fonte oficial: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc";
                 const sent = await sendWhatsAppText(
                   supabase,
