@@ -84,6 +84,9 @@ function prepareTextForGemini(input: string): { safe: boolean; text: string; rea
     /\b(?:rua|avenida|av\.?|travessa|rodovia|estrada|alameda|bairro|endereço|logradouro|apartamento|apto|casa número)\b/i,
     /\b(?:pix|chave pix|cartão|cartao|conta bancária|conta bancaria|agência|agencia|senha|código de segurança|codigo de seguranca)\b/i,
     /\b(?:meu endereço|moro na|moro no|resido na|resido no|meu cpf|meu cnpj|meu telefone|meu celular)\b/i,
+    /\b(?:meu filho|minha filha|meu marido|minha esposa|meu pai|minha mãe|meu irmão|minha irmã)\s+[A-ZÀ-Ý][a-zà-ÿ]+/i,
+    /\b(?:aluno|aluna|cliente|responsável)\s+[A-ZÀ-Ý][a-zà-ÿ]+/i,
+    /\b(?:aqui é|fala|quem fala é|sou)\s+[A-ZÀ-Ý][a-zà-ÿ]+/i,
   ];
   if (blockedPatterns.some((pattern) => pattern.test(text))) {
     return { safe: false, text: "", reason: "possible_personal_or_financial_data" };
@@ -225,7 +228,7 @@ async function updateMessageMetadata(
 }
 
 function requiresApprovalByRules(text: string): boolean {
-  return /\\b(?:agendar|agendamento|marcar aula|remarcar|cancelar|cadastro|cadastrar|registrar|comprar|vender|venda|pacote|pagar|pagamento|pix|saldo|aula extra|contrato|excluir|apagar|alterar cadastro|mudar horário|mudar horario)\\b/i.test(text);
+  return /\b(?:agendar|agendamento|marcar aula|remarcar|cancelar|cadastro|cadastrar|registrar|comprar|vender|venda|pacote|pagar|pagamento|pix|saldo|aula extra|contrato|excluir|apagar|alterar cadastro|mudar horário|mudar horario)\b/i.test(text);
 }
 
 async function processIncomingMessage(
