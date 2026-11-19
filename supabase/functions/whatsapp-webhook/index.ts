@@ -891,21 +891,21 @@ Deno.serve(async (req: Request) => {
 
               if (menuChoice === "service_theory_fee") {
                 const theoryFeeReply =
-                  "Para emitir a taxa da prova de legislação da primeira habilitação em Minas Gerais, siga estas orientações oficiais do Detran-MG. 😊\\n\\n" +
-                  "QUANDO EMITIR:\\n" +
-                  "A taxa deve ser emitida depois de concluir as etapas anteriores, incluindo o curso de legislação.\\n\\n" +
-                  "COMO EMITIR E PAGAR:\\n" +
-                  "1. Acesse o formulário oficial para emissão do Documento de Arrecadação Estadual (DAE): https://transito.mg.gov.br/habilitacao/outros-servicos-e-taxas/emitir-taxa-de-servico-de-habilitacao/preencher-dados-da-habilitacao/18\\n" +
-                  "2. Preencha os dados solicitados no próprio site oficial e gere o DAE.\\n" +
-                  "3. Pague por PIX ou boleto em uma unidade de banco credenciado.\\n\\n" +
-                  "VALOR INFORMADO PELO PORTAL MG:\\n" +
-                  "• Taxa da prova de legislação: R$ 115,80.\\n" +
-                  "• Se precisar repetir a prova, a taxa informada também é de R$ 115,80.\\n\\n" +
-                  "O PIX tem compensação instantânea. O boleto pode levar até 2 dias úteis. Boletos pagos fora da rede bancária credenciada podem não ser reconhecidos.\\n\\n" +
-                  "DEPOIS DO PAGAMENTO:\\n" +
-                  "Após a compensação, faça o agendamento da prova pelo formulário oficial: https://www.detran.mg.gov.br/habilitacao/1-habilitacao-quero-ser-condutor/agendar-exame-de-legislacao-candidato. O Portal MG informa que o agendamento ocorre no período de 13h às 18h e que é possível escolher a data e o local, mas não o horário.\\n\\n" +
-                  "A prova tem 30 questões e, conforme orientação divulgada pelo Detran-MG, é necessário acertar pelo menos 20 para aprovação. Compareça levando documento oficial de identificação com foto.\\n\\n" +
-                  "Por segurança, informe CPF e outros dados pessoais somente nos sites oficiais do Governo de Minas. Não envie esses dados por esta conversa. 😊\\n\\n" +
+                  "Para emitir a taxa da prova de legislação da primeira habilitação em Minas Gerais, siga estas orientações oficiais do Detran-MG. 😊\n\n" +
+                  "QUANDO EMITIR:\n" +
+                  "A taxa deve ser emitida depois de concluir as etapas anteriores, incluindo o curso de legislação.\n\n" +
+                  "COMO EMITIR E PAGAR:\n" +
+                  "1. Acesse o formulário oficial para emissão do Documento de Arrecadação Estadual (DAE): https://transito.mg.gov.br/habilitacao/outros-servicos-e-taxas/emitir-taxa-de-servico-de-habilitacao/preencher-dados-da-habilitacao/18\n" +
+                  "2. Preencha os dados solicitados no próprio site oficial e gere o DAE.\n" +
+                  "3. Pague por PIX ou boleto em uma unidade de banco credenciado.\n\n" +
+                  "VALOR INFORMADO PELO PORTAL MG:\n" +
+                  "• Taxa da prova de legislação: R$ 115,80.\n" +
+                  "• Se precisar repetir a prova, a taxa informada também é de R$ 115,80.\n\n" +
+                  "O PIX tem compensação instantânea. O boleto pode levar até 2 dias úteis. Boletos pagos fora da rede bancária credenciada podem não ser reconhecidos.\n\n" +
+                  "DEPOIS DO PAGAMENTO:\n" +
+                  "Após a compensação, faça o agendamento da prova pelo formulário oficial: https://www.detran.mg.gov.br/habilitacao/1-habilitacao-quero-ser-condutor/agendar-exame-de-legislacao-candidato. O Portal MG informa que o agendamento ocorre no período de 13h às 18h e que é possível escolher a data e o local, mas não o horário.\n\n" +
+                  "A prova tem 30 questões e, conforme orientação divulgada pelo Detran-MG, é necessário acertar pelo menos 20 para aprovação. Compareça levando documento oficial de identificação com foto.\n\n" +
+                  "Por segurança, informe CPF e outros dados pessoais somente nos sites oficiais do Governo de Minas. Não envie esses dados por esta conversa. 😊\n\n" +
                   "Fonte oficial: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc";
                 const sent = await sendWhatsAppText(
                   supabase,
