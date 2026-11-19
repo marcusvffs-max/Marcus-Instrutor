@@ -640,7 +640,7 @@ Deno.serve(async (req: Request) => {
                 owner_id: OWNER_ID,
                 telefone: phone,
                 nome_contato: contactName,
-                status: "aguardando_escolha",
+                status: "aguardando",
                 ultima_mensagem_em: messageTime,
                 updated_at: new Date().toISOString(),
               })
@@ -684,10 +684,10 @@ Deno.serve(async (req: Request) => {
           if (conversationStatus === "aberta") {
             const { error } = await supabase
               .from("whatsapp_conversations")
-              .update({ status: "aguardando_escolha", updated_at: new Date().toISOString() })
+              .update({ status: "aguardando", updated_at: new Date().toISOString() })
               .eq("id", conversation.id);
             if (error) console.error("Conversation state update failed:", error.message);
-            conversationStatus = "aguardando_escolha";
+            conversationStatus = "aguardando";
           }
 
           // INSERT + unique constraint makes message processing idempotent.
@@ -718,22 +718,18 @@ Deno.serve(async (req: Request) => {
           if (typeof content === "string" && /^falar com assistente$/i.test(content.trim())) {
             const { error: reactivateError } = await supabase
               .from("whatsapp_conversations")
-              .update({ status: "atendimento_ia", updated_at: new Date().toISOString() })
+              .update({ status: "aguardando_escolha", updated_at: new Date().toISOString() })
               .eq("id", conversation.id);
             if (reactivateError) {
               console.error("Customer AI reactivation failed:", reactivateError.message);
               continue;
             }
             await updateMessageMetadata(supabase, providerId, {
-              menu_choice: "customer_reactivated_assistant",
-              ai_status: "awaiting_next_message",
+              menu_choice: "customer_opened_assistant_menu",
+              ai_status: "waiting_for_service_choice",
             });
-            await sendWhatsAppText(
-              supabase,
-              conversation.id,
-              phone,
-              "Perfeito! 😊 Sou a Assistente do Instrutor Marcus e vou continuar seu atendimento. Como posso ajudar?",
-            );
+            await sendAttendanceMenu(supabase, conversation.id, phone);
+            menusSent++;
             continue;
           }
 
