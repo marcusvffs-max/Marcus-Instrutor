@@ -1,13 +1,14 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v6-login";
+const CACHE_NAME = "marcus-instrutor-v7-whatsapp-panel";
 
 const ARQUIVOS = [
   "./",
   "./index.html",
-  "./style.css?v=login-v1",
+  "./style.css?v=whatsapp-panel-v1",
   "./script.js?v=login-v1",
   "./contratos.js?v=contratos30",
+  "./whatsapp-panel.js?v=whatsapp-panel-v1",
   "./manifest.json"
 ];
 
