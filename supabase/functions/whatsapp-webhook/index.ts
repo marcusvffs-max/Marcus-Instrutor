@@ -167,6 +167,7 @@ async function sendInteractiveServiceMenu(
         { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir a taxa do exame de legislação no Detran-MG." },
         { id: "service_driving_fee", title: "Taxa exame direção", description: "Como emitir a taxa do exame de direção no Detran-MG." },
         { id: "service_other", title: "Outros assuntos", description: "Tirar dúvidas sobre outros assuntos." },
+        { id: "menu_main", title: "Voltar ao menu principal", description: "Retornar às opções principais de atendimento." },
       ];
 
   const menu = {
@@ -220,6 +221,48 @@ async function sendSecondServiceMenu(
   await sendInteractiveServiceMenu(supabase, conversationId, recipient, "complementar");
 }
 
+async function sendReturnToMainMenu(
+  supabase: ReturnType<typeof getAdminClient>,
+  conversationId: string,
+  recipient: string,
+) {
+  const navigationMenu = {
+    type: "interactive",
+    interactive: {
+      type: "list",
+      body: { text: "Se desejar consultar outro serviço, você pode voltar ao menu principal:" },
+      footer: { text: "Escolha quando quiser continuar." },
+      action: {
+        button: "Voltar ao menu",
+        sections: [{
+          title: "Navegação",
+          rows: [{
+            id: "menu_main",
+            title: "Voltar ao menu principal",
+            description: "Retornar às opções principais de atendimento.",
+          }],
+        }],
+      },
+    },
+  };
+
+  const sent = await sendWhatsAppPayload(
+    supabase,
+    conversationId,
+    recipient,
+    navigationMenu,
+    "Opção para voltar ao menu principal",
+  );
+  if (!sent) {
+    await sendWhatsAppText(
+      supabase,
+      conversationId,
+      recipient,
+      'Para consultar outro serviço, responda "Voltar ao menu principal".',
+    );
+  }
+}
+
 function readMenuChoice(message: any, content: unknown): string | null {
   const choiceId = String(
     message.interactive?.list_reply?.id ??
@@ -231,6 +274,7 @@ function readMenuChoice(message: any, content: unknown): string | null {
   const validChoices = new Set([
     "menu_talk_marcus",
     "menu_second",
+    "menu_main",
     "service_packages",
     "service_contract",
     "service_schedule",
@@ -249,6 +293,7 @@ function readMenuChoice(message: any, content: unknown): string | null {
   if (/^(falar com assistente|continuar|continuar com ia|continuar com o assistente|assistente virtual)$/i.test(text)) return "ia";
   if (/^(1|marcus|falar com instrutor|falar com marcus|atendimento humano)$/i.test(text)) return "humano";
   if (/^(ver segundo menu|segundo menu|mais opções|mais opcoes)$/i.test(text)) return "menu_second";
+  if (/^(voltar ao menu principal|menu principal|voltar ao início|voltar ao inicio)$/i.test(text)) return "menu_main";
   if (/^(2|consultar pacotes e valores|pacotes e valores)$/i.test(text)) return "service_packages";
   if (/^(3|contratar serviços|contratar servicos)$/i.test(text)) return "service_contract";
   if (/^(4|agendar aulas)$/i.test(text)) return "service_schedule";
@@ -526,7 +571,7 @@ async function processIncomingMessage(
     const customerReply = (needsApproval
       ? "Recebi sua solicitação! 😊 Vou encaminhá-la para análise do Instrutor Marcus. Nenhuma alteração será realizada sem a aprovação dele."
       : (analysis.reply_suggestion.trim() || "Como posso ajudar com sua habilitação?")) +
-      "\\n\\nPara consultar outra opção, envie *Falar com assistente*. Assim eu reabro o menu para você.";
+      "\\n\\nPara consultar outro serviço, selecione *Voltar ao menu principal*.";
 
     const replySent = await sendWhatsAppText(
       supabase,
@@ -539,6 +584,7 @@ async function processIncomingMessage(
       reply_sent_at: replySent ? new Date().toISOString() : null,
       reply_type: needsApproval ? "approval_required_acknowledgement" : "gemini_answer",
     });
+    if (replySent) await sendReturnToMainMenu(supabase, conversationId, phone);
     if (!replySent) console.error("AI reply could not be delivered to WhatsApp.");
     return needsApproval ? "pending_approval" : (replySent ? "reply_sent" : "reply_send_failed");
   } catch (error) {
@@ -734,6 +780,25 @@ Deno.serve(async (req: Request) => {
             continue;
           }
 
+          // Return to the main menu from any active assistant state.
+          if (menuChoice === "menu_main") {
+            const { error: mainMenuStateError } = await supabase
+              .from("whatsapp_conversations")
+              .update({ status: "aguardando_escolha", updated_at: new Date().toISOString() })
+              .eq("id", conversation.id);
+            if (mainMenuStateError) {
+              console.error("Main menu state update failed:", mainMenuStateError.message);
+              continue;
+            }
+            await updateMessageMetadata(supabase, providerId, {
+              menu_choice: "return_to_main_menu",
+              ai_status: "waiting_for_service_choice",
+            });
+            await sendAttendanceMenu(supabase, conversation.id, phone);
+            menusSent++;
+            continue;
+          }
+
           // The interactive list reply is authoritative: open the second menu
           // even if an older conversation has an outdated status in the database.
           if (menuChoice === "menu_second") {
@@ -779,7 +844,7 @@ Deno.serve(async (req: Request) => {
                   "O Portal MG informa o valor de R$ 115,80 para essa taxa. O PIX tem compensação instantânea; o boleto pode levar até 2 dias úteis. Atenção: boletos pagos fora da rede bancária credenciada podem não ser reconhecidos.\n\n" +
                   "Depois que o pagamento for compensado, você poderá agendar a coleta biométrica, o exame médico e a avaliação psicológica.\n\n" +
                   "Por segurança, informe CPF e outros dados pessoais somente no site oficial do Governo de Minas. Não envie esses dados por esta conversa. 😊\n\n" +
-                  "Fonte oficial: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc\\n\\nPara consultar outra opção, envie *Falar com assistente*. Assim eu reabro o menu para você.";
+                  "Fonte oficial: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc";
                 const sent = await sendWhatsAppText(
                   supabase,
                   conversation.id,
@@ -791,6 +856,7 @@ Deno.serve(async (req: Request) => {
                   reply_type: "registration_fee_instructions",
                   reply_sent: sent,
                 });
+                if (sent) await sendReturnToMainMenu(supabase, conversation.id, phone);
                 continue;
               }
 
@@ -807,7 +873,7 @@ Deno.serve(async (req: Request) => {
                   "• Avaliação psicológica: R$ 232,23, paga diretamente na clínica. É uma etapa separada do exame médico.\n\n" +
                   "A clínica deve informar o resultado em até 2 dias úteis. Se não puder comparecer, é possível marcar uma nova data sem custo adicional.\n\n" +
                   "Consulte as orientações e faça o agendamento somente pelos canais oficiais: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc\n\n" +
-                  "Por segurança, não envie CPF, documentos ou dados pessoais por esta conversa.\\n\\nPara consultar outra opção, envie *Falar com assistente*. Assim eu reabro o menu para você.";
+                  "Por segurança, não envie CPF, documentos ou dados pessoais por esta conversa.";
                 const sent = await sendWhatsAppText(
                   supabase,
                   conversation.id,
@@ -819,6 +885,7 @@ Deno.serve(async (req: Request) => {
                   reply_type: "medical_exam_information",
                   reply_sent: sent,
                 });
+                if (sent) await sendReturnToMainMenu(supabase, conversation.id, phone);
                 continue;
               }
 
@@ -836,8 +903,9 @@ Deno.serve(async (req: Request) => {
                   supabase,
                   conversation.id,
                   phone,
-                  `Você selecionou: ${selectedService}. 😊\\n\\nA Assistente Virtual está temporariamente pausada durante a configuração. Para consultar outra opção, envie “Falar com assistente”. Se desejar atendimento humano, escolha “Falar com Instrutor”.`,
+                  `Você selecionou: ${selectedService}. 😊\\n\\nA Assistente Virtual está temporariamente pausada durante a configuração. Se desejar consultar outro serviço, selecione “Voltar ao menu principal”. Se preferir atendimento humano, escolha “Falar com Instrutor”.`,
                 );
+                await sendReturnToMainMenu(supabase, conversation.id, phone);
               }
               continue;
             }
