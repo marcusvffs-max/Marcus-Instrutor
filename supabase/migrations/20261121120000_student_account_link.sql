@@ -1,6 +1,6 @@
 -- Vínculo exclusivo entre o cadastro do aluno e sua conta autenticada.
--- Não faz backfill automático: contas antigas só serão associadas pelo fluxo seguro
--- de primeiro acesso, quando o e-mail confirmado identificar exatamente um cadastro.
+-- Contas novas são vinculadas somente pelo convite validado no trigger abaixo.
+-- Contas antigas nunca são associadas automaticamente apenas por correspondência de e-mail.
 
 ALTER TABLE public.students
   ADD COLUMN IF NOT EXISTS user_id uuid
@@ -33,8 +33,6 @@ SET search_path TO ''
 AS $function$
 DECLARE
   current_user_id uuid := auth.uid();
-  current_email text;
-  matched_student_id uuid;
 BEGIN
   IF current_user_id IS NULL THEN
     RAISE EXCEPTION 'Autenticação necessária.' USING ERRCODE = '42501';
@@ -50,34 +48,8 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  -- Compatibilidade segura com contas antigas: só associa se o e-mail
-  -- estiver confirmado e corresponder a um único cadastro em toda a base.
-  IF NOT EXISTS (
-    SELECT 1 FROM public.students s WHERE s.user_id = current_user_id
-  ) THEN
-    SELECT lower(btrim(u.email))
-      INTO current_email
-    FROM auth.users u
-    WHERE u.id = current_user_id
-      AND u.email_confirmed_at IS NOT NULL
-      AND u.email IS NOT NULL
-    LIMIT 1;
-
-    IF COALESCE(current_email, '') <> '' THEN
-      SELECT (array_agg(s.id))[1]
-        INTO matched_student_id
-      FROM public.students s
-      WHERE lower(btrim(COALESCE(s.email, ''))) = current_email
-      HAVING count(*) = 1;
-
-      IF matched_student_id IS NOT NULL THEN
-        UPDATE public.students
-        SET user_id = current_user_id
-        WHERE id = matched_student_id
-          AND user_id IS NULL;
-      END IF;
-    END IF;
-  END IF;
+  -- Não existe fallback por e-mail: somente o trigger de convite validado
+  -- pode criar o vínculo. Contas antigas sem user_id não recebem aulas.
 
   -- A primeira consulta autenticada confirma que o aluno concluiu o acesso.
   UPDATE public.students
