@@ -115,10 +115,10 @@
       const status = String(student.status || "em_aberto").toLowerCase();
       const statusClass = status === "aprovado" ? "student-status-approved" :
         status === "finalizado" ? "student-status-finished" : "student-status-open";
-      const accountStatus = student.user_id ? "Conta vinculada" :
-        student.invited_at ? "Convite enviado · aguardando cadastro" : "Sem convite";
-      const accountClass = student.user_id ? "student-status-approved" :
-        student.invited_at ? "student-status-open" : "";
+      const accountStatus = student.invited_at ? "Convite enviado · aguardando cadastro" :
+        student.user_id ? "Conta vinculada" : "Sem convite";
+      const accountClass = student.invited_at ? "student-status-open" :
+        student.user_id ? "student-status-approved" : "";
       const inviteButton = student.user_id
         ? ""
         : student.invited_at
@@ -1301,10 +1301,10 @@
       if (button.dataset.studentAction === "edit") openStudentForm(student);
       if (button.dataset.studentAction === "delete") deleteStudent(id);
       if (button.dataset.studentAction === "view-link") {
-        const situation = student.user_id
-          ? "Conta vinculada com sucesso ao cadastro deste aluno."
-          : student.invited_at
-            ? "Convite enviado. O vínculo será concluído quando o aluno aceitar o convite e finalizar o acesso."
+        const situation = student.invited_at
+          ? "Convite enviado. A conta já está reservada para este cadastro; o vínculo será confirmado quando o aluno aceitar e concluir o primeiro acesso."
+          : student.user_id
+            ? "Conta vinculada com sucesso ao cadastro deste aluno."
             : "Nenhum convite enviado. A conta será vinculada automaticamente ao cadastro correto após o convite.";
         window.alert("Vínculo da conta do aluno\\n\\n" + student.nome + "\\n" +
           (student.email || "E-mail não informado") + "\\n\\nSituação: " + situation);
