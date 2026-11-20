@@ -44,10 +44,11 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 - [ ] **INV-24 — Link de confirmação usado por outra conta:** o servidor recusa se o e-mail autenticado não corresponder ao e-mail reservado; nenhum vínculo é alterado.
 - [ ] **INV-25 — Link expirado, token incorreto ou reserva substituída:** a reserva vence em 15 minutos; HTTP 409/400; nenhum vínculo é criado. Após expirar, o instrutor pode reenviar a confirmação (atualize a lista se o botão ainda estiver desabilitado).
 - [ ] **INV-26 — E-mail existente sem confirmação ou perfil ausente/incompatível:** o servidor recusa e orienta verificação administrativa; não cria conta, não muda papel e não associa cadastro.
-- [ ] **INV-27 — Duas confirmações simultâneas para a mesma reserva:** somente uma atualização condicional pode concluir; a segunda recebe conflito.
+- [ ] **INV-27 — Duas confirmações simultâneas para a mesma reserva:** somente uma atualização condicional grava o vínculo; uma repetição pela mesma conta recebe sucesso idempotente, enquanto outra conta recebe conflito.
 - [ ] **INV-28 — Falha SMTP ao enviar confirmação para conta existente:** preserva a conta Auth e libera apenas a reserva daquela tentativa; não apaga nem altera a conta.
 - [ ] **INV-29 — Solicitação iniciada por instrutor para e-mail incorreto:** confirmar que o instrutor precisa conferir explicitamente com o aluno o endereço antes de enviar; somente o titular do endereço pode abrir o link. Não executar com dados reais.
 - [ ] **INV-30 — Antes da confirmação do titular:** comparar os campos de `profiles` e `students` antes e depois do envio do link. Somente `students.invited_at` e `students.invite_attempt_id` podem ficar reservados; `students.user_id`, `profiles.nome` e `profiles.role` não devem ser alterados pelo fluxo legado antes do clique.
+- [ ] **INV-31 — Resposta perdida após confirmação gravada:** simular interrupção da resposta HTTP depois do `UPDATE` de `students`. Repetir a mesma tentativa pela mesma conta deve retornar sucesso sem novo vínculo; repetir por outra conta deve falhar. O primeiro acesso à RPC limpa o identificador de tentativa usado para a resposta idempotente.
 
 ## Verificações de banco
 
