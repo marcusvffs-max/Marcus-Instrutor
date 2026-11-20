@@ -541,7 +541,7 @@ footer { padding:20px; text-align:center; color:var(--muted); font-size:12px; }
   }
 
   body.printing-contract .contract-sheet main {
-    font-size:10pt !important;
+    font-size:9pt !important;
     line-height:1.5 !important;
     text-align:justify !important;
   }
