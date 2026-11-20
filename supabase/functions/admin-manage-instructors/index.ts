@@ -89,6 +89,38 @@ Deno.serve(async (req: Request) => {
       return response({ ok: true, users });
     }
 
+    if (body.action === "change_role") {
+      const userId = typeof body.user_id === "string" ? body.user_id.trim() : "";
+      const newRole = body.role;
+      if (!/^[0-9a-f-]{36}$/i.test(userId)) {
+        return response({ error: "Usuário inválido." }, 400);
+      }
+      if (userId === authData.user.id) {
+        return response({ error: "Por segurança, você não pode alterar seu próprio tipo de acesso." }, 400);
+      }
+      if (newRole !== "instrutor" && newRole !== "usuario" && newRole !== "admin") {
+        return response({ error: "Selecione um tipo de acesso válido." }, 400);
+      }
+      const { data: targetProfile, error: targetProfileError } = await admin
+        .from("profiles").select("id, role").eq("id", userId).maybeSingle();
+      if (targetProfileError) throw targetProfileError;
+      if (!targetProfile) {
+        return response({ error: "O perfil deste usuário não foi encontrado." }, 404);
+      }
+      if (targetProfile.role === "admin" && newRole !== "admin") {
+        const { count, error: countError } = await admin
+          .from("profiles").select("id", { count: "exact", head: true }).eq("role", "admin");
+        if (countError) throw countError;
+        if ((count ?? 0) <= 1) {
+          return response({ error: "Não é possível retirar o acesso de administrador do único administrador do sistema." }, 400);
+        }
+      }
+      const { error: updateError } = await admin.from("profiles")
+        .update({ role: newRole }).eq("id", userId);
+      if (updateError) throw updateError;
+      return response({ ok: true, message: "Tipo de acesso alterado com sucesso." });
+    }
+
     if (body.action === "delete") {
       const userId = typeof body.user_id === "string" ? body.user_id.trim() : "";
       if (!/^[0-9a-f-]{36}$/i.test(userId)) {
