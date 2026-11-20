@@ -10,6 +10,7 @@
     user: null,
     profile: null,
     students: [],
+    studentLinkFieldsAvailable: false,
     lessons: [],
     vehicles: [],
     transactions: [],
@@ -115,11 +116,13 @@
       const status = String(student.status || "em_aberto").toLowerCase();
       const statusClass = status === "aprovado" ? "student-status-approved" :
         status === "finalizado" ? "student-status-finished" : "student-status-open";
-      const accountStatus = student.invited_at ? "Convite enviado · aguardando cadastro" :
-        student.user_id ? "Conta vinculada" : "Sem convite";
-      const accountClass = student.invited_at ? "student-status-open" :
-        student.user_id ? "student-status-approved" : "";
-      const inviteButton = student.user_id
+      const accountStatus = !state.studentLinkFieldsAvailable
+        ? "Vínculo indisponível durante a atualização"
+        : student.invited_at ? "Convite enviado · aguardando cadastro"
+        : student.user_id ? "Conta vinculada" : "Sem convite";
+      const accountClass = state.studentLinkFieldsAvailable && student.invited_at ? "student-status-open" :
+        state.studentLinkFieldsAvailable && student.user_id ? "student-status-approved" : "";
+      const inviteButton = !state.studentLinkFieldsAvailable || student.user_id
         ? ""
         : student.invited_at
           ? '<button class="button button-outline button-small" type="button" disabled>Convite enviado</button>'
@@ -947,7 +950,7 @@
   async function loadOwnData() {
     const [studentsResult, lessonsResult, vehiclesResult] = await Promise.all([
       state.supabase.from("students")
-        .select("id,nome,email,telefone,cpf,endereco,categoria,status,aulas_compradas,aulas_restantes,user_id,invited_at")
+        .select("id,nome,email,telefone,cpf,endereco,categoria,status,aulas_compradas,aulas_restantes")
         .order("nome", { ascending: true }),
       state.supabase.from("lessons")
         .select("id,student_id,data_aula,horario,numero_aula,status,vehicle_id,observacoes")
@@ -962,6 +965,28 @@
     if (firstError) throw firstError;
 
     state.students = studentsResult.data || [];
+    state.studentLinkFieldsAvailable = true;
+    if (state.students.length) {
+      const linkFieldsResult = await state.supabase.from("students")
+        .select("id,user_id,invited_at")
+        .in("id", state.students.map(student => student.id));
+      if (linkFieldsResult.error) {
+        const errorCode = String(linkFieldsResult.error.code || "");
+        const errorMessage = String(linkFieldsResult.error.message || "").toLowerCase();
+        const missingLinkColumns = errorCode === "42703" || errorCode === "PGRST204" ||
+          ((errorMessage.includes("user_id") || errorMessage.includes("invited_at")) &&
+            (errorMessage.includes("column") || errorMessage.includes("schema cache")));
+        if (!missingLinkColumns) throw linkFieldsResult.error;
+        state.studentLinkFieldsAvailable = false;
+      } else {
+        const linkFieldsById = new Map((linkFieldsResult.data || []).map(item => [item.id, item]));
+        state.students = state.students.map(student => ({
+          ...student,
+          user_id: linkFieldsById.get(student.id)?.user_id || null,
+          invited_at: linkFieldsById.get(student.id)?.invited_at || null
+        }));
+      }
+    }
     state.lessons = lessonsResult.data || [];
     state.vehicles = vehiclesResult.data || [];
 
@@ -1301,6 +1326,10 @@
       if (button.dataset.studentAction === "edit") openStudentForm(student);
       if (button.dataset.studentAction === "delete") deleteStudent(id);
       if (button.dataset.studentAction === "view-link") {
+        if (!state.studentLinkFieldsAvailable) {
+          window.alert("O recurso de vínculo de contas estará disponível assim que a atualização do banco for concluída. Seus dados e aulas continuam acessíveis.");
+          return;
+        }
         const situation = student.invited_at
           ? "Convite enviado. A conta já está reservada para este cadastro; o vínculo será confirmado quando o aluno aceitar e concluir o primeiro acesso."
           : student.user_id
