@@ -102,6 +102,31 @@ BEGIN
 END;
 $function$;
 
+-- Ao excluir uma conta Auth, libera também o cadastro do aluno para novo convite.
+-- O BEFORE DELETE limpa os dois campos antes da ação automática da FK.
+CREATE OR REPLACE FUNCTION private.clear_student_account_link_on_user_delete()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+BEGIN
+  UPDATE public.students
+  SET user_id = NULL,
+      invited_at = NULL
+  WHERE user_id = OLD.id;
+
+  RETURN OLD;
+END;
+$function$;
+
+DROP TRIGGER IF EXISTS clear_student_account_link_on_user_delete ON auth.users;
+
+CREATE TRIGGER clear_student_account_link_on_user_delete
+BEFORE DELETE ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION private.clear_student_account_link_on_user_delete();
+
 CREATE OR REPLACE FUNCTION public.get_my_scheduled_lessons()
 RETURNS TABLE(
   lesson_id uuid,
