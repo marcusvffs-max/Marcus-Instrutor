@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v14-recuperacao-convite";
+const CACHE_NAME = "marcus-instrutor-v15-conta-sem-vinculo";
 
 const ARQUIVOS = [
   "./",
