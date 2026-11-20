@@ -98,8 +98,38 @@
         info.append(create("small", {}, user.email || "Sem e-mail"));
         const role = create("span", { class: "users-role" }, user.role === "admin" ? "Administrador" : user.role === "instrutor" ? "Instrutor" : user.role === "usuario" ? "Usuário" : "Sem perfil");
         const controls = create("div", { class: "users-item-actions" });
+        const roleEditor = create("select", { "aria-label": "Alterar tipo de acesso de " + (user.nome || user.email) });
+        [
+          ["instrutor", "Instrutor"],
+          ["usuario", "Usuário"],
+          ["admin", "Administrador"],
+        ].forEach(([value, label]) => {
+          const option = create("option", { value }, label);
+          if (value === user.role) option.selected = true;
+          roleEditor.append(option);
+        });
+        const saveRole = create("button", { class: "users-resend", type: "button" }, "Salvar acesso");
         const resend = create("button", { class: "users-resend", type: "button" }, "Reenviar acesso");
         const remove = create("button", { class: "users-delete", type: "button" }, "Excluir");
+        saveRole.addEventListener("click", async () => {
+          if (roleEditor.value === user.role) {
+            message.textContent = "Esse usuário já possui esse tipo de acesso.";
+            return;
+          }
+          const selectedLabel = roleEditor.options[roleEditor.selectedIndex].textContent;
+          if (!window.confirm(`Alterar o acesso de ${user.nome || user.email} para ${selectedLabel}?`)) return;
+          saveRole.disabled = true;
+          saveRole.textContent = "Salvando...";
+          try {
+            const result = await call("change_role", { user_id: user.id, role: roleEditor.value });
+            message.textContent = result.message || "Tipo de acesso alterado com sucesso.";
+            await loadUsers();
+          } catch (error) {
+            message.textContent = error.message;
+            saveRole.disabled = false;
+            saveRole.textContent = "Salvar acesso";
+          }
+        });
         resend.addEventListener("click", async () => {
           if (!window.confirm(`Enviar um novo link de acesso para ${user.email}?`)) return;
           resend.disabled = true;
@@ -128,7 +158,7 @@
             remove.textContent = "Excluir";
           }
         });
-        controls.append(resend, remove);
+        controls.append(roleEditor, saveRole, resend, remove);
         item.append(info, role, controls);
         list.append(item);
       });
