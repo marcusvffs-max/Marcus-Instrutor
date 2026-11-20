@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#12345a">
   <meta name="description" content="Área do instrutor - Marcus Instrutor">
   <title>Área do Instrutor | Marcus Instrutor</title>
-  <link rel="stylesheet" href="instrutor.css?v=3">
+  <link rel="stylesheet" href="instrutor.css?v=4">
 </head>
 <body>
   <div class="app-shell">
@@ -22,19 +22,19 @@
     </header>
 
     <main class="content">
-      <section class="intro">
+      <section class="intro" data-view="inicio">
         <span class="eyebrow">ÁREA DO INSTRUTOR</span>
         <h2>Meus alunos e relatórios</h2>
         <p>Cadastre seus alunos, mantenha os dados atualizados e consulte suas aulas.</p>
       </section>
 
-      <section class="summary-grid" aria-label="Resumo das aulas">
+      <section class="summary-grid" data-view="inicio" aria-label="Resumo das aulas">
         <article class="summary-card"><span>Total de alunos</span><strong id="totalAlunos">—</strong></article>
         <article class="summary-card"><span>Aulas realizadas</span><strong id="totalRealizadas">—</strong></article>
         <article class="summary-card"><span>Aulas agendadas</span><strong id="totalAgendadas">—</strong></article>
       </section>
 
-      <section class="panel students-panel">
+      <section class="panel students-panel" data-view="alunos">
         <div class="section-heading">
           <div>
             <h3>Meus alunos</h3>
@@ -101,7 +101,7 @@
         </div>
       </section>
 
-      <section class="panel vehicles-panel">
+      <section class="panel vehicles-panel" data-view="veiculos">
         <div class="section-heading">
           <div>
             <h3>Meus veículos</h3>
@@ -150,7 +150,7 @@
         </div>
       </section>
 
-      <section class="panel lessons-panel">
+      <section class="panel lessons-panel" data-view="aulas">
         <div class="section-heading">
           <div>
             <h3>Agendamento e gerenciamento de aulas</h3>
@@ -204,7 +204,7 @@
         </div>
       </section>
 
-      <section class="report-grid">
+      <section class="report-grid" data-view="relatorios">
         <article class="panel">
           <h3>Relatório por aluno</h3>
           <label for="filtroAluno">Aluno</label>
@@ -229,15 +229,22 @@
         </article>
       </section>
 
-      <section id="resultado" class="panel result-panel" aria-live="polite">
+      <section id="resultado" data-view="relatorios" class="panel result-panel" aria-live="polite">
         <div class="empty-state">Escolha um dos relatórios acima para começar.</div>
       </section>
       <p id="mensagem" class="message" role="status" aria-live="polite"></p>
     </main>
+    <nav class="bottom-menu" aria-label="Menu principal do instrutor">
+      <button type="button" data-instructor-page="inicio" class="menu-item active"><span class="menu-icon">⌂</span><span>Início</span></button>
+      <button type="button" data-instructor-page="alunos" class="menu-item"><span class="menu-icon">♙</span><span>Alunos</span></button>
+      <button type="button" data-instructor-page="veiculos" class="menu-item"><span class="menu-icon">▣</span><span>Veículos</span></button>
+      <button type="button" data-instructor-page="aulas" class="menu-item"><span class="menu-icon">▦</span><span>Aulas</span></button>
+      <button type="button" data-instructor-page="relatorios" class="menu-item"><span class="menu-icon">▤</span><span>Relatórios</span></button>
+    </nav>
     <footer>Marcus Instrutor · Área restrita</footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="instrutor.js?v=3"></script>
+  <script src="instrutor.js?v=4"></script>
 </body>
 </html>
