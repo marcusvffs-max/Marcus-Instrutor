@@ -47,6 +47,7 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 - [ ] **INV-27 — Duas confirmações simultâneas para a mesma reserva:** somente uma atualização condicional pode concluir; a segunda recebe conflito.
 - [ ] **INV-28 — Falha SMTP ao enviar confirmação para conta existente:** preserva a conta Auth e libera apenas a reserva daquela tentativa; não apaga nem altera a conta.
 - [ ] **INV-29 — Solicitação iniciada por instrutor para e-mail incorreto:** confirmar que o instrutor precisa conferir explicitamente com o aluno o endereço antes de enviar; somente o titular do endereço pode abrir o link. Não executar com dados reais.
+- [ ] **INV-30 — Antes da confirmação do titular:** comparar os campos de `profiles` e `students` antes e depois do envio do link. Somente `students.invited_at` e `students.invite_attempt_id` podem ficar reservados; `students.user_id`, `profiles.nome` e `profiles.role` não devem ser alterados pelo fluxo legado antes do clique.
 
 ## Verificações de banco
 
