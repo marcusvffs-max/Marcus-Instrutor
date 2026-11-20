@@ -130,3 +130,14 @@ O SQL de revisão agora inclui a função e o trigger, mas permanece documento n
 Ver:
 - `docs/desenho-corrigido-trigger-auth-perfis.md`
 - `docs/rascunho-seguranca-relatorios-instrutor-revisado.sql`
+
+
+## Auditoria complementar de defaults e memberships (20/11/2026)
+
+A nova leitura de `pg_default_acl` confirmou defaults amplos para objetos futuros no schema `public`, criados por `postgres` e `supabase_admin`. Há permissões amplas de tabelas, sequences e EXECUTE em funções para papéis de API; os defaults de `supabase_admin` também incluem `anon`.
+
+Não foi feito REVOKE global. A ação correta é controlar grants em cada migration de objeto da aplicação e revisar o owner efetivo que cria cada objeto. Não alterar defaults globais gerenciados pelo Supabase sem plano específico e autorização.
+
+A auditoria de memberships não encontrou usuário final herdando diretamente `service_role`; `authenticator` tem memberships com `INHERIT=false` e `SET=true`, compatível com a troca de papel do PostgREST. Não remover memberships internas.
+
+Documento: `docs/auditoria-final-default-privileges-e-roles.md`.
