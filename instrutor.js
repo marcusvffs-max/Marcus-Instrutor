@@ -1306,8 +1306,8 @@
           : student.user_id
             ? "Conta vinculada com sucesso ao cadastro deste aluno."
             : "Nenhum convite enviado. A conta será vinculada automaticamente ao cadastro correto após o convite.";
-        window.alert("Vínculo da conta do aluno\\n\\n" + student.nome + "\\n" +
-          (student.email || "E-mail não informado") + "\\n\\nSituação: " + situation);
+        window.alert("Vínculo da conta do aluno\n\n" + student.nome + "\n" +
+          (student.email || "E-mail não informado") + "\n\nSituação: " + situation);
       }
       if (button.dataset.studentAction === "invite") {
         if (!student.email) {
