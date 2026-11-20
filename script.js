@@ -3226,6 +3226,7 @@ async function carregarDadosAdminSupabase() {
   const alunos = dados.students.map(a => ({
     id: a.id,
     nome: a.nome || "",
+    email: a.email || "",
     telefone: a.telefone || "",
     cpf: a.cpf || "",
     endereco: a.endereco || "",
