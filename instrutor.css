@@ -154,3 +154,38 @@ footer { padding:20px; text-align:center; color:var(--muted); font-size:12px; }
   .bottom-menu { display: none !important; }
   .content { padding-bottom: 0; }
 }
+
+
+/* Agenda resumida na tela inicial */
+.dashboard-lessons { margin-top: 18px; }
+.button-success { color: #fff; background: #16794b; }
+.upcoming-lessons { display: grid; gap: 10px; }
+.upcoming-lesson-card {
+  display: grid;
+  grid-template-columns: 105px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: #fbfcfe;
+}
+.upcoming-lesson-date {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--primary);
+}
+.upcoming-lesson-date strong { font-size: 14px; }
+.upcoming-lesson-date span { color: var(--muted); font-size: 13px; }
+.upcoming-lesson-info { display: grid; gap: 4px; min-width: 0; }
+.upcoming-lesson-info strong { overflow-wrap: anywhere; }
+.upcoming-lesson-info span,
+.upcoming-lesson-info small { color: var(--muted); font-size: 12px; }
+.upcoming-lesson-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+@media (max-width: 620px) {
+  .upcoming-lesson-card { grid-template-columns: 1fr; gap: 9px; }
+  .upcoming-lesson-date { flex-direction: row; align-items: baseline; gap: 10px; }
+  .upcoming-lesson-actions { justify-content: stretch; }
+  .upcoming-lesson-actions .button { flex: 1; }
+}
