@@ -819,6 +819,87 @@
     }
   }
 
+
+  function updateInstructorContractStudentSelect() {
+    const select = el("contratoAlunoInstrutor");
+    if (!select) return;
+    const selected = select.value;
+    select.innerHTML = '<option value="">Preencher manualmente</option>' +
+      state.students.map(student => '<option value="' + escapeHtml(student.id) + '">' + escapeHtml(student.nome) + '</option>').join("");
+    if (state.students.some(student => student.id === selected)) select.value = selected;
+  }
+
+  function fillInstructorContractStudent() {
+    const student = state.students.find(item => item.id === el("contratoAlunoInstrutor").value);
+    if (!student) return;
+    el("contratoNomeAluno").value = student.nome || "";
+    el("contratoCpfAluno").value = student.cpf || "";
+    el("contratoCategoriaAluno").value = student.categoria || "";
+  }
+
+  function moneyInWordsForContract(value) {
+    const amount = Math.round((Number(value) + Number.EPSILON) * 100);
+    const units = ["zero","um","dois","três","quatro","cinco","seis","sete","oito","nove"];
+    const teens = ["dez","onze","doze","treze","quatorze","quinze","dezesseis","dezessete","dezoito","dezenove"];
+    const tens = ["","","vinte","trinta","quarenta","cinquenta","sessenta","setenta","oitenta","noventa"];
+    const hundreds = ["","cento","duzentos","trezentos","quatrocentos","quinhentos","seiscentos","setecentos","oitocentos","novecentos"];
+    function words999(n) {
+      if (n === 0) return "zero";
+      if (n === 100) return "cem";
+      const c = Math.floor(n / 100), r = n % 100;
+      let result = c ? hundreds[c] : "";
+      if (r) result += (result ? " e " : "") + (r < 10 ? units[r] : r < 20 ? teens[r - 10] : tens[Math.floor(r / 10)] + (r % 10 ? " e " + units[r % 10] : ""));
+      return result;
+    }
+    const reais = Math.floor(amount / 100), cents = amount % 100;
+    const realWords = reais < 1000 ? words999(reais) : String(reais);
+    const centsWords = cents ? (cents === 1 ? " um centavo" : " " + words999(cents) + " centavos") : "";
+    const formatted = (reais / 1000 >= 1 ? reais.toLocaleString("pt-BR") : String(reais)) + "," + String(cents).padStart(2, "0");
+    return "R$ " + formatted + " (" + (reais === 1 ? "um real" : realWords + " reais") + centsWords + ")";
+  }
+
+  function generateInstructorContract() {
+    const nome = el("contratoNomeAluno").value.trim();
+    const cpf = el("contratoCpfAluno").value.trim();
+    const categoria = el("contratoCategoriaAluno").value;
+    const aulas = Number(el("contratoQuantidadeAulas").value);
+    const valor = Number(el("contratoValor").value);
+    const pagamento = el("contratoPagamento").value.trim();
+    if (!nome || !cpf || !categoria || !Number.isInteger(aulas) || aulas < 1 ||
+        !Number.isFinite(valor) || valor <= 0 || !pagamento) {
+      showMessage("Preencha nome, CPF, categoria, quantidade de aulas, valor e forma de pagamento.");
+      return;
+    }
+    const city = el("contratoCidade").value.trim() || "________________________";
+    const instructor = state.profile?.nome || "Instrutor";
+    const cartao = el("contratoCartaoMoto").checked ? ", CARTÃO MOTO PISTA" : "";
+    const aluguel = el("contratoAluguelVeiculo").checked ? " E ALUGUEL DO VEÍCULO PARA EXAME" : "";
+    const money = moneyInWordsForContract(valor);
+    const safe = escapeHtml;
+    const clauses = [
+      "<h3>1. DO OBJETO E DO PAGAMENTO</h3><p>O CONTRATADO compromete-se a fornecer ao CONTRATANTE aulas práticas de direção veicular para a categoria " + safe(categoria) + ", no total de " + aulas + " aulas" + safe(cartao) + safe(aluguel) + ". O CONTRATANTE pagará o valor de " + safe(money) + ", por meio de " + safe(pagamento) + ".</p>",
+      "<h3>2. OBRIGAÇÕES DO CONTRATADO</h3><p>Disponibilizar as aulas práticas contratadas e veículo em condições adequadas de uso, conforme disponibilidade e agendamento entre as partes.</p>",
+      "<h3>3. OBRIGAÇÕES DO CONTRATANTE</h3><p>3.1. Arcar com taxas de novos exames e com custos de aluguel do veículo para retestes, quando aplicáveis e previamente informados.</p><p>3.2. Comparecer pontualmente às aulas, portando os documentos exigidos e utilizando vestimenta e calçado adequados.</p><p>3.3. Comunicar impossibilidade de comparecimento com antecedência mínima de 24 horas para solicitar transferência da aula, sujeita à disponibilidade. A ausência sem aviso poderá implicar cobrança de nova aula, conforme condições previamente acordadas.</p><p>3.4. Manter seus dados de contato atualizados e seguir as orientações de segurança durante as aulas.</p>",
+      "<h3>4. CONDIÇÕES GERAIS</h3><p>4.1. Datas de exames e disponibilidade de vagas dependem do órgão de trânsito competente, não sendo garantidas pelo CONTRATADO.</p><p>4.2. A duração de cada aula será de 50 minutos, salvo ajuste expresso entre as partes.</p><p>4.3. Cancelamento, reembolso, transferência de aulas e eventuais custos administrativos deverão observar a legislação aplicável e as condições informadas e aceitas pelas partes.</p>",
+      "<p class='contract-place-date'>" + safe(city) + ", ______ de __________________ de __________.</p><div class='contract-signatures'><div><span></span><strong>" + safe(instructor) + "</strong><small>CONTRATADO(A) / INSTRUTOR(A)</small></div><div><span></span><strong>" + safe(nome) + "</strong><small>CONTRATANTE / ALUNO(A) · CPF " + safe(cpf) + "</small></div></div>"
+    ];
+    el("contratoPreviewInstrutor").innerHTML =
+      '<article class="contract-sheet"><header><h2>' + safe(instructor) + '</h2><p>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</p></header>' +
+      '<main><p><strong>CONTRATANTE:</strong> ' + safe(nome) + '</p><p><strong>CPF:</strong> ' + safe(cpf) + '</p>' +
+      '<p>As partes identificadas celebram o presente contrato de prestação de serviços, mediante as condições abaixo.</p>' +
+      clauses.join("") + '</main></article>';
+    showMessage("Pré-visualização do contrato gerada. Confira todos os dados antes de imprimir.", false);
+  }
+
+  function printInstructorContract() {
+    if (!el("contratoPreviewInstrutor").querySelector(".contract-sheet")) {
+      showMessage("Gere a pré-visualização antes de imprimir.");
+      return;
+    }
+    document.body.classList.add("printing-contract");
+    window.print();
+  }
+
   async function loadOwnData() {
     const [studentsResult, lessonsResult, vehiclesResult] = await Promise.all([
       state.supabase.from("students")
@@ -855,6 +936,7 @@
     await loadFinancialData();
     await loadProductsAndSales();
     updateStudentSelect();
+    updateInstructorContractStudentSelect();
     const saleStudent = el("vendaAluno");
     saleStudent.innerHTML = '<option value="">Selecione um aluno</option>' + state.students.map(student => '<option value="' + escapeHtml(student.id) + '">' + escapeHtml(student.nome) + '</option>').join("");
     renderSales();
@@ -1162,6 +1244,9 @@
     el("filtroBuscaFinanceiro").addEventListener("input", event => { state.financialSearch = event.target.value; renderFinancial(); });
     el("movimentoData").value = localToday();
 
+    el("btnGerarContratoInstrutor").addEventListener("click", generateInstructorContract);
+    el("btnImprimirContratoInstrutor").addEventListener("click", printInstructorContract);
+    el("contratoAlunoInstrutor").addEventListener("change", fillInstructorContractStudent);
     el("btnRelatorioAluno").addEventListener("click", reportByStudent);
     el("btnRelatorioPeriodo").addEventListener("click", reportByPeriod);
     el("btnRelatorioDiario").addEventListener("click", reportDaily);
