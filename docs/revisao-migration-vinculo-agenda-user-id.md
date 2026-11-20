@@ -15,7 +15,7 @@ A função `private.get_my_scheduled_lessons_internal()` atualmente implantada:
 - seleciona aulas usando igualdade entre o e-mail do JWT e `students.email`;
 - não restringe o resultado a um único `owner_id` nem usa `students.user_id`.
 
-O catálogo real confirmou `USAGE` no schema `private` e `EXECUTE` da função interna para `authenticated`. O usuário `anon` não possui USAGE no schema.
+O catálogo real confirmou `USAGE` no schema `private` e `EXECUTE` da função interna para `authenticated`. O usuário `anon` não possui USAGE no schema. A RPC pública `public.get_my_scheduled_lessons()` também concede EXECUTE a authenticated e não a anon; sua definição atual é `STABLE SECURITY INVOKER` e chama a função interna privilegiada. Assim, a chamada pública autenticada alcança a função SECURITY DEFINER, que lê os cadastros sem a restrição RLS aplicada ao papel usuario.
 
 As policies reais de `students` e `lessons` permitem SELECT a admin/instrutor com `owner_id = auth.uid()`; não dão SELECT a perfil `usuario`. A função SECURITY DEFINER executa com privilégios do owner e, portanto, a leitura por e-mail contorna essa separação RLS.
 
@@ -30,7 +30,7 @@ Consulta somente SELECT, sem retornar e-mails, UUIDs, nomes ou outros identifica
 
 **Conclusão:** a condição necessária para cruzamento de agenda existe nos dados atuais. A função antiga pode devolver à mesma conta aulas associadas a cadastros de dois instrutores diferentes. A consulta foi agregada e não simulou login nem chamou a RPC; portanto, o vazamento pela função é fortemente sustentado pela definição SQL e pelos dados, mas não foi realizado teste de exploração autenticado.
 
-Classificação: **vulnerabilidade de isolamento confirmada por análise estática + condição de dados existente; exploração REST direta ainda não verificada**.
+Classificação: **vulnerabilidade de isolamento confirmada pela definição SQL ativa, permissões da RPC pública e condição de dados existente.** Não foi executada uma chamada autenticada para reproduzir e registrar o payload; o acesso privado direto ao schema `private` também não foi testado.
 
 ## 2. Revisão da migration planejada na branch
 

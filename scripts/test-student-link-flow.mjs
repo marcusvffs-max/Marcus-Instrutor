@@ -379,3 +379,15 @@ test("função interna de agenda mantém joins compostos com owner_id", () => {
   assert.match(internal, /l\.student_id = s\.id[\s\S]*l\.owner_id = s\.owner_id/);
   assert.match(internal, /v\.id = l\.vehicle_id[\s\S]*v\.owner_id = l\.owner_id/);
 });
+
+
+test("wrapper público passa a SECURITY DEFINER para encapsular a função interna após o REVOKE", () => {
+  const wrapperStart = migration.indexOf("CREATE OR REPLACE FUNCTION public.get_my_scheduled_lessons()");
+  const wrapperEnd = migration.indexOf("$function$;", migration.indexOf("AS $function$", wrapperStart));
+  assert.ok(wrapperStart >= 0 && wrapperEnd > wrapperStart);
+  const wrapper = migration.slice(wrapperStart, wrapperEnd);
+  assert.match(wrapper, /SECURITY DEFINER/);
+  assert.match(wrapper, /SET search_path TO ''/);
+  assert.match(wrapper, /FROM private\.get_my_scheduled_lessons_internal\(\)/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION private\.get_my_scheduled_lessons_internal\(\) FROM PUBLIC, anon, authenticated/);
+});
