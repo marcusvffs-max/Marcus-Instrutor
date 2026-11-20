@@ -131,7 +131,37 @@ function mostrarAviso(mensagem) {
 }
 
 function confirmar(mensagem) {
-  return window.confirm(mensagem);
+  return new Promise(resolve => {
+    const container = document.getElementById("modalContainer");
+    if (!container) {
+      resolve(false);
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="modal-overlay">
+        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="tituloConfirmacao">
+          <h2 id="tituloConfirmacao">Confirmação</h2>
+          <p style="white-space:pre-line">${escapar(mensagem)}</p>
+          <div class="modal-actions">
+            <button type="button" class="secondary-button" data-confirm-cancel>Cancelar</button>
+            <button type="button" class="primary-button" data-confirm-ok>Confirmar</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.style.overflow = "hidden";
+
+    const finalizar = resultado => {
+      container.innerHTML = "";
+      document.body.style.overflow = "";
+      resolve(resultado);
+    };
+
+    container.querySelector("[data-confirm-cancel]").onclick = () => finalizar(false);
+    container.querySelector("[data-confirm-ok]").onclick = () => finalizar(true);
+  });
 }
 
 /* =========================================
@@ -327,7 +357,7 @@ function atualizarPainel() {
 
 
 
-function alterarStatusAulaPainel(id, novoStatus) {
+async function alterarStatusAulaPainel(id, novoStatus) {
   const aula = db.aulas.find(a => a.id === id);
 
   if (!aula || aula.status !== "Agendada") return;
@@ -344,7 +374,7 @@ function alterarStatusAulaPainel(id, novoStatus) {
     ajustarSaldoAula(aula, 1);
 
   } else if (novoStatus === "Cancelada") {
-    if (!confirmar("Deseja realmente cancelar esta aula?")) return;
+    if (!(await confirmar("Deseja realmente cancelar esta aula?"))) return;
 
     aula.status = "Cancelada";
   } else {
@@ -593,7 +623,7 @@ async function excluirAluno(id) {
     return;
   }
 
-  if (!confirmar("Deseja realmente excluir este aluno?")) return;
+  if (!(await confirmar("Deseja realmente excluir este aluno?"))) return;
 
   const cliente = window.getMarcusSupabase?.();
   if (!cliente) {
@@ -797,7 +827,7 @@ async function excluirVeiculo(id) {
     return;
   }
 
-  if (!confirmar("Excluir este veículo?")) return;
+  if (!(await confirmar("Excluir este veículo?"))) return;
 
   const cliente = window.getMarcusSupabase?.();
   if (!cliente) {
@@ -1277,8 +1307,8 @@ function listarAulas() {
     : '<div class="empty-state">Nenhuma aula encontrada.</div>';
 }
 
-function excluirAula(id) {
-  if (!confirmar("Deseja excluir esta aula?")) return;
+async function excluirAula(id) {
+  if (!(await confirmar("Deseja excluir esta aula?"))) return;
 
   try {
     const aula = db.aulas.find(
@@ -1668,11 +1698,11 @@ function editarProduto(id = null) {
   };
 }
 
-function excluirProduto(id) {
+async function excluirProduto(id) {
   const produto = db.produtos.find(p => p.id === id);
   if (!produto) return;
 
-  if (!confirmar(`Excluir o produto "${produto.nome}"?`)) return;
+  if (!(await confirmar(`Excluir o produto "${produto.nome}"?`))) return;
 
   db.produtos = db.produtos.filter(p => p.id !== id);
 
@@ -2124,7 +2154,7 @@ function abrirDespesa() {
 }
 
 
-function excluirVenda(id) {
+async function excluirVenda(id) {
   const venda = db.vendas.find(v => v.id === id);
   if (!venda) return;
 
@@ -2159,7 +2189,7 @@ function excluirVenda(id) {
     return;
   }
 
-  if (!confirmar("Excluir esta venda e seus lançamentos financeiros?")) {
+  if (!(await confirmar("Excluir esta venda e seus lançamentos financeiros?"))) {
     return;
   }
 
@@ -2184,13 +2214,13 @@ function excluirVenda(id) {
 }
 
 
-function excluirDespesa(id) {
+async function excluirDespesa(id) {
   const movimento = db.movimentacoes.find(m =>
     m.id === id && m.tipo === "saida" && !m.vendaId
   );
 
   if (!movimento) return;
-  if (!confirmar("Excluir esta despesa?")) return;
+  if (!(await confirmar("Excluir esta despesa?"))) return;
 
   db.movimentacoes = db.movimentacoes.filter(m => m.id !== id);
 
@@ -2661,7 +2691,7 @@ function importarBackup() {
 
   const leitor = new FileReader();
 
-  leitor.onload = () => {
+  leitor.onload = async () => {
     try {
       const dados = JSON.parse(leitor.result);
 
@@ -2678,7 +2708,7 @@ function importarBackup() {
         throw new Error("Dados inválidos");
       }
 
-      if (!confirmar("Restaurar o backup e substituir os dados atuais?")) {
+      if (!(await confirmar("Restaurar o backup e substituir os dados atuais?"))) {
         return;
       }
 
@@ -3335,10 +3365,10 @@ prepararDadosAdmin().finally(() => iniciarAplicativo());
    LIMPAR TODOS OS REGISTROS
 ========================================= */
 
-function limparTodosRegistros() {
-  if (!confirmar(
+async function limparTodosRegistros() {
+  if (!(await confirmar(
     "ATENÇÃO!\n\nDeseja apagar TODOS os alunos, veículos, aulas, vendas, despesas e movimentações?\n\nEssa ação não poderá ser desfeita."
-  )) {
+  ))) {
     return;
   }
 
