@@ -57,6 +57,7 @@ Antes dos testes em ambiente isolado, as verificações locais podem ser executa
 - [ ] Índice único parcial impede que uma conta fique associada a mais de um cadastro.
 - [ ] Índice único parcial impede reutilização do mesmo identificador de tentativa em cadastros diferentes.
 - [ ] Trigger AFTER INSERT em `auth.users` confere identificador aleatório reservado, ID do cadastro, ID do instrutor e e-mail normalizado antes de vincular.
+- [ ] O trigger também exige `invited_at` dentro da janela válida: maior que `statement_timestamp() - interval '15 minutes'` e menor ou igual ao horário atual; reserva vencida ou futura não vincula.
 - [ ] O vínculo de contas novas acontece na transação de criação da conta Auth, antes de qualquer edição posterior de `user_metadata`.
 - [ ] Contas antigas sem `user_id` não são associadas por e-mail, independentemente de confirmação ou unicidade.
 - [ ] Chave estrangeira de `students.user_id` referencia `auth.users(id)`.
