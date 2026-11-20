@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#12345a">
   <meta name="description" content="Área do instrutor - Marcus Instrutor">
   <title>Área do Instrutor | Marcus Instrutor</title>
-  <link rel="stylesheet" href="instrutor.css?v=9">
+  <link rel="stylesheet" href="instrutor.css?v=10">
 </head>
 <body>
   <div class="app-shell">
@@ -234,6 +234,43 @@
         </div>
       </section>
 
+      <section class="panel products-panel" data-view="produtos">
+        <div class="section-heading"><div><h3>Produtos e serviços</h3><p>Cadastre pacotes de aulas, serviços e outros itens que você oferece.</p></div><button id="btnNovoProduto" class="button button-primary" type="button">+ Novo item</button></div>
+        <form id="formProduto" class="student-form" hidden>
+          <h4 id="tituloFormProduto">Cadastrar produto ou serviço</h4>
+          <div class="student-form-grid">
+            <div><label for="produtoNome">Nome *</label><input id="produtoNome" maxlength="160" required placeholder="Ex.: Pacote com 10 aulas"></div>
+            <div><label for="produtoTipo">Tipo *</label><select id="produtoTipo" required><option value="servico">Serviço</option><option value="pacote">Pacote</option><option value="produto">Produto</option></select></div>
+            <div><label for="produtoPreco">Preço (R$) *</label><input id="produtoPreco" type="number" min="0" step="0.01" required></div>
+            <div><label for="produtoAulas">Quantidade de aulas</label><input id="produtoAulas" type="number" min="0" step="1" placeholder="Ex.: 10"><small>Preencha para serviços ou pacotes que acrescentam aulas ao saldo.</small></div>
+            <div class="form-full"><label for="produtoDescricao">Descrição</label><input id="produtoDescricao" maxlength="500" placeholder="Detalhes opcionais"></div>
+            <div><label for="produtoAtivo">Situação</label><select id="produtoAtivo"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
+          </div>
+          <div class="student-form-actions"><button id="btnCancelarProduto" class="button button-outline" type="button">Cancelar</button><button id="btnSalvarProduto" class="button button-primary" type="submit">Salvar item</button></div>
+        </form>
+        <div class="list-toolbar"><div class="list-toolbar-copy"><strong>Seus produtos e serviços</strong><span id="contadorProdutos">0 itens</span></div><label class="search-field" for="filtroBuscaProdutos"><span>⌕</span><input id="filtroBuscaProdutos" type="search" placeholder="Buscar produto ou serviço"></label></div>
+        <div id="listaProdutos" class="product-cards"><div class="empty-state">Carregando produtos...</div></div>
+      </section>
+
+      <section class="panel sales-panel" data-view="vendas">
+        <div class="section-heading"><div><h3>Registrar venda</h3><p>Selecione o aluno, adicione os itens e confirme. A entrada financeira e o saldo de aulas serão atualizados automaticamente.</p></div></div>
+        <form id="formVenda" class="student-form">
+          <div class="student-form-grid">
+            <div><label for="vendaAluno">Aluno *</label><select id="vendaAluno" required><option value="">Selecione um aluno</option></select></div>
+            <div><label for="vendaPagamento">Forma de pagamento</label><select id="vendaPagamento"><option value="">Não informado</option><option>Dinheiro</option><option>Pix</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option><option>Outro</option></select></div>
+            <div><label for="vendaProduto">Produto ou serviço *</label><select id="vendaProduto"><option value="">Selecione um item</option></select></div>
+            <div><label for="vendaQuantidade">Quantidade *</label><input id="vendaQuantidade" type="number" min="1" step="1" value="1" required></div>
+          </div>
+          <div class="sale-add-row"><button id="btnAdicionarItemVenda" class="button button-outline" type="button">+ Adicionar item</button></div>
+          <div id="itensCarrinhoVenda" class="sale-cart"><div class="empty-state">Adicione produtos ou serviços à venda.</div></div>
+          <div class="sale-total"><span>Total da venda</span><strong id="totalVenda">R$ 0,00</strong></div>
+          <div><label for="vendaObservacoes">Observações</label><input id="vendaObservacoes" maxlength="500" placeholder="Observações opcionais"></div>
+          <div class="student-form-actions"><button id="btnSalvarVenda" class="button button-primary" type="submit" disabled>Confirmar venda</button></div>
+        </form>
+        <div class="list-toolbar"><div class="list-toolbar-copy"><strong>Histórico de vendas</strong><span id="contadorVendas">0 vendas</span></div></div>
+        <div id="listaVendas" class="sales-list"><div class="empty-state">Carregando vendas...</div></div>
+      </section>
+
       <section class="panel finance-panel" data-view="financeiro">
         <div class="section-heading">
           <div>
@@ -298,6 +335,8 @@
       <button type="button" data-instructor-page="alunos" class="menu-item"><span class="menu-icon">♙</span><span>Alunos</span></button>
       <button type="button" data-instructor-page="veiculos" class="menu-item"><span class="menu-icon">▣</span><span>Veículos</span></button>
       <button type="button" data-instructor-page="aulas" class="menu-item"><span class="menu-icon">▦</span><span>Aulas</span></button>
+      <button type="button" data-instructor-page="produtos" class="menu-item"><span class="menu-icon">▧</span><span>Produtos</span></button>
+      <button type="button" data-instructor-page="vendas" class="menu-item"><span class="menu-icon">＋</span><span>Vendas</span></button>
       <button type="button" data-instructor-page="financeiro" class="menu-item"><span class="menu-icon">＄</span><span>Financeiro</span></button>
       <button type="button" data-instructor-page="relatorios" class="menu-item"><span class="menu-icon">▤</span><span>Relatórios</span></button>
     </nav>
@@ -305,6 +344,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="instrutor.js?v=9"></script>
+  <script src="instrutor.js?v=10"></script>
 </body>
 </html>
