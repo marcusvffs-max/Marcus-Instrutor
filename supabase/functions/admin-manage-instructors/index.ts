@@ -400,7 +400,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (isStudentInvite && studentInviteId && studentInviteReservation) {
-      let { data: linkedStudent, error: linkStudentError } = await admin
+      const { data: linkedStudent, error: linkStudentError } = await admin
         .from("students")
         .select("id")
         .eq("id", studentInviteId)
@@ -409,20 +409,8 @@ Deno.serve(async (req: Request) => {
         .eq("invited_at", studentInviteReservation)
         .eq("invite_attempt_id", studentInviteAttemptId)
         .maybeSingle();
-      if (!linkStudentError && !linkedStudent) {
-        const { data: linkedByUpdate, error: fallbackLinkError } = await admin
-          .from("students")
-          .update({ user_id: invitedUserId })
-          .eq("id", studentInviteId)
-          .eq("owner_id", authData.user.id)
-          .is("user_id", null)
-          .eq("invited_at", studentInviteReservation)
-          .eq("invite_attempt_id", studentInviteAttemptId)
-          .select("id")
-          .maybeSingle();
-        linkedStudent = linkedByUpdate;
-        linkStudentError = fallbackLinkError;
-      }
+      // O vínculo precisa ter sido feito pelo trigger transacional do Auth.
+      // A Edge Function não faz fallback que contorne essa validação.
       if (linkStudentError || !linkedStudent) {
         const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
         if (!deleteError) {
