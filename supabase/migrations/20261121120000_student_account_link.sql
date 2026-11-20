@@ -89,6 +89,8 @@ BEGIN
 END;
 $function$;
 
+ALTER FUNCTION private.get_my_scheduled_lessons_internal() OWNER TO postgres;
+
 -- Ao excluir uma conta Auth, libera também o cadastro do aluno para novo convite.
 -- O BEFORE DELETE limpa os dois campos antes da ação automática da FK.
 CREATE OR REPLACE FUNCTION private.clear_student_account_link_on_user_delete()
@@ -107,6 +109,8 @@ BEGIN
   RETURN OLD;
 END;
 $function$;
+
+ALTER FUNCTION private.clear_student_account_link_on_user_delete() OWNER TO postgres;
 
 DROP TRIGGER IF EXISTS clear_student_account_link_on_user_delete ON auth.users;
 
@@ -133,6 +137,8 @@ AS $function$
   SELECT *
   FROM private.get_my_scheduled_lessons_internal();
 $function$;
+
+ALTER FUNCTION public.get_my_scheduled_lessons() OWNER TO postgres;
 
 -- A RPC pública não deve herdar EXECUTE de PUBLIC/anon.
 -- O wrapper valida a sessão e o perfil dentro da função interna.
@@ -184,6 +190,8 @@ BEGIN
   RETURN NEW;
 END;
 $function$;
+
+ALTER FUNCTION private.link_student_account_from_invite() OWNER TO postgres;
 
 REVOKE ALL ON FUNCTION private.link_student_account_from_invite() FROM PUBLIC, anon, authenticated;
 
