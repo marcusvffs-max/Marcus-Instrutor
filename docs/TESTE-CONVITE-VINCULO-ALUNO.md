@@ -65,6 +65,9 @@ Não executar migration no Supabase atual, não enviar convites a alunos reais, 
 - [ ] O servidor confere que o ID da conta vinculada existe e que o e-mail Auth corresponde exatamente ao e-mail do cadastro.
 - [ ] Se o perfil ficou no papel inicial `instrutor`, só é corrigido para `usuario` quando o e-mail ainda não foi confirmado e a reserva de convite original continua registrada.
 - [ ] Para conta já vinculada, o servidor gera link de recuperação; não executa `deleteUser`, não cria outra conta e não altera o vínculo se o envio falhar.
+- [ ] Se `generateLink({ type: "recovery" })` falhar para uma conta já vinculada, a conta Auth e `students.user_id` permanecem intactos; nenhuma segunda conta é criada.
+- [ ] Se o SMTP falhar depois da geração do link de recuperação, a conta Auth e `students.user_id` permanecem intactos; nenhuma exclusão ou limpeza de vínculo é executada.
+- [ ] Se a recuperação reparar um perfil inicial `instrutor` para `usuario` e o envio falhar, o perfil corrigido permanece `usuario`, sem apagar a conta ou o vínculo.
 - [ ] Conta com e-mail divergente, perfil administrativo ou perfil incompatível é recusada sem alteração.
 
 
