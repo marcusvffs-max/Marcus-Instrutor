@@ -135,3 +135,50 @@ test("funções SECURITY DEFINER do vínculo têm owner explícito e execução 
   assert.match(migration, /REVOKE ALL ON FUNCTION private\.link_student_account_from_invite\(\) FROM PUBLIC, anon, authenticated/);
   assert.match(migration, /REVOKE ALL ON FUNCTION private\.clear_student_account_link_on_user_delete\(\) FROM PUBLIC, anon, authenticated/);
 });
+
+
+const securityDraft = read("../docs/rascunho-seguranca-relatorios-instrutor-revisado.sql");
+
+test("proteção de profiles.role bloqueia elevação pelo cliente", () => {
+  const start = securityDraft.indexOf("create or replace function private.protect_profile_role()");
+  const end = securityDraft.indexOf("$function$;", securityDraft.indexOf("as $function$", start));
+  assert.ok(start >= 0 && end > start);
+  const fn = securityDraft.slice(start, end);
+  assert.match(fn, /security definer/i);
+  assert.match(fn, /set search_path = ''/i);
+  assert.match(fn, /auth\.jwt\(\) ->> 'role'\) = 'service_role'/);
+  assert.match(fn, /if tg_op = 'INSERT' then/i);
+  assert.match(fn, /new\.role := 'instrutor'/);
+  assert.match(fn, /new\.role is distinct from old\.role/i);
+  assert.match(fn, /using errcode = '42501'/i);
+  assert.match(securityDraft, /alter function private\.protect_profile_role\(\) owner to postgres/i);
+  assert.match(securityDraft, /revoke all on function private\.protect_profile_role\(\)[\s\S]{0,100}from public, anon, authenticated/i);
+  assert.match(securityDraft, /before insert or update of role[\s\S]{0,100}execute function private\.protect_profile_role\(\)/i);
+});
+
+test("perfis não permitem escrita direta pelo cliente no desenho revisado", () => {
+  assert.match(securityDraft, /grant select on table public\.profiles to authenticated/i);
+  assert.match(securityDraft, /drop policy if exists profiles_insert_own on public\.profiles/i);
+  assert.match(securityDraft, /drop policy if exists profiles_update_own on public\.profiles/i);
+  assert.match(securityDraft, /create policy profiles_select_own/i);
+  assert.match(securityDraft, /create policy profiles_admin_select_all/i);
+  assert.doesNotMatch(securityDraft, /create policy profiles_(insert|update|delete)/i);
+});
+
+test("grants excessivos são removidos sem revogar service_role", () => {
+  const revokeStart = securityDraft.indexOf("revoke all privileges on table");
+  const revokeEnd = securityDraft.indexOf(";", revokeStart);
+  assert.ok(revokeStart >= 0 && revokeEnd > revokeStart);
+  const tableRevoke = securityDraft.slice(revokeStart, revokeEnd);
+  assert.match(tableRevoke, /public\.profiles/);
+  assert.match(tableRevoke, /public\.students/);
+  assert.match(tableRevoke, /public\.lessons/);
+  assert.match(tableRevoke, /public\.vehicles/);
+  assert.match(tableRevoke, /public\.app_settings/);
+  assert.match(tableRevoke, /from public, anon, authenticated/i);
+  assert.doesNotMatch(tableRevoke, /service_role/i);
+  assert.match(securityDraft, /information_schema\.column_privileges/);
+  assert.match(securityDraft, /revoke all privileges \(%I\) on table/i);
+  assert.match(securityDraft, /grant select, insert, update, delete on table/i);
+  assert.doesNotMatch(securityDraft, /alter default privileges/i);
+});
