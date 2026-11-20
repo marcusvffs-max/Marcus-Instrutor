@@ -119,7 +119,7 @@
       const accountStatus = !state.studentLinkFieldsAvailable
         ? "Vínculo indisponível durante a atualização"
         : student.user_id ? (student.invited_at ? "Conta vinculada · aguardando primeiro acesso" : "Conta vinculada")
-        : student.invited_at ? "Convite enviado · aguardando cadastro" : "Sem convite";
+        : student.invited_at ? "Link enviado · aguardando confirmação do aluno" : "Sem convite";
       const accountClass = state.studentLinkFieldsAvailable && student.invited_at ? "student-status-open" :
         state.studentLinkFieldsAvailable && student.user_id ? "student-status-approved" : "";
       const inviteButton = !state.studentLinkFieldsAvailable
