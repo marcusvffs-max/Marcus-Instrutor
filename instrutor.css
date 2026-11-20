@@ -593,3 +593,66 @@ footer { padding:20px; text-align:center; color:var(--muted); font-size:12px; }
 }
 /* Cinco linhas livres para assinatura após a data */
 .contract-signature-space { height:35mm; min-height:35mm; }
+
+
+/* Impressão dos relatórios: evita página extra causada pela altura da aplicação */
+@media print {
+  body:not(.printing-contract) {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  body:not(.printing-contract) .app-shell {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body:not(.printing-contract) .content {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  body:not(.printing-contract) #resultado {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+
+  body:not(.printing-contract) #resultado .table-wrap {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  body:not(.printing-contract) #resultado table {
+    width: 100% !important;
+    min-width: 0 !important;
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+
+  body:not(.printing-contract) #resultado tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
