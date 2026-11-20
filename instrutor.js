@@ -115,6 +115,17 @@
       const status = String(student.status || "em_aberto").toLowerCase();
       const statusClass = status === "aprovado" ? "student-status-approved" :
         status === "finalizado" ? "student-status-finished" : "student-status-open";
+      const accountStatus = student.user_id ? "Conta vinculada" :
+        student.invited_at ? "Convite enviado · aguardando cadastro" : "Sem convite";
+      const accountClass = student.user_id ? "student-status-approved" :
+        student.invited_at ? "student-status-open" : "";
+      const inviteButton = student.user_id
+        ? ""
+        : student.invited_at
+          ? '<button class="button button-outline button-small" type="button" disabled>Convite enviado</button>'
+          : student.email
+            ? '<button class="button button-primary button-small" type="button" data-student-action="invite" data-student-id="' + escapeHtml(student.id) + '">Convidar para área do aluno</button>'
+            : "";
       return '<article class="student-card">' +
         '<div class="student-card-main">' +
           '<div class="student-card-heading"><h4>' + escapeHtml(student.nome) + '</h4>' +
@@ -125,9 +136,11 @@
             '<span><small>Aulas restantes</small><strong class="student-balance">' + escapeHtml(student.aulas_restantes ?? 0) + '</strong></span>' +
           '</div>' +
           (student.email ? '<p class="student-card-email">' + escapeHtml(student.email) + '</p>' : '') +
+          '<p class="student-card-email student-account-status"><small>Acesso do aluno: </small><strong class="' + accountClass + '">' + escapeHtml(accountStatus) + '</strong></p>' +
         '</div>' +
         '<div class="student-card-actions">' +
-          (student.email ? '<button class="button button-primary button-small" type="button" data-student-action="invite" data-student-id="' + escapeHtml(student.id) + '">Convidar para área do aluno</button>' : '') +
+          inviteButton +
+          '<button class="button button-outline button-small" type="button" data-student-action="view-link" data-student-id="' + escapeHtml(student.id) + '">Ver vínculo</button>' +
           '<button class="button button-outline button-small" type="button" data-student-action="edit" data-student-id="' + escapeHtml(student.id) + '">Editar</button>' +
           '<button class="button button-danger button-small" type="button" data-student-action="delete" data-student-id="' + escapeHtml(student.id) + '">Excluir</button>' +
         '</div>' +
@@ -934,7 +947,7 @@
   async function loadOwnData() {
     const [studentsResult, lessonsResult, vehiclesResult] = await Promise.all([
       state.supabase.from("students")
-        .select("id,nome,email,telefone,cpf,endereco,categoria,status,aulas_compradas,aulas_restantes")
+        .select("id,nome,email,telefone,cpf,endereco,categoria,status,aulas_compradas,aulas_restantes,user_id,invited_at")
         .order("nome", { ascending: true }),
       state.supabase.from("lessons")
         .select("id,student_id,data_aula,horario,numero_aula,status,vehicle_id,observacoes")
@@ -1287,6 +1300,15 @@
       if (!student) return;
       if (button.dataset.studentAction === "edit") openStudentForm(student);
       if (button.dataset.studentAction === "delete") deleteStudent(id);
+      if (button.dataset.studentAction === "view-link") {
+        const situation = student.user_id
+          ? "Conta vinculada com sucesso ao cadastro deste aluno."
+          : student.invited_at
+            ? "Convite enviado. O vínculo será concluído quando o aluno aceitar o convite e finalizar o acesso."
+            : "Nenhum convite enviado. A conta será vinculada automaticamente ao cadastro correto após o convite.";
+        window.alert("Vínculo da conta do aluno\\n\\n" + student.nome + "\\n" +
+          (student.email || "E-mail não informado") + "\\n\\nSituação: " + situation);
+      }
       if (button.dataset.studentAction === "invite") {
         if (!student.email) {
           showMessage("Cadastre o e-mail do aluno antes de enviar o convite.");
@@ -1305,8 +1327,9 @@
             throw new Error(detail || "Não foi possível enviar o convite.");
           }
           if (!data?.ok) throw new Error(data?.error || "Não foi possível enviar o convite.");
+          student.invited_at = new Date().toISOString();
           showMessage(data.message || "Convite de aluno enviado com sucesso.", false);
-          button.textContent = "Convite enviado";
+          renderStudents();
         } catch (error) {
           showMessage(error.message || "Não foi possível enviar o convite.");
           button.disabled = false;
