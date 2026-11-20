@@ -23,11 +23,11 @@ Todas as tabelas relacionadas têm `owner_id NOT NULL`. Não há dados atualment
 
 Uma FK simples confirma que o ID relacionado existe, mas não confirma que pertence ao mesmo `owner_id`. O risco é um registro de um instrutor apontar para aluno, veículo ou venda de outro instrutor.
 
-A solução preferida é adicionar chaves únicas compostas nos pais e FKs compostas nos filhos. O PostgreSQL 17.11 do projeto suporta `ON DELETE SET NULL (coluna)`, permitindo preservar `owner_id` quando um vínculo opcional for removido.
+A solução preferida é adicionar chaves únicas compostas nos pais e FKs compostas nos filhos. Na migration final, as FKs compostas substituirão as FKs simples equivalentes na mesma transação, evitando duplicidade. O PostgreSQL 17.11 do projeto suporta `ON DELETE SET NULL (coluna)`, permitindo preservar `owner_id` quando um vínculo opcional for removido.
 
 ## 3. DDL proposto — ainda não executado
 
-Antes de aplicar, revisar os nomes e dependências com a migration final. A proposta é adicionar as constraints compostas sem remover as FKs simples existentes inicialmente; depois de validação e testes, avaliar se as FKs simples redundantes podem ser removidas.
+Antes de aplicar, revisar os nomes e dependências com a migration final. A proposta final é adicionar as constraints compostas e remover as FKs simples equivalentes na mesma transação, após validar os nomes exatos no catálogo. Essa substituição mantém a atomicidade: se qualquer constraint falhar, a transação inteira reverte.
 
 ```sql
 -- Chaves candidatas para as relações que precisam validar owner.
