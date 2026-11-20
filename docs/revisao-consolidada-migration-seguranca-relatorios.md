@@ -133,3 +133,9 @@ O documento foi corrigido:
 O código agora limita o corpo JSON a 8 KiB e não encaminha o Authorization do solicitante ao cliente service_role. Rate limit, allowlist CORS real, verificação das variáveis e teste de falha parcial continuam pendentes.
 
 Arquivo: `docs/edge-function-gerenciar-instrutores.md`. Nenhuma Edge Function foi criada ou implantada.
+
+
+Complemento operacional do endpoint:
+- `admin-manage-instructors` não consta na lista atual de Edge Functions implantadas.
+- Quando for criado, deve usar `verify_jwt=true`; a validação interna via `auth.getUser(accessToken)` permanece como segunda confirmação da identidade.
+- Não implantar com `verify_jwt=false`, pois não é webhook público.
