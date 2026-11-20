@@ -174,7 +174,10 @@ BEGIN
   WHERE id = student_id_text::uuid
     AND owner_id = instructor_id_text::uuid
     AND invite_attempt_id = attempt_id_text::uuid
-    AND invited_at IS NOT NULL
+    -- A reserva precisa estar dentro da mesma janela de 15 minutos da Edge Function.
+    -- Timestamp futuro ou exatamente no limite de 15 minutos não pode vincular.
+    AND invited_at > statement_timestamp() - interval '15 minutes'
+    AND invited_at <= statement_timestamp()
     AND user_id IS NULL
     AND lower(btrim(COALESCE(email, ''))) = lower(btrim(COALESCE(NEW.email, '')));
 
