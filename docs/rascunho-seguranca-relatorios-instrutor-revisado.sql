@@ -113,12 +113,39 @@ revoke all on function private.current_app_role() from public, anon, authenticat
 grant execute on function private.current_app_role() to authenticated;
 
 -- ---------------------------------------------------------------------------
--- 2. Defesa adicional contra alteracao de role pelo cliente autenticado.
--- O backend usa JWT com claim role=service_role, nunca exposto ao navegador.
--- O trigger libera somente essa claim explícita. Requisições anonimas,
--- mesmo com auth.uid() NULL, sao rejeitadas; usuarios autenticados comuns
--- recebem instrutor no INSERT e nao podem alterar role no UPDATE.
+-- 2. Criacao transacional de perfil e protecao de role.
+--
+-- O trigger em auth.users cria o perfil na mesma transacao do usuario Auth.
+-- Qualquer novo usuario recebe role instrutor, sem confiar em metadata.
+-- A falha no profile deve abortar a criacao do usuario.
 -- ---------------------------------------------------------------------------
+
+create or replace function private.handle_new_auth_user_profile()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  profile_name text;
+begin
+  profile_name := coalesce(
+    nullif(btrim(new.raw_user_meta_data ->> 'nome'), ''),
+    nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
+    'Instrutor'
+  );
+
+  insert into public.profiles (id, nome, role)
+  values (new.id, profile_name, 'instrutor');
+
+  return new;
+end;
+$function$;
+
+alter function private.handle_new_auth_user_profile() owner to postgres;
+
+revoke all on function private.handle_new_auth_user_profile()
+from public, anon, authenticated;
 
 create or replace function private.protect_profile_role()
 returns trigger
@@ -127,21 +154,21 @@ security definer
 set search_path = ''
 as $function$
 begin
-  -- A única exceção é uma chamada autenticada com JWT service_role,
-  -- usada exclusivamente no backend. Não usar auth.uid() IS NULL como
-  -- bypass: requisições anônimas também podem ter uid NULL.
+  -- Backend confiavel pode gravar o papel explicitamente. Esta chave
+  -- permanece somente no servidor e nunca e encaminhada pelo navegador.
   if (select auth.jwt() ->> 'role') = 'service_role' then
     return new;
   end if;
 
-  if (select auth.uid()) is null then
-    raise exception 'Operacao de perfil exige autenticacao administrativa.'
-      using errcode = '42501';
+  if tg_op = 'INSERT' then
+    -- O trigger interno de auth.users pode nao ter auth.uid().
+    -- Por isso, todo INSERT que nao venha de service_role recebe
+    -- obrigatoriamente o papel instrutor, sem rejeitar uid NULL.
+    new.role := 'instrutor';
+    return new;
   end if;
 
-  if tg_op = 'INSERT' then
-    new.role := 'instrutor';
-  elsif new.role is distinct from old.role then
+  if new.role is distinct from old.role then
     raise exception 'O papel do perfil so pode ser alterado pelo backend administrativo.'
       using errcode = '42501';
   end if;
@@ -152,13 +179,20 @@ $function$;
 
 alter function private.protect_profile_role() owner to postgres;
 
-revoke all on function private.protect_profile_role() from public, anon, authenticated;
+revoke all on function private.protect_profile_role()
+from public, anon, authenticated;
 
 drop trigger if exists profiles_protect_role on public.profiles;
 create trigger profiles_protect_role
 before insert or update of role on public.profiles
 for each row
 execute function private.protect_profile_role();
+
+drop trigger if exists on_auth_user_created_profile on auth.users;
+create trigger on_auth_user_created_profile
+after insert on auth.users
+for each row
+execute function private.handle_new_auth_user_profile();
 
 -- ---------------------------------------------------------------------------
 -- 3. Remover policies antigas. Os nomes abaixo foram conferidos em pg_policies.
