@@ -447,12 +447,12 @@
         <p id="novaSenhaMensagem" class="login-message" role="alert" aria-live="polite"></p>
         <button id="btnSalvarNovaSenha" class="login-button" type="submit">Salvar nova senha</button>
       </form>
-      <p class="login-security">Acesso permitido somente à conta de administrador cadastrada.</p>
+      <p class="login-security">Acesso permitido somente a contas autorizadas.</p>
     </div>
   </section>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="script.js?v=relatorios3"></script>
+  <!-- O painel administrativo só será carregado após validar role=admin. -->
 
   <script>
     if ("serviceWorker" in navigator) {
@@ -467,8 +467,7 @@
       });
     }
   </script>
-  <script src="contratos.js?v=contratos30"></script>
-  <script src="whatsapp-panel.js?v=whatsapp-panel-v2-manual-status"></script>
+
 
   <script>
     (function () {
@@ -494,7 +493,25 @@
         if (campoSenha) campoSenha.value = "";
       }
       function mostrarErro(mensagem) { if (mensagemLogin) mensagemLogin.textContent = mensagem; }
-      function mostrarAplicativo() {
+      let painelAdminCarregado = false;
+      function carregarScript(src) {
+        return new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = src;
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Falha ao carregar " + src));
+          document.body.appendChild(script);
+        });
+      }
+      async function carregarPainelAdmin() {
+        if (painelAdminCarregado) return;
+        await carregarScript("script.js?v=relatorios-instrutor4");
+        await carregarScript("contratos.js?v=contratos30");
+        await carregarScript("whatsapp-panel.js?v=whatsapp-panel-v2-manual-status");
+        painelAdminCarregado = true;
+      }
+      async function mostrarAplicativo() {
+        await carregarPainelAdmin();
         document.body.classList.add("autenticado");
         if (mensagemLogin) mensagemLogin.textContent = "";
         window.dispatchEvent(new Event("marcus-authenticated"));
@@ -507,7 +524,7 @@
         auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage }
       });
       window.getMarcusSupabase = function () { return clienteSupabase; };
-      async function conferirAdministrador(usuario) {
+      async function conferirPerfil(usuario) {
         if (modoRecuperacao) {
           mostrarFormularioRecuperacao();
           return false;
@@ -520,12 +537,21 @@
           mostrarLogin("Não foi possível validar seu acesso. Confira a conexão e tente novamente.");
           return false;
         }
-        if (!perfil || perfil.role !== "admin") {
+        if (!perfil) {
           await clienteSupabase.auth.signOut({ scope: "local" });
-          mostrarLogin("Esta conta não possui autorização de administrador para acessar o aplicativo.");
+          mostrarLogin("Não foi encontrado um perfil autorizado para esta conta.");
           return false;
         }
-        mostrarAplicativo();
+        if (perfil.role === "instrutor") {
+          window.location.replace("instrutor.html");
+          return false;
+        }
+        if (perfil.role !== "admin") {
+          await clienteSupabase.auth.signOut({ scope: "local" });
+          mostrarLogin("Esta conta não possui um perfil autorizado para acessar o aplicativo.");
+          return false;
+        }
+        await mostrarAplicativo();
         const botaoSair = document.getElementById("btnLogout");
         if (botaoSair) {
           botaoSair.onclick = async function () {
@@ -553,7 +579,7 @@
         try {
           const { data, error } = await clienteSupabase.auth.signInWithPassword({ email, password });
           if (error) { mostrarErro("Não foi possível entrar. Confira o e-mail e a senha."); return; }
-          const autorizado = await conferirAdministrador(data.user);
+          const autorizado = await conferirPerfil(data.user);
           if (!autorizado) campoSenha.value = "";
         } catch (erro) {
           console.error("Erro ao realizar login:", erro);
@@ -669,7 +695,7 @@
           }
           const { data, error } = await clienteSupabase.auth.getSession();
           if (error) { mostrarLogin("Não foi possível recuperar sua sessão. Entre novamente."); return; }
-          if (data.session && data.session.user) await conferirAdministrador(data.session.user);
+          if (data.session && data.session.user) await conferirPerfil(data.session.user);
           else mostrarLogin("Entre com sua conta para continuar.");
         } catch (erro) {
           console.error("Erro ao verificar sessão:", erro);
