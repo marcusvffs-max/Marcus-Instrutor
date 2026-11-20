@@ -73,7 +73,7 @@ Deno.serve(async (req: Request) => {
       });
       if (usersError) throw usersError;
       const { data: profiles, error: profilesError } = await admin
-        .from("profiles").select("id, nome, role");
+        .from("profiles").select("id, nome, role, instructor_access_until");
       if (profilesError) throw profilesError;
       const byId = new Map((profiles ?? []).map((p: any) => [p.id, p]));
       const users = (usersData.users ?? []).map((u: any) => {
@@ -83,10 +83,33 @@ Deno.serve(async (req: Request) => {
           email: u.email ?? "",
           nome: p?.nome ?? u.user_metadata?.nome ?? "Sem nome",
           role: p?.role ?? "sem perfil",
+          instructor_access_until: p?.instructor_access_until ?? null,
           confirmado: Boolean(u.email_confirmed_at),
         };
       });
       return response({ ok: true, users });
+    }
+
+    if (body.action === "activate_access") {
+      const userId = typeof body.user_id === "string" ? body.user_id.trim() : "";
+      if (!/^[0-9a-f-]{36}$/i.test(userId)) {
+        return response({ error: "Usuário inválido." }, 400);
+      }
+      const { data: targetProfile, error: targetProfileError } = await admin
+        .from("profiles").select("id, role").eq("id", userId).maybeSingle();
+      if (targetProfileError) throw targetProfileError;
+      if (!targetProfile || targetProfile.role !== "instrutor") {
+        return response({ error: "A autorização temporária está disponível somente para instrutores." }, 400);
+      }
+      const accessUntil = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
+      const { error: accessError } = await admin.from("profiles")
+        .update({ instructor_access_until: accessUntil }).eq("id", userId);
+      if (accessError) throw accessError;
+      return response({
+        ok: true,
+        access_until: accessUntil,
+        message: "Acesso liberado por 31 dias."
+      });
     }
 
     if (body.action === "change_role") {
