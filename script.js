@@ -358,41 +358,15 @@ function atualizarPainel() {
 
 
 async function alterarStatusAulaPainel(id, novoStatus) {
-  const aula = db.aulas.find(a => a.id === id);
-
-  if (!aula || aula.status !== "Agendada") return;
-
-  if (novoStatus === "Realizada") {
-    const aluno = db.alunos.find(a => a.id === aula.alunoId);
-
-    if (!aluno || Number(aluno.saldo || 0) < 1) {
-      mostrarAviso("Este aluno não possui aulas disponíveis.");
-      return;
-    }
-
-    aula.status = "Realizada";
-    ajustarSaldoAula(aula, 1);
-
-  } else if (novoStatus === "Cancelada") {
-    if (!(await confirmar("Deseja realmente cancelar esta aula?"))) return;
-
-    aula.status = "Cancelada";
-  } else {
-    return;
-  }
-
-  salvarDados();
-  listarAlunos();
-  listarAulas();
-  atualizarPainel();
-
-  mostrarAviso(
-    novoStatus === "Realizada"
-      ? "Aula marcada como realizada. Saldo atualizado."
-      : "Aula cancelada. Nenhuma aula foi descontada."
-  );
+ const aula=db.aulas.find(a=>String(a.id)===String(id)); if(!aula||aula.status!=="Agendada")return;
+ if(!adminAlunosSupabaseAtivo||!adminSupabaseUserId){mostrarAviso("Não foi possível conectar ao Supabase. A situação da aula não foi alterada.");return;}
+ if(novoStatus==="Cancelada"){if(!(await confirmar("Deseja realmente cancelar esta aula?")))return;} else if(novoStatus!=="Realizada")return;
+ const cliente=window.getMarcusSupabase?.();if(!cliente){mostrarAviso("Conexão com o Supabase indisponível. Tente novamente.");return;}
+ try{const {error}=await cliente.from("lessons").update({status:statusAulaParaBanco(novoStatus)}).eq("id",aula.id).eq("owner_id",adminSupabaseUserId);if(error)throw error;
+ await sincronizarAulasAdminSupabase();await sincronizarSaldoAlunoAdminSupabase(aula.alunoId);listarAlunos();listarAulas();atualizarPainel();
+ mostrarAviso(novoStatus==="Realizada"?"Aula marcada como realizada. Saldo atualizado.":"Aula cancelada. Nenhuma aula foi descontada.");
+ }catch(erro){console.error("Erro ao atualizar situação da aula no Supabase:",erro);mostrarAviso(String(erro?.message||"").includes("SALDO_AULAS_INSUFICIENTE")?"Este aluno não possui aulas disponíveis.":"Não foi possível atualizar a situação da aula. Tente novamente.");}
 }
-
 
 /* =========================================
    ALUNOS
@@ -915,99 +889,25 @@ function abrirFormularioAula(id = null) {
 }
 
 
-function salvarAula(evento) {
-  evento.preventDefault();
-
-  const dados = Object.fromEntries(new FormData(evento.target).entries());
-  const anterior = db.aulas.find(a => a.id === aulaEditando);
-
-  const conflito = db.aulas.find(a =>
-    a.id !== aulaEditando &&
-    a.data === dados.data &&
-    a.horario === dados.horario &&
-    a.veiculoId === dados.veiculoId &&
-    a.status !== "Cancelada" &&
-    dados.status !== "Cancelada"
-  );
-
-  if (conflito) {
-    mostrarAviso("Este veículo já possui uma aula neste dia e horário.");
-    return;
-  }
-
-  const alunoNovo = db.alunos.find(a => a.id === dados.alunoId);
-  const saldoDisponivel = Number(alunoNovo?.saldo || 0) +
-    (anterior?.status === "Realizada" && anterior.alunoId === dados.alunoId ? 1 : 0);
-
-  if (dados.status === "Realizada" && saldoDisponivel < 1) {
-    mostrarAviso("Este aluno não possui aulas disponíveis.");
-    return;
-  }
-
-  const aula = {
-    id: aulaEditando || gerarId(),
-    alunoId: dados.alunoId,
-    data: dados.data,
-    horario: dados.horario,
-    veiculoId: dados.veiculoId,
-    status: dados.status,
-    observacoes: dados.observacoes || ""
-  };
-
-  if (anterior) {
-    ajustarSaldoAula(anterior, -1);
-    ajustarSaldoAula(aula, 1);
-
-    const indice = db.aulas.findIndex(a => a.id === aulaEditando);
-    db.aulas[indice] = aula;
-  } else {
-    ajustarSaldoAula(aula, 1);
-    db.aulas.push(aula);
-  }
-
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
-  } catch (erro) {
-    console.error("Erro ao salvar aula:", erro);
-    mostrarAviso("Não foi possível salvar a aula.");
-    return;
-  }
-
-  aulaEditando = null;
-
-  try {
-    fecharModal();
-  } catch (erro) {
-    console.error("Erro ao fechar formulário:", erro);
-  }
-
-  try {
-    listarAulas();
-  } catch (erro) {
-    console.error("Erro ao atualizar aulas:", erro);
-  }
-
-  try {
-    listarAlunos();
-  } catch (erro) {
-    console.error("Erro ao atualizar alunos:", erro);
-  }
-
-  try {
-    atualizarSeletoresAlunos();
-  } catch (erro) {
-    console.error("Erro ao atualizar seletores:", erro);
-  }
-
-  try {
-    atualizarPainel();
-  } catch (erro) {
-    console.error("Erro ao atualizar painel:", erro);
-  }
-
-  mostrarAviso("Aula salva com sucesso!");
+async function salvarAula(evento) {
+ evento.preventDefault(); if(!adminAlunosSupabaseAtivo||!adminSupabaseUserId){mostrarAviso("Não foi possível conectar ao Supabase. A aula não foi salva.");return;}
+ const formulario=evento.currentTarget,botaoSalvar=formulario.querySelector('button[type="submit"]'),dados=Object.fromEntries(new FormData(formulario).entries());
+ const anterior=aulaEditando!==null?db.aulas.find(a=>String(a.id)===String(aulaEditando)):null;
+ if(aulaEditando!==null&&!anterior){mostrarAviso("Não foi possível localizar a aula para edição.");return;}
+ const alunoNovo=db.alunos.find(a=>String(a.id)===String(dados.alunoId)),veiculoNovo=db.veiculos.find(v=>String(v.id)===String(dados.veiculoId));
+ if(!alunoNovo||!veiculoNovo){mostrarAviso("Selecione um aluno e um veículo válidos.");return;}
+ const conflito=db.aulas.find(a=>String(a.id)!==String(aulaEditando)&&a.data===dados.data&&a.horario===dados.horario&&String(a.veiculoId)===String(dados.veiculoId)&&a.status!=="Cancelada"&&dados.status!=="Cancelada");
+ if(conflito){mostrarAviso("Este veículo já possui uma aula neste dia e horário.");return;}
+ const payload={owner_id:adminSupabaseUserId,student_id:dados.alunoId,vehicle_id:dados.veiculoId,data_aula:dados.data,horario:horarioTelaParaBanco(dados.horario),status:statusAulaParaBanco(dados.status),observacoes:String(dados.observacoes||"").trim()||null};
+ const cliente=window.getMarcusSupabase?.();if(!cliente){mostrarAviso("Conexão com o Supabase indisponível. Tente novamente.");return;}
+ if(botaoSalvar){botaoSalvar.disabled=true;botaoSalvar.textContent="Salvando...";}
+ try{let resposta;if(anterior){resposta=await cliente.from("lessons").update(payload).eq("id",anterior.id).eq("owner_id",adminSupabaseUserId).select("*").single();}else{resposta=await cliente.from("lessons").insert(payload).select("*").single();}
+ if(resposta.error)throw resposta.error;await sincronizarAulasAdminSupabase();
+ for(const studentId of new Set([anterior?.alunoId,dados.alunoId].filter(Boolean)))await sincronizarSaldoAlunoAdminSupabase(studentId);
+ aulaEditando=null;fecharModal();listarAulas();listarAlunos();atualizarSeletoresAlunos();atualizarPainel();mostrarAviso(anterior?"Aula atualizada no Supabase com sucesso!":"Aula agendada no Supabase com sucesso!");
+ }catch(erro){console.error("Erro ao salvar aula no Supabase:",erro);mostrarAviso(String(erro?.message||"").includes("SALDO_AULAS_INSUFICIENTE")?"Este aluno não possui aulas disponíveis.":"Não foi possível salvar a aula na nuvem. Nenhuma alteração local foi aplicada.");}
+ finally{if(botaoSalvar){botaoSalvar.disabled=false;botaoSalvar.textContent="Salvar aula";}}
 }
-
 
 /* =========================================
    AGENDAMENTO DE VÁRIAS AULAS
@@ -1166,97 +1066,19 @@ function renderizarCamposAgendamentoLote(preservar = true) {
 }
 
 
-function salvarAgendamentoLote(evento) {
-  evento.preventDefault();
-
-  const formulario = evento.target;
-  const dados = new FormData(formulario);
-
-  const alunoId = dados.get("alunoId");
-  const veiculoId = dados.get("veiculoId");
-
-  const quantidade = Math.max(
-    1,
-    Math.min(
-      50,
-      Number(document.getElementById("quantidadeAulasLote").value) || 1
-    )
-  );
-
-  if (!db.alunos.some(a => a.id === alunoId)) {
-    mostrarAviso("Selecione um aluno válido.");
-    return;
-  }
-
-  if (!db.veiculos.some(v => v.id === veiculoId)) {
-    mostrarAviso("Selecione um veículo válido.");
-    return;
-  }
-
-  const novasAulas = [];
-
-  for (let i = 0; i < quantidade; i++) {
-    const data = dados.get(`data_${i}`);
-    const horario = dados.get(`horario_${i}`);
-
-    if (!data || !horario) {
-      mostrarAviso(`Preencha a data e o horário da aula ${i + 1}.`);
-      return;
-    }
-
-    const conflitoExistente = db.aulas.find(a =>
-      a.data === data &&
-      a.horario === horario &&
-      a.veiculoId === veiculoId &&
-      a.status !== "Cancelada"
-    );
-
-    if (conflitoExistente) {
-      mostrarAviso(
-        `Aula ${i + 1}: este veículo já possui aula nessa data e horário.`
-      );
-      return;
-    }
-
-    const conflitoLote = novasAulas.find(a =>
-      a.data === data &&
-      a.horario === horario &&
-      a.veiculoId === veiculoId
-    );
-
-    if (conflitoLote) {
-      mostrarAviso(
-        `Aula ${i + 1}: existe outra aula deste lote no mesmo dia e horário.`
-      );
-      return;
-    }
-
-    novasAulas.push({
-      id: gerarId(),
-      alunoId,
-      data,
-      horario,
-      veiculoId,
-      status: "Agendada",
-      observacoes: ""
-    });
-  }
-
-  db.aulas.push(...novasAulas);
-
-  salvarDados();
-  fecharModal();
-
-  listarAulas();
-  listarAlunos();
-  atualizarSeletoresAlunos();
-  atualizarPainel();
-
-  mostrarAviso(
-    `${novasAulas.length} aulas agendadas com sucesso!`
-  );
+async function salvarAgendamentoLote(evento) {
+ evento.preventDefault();if(!adminAlunosSupabaseAtivo||!adminSupabaseUserId){mostrarAviso("Não foi possível conectar ao Supabase. As aulas não foram agendadas.");return;}
+ const formulario=evento.currentTarget,botaoSalvar=formulario.querySelector('button[type="submit"]'),dados=new FormData(formulario),alunoId=dados.get("alunoId"),veiculoId=dados.get("veiculoId"),quantidade=Math.max(1,Math.min(50,Number(document.getElementById("quantidadeAulasLote").value)||1));
+ if(!db.alunos.some(a=>String(a.id)===String(alunoId))){mostrarAviso("Selecione um aluno válido.");return;}if(!db.veiculos.some(v=>String(v.id)===String(veiculoId))){mostrarAviso("Selecione um veículo válido.");return;}
+ const novasAulas=[];for(let i=0;i<quantidade;i++){const data=dados.get(`data_${i}`),horario=dados.get(`horario_${i}`);if(!data||!horario){mostrarAviso(`Preencha a data e o horário da aula ${i+1}.`);return;}
+ if(db.aulas.some(a=>a.data===data&&a.horario===horario&&String(a.veiculoId)===String(veiculoId)&&a.status!=="Cancelada")){mostrarAviso(`Aula ${i+1}: este veículo já possui aula nessa data e horário.`);return;}
+ if(novasAulas.some(a=>a.data_aula===data&&a.horario===horarioTelaParaBanco(horario))){mostrarAviso(`Aula ${i+1}: existe outra aula deste lote no mesmo dia e horário.`);return;}
+ novasAulas.push({owner_id:adminSupabaseUserId,student_id:alunoId,vehicle_id:veiculoId,data_aula:data,horario:horarioTelaParaBanco(horario),status:"agendada",observacoes:null});}
+ const cliente=window.getMarcusSupabase?.();if(!cliente){mostrarAviso("Conexão com o Supabase indisponível. Tente novamente.");return;}if(botaoSalvar){botaoSalvar.disabled=true;botaoSalvar.textContent="Salvando...";}
+ try{const {error}=await cliente.from("lessons").insert(novasAulas);if(error)throw error;await sincronizarAulasAdminSupabase();fecharModal();listarAulas();listarAlunos();atualizarSeletoresAlunos();atualizarPainel();mostrarAviso(`${novasAulas.length} aulas agendadas no Supabase com sucesso!`);}
+ catch(erro){console.error("Erro ao agendar lote no Supabase:",erro);mostrarAviso("Não foi possível agendar todas as aulas na nuvem. Nenhuma aula foi confirmada.");}
+ finally{if(botaoSalvar){botaoSalvar.disabled=false;botaoSalvar.textContent="Salvar todas as aulas";}}
 }
-
 
 function ajustarSaldoAula(aula, fator) {
   if (aula.status !== "Realizada") return;
@@ -1308,48 +1130,16 @@ function listarAulas() {
 }
 
 async function excluirAula(id) {
-  if (!(await confirmar("Deseja excluir esta aula?"))) return;
-
-  try {
-    const aula = db.aulas.find(
-      a => String(a.id) === String(id)
-    );
-
-    if (aula) {
-      ajustarSaldoAula(aula, -1);
-    }
-
-    db.aulas = db.aulas.filter(
-      a => String(a.id) !== String(id)
-    );
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
-
-    mostrarAviso("Aula excluída.");
-
-    try {
-      listarAulas();
-    } catch (erro) {
-      console.error("Erro ao atualizar aulas:", erro);
-    }
-
-    try {
-      listarAlunos();
-    } catch (erro) {
-      console.error("Erro ao atualizar alunos:", erro);
-    }
-
-    try {
-      atualizarPainel();
-    } catch (erro) {
-      console.error("Erro ao atualizar painel:", erro);
-    }
-
-  } catch (erro) {
-    console.error("Erro ao excluir aula:", erro);
-    mostrarAviso("Erro ao excluir a aula. Tente novamente.");
-  }
+ const aula=db.aulas.find(a=>String(a.id)===String(id));if(!aula)return;
+ if(!adminAlunosSupabaseAtivo||!adminSupabaseUserId){mostrarAviso("Não foi possível conectar ao Supabase. A aula não foi excluída.");return;}
+ if(!(await confirmar("Deseja excluir esta aula?")))return;
+ const cliente=window.getMarcusSupabase?.();if(!cliente){mostrarAviso("Conexão com o Supabase indisponível. Tente novamente.");return;}
+ try{const {error}=await cliente.from("lessons").delete().eq("id",aula.id).eq("owner_id",adminSupabaseUserId);if(error)throw error;
+ await sincronizarAulasAdminSupabase();if(aula.status==="Realizada")await sincronizarSaldoAlunoAdminSupabase(aula.alunoId);
+ listarAulas();listarAlunos();atualizarPainel();mostrarAviso("Aula excluída do Supabase.");
+ }catch(erro){console.error("Erro ao excluir aula do Supabase:",erro);mostrarAviso("Não foi possível excluir a aula. Tente novamente.");}
 }
+
 /* =========================================
    FINANCEIRO
 ========================================= */
@@ -3115,6 +2905,16 @@ if (filtroAlunoAulas) {
    Esta etapa é somente leitura. Não migra nem
    sobrescreve dados locais automaticamente.
 ========================================= */
+
+function statusAulaParaBanco(status) { return ({ "Realizada":"realizada","Cancelada":"cancelada","Agendada":"agendada" })[status] || "agendada"; }
+
+function horarioTelaParaBanco(horario) { return String(horario || "").split(" - ")[0].trim() + ":00"; }
+
+function aulaBancoParaTela(aula) { return { id:aula.id, alunoId:aula.student_id, data:aula.data_aula, horario:horarioBancoParaTela(aula.horario), veiculoId:aula.vehicle_id || "", status:statusAulaParaTela(aula.status), observacoes:aula.observacoes || "" }; }
+
+async function sincronizarAulasAdminSupabase() { const cliente=window.getMarcusSupabase?.(); if(!cliente||!adminAlunosSupabaseAtivo||!adminSupabaseUserId) throw new Error("Conexão administrativa com Supabase indisponível."); const {data,error}=await cliente.from("lessons").select("*").eq("owner_id",adminSupabaseUserId).order("data_aula").order("horario"); if(error) throw error; db.aulas=(data||[]).map(aulaBancoParaTela); }
+
+async function sincronizarSaldoAlunoAdminSupabase(studentId) { if(!studentId)return; const cliente=window.getMarcusSupabase?.(); if(!cliente||!adminSupabaseUserId)throw new Error("Conexão administrativa com Supabase indisponível."); const {data,error}=await cliente.from("students").select("id,aulas_compradas,aulas_restantes").eq("id",studentId).eq("owner_id",adminSupabaseUserId).single(); if(error)throw error; const aluno=db.alunos.find(a=>String(a.id)===String(studentId)); if(aluno){aluno.contratadas=Number(data.aulas_compradas||0);aluno.saldo=Number(data.aulas_restantes||0);} }
 
 function statusAulaParaTela(status) {
   const valor = String(status || "").toLowerCase();
