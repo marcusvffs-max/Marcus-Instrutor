@@ -425,3 +425,37 @@ footer { padding:20px; text-align:center; color:var(--muted); font-size:12px; }
  .sale-cart-row > div { flex:1 1 calc(100% - 80px); }
  .sale-cart-row > strong { margin-left:4px; }
 }
+
+
+/* Contratos da área do instrutor */
+.contract-form { margin-top: 14px; }
+.contract-options { display:flex; flex-wrap:wrap; gap:12px 22px; margin:16px 0; }
+.contract-check { display:flex; align-items:center; gap:8px; font-size:13px; }
+.contract-check input { width:auto; }
+.contract-preview { margin-top:20px; }
+.contract-sheet { max-width:850px; margin:0 auto; padding:38px 44px; border:1px solid var(--border); border-radius:12px; background:#fff; color:#202833; box-shadow:0 8px 28px rgba(16,36,58,.07); }
+.contract-sheet header { padding-bottom:18px; margin-bottom:22px; border-bottom:2px solid var(--primary); text-align:center; }
+.contract-sheet header h2 { margin:0; color:var(--primary); font-size:22px; }
+.contract-sheet header p { margin:7px 0 0; font-size:12px; font-weight:800; letter-spacing:.08em; }
+.contract-sheet main { font-size:13px; line-height:1.65; text-align:justify; }
+.contract-sheet main h3 { margin:22px 0 8px; color:var(--primary); font-size:14px; }
+.contract-sheet main p { margin:9px 0; }
+.contract-place-date { margin-top:30px !important; text-align:center; }
+.contract-signatures { display:grid; grid-template-columns:1fr 1fr; gap:38px; margin-top:65px; text-align:center; }
+.contract-signatures div { display:grid; justify-items:center; gap:6px; }
+.contract-signatures span { width:100%; border-top:1px solid #333; }
+.contract-signatures strong { font-size:12px; }
+.contract-signatures small { color:#596575; font-size:10px; }
+.contract-note { margin-top:14px; color:var(--muted); font-size:12px; }
+@media(max-width:620px) {
+  .contract-sheet { padding:22px 17px; }
+  .contract-signatures { grid-template-columns:1fr; gap:45px; }
+}
+@media print {
+  @page { size:A4; margin:18mm; }
+  body.printing-contract * { visibility:hidden !important; }
+  body.printing-contract #contratoPreviewInstrutor,
+  body.printing-contract #contratoPreviewInstrutor * { visibility:visible !important; }
+  body.printing-contract #contratoPreviewInstrutor { position:absolute; inset:0 auto auto 0; width:100%; margin:0; }
+  body.printing-contract .contract-sheet { max-width:none; padding:0; border:0; border-radius:0; box-shadow:none; }
+}
