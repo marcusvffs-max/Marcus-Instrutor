@@ -90,7 +90,7 @@
         el("listaAulas").innerHTML =
           '<div class="user-empty"><div class="user-empty-icon">!</div>' +
           '<strong>Acesso ainda não vinculado</strong>' +
-          '<p>Sua conta foi autenticada, mas ainda não está associada a um cadastro de aluno. Entre em contato com seu instrutor e peça para conferir seu e-mail e enviar um convite de acesso. Por segurança, não tente criar outra conta.</p></div>';
+          '<p>Sua conta foi autenticada, mas ainda não está associada a um cadastro de aluno. Entre em contato com seu instrutor para conferir o e-mail cadastrado e regularizar seu acesso. Se você já tinha uma conta antiga, informe isso ao instrutor. Por segurança, não crie outra conta nem tente fazer o vínculo por conta própria.</p></div>';
         el("atualizadoEm").textContent = "Aguardando regularização do vínculo.";
         showMessage("Fale com seu instrutor para regularizar o acesso.");
         return;
