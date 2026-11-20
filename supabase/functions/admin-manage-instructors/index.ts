@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer@^9";
+import { getCompletionFallbackOutcome, getReservationStatus } from "../_shared/student-link-rules.mjs";
 
 const APP_ORIGIN = "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app";
 const APP_URL = APP_ORIGIN + "/";
@@ -108,15 +109,17 @@ Deno.serve(async (req: Request) => {
           .eq("user_id", authData.user.id)
           .maybeSingle();
         if (alreadyCompletedError) throw alreadyCompletedError;
-        if (alreadyCompletedLink) {
+        if (getCompletionFallbackOutcome({
+          attemptId,
+          userId: authData.user.id,
+          completedAttemptId: attemptId,
+          completedUserId: alreadyCompletedLink?.id ? authData.user.id : null,
+        }) === "already_completed" && alreadyCompletedLink) {
           return response({ ok: true, message: "Este acesso já foi confirmado por esta conta." });
         }
         return response({ error: "Este link não corresponde a uma solicitação válida ou expirou. Peça ao instrutor para enviar um novo acesso." }, 409);
       }
-      const reservationTime = pendingStudent.invited_at ? new Date(pendingStudent.invited_at).getTime() : NaN;
-      const reservationAge = Date.now() - reservationTime;
-      if (!Number.isFinite(reservationTime) || reservationAge < 0 ||
-          reservationAge >= 15 * 60 * 1000 ||
+      if (getReservationStatus(pendingStudent.invited_at) !== "active" ||
           String(pendingStudent.email ?? "").trim().toLowerCase() !== authData.user.email.trim().toLowerCase()) {
         return response({ error: "Este link não corresponde a uma solicitação válida ou expirou. Peça ao instrutor para enviar um novo acesso." }, 409);
       }
@@ -147,7 +150,12 @@ Deno.serve(async (req: Request) => {
           .eq("user_id", authData.user.id)
           .maybeSingle();
         if (racedCompletionError) throw racedCompletionError;
-        if (racedCompletion) {
+        if (getCompletionFallbackOutcome({
+          attemptId,
+          userId: authData.user.id,
+          completedAttemptId: attemptId,
+          completedUserId: racedCompletion ? authData.user.id : null,
+        }) === "already_completed" && racedCompletion) {
           return response({ ok: true, message: "Este acesso já foi confirmado por esta conta." });
         }
         return response({ error: "O vínculo já foi concluído por outra conta ou a solicitação expirou. Atualize a página ou peça um novo link ao instrutor." }, 409);
@@ -425,10 +433,7 @@ Deno.serve(async (req: Request) => {
       }
 
       if (student.invited_at && !student.user_id) {
-        const reservationTime = new Date(student.invited_at).getTime();
-        const reservationAge = Date.now() - reservationTime;
-        const reservationIsRecent = Number.isFinite(reservationTime)
-          && reservationAge >= 0 && reservationAge < 15 * 60 * 1000;
+        const reservationIsRecent = getReservationStatus(student.invited_at) === "active";
         if (reservationIsRecent) {
           return response({ error: "Já existe um convite em processamento para este aluno. Aguarde alguns minutos e atualize a lista." }, 409);
         }
