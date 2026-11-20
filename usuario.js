@@ -30,27 +30,47 @@
   function renderLessons(lessons) {
     el("totalAulas").textContent = lessons.length;
     if (!lessons.length) {
-      el("listaAulas").innerHTML = '<div class="empty-state">Nenhuma aula agendada no momento.</div>';
+      el("listaAulas").innerHTML =
+        '<div class="user-empty"><div class="user-empty-icon">✓</div><strong>Nenhuma aula agendada</strong><p>Quando uma nova aula for marcada, ela aparecerá aqui.</p></div>';
       return;
     }
 
-    const rows = lessons.map(lesson => {
-      const status = String(lesson.lesson_status || "agendada");
-      const vehicle = [lesson.vehicle_name, lesson.vehicle_plate]
-        .filter(Boolean).join(" · ") || "Não informado";
-      return '<tr>' +
-        '<td>' + escapeHtml(formatDate(lesson.lesson_date)) + '</td>' +
-        '<td>' + escapeHtml(formatTime(lesson.lesson_time)) + '</td>' +
-        '<td>' + escapeHtml(lesson.student_name || "—") + '</td>' +
-        '<td>' + escapeHtml(vehicle) + '</td>' +
-        '<td><span class="status">' + escapeHtml(status === "agendada" ? "Agendada" : status) + '</span></td>' +
-        '</tr>';
+    const weekday = value => {
+      if (!value) return "";
+      const date = new Date(String(value).slice(0, 10) + "T12:00:00");
+      return new Intl.DateTimeFormat("pt-BR", { weekday: "short" }).format(date).replace(".", "");
+    };
+
+    const cards = lessons.map(lesson => {
+      const status = String(lesson.lesson_status || "agendada").toLowerCase();
+      const statusLabels = {
+        agendada: "Agendada",
+        realizada: "Realizada",
+        cancelada: "Cancelada",
+        confirmada: "Confirmada",
+        pendente: "Pendente"
+      };
+      const statusLabel = statusLabels[status] || status.charAt(0).toUpperCase() + status.slice(1);
+      const statusClass = ["agendada", "realizada", "cancelada", "confirmada", "pendente"].includes(status)
+        ? status : "outro";
+      const vehicle = [lesson.vehicle_name, lesson.vehicle_plate].filter(Boolean).join(" · ") || "Veículo não informado";
+      const dateParts = String(lesson.lesson_date || "").slice(0, 10).split("-");
+      const day = dateParts.length === 3 ? dateParts[2] : "—";
+      const month = dateParts.length === 3
+        ? new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(new Date(lesson.lesson_date + "T12:00:00")).replace(".", "")
+        : "";
+      return '<article class="user-lesson-card">' +
+        '<div class="user-lesson-date"><strong>' + escapeHtml(day) + '</strong><span>' + escapeHtml(month) + '</span><small>' + escapeHtml(weekday(lesson.lesson_date)) + '</small></div>' +
+        '<div class="user-lesson-info">' +
+          '<div class="user-lesson-top"><span class="user-lesson-time">◷ ' + escapeHtml(formatTime(lesson.lesson_time)) + '</span>' +
+          '<span class="user-lesson-status status-' + statusClass + '">' + escapeHtml(statusLabel) + '</span></div>' +
+          '<h4>' + escapeHtml(lesson.student_name || "Aula de direção") + '</h4>' +
+          '<p class="user-lesson-vehicle"><span aria-hidden="true">🚘</span> ' + escapeHtml(vehicle) + '</p>' +
+        '</div>' +
+      '</article>';
     }).join("");
 
-    el("listaAulas").innerHTML =
-      '<div class="table-wrap"><table><thead><tr>' +
-      '<th>Data</th><th>Horário</th><th>Aluno</th><th>Veículo</th><th>Situação</th>' +
-      '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+    el("listaAulas").innerHTML = '<div class="user-lesson-list">' + cards + '</div>';
   }
 
   async function loadLessons() {
