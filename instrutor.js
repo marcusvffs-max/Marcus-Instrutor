@@ -160,6 +160,71 @@
       '</tbody></table>';
   }
 
+  function renderUpcomingLessons() {
+    const container = el("proximasAulas");
+    if (!container) return;
+
+    const scheduled = sortLessons(state.lessons.filter(lesson =>
+      String(lesson.status || "").toLowerCase() === "agendada"
+    ));
+
+    if (!scheduled.length) {
+      container.innerHTML = '<div class="empty-state">Você não possui aulas agendadas.</div>';
+      return;
+    }
+
+    container.innerHTML = scheduled.slice(0, 12).map(lesson => {
+      const student = state.students.find(item => item.id === lesson.student_id);
+      const remaining = Number(student?.aulas_restantes || 0);
+      return '<article class="upcoming-lesson-card">' +
+        '<div class="upcoming-lesson-date"><strong>' + escapeHtml(formatDate(lesson.data_aula)) +
+        '</strong><span>' + escapeHtml(String(lesson.horario || "").slice(0, 5)) + '</span></div>' +
+        '<div class="upcoming-lesson-info"><strong>' + escapeHtml(studentName(lesson.student_id)) +
+        '</strong><span>' + escapeHtml(vehicleName(lesson.vehicle_id)) + '</span>' +
+        '<small>Aula ' + escapeHtml(lesson.numero_aula ?? "—") +
+        ' · Saldo: ' + escapeHtml(remaining) + '</small></div>' +
+        '<div class="upcoming-lesson-actions">' +
+        '<button class="button button-success button-small" type="button" data-dashboard-lesson-action="realizada" data-lesson-id="' +
+        escapeHtml(lesson.id) + '"' + (remaining <= 0 ? ' disabled title="Aluno sem aulas restantes"' : '') +
+        '>Realizada</button>' +
+        '<button class="button button-danger button-small" type="button" data-dashboard-lesson-action="cancelada" data-lesson-id="' +
+        escapeHtml(lesson.id) + '">Cancelar</button>' +
+        '</div></article>';
+    }).join("");
+  }
+
+  async function changeScheduledLessonStatus(id, nextStatus) {
+    const lesson = state.lessons.find(item => item.id === id);
+    if (!lesson || String(lesson.status || "").toLowerCase() !== "agendada") return;
+
+    const student = state.students.find(item => item.id === lesson.student_id);
+    if (nextStatus === "realizada" && Number(student?.aulas_restantes || 0) <= 0) {
+      showMessage("Não é possível marcar como realizada: o aluno não possui aulas restantes.");
+      return;
+    }
+
+    const actionLabel = nextStatus === "realizada" ? "marcar esta aula como realizada" : "cancelar esta aula";
+    if (!window.confirm("Deseja " + actionLabel + " para " + studentName(lesson.student_id) + "?")) return;
+
+    try {
+      const { error } = await state.supabase.from("lessons")
+        .update({ status: nextStatus }).eq("id", id);
+      if (error) throw error;
+      await loadOwnData();
+      showMessage(nextStatus === "realizada"
+        ? "Aula marcada como realizada. O saldo foi atualizado."
+        : "Aula cancelada com sucesso.", false);
+    } catch (error) {
+      console.error("Falha ao atualizar situação da aula:", error);
+      const detail = String(error?.message || "");
+      if (detail.includes("SALDO_AULAS_INSUFICIENTE")) {
+        showMessage("A aula não foi confirmada: o aluno não possui aulas restantes.");
+      } else {
+        showMessage("Não foi possível atualizar a aula. Tente novamente.");
+      }
+    }
+  }
+
   function updateLessonSelects() {
     const studentSelect = el("aulaAluno");
     const selectedStudent = studentSelect.value;
@@ -435,6 +500,7 @@
     renderStudents();
     renderVehicles();
     renderLessons();
+    renderUpcomingLessons();
     updateStudentSelect();
     updateLessonSelects();
   }
@@ -679,6 +745,15 @@
     });
 
     el("btnNovaAula").addEventListener("click", () => openLessonForm());
+    el("btnAgendarInicio").addEventListener("click", () => {
+      navigateInstructorPage("aulas");
+      openLessonForm();
+    });
+    el("proximasAulas").addEventListener("click", event => {
+      const button = event.target.closest("[data-dashboard-lesson-action]");
+      if (!button || button.disabled) return;
+      changeScheduledLessonStatus(button.dataset.lessonId, button.dataset.dashboardLessonAction);
+    });
     el("btnCancelarAula").addEventListener("click", resetLessonForm);
     el("formAula").addEventListener("submit", saveLesson);
     el("aulaAluno").addEventListener("change", updateLessonBalanceHint);
