@@ -127,6 +127,7 @@
           (student.email ? '<p class="student-card-email">' + escapeHtml(student.email) + '</p>' : '') +
         '</div>' +
         '<div class="student-card-actions">' +
+          (student.email ? '<button class="button button-primary button-small" type="button" data-student-action="invite" data-student-id="' + escapeHtml(student.id) + '">Convidar para área do aluno</button>' : '') +
           '<button class="button button-outline button-small" type="button" data-student-action="edit" data-student-id="' + escapeHtml(student.id) + '">Editar</button>' +
           '<button class="button button-danger button-small" type="button" data-student-action="delete" data-student-id="' + escapeHtml(student.id) + '">Excluir</button>' +
         '</div>' +
@@ -1278,13 +1279,40 @@
     });
     el("btnCancelarAluno").addEventListener("click", resetStudentForm);
     el("formAluno").addEventListener("submit", saveStudent);
-    el("listaAlunos").addEventListener("click", event => {
+    el("listaAlunos").addEventListener("click", async event => {
       const button = event.target.closest("[data-student-action]");
       if (!button) return;
       const id = button.dataset.studentId;
       const student = state.students.find(item => item.id === id);
-      if (button.dataset.studentAction === "edit" && student) openStudentForm(student);
+      if (!student) return;
+      if (button.dataset.studentAction === "edit") openStudentForm(student);
       if (button.dataset.studentAction === "delete") deleteStudent(id);
+      if (button.dataset.studentAction === "invite") {
+        if (!student.email) {
+          showMessage("Cadastre o e-mail do aluno antes de enviar o convite.");
+          return;
+        }
+        if (!window.confirm("Enviar convite de acesso à área do aluno para " + student.nome + " (" + student.email + ")?")) return;
+        button.disabled = true;
+        button.textContent = "Enviando...";
+        try {
+          const { data, error } = await state.supabase.functions.invoke("admin-manage-instructors", {
+            body: { action: "invite_student", student_id: student.id }
+          });
+          if (error) {
+            let detail = "";
+            try { detail = (await error.context.json()).error || ""; } catch (_) {}
+            throw new Error(detail || "Não foi possível enviar o convite.");
+          }
+          if (!data?.ok) throw new Error(data?.error || "Não foi possível enviar o convite.");
+          showMessage(data.message || "Convite de aluno enviado com sucesso.", false);
+          button.textContent = "Convite enviado";
+        } catch (error) {
+          showMessage(error.message || "Não foi possível enviar o convite.");
+          button.disabled = false;
+          button.textContent = "Convidar para área do aluno";
+        }
+      }
     });
 
     el("btnNovoVeiculo").addEventListener("click", () => openVehicleForm());
