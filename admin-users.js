@@ -287,7 +287,7 @@
     overlay.hidden = false;
     message.textContent = "";
     await loadUsers();
-    startAccessCountdownRefresh();
+    if (!overlay.hidden) startAccessCountdownRefresh();
     nameInput.focus();
   });
 
