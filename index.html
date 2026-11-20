@@ -9,7 +9,7 @@
   <title>Marcus Instrutor</title>
 
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=atendimentos-whatsapp-v1">
+  <link rel="stylesheet" href="style.css?v=ai-toggle-v1">
   <link rel="icon" href="icon-192.png" type="image/png">
 </head>
 
@@ -408,6 +408,10 @@
         <span class="menu-icon">⚙</span>
         <span>Ajustes</span>
       </button>
+      <button type="button" id="btnControleIA" class="menu-item ai-toggle-item" aria-pressed="false" title="Ativar ou desativar as respostas inteligentes Gemini" hidden>
+        <span class="menu-icon">✦</span>
+        <span id="textoControleIA">IA: desligada</span>
+      </button>
     </nav>
 
     <div id="modalContainer"></div>
@@ -488,8 +492,73 @@
       const parametrosUrl = new URLSearchParams(window.location.search);
       const parametrosHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
       let modoRecuperacao = parametrosUrl.has("code") || parametrosUrl.get("type") === "recovery" || parametrosHash.get("type") === "recovery";
+      const botaoControleIA = document.getElementById("btnControleIA");
+      const textoControleIA = document.getElementById("textoControleIA");
+      let iaAtivada = false;
+
+      function atualizarBotaoIA(ativada) {
+        iaAtivada = Boolean(ativada);
+        if (!botaoControleIA || !textoControleIA) return;
+        botaoControleIA.hidden = false;
+        botaoControleIA.disabled = false;
+        botaoControleIA.setAttribute("aria-pressed", String(iaAtivada));
+        botaoControleIA.classList.toggle("ai-toggle-on", iaAtivada);
+        textoControleIA.textContent = iaAtivada ? "IA: ligada" : "IA: desligada";
+        botaoControleIA.title = iaAtivada
+          ? "Desativar respostas inteligentes Gemini"
+          : "Ativar respostas inteligentes Gemini";
+      }
+
+      async function carregarEstadoIA(usuario) {
+        if (!botaoControleIA || !usuario?.id) return;
+        botaoControleIA.hidden = false;
+        botaoControleIA.disabled = true;
+        textoControleIA.textContent = "IA: carregando";
+        const { data, error } = await clienteSupabase
+          .from("ai_runtime_settings")
+          .select("enabled")
+          .eq("owner_id", usuario.id)
+          .maybeSingle();
+        if (error || !data) {
+          console.error("Não foi possível carregar o estado da IA:", error);
+          textoControleIA.textContent = "IA: indisponível";
+          botaoControleIA.title = "Não foi possível consultar a configuração da IA";
+          return;
+        }
+        atualizarBotaoIA(data.enabled);
+      }
+
+      if (botaoControleIA) {
+        botaoControleIA.addEventListener("click", async function () {
+          if (botaoControleIA.disabled) return;
+          const novoEstado = !iaAtivada;
+          botaoControleIA.disabled = true;
+          textoControleIA.textContent = "IA: salvando";
+          const { data, error } = await clienteSupabase
+            .from("ai_runtime_settings")
+            .update({ enabled: novoEstado, updated_at: new Date().toISOString() })
+            .eq("owner_id", (await clienteSupabase.auth.getUser()).data.user?.id)
+            .select("enabled")
+            .maybeSingle();
+          if (error || !data) {
+            console.error("Falha ao alterar o estado da IA:", error);
+            textoControleIA.textContent = iaAtivada ? "IA: ligada" : "IA: desligada";
+            botaoControleIA.disabled = false;
+            window.alert("Não foi possível alterar a Assistente IA. Tente novamente.");
+            return;
+          }
+          atualizarBotaoIA(data.enabled);
+          if (typeof window.mostrarAviso === "function") {
+            window.mostrarAviso(data.enabled
+              ? "Assistente IA ativada."
+              : "Assistente IA desativada.");
+          }
+        });
+      }
+
       function mostrarLogin(mensagem) {
         document.body.classList.remove("autenticado");
+        if (botaoControleIA) botaoControleIA.hidden = true;
         if (mensagemLogin) mensagemLogin.textContent = mensagem || "";
         if (campoSenha) campoSenha.value = "";
       }
@@ -526,6 +595,7 @@
           return false;
         }
         mostrarAplicativo();
+        await carregarEstadoIA(usuario);
         const botaoSair = document.getElementById("btnLogout");
         if (botaoSair) {
           botaoSair.onclick = async function () {
