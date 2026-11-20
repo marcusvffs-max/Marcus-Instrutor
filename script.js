@@ -2080,22 +2080,56 @@ function abrirDespesa() {
     </form>
   `);
 
-  document.getElementById("formDespesa").onsubmit = evento => {
+  document.getElementById("formDespesa").onsubmit = async evento => {
     evento.preventDefault();
 
-    const dados = Object.fromEntries(new FormData(evento.target).entries());
+    const formulario = evento.target;
+    const botao = formulario.querySelector('button[type="submit"]');
+    const dados = Object.fromEntries(new FormData(formulario).entries());
+    const descricao = String(dados.descricao || "").trim();
     const valor = numero(dados.valor);
 
-    if (valor <= 0 || !dados.descricao.trim()) {
+    if (valor <= 0 || !descricao) {
       mostrarAviso("Informe descrição e valor válidos.");
       return;
     }
 
-    registrarMovimentacao("saida", dados.descricao.trim(), valor);
-    fecharModal();
-    listarMovimentacoes();
-    atualizarFinanceiro();
-    mostrarAviso("Despesa registrada.");
+    try {
+      const cliente = window.getMarcusSupabase?.();
+      if (!cliente || !adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
+        throw new Error("A sessão administrativa do Supabase não está disponível.");
+      }
+
+      botao.disabled = true;
+      botao.textContent = "Salvando...";
+
+      const { error } = await cliente
+        .from("financial_transactions")
+        .insert({
+          owner_id: adminSupabaseUserId,
+          student_id: null,
+          sale_id: null,
+          tipo: "saida",
+          descricao,
+          valor,
+          data_movimento: dataHoje(),
+          status: "confirmado"
+        });
+
+      if (error) throw error;
+
+      await carregarDadosAdminSupabase();
+      fecharModal();
+      listarMovimentacoes();
+      atualizarFinanceiro();
+      atualizarPainel();
+      mostrarAviso("Despesa registrada no Supabase.");
+    } catch (erro) {
+      console.error("Falha ao registrar despesa no Supabase:", erro);
+      mostrarAviso(erro.message || "Não foi possível registrar a despesa.");
+      botao.disabled = false;
+      botao.textContent = "Registrar despesa";
+    }
   };
 }
 
@@ -2140,13 +2174,32 @@ async function excluirDespesa(id) {
   if (!movimento) return;
   if (!(await confirmar("Excluir esta despesa?"))) return;
 
-  db.movimentacoes = db.movimentacoes.filter(m => m.id !== id);
+  try {
+    const cliente = window.getMarcusSupabase?.();
+    if (!cliente || !adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
+      throw new Error("A sessão administrativa do Supabase não está disponível.");
+    }
 
-  salvarDados();
-  listarMovimentacoes();
-  atualizarFinanceiro();
-  mostrarAviso("Despesa excluída.");
-      }
+    const { error } = await cliente
+      .from("financial_transactions")
+      .delete()
+      .eq("id", id)
+      .eq("owner_id", adminSupabaseUserId)
+      .eq("tipo", "saida")
+      .is("sale_id", null);
+
+    if (error) throw error;
+
+    await carregarDadosAdminSupabase();
+    listarMovimentacoes();
+    atualizarFinanceiro();
+    atualizarPainel();
+    mostrarAviso("Despesa excluída do Supabase.");
+  } catch (erro) {
+    console.error("Falha ao excluir despesa do Supabase:", erro);
+    mostrarAviso(erro.message || "Não foi possível excluir a despesa.");
+  }
+}
 /* =========================================
    SELETORES E RELATÓRIOS
 ========================================= */
