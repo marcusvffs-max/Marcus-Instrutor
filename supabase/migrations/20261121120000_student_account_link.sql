@@ -74,6 +74,12 @@ BEGIN
     END IF;
   END IF;
 
+  -- A primeira consulta autenticada confirma que o aluno concluiu o acesso.
+  UPDATE public.students
+  SET invited_at = NULL
+  WHERE user_id = current_user_id
+    AND invited_at IS NOT NULL;
+
   RETURN QUERY
   SELECT
     l.id,
