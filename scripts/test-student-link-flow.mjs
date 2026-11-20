@@ -225,9 +225,9 @@ test("FKs compostas exigem que aluno e veículo pertençam ao mesmo instrutor", 
 });
 
 test("ações de exclusão preservam owner_id e mantêm o cascade dos itens", () => {
-  assert.match(securityDraft, /on delete set null \ (student_id\)/i);
-  assert.match(securityDraft, /on delete set null \ (sale_id\)/i);
-  assert.match(securityDraft, /foreign key \ (sale_id, owner_id\)[\s\S]{0,180}on delete cascade/i);
+  assert.match(securityDraft, /on delete set null \(student_id\)/i);
+  assert.match(securityDraft, /on delete set null \(sale_id\)/i);
+  assert.match(securityDraft, /foreign key \(sale_id, owner_id\)[\s\S]{0,180}on delete cascade/i);
   assert.match(securityDraft, /drop constraint lessons_student_id_fkey/i);
   assert.match(securityDraft, /drop constraint lessons_vehicle_id_fkey/i);
   assert.match(securityDraft, /drop constraint sales_student_id_fkey/i);
@@ -240,7 +240,7 @@ test("exceção do catálogo central e FK de app_settings permanecem documentada
   assert.match(fkReview, /sale_items\.product_id.*catálogo central/i);
   assert.match(fkReview, /app_settings_owner_id_fkey.*auth\.users/i);
   assert.match(integrityDraft, /sale_items\.product_id.*catálogo central/i);
-  assert.doesNotMatch(securityDraft, /foreign key \ (product_id, owner_id\)/i);
+  assert.doesNotMatch(securityDraft, /foreign key \(product_id, owner_id\)/i);
 });
 
 test("revisão das FKs registra versão PostgreSQL e semânticas originais", () => {
