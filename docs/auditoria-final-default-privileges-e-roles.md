@@ -64,3 +64,27 @@ Não foi identificado owner dedicado isolado para objetos do app; o uso de `post
 ## 6. Estado
 
 Nenhum GRANT, REVOKE, ALTER DEFAULT PRIVILEGES, membership, função, schema ou objeto foi alterado. A auditoria foi somente leitura.
+
+
+## Revisão complementar: proteção de profiles.role e grants diretos
+
+A revisão estática do rascunho SQL confirma os seguintes controles propostos:
+
+- A função `private.protect_profile_role()` é `SECURITY DEFINER`, usa `search_path = ''` e tem owner explícito `postgres`.
+- A função só aceita mudança de papel quando o JWT validado da requisição contém `role = service_role`. Não usa `user_metadata` nem dados editáveis do perfil como autorização.
+- Para INSERT que não venha do backend confiável, força `NEW.role = 'instrutor'`.
+- Para UPDATE, rejeita qualquer mudança de `role` com SQLSTATE `42501`.
+- O trigger é `BEFORE INSERT OR UPDATE OF role` em `public.profiles`.
+- EXECUTE da função de trigger é revogado de `PUBLIC`, `anon` e `authenticated`; o PostgreSQL chama a função pelo trigger sem exigir que esses papéis tenham EXECUTE direto.
+- O desenho remove as políticas antigas de INSERT/UPDATE próprios e concede ao cliente apenas SELECT em `profiles`. O backend administrativo usa service_role depois de validar o usuário solicitante como admin na Edge Function.
+- O rascunho revoga privilégios de tabela para `PUBLIC`, `anon` e `authenticated` nas tabelas abrangidas, remove também grants por coluna encontrados no catálogo e re-concede apenas SELECT/INSERT/UPDATE/DELETE onde o RLS define o acesso por linha. Isso elimina TRUNCATE, REFERENCES e TRIGGER desses papéis sem revogar os grants de service_role.
+- Os default privileges globais de `postgres` e `supabase_admin` permanecem intocados. A auditoria anterior encontrou defaults amplos; alterar esses defaults globalmente poderia afetar objetos e fluxos gerenciados pelo Supabase. A proteção de objetos futuros deve ser tratada por owner/objeto em plano separado.
+
+### Limitações e bloqueios antes da aplicação
+
+- O rascunho não é migration e não foi executado. A proteção de role ainda não está ativa no banco.
+- A permissão `service_role` é deliberadamente confiável; a Edge Function precisa continuar validando o JWT com `getUser` e exigir perfil `admin` antes de qualquer operação de gerenciamento de papéis.
+- O rascunho concede CRUD às tabelas de dados para `authenticated`; isso só é seguro junto com todas as policies RLS revisadas. A aplicação deve ser testada com admin, instrutor A, instrutor B e aluno, inclusive tentativas negativas.
+- A remoção de grants por coluna e os grants finais devem ser conferidos por privilégios efetivos após execução em ambiente isolado.
+- Não alterar default privileges globais nem memberships internos do Supabase como parte desta etapa.
+- Nenhuma mudança foi aplicada ao Supabase atual.
