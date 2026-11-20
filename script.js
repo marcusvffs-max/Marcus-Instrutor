@@ -3106,7 +3106,7 @@ async function carregarDadosAdminSupabase() {
 async function prepararDadosAdmin() {
   try {
     const resultado = await carregarDadosAdminSupabase();
-    if (resultado.motivo === "conflito_local") {
+    if (resultado.motivo === "conflito_local_nuvem") {
       mostrarAviso("Há dados locais e na nuvem. Mantivemos os dados locais para evitar mistura. A migração será feita com conferência.");
     }
   } catch (erro) {
