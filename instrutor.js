@@ -1155,6 +1155,39 @@
     window.location.replace("index.html");
   }
 
+  function renderAccessBlocked() {
+    document.body.innerHTML = '<main class="access-blocked-page"><section class="access-blocked-card">' +
+      '<div class="access-blocked-icon" aria-hidden="true">🔒</div>' +
+      '<h1>Acesso temporariamente bloqueado</h1>' +
+      '<p>Sua autorização de acesso ainda não foi liberada ou já venceu.</p>' +
+      '<p>Entre em contato com o administrador para solicitar a liberação por mais 31 dias.</p>' +
+      '<button id="btnSairAcessoBloqueado" type="button">Sair</button>' +
+      '</section></main>';
+    el("btnSairAcessoBloqueado").addEventListener("click", signOut);
+  }
+
+  function renderAccessCountdown(accessUntil) {
+    const banner = el("avisoValidadeAcesso");
+    if (!banner) return;
+    const expiresAt = new Date(accessUntil).getTime();
+    const update = () => {
+      const remaining = expiresAt - Date.now();
+      if (remaining <= 0) {
+        renderAccessBlocked();
+        return;
+      }
+      const days = Math.ceil(remaining / 86400000);
+      banner.textContent = "Autorização ativa · faltam " + days +
+        (days === 1 ? " dia para o bloqueio automático." : " dias para o bloqueio automático.");
+      banner.classList.toggle("access-expiry-warning", days <= 3);
+    };
+    update();
+    const timer = window.setTimeout(() => renderAccessBlocked(), Math.max(0, expiresAt - Date.now()));
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) update();
+    });
+  }
+
   async function initialize() {
     if (!window.supabase || typeof window.supabase.createClient !== "function") {
       throw new Error("Não foi possível carregar o serviço de autenticação.");
@@ -1172,7 +1205,7 @@
 
     state.user = sessionData.session.user;
     const { data: profile, error: profileError } = await state.supabase.from("profiles")
-      .select("id,nome,role").eq("id", state.user.id).maybeSingle();
+      .select("id,nome,role,instructor_access_until").eq("id", state.user.id).maybeSingle();
 
     if (profileError) throw profileError;
     if (!profile || profile.role !== "instrutor") {
@@ -1184,8 +1217,15 @@
       return;
     }
 
+    const accessUntil = profile.instructor_access_until ? new Date(profile.instructor_access_until).getTime() : 0;
+    if (!accessUntil || accessUntil <= Date.now()) {
+      renderAccessBlocked();
+      return;
+    }
+
     state.profile = profile;
     el("nomeInstrutor").textContent = profile.nome || state.user.email || "Instrutor";
+    renderAccessCountdown(profile.instructor_access_until);
     await loadOwnData();
 
     el("btnNovoAluno").addEventListener("click", () => openStudentForm());
