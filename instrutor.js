@@ -1339,6 +1339,10 @@
           (student.email || "E-mail não informado") + "\n\nSituação: " + situation);
       }
       if (button.dataset.studentAction === "invite") {
+        if (!state.studentLinkFieldsAvailable) {
+          showMessage("O convite ficará disponível quando a atualização do banco for concluída.");
+          return;
+        }
         if (!student.email) {
           showMessage("Cadastre o e-mail do aluno antes de enviar o convite.");
           return;
