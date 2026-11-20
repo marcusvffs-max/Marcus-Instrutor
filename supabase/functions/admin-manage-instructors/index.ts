@@ -58,13 +58,20 @@ Deno.serve(async (req: Request) => {
     });
     const { data: profile, error: profileError } = await admin
       .from("profiles").select("role, instructor_access_until").eq("id", authData.user.id).maybeSingle();
-    if (profileError || !profile || !["admin", "instrutor"].includes(profile.role)) {
+    if (profileError || !profile || !["admin", "instrutor", "usuario"].includes(profile.role)) {
       return response({ error: "Seu perfil não tem permissão para esta operação." }, 403);
     }
 
     const body = await req.json().catch(() => null);
     if (!body || typeof body.action !== "string") {
       return response({ error: "Solicitação inválida." }, 400);
+    }
+    const isStudentLinkCompletion = body.action === "complete_student_link";
+    if (profile.role === "usuario" && !isStudentLinkCompletion) {
+      return response({ error: "Seu perfil não tem permissão para esta operação." }, 403);
+    }
+    if (profile.role !== "usuario" && isStudentLinkCompletion) {
+      return response({ error: "Esta confirmação deve ser feita pela própria conta do aluno." }, 403);
     }
     if (profile.role === "instrutor") {
       const accessUntil = profile.instructor_access_until ? new Date(profile.instructor_access_until).getTime() : 0;
@@ -74,6 +81,45 @@ Deno.serve(async (req: Request) => {
       if (body.action !== "invite_student") {
         return response({ error: "Instrutores podem enviar somente convites de acesso para alunos." }, 403);
       }
+    }
+
+    if (isStudentLinkCompletion) {
+      const attemptId = typeof body.attempt_id === "string" ? body.attempt_id.trim() : "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(attemptId)) {
+        return response({ error: "Código de confirmação inválido. Solicite um novo link ao instrutor." }, 400);
+      }
+      if (!authData.user.email || !authData.user.email_confirmed_at) {
+        return response({ error: "Confirme o e-mail desta conta antes de concluir o vínculo." }, 403);
+      }
+      const { data: pendingStudent, error: pendingError } = await admin
+        .from("students")
+        .select("id, owner_id, email, invited_at, invite_attempt_id")
+        .eq("invite_attempt_id", attemptId)
+        .is("user_id", null)
+        .not("invited_at", "is", null)
+        .maybeSingle();
+      if (pendingError) throw pendingError;
+      if (!pendingStudent || !pendingStudent.invited_at ||
+          Date.now() - new Date(pendingStudent.invited_at).getTime() > 15 * 60 * 1000 ||
+          String(pendingStudent.email ?? "").trim().toLowerCase() !== authData.user.email.trim().toLowerCase()) {
+        return response({ error: "Este link não corresponde a uma solicitação válida ou expirou. Peça ao instrutor para enviar um novo acesso." }, 409);
+      }
+      const { data: completedLink, error: completeError } = await admin
+        .from("students")
+        .update({ user_id: authData.user.id, invited_at: null, invite_attempt_id: null })
+        .eq("id", pendingStudent.id)
+        .eq("owner_id", pendingStudent.owner_id)
+        .eq("invite_attempt_id", attemptId)
+        .eq("invited_at", pendingStudent.invited_at)
+        .eq("email", pendingStudent.email)
+        .is("user_id", null)
+        .select("id")
+        .maybeSingle();
+      if (completeError) throw completeError;
+      if (!completedLink) {
+        return response({ error: "O vínculo já foi concluído ou a solicitação expirou. Atualize a página ou peça um novo link ao instrutor." }, 409);
+      }
+      return response({ ok: true, message: "Conta vinculada com sucesso." });
     }
 
     if (body.action === "list") {
@@ -266,6 +312,7 @@ Deno.serve(async (req: Request) => {
     let studentInviteReservation: string | null = null;
     let studentInviteAttemptId: string | null = null;
     let studentRecoveryUserId: string | null = null;
+    let studentLegacyLinkUserId: string | null = null;
 
     if (isStudentInvite) {
       const studentId = typeof body.student_id === "string" ? body.student_id.trim() : "";
@@ -304,6 +351,37 @@ Deno.serve(async (req: Request) => {
         }
         studentRecoveryUserId = student.user_id;
       }
+      if (!student.user_id) {
+        let matchingAuthUser: any = null;
+        for (let page = 1; ; page += 1) {
+          const { data: usersPage, error: usersPageError } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+          if (usersPageError) throw usersPageError;
+          const matches = (usersPage.users ?? []).filter((user: any) =>
+            String(user.email ?? "").trim().toLowerCase() === String(student.email ?? "").trim().toLowerCase()
+          );
+          if (matches.length > 1) {
+            return response({ error: "Há mais de uma conta compatível com este e-mail. Solicite uma verificação administrativa." }, 409);
+          }
+          if (matches.length === 1) {
+            matchingAuthUser = matches[0];
+            break;
+          }
+          if ((usersPage.users ?? []).length < 200) break;
+        }
+        if (matchingAuthUser) {
+          if (!matchingAuthUser.email_confirmed_at) {
+            return response({ error: "Já existe uma conta com este e-mail, mas ele ainda não foi confirmado. Solicite uma verificação administrativa antes de vincular." }, 409);
+          }
+          const { data: legacyProfile, error: legacyProfileError } = await admin
+            .from("profiles").select("role").eq("id", matchingAuthUser.id).maybeSingle();
+          if (legacyProfileError) throw legacyProfileError;
+          if (!legacyProfile || legacyProfile.role !== "usuario") {
+            return response({ error: "Já existe uma conta com este e-mail, mas ela não está configurada como aluno. Solicite uma verificação administrativa." }, 409);
+          }
+          studentLegacyLinkUserId = matchingAuthUser.id;
+        }
+      }
+
       if (student.invited_at && !student.user_id) {
         const reservationTime = new Date(student.invited_at).getTime();
         const reservationIsRecent = Number.isFinite(reservationTime)
@@ -366,17 +444,19 @@ Deno.serve(async (req: Request) => {
     }
 
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-      type: studentRecoveryUserId ? "recovery" : "invite",
+      type: (studentRecoveryUserId || studentLegacyLinkUserId) ? "recovery" : "invite",
       email,
       options: {
-        ...(!studentRecoveryUserId
+        ...(!(studentRecoveryUserId || studentLegacyLinkUserId)
           ? {
               data: isStudentInvite
                 ? { nome, student_id: studentInviteId, instructor_id: authData.user.id, invite_attempt_id: studentInviteAttemptId }
                 : { nome },
             }
           : {}),
-        redirectTo: APP_URL,
+        redirectTo: studentLegacyLinkUserId && studentInviteAttemptId
+          ? `${APP_ORIGIN}/claim-student.html?attempt_id=${encodeURIComponent(studentInviteAttemptId)}`
+          : APP_URL,
       },
     });
     if (linkError) {
@@ -396,11 +476,11 @@ Deno.serve(async (req: Request) => {
       return response({ error: "Não foi possível criar o convite. Confira o e-mail e tente novamente." }, 400);
     }
 
-    const invitedUserId = linkData.user?.id ?? studentRecoveryUserId;
+    const invitedUserId = linkData.user?.id ?? studentRecoveryUserId ?? studentLegacyLinkUserId;
     const actionLink = linkData.properties?.action_link;
     if (!invitedUserId || !actionLink) {
       let accountRemoved = !invitedUserId;
-      if (invitedUserId && !studentRecoveryUserId) {
+      if (invitedUserId && !studentRecoveryUserId && !studentLegacyLinkUserId) {
         const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
         accountRemoved = !deleteError;
         if (deleteError) console.error("Falha ao remover conta incompleta:", deleteError?.message ?? "erro desconhecido");
@@ -418,14 +498,14 @@ Deno.serve(async (req: Request) => {
     // acima. A condição role=usuario evita sobrescrever uma alteração administrativa
     // concorrente ocorrida depois da validação inicial.
     const profileUpdate = admin.from("profiles")
-      .update(studentRecoveryUserId ? { nome } : { nome, role })
+      .update((studentRecoveryUserId || studentLegacyLinkUserId) ? { nome } : { nome, role })
       .eq("id", invitedUserId);
-    if (studentRecoveryUserId) profileUpdate.eq("role", "usuario");
+    if (studentRecoveryUserId || studentLegacyLinkUserId) profileUpdate.eq("role", "usuario");
 
     const { data: updatedProfile, error: updateProfileError } = await profileUpdate
       .select("id").maybeSingle();
     if (updateProfileError || !updatedProfile) {
-      const { error: deleteError } = studentRecoveryUserId
+      const { error: deleteError } = (studentRecoveryUserId || studentLegacyLinkUserId)
         ? { error: null }
         : await admin.auth.admin.deleteUser(invitedUserId);
       if (!deleteError && studentInviteId && studentInviteReservation) {
@@ -437,7 +517,7 @@ Deno.serve(async (req: Request) => {
       return response({ error: "Não foi possível definir o acesso do novo usuário." }, 500);
     }
 
-    if (isStudentInvite && studentInviteId && studentInviteReservation) {
+    if (isStudentInvite && studentInviteId && studentInviteReservation && !studentLegacyLinkUserId) {
       const { data: linkedStudent, error: linkStudentError } = await admin
         .from("students")
         .select("id")
@@ -450,7 +530,7 @@ Deno.serve(async (req: Request) => {
       // O vínculo precisa ter sido feito pelo trigger transacional do Auth.
       // A Edge Function não faz fallback que contorne essa validação.
       if (linkStudentError || !linkedStudent) {
-        const { error: deleteError } = studentRecoveryUserId
+        const { error: deleteError } = (studentRecoveryUserId || studentLegacyLinkUserId)
           ? { error: null }
           : await admin.auth.admin.deleteUser(invitedUserId);
         if (!deleteError && !studentRecoveryUserId) {
@@ -477,9 +557,9 @@ Deno.serve(async (req: Request) => {
       await transporter.sendMail({
         from: smtpFrom,
         to: email,
-        subject: studentRecoveryUserId ? "Novo link de acesso ao Marcus Instrutor" : "Convite para acessar o Marcus Instrutor",
-        text: studentRecoveryUserId ? `Olá, ${nome}! Foi solicitado um novo link para acessar sua conta no Marcus Instrutor e cadastrar ou redefinir sua senha: ${actionLink}` : `Olá, ${nome}! Você foi convidado(a) para acessar o aplicativo Marcus Instrutor como ${role === "admin" ? "administrador(a)" : role === "usuario" ? (isStudentInvite ? "aluno(a)" : "usuário") : "instrutor(a)"}. Para aceitar o convite e cadastrar sua senha, acesse: ${actionLink}`,
-        html: `<!doctype html><html lang="pt-BR"><body style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.6"><div style="max-width:560px;margin:24px auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px"><h2 style="color:#12345a">Convite Marcus Instrutor</h2><p>Olá, <strong>${safeName}</strong>!</p><p>${studentRecoveryUserId ? "Foi solicitado um novo link para acessar sua conta e cadastrar ou redefinir sua senha." : `Você foi convidado(a) para acessar o aplicativo Marcus Instrutor como <strong>${role === "admin" ? "administrador(a)" : role === "usuario" ? (isStudentInvite ? "aluno(a)" : "usuário") : "instrutor(a)"}</strong>. Para aceitar o convite e cadastrar sua primeira senha, clique no botão abaixo:`}</p><p style="margin:28px 0"><a href="${actionLink}" style="display:inline-block;background:#12345a;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px">${studentRecoveryUserId ? "Acessar minha conta" : "Aceitar convite e criar senha"}</a></p><p>Se você não esperava este convite, pode ignorar esta mensagem.</p></div></body></html>`,
+        subject: studentLegacyLinkUserId ? "Confirme seu acesso de aluno - Marcus Instrutor" : studentRecoveryUserId ? "Novo link de acesso ao Marcus Instrutor" : "Convite para acessar o Marcus Instrutor",
+        text: studentLegacyLinkUserId ? `Olá, ${nome}! Foi solicitado um vínculo entre sua conta já existente e seu cadastro de aluno. Para confirmar que você controla esta conta e concluir o acesso, abra este link: ${actionLink}` : studentRecoveryUserId ? `Olá, ${nome}! Foi solicitado um novo link para acessar sua conta no Marcus Instrutor e cadastrar ou redefinir sua senha: ${actionLink}` : `Olá, ${nome}! Você foi convidado(a) para acessar o aplicativo Marcus Instrutor como ${role === "admin" ? "administrador(a)" : role === "usuario" ? (isStudentInvite ? "aluno(a)" : "usuário") : "instrutor(a)"}. Para aceitar o convite e cadastrar sua senha, acesse: ${actionLink}`,
+        html: `<!doctype html><html lang="pt-BR"><body style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.6"><div style="max-width:560px;margin:24px auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px"><h2 style="color:#12345a">Convite Marcus Instrutor</h2><p>Olá, <strong>${safeName}</strong>!</p><p>${studentLegacyLinkUserId ? "Foi solicitado um vínculo entre esta conta existente e seu cadastro de aluno. Clique abaixo para confirmar o acesso. Se você não reconhece a solicitação, ignore este e-mail." : studentRecoveryUserId ? "Foi solicitado um novo link para acessar sua conta e cadastrar ou redefinir sua senha." : `Você foi convidado(a) para acessar o aplicativo Marcus Instrutor como <strong>${role === "admin" ? "administrador(a)" : role === "usuario" ? (isStudentInvite ? "aluno(a)" : "usuário") : "instrutor(a)"}</strong>. Para aceitar o convite e cadastrar sua primeira senha, clique no botão abaixo:`}</p><p style="margin:28px 0"><a href="${actionLink}" style="display:inline-block;background:#12345a;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px">${studentLegacyLinkUserId ? "Confirmar meu acesso" : studentRecoveryUserId ? "Acessar minha conta" : "Aceitar convite e criar senha"}</a></p><p>Se você não esperava este convite, pode ignorar esta mensagem.</p></div></body></html>`,
       });
     } catch (mailError) {
       const err = mailError as {
@@ -493,7 +573,7 @@ Deno.serve(async (req: Request) => {
         command: err?.command ?? null,
         responseCode: err?.responseCode ?? null,
       });
-      const { error: deleteError } = studentRecoveryUserId
+      const { error: deleteError } = (studentRecoveryUserId || studentLegacyLinkUserId)
         ? { error: null }
         : await admin.auth.admin.deleteUser(invitedUserId);
       if (!deleteError && studentInviteId && studentInviteReservation) {
@@ -511,7 +591,7 @@ Deno.serve(async (req: Request) => {
       transporter.close();
     }
 
-    return response({ ok: true, message: studentRecoveryUserId ? "Novo link de acesso enviado ao aluno." : "Convite enviado com sucesso." });
+    return response({ ok: true, message: studentLegacyLinkUserId ? "Link de confirmação enviado para a conta existente do aluno." : studentRecoveryUserId ? "Novo link de acesso enviado ao aluno." : "Convite enviado com sucesso." });
   } catch (error) {
     console.error("Erro interno ao gerenciar usuários:", error instanceof Error ? error.message : "erro desconhecido");
     return response({ error: "Ocorreu um erro interno. Tente novamente." }, 500);
