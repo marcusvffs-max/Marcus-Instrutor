@@ -414,8 +414,16 @@ Deno.serve(async (req: Request) => {
       return response({ error: "Não foi possível preparar o convite." }, 500);
     }
 
-    const { data: updatedProfile, error: updateProfileError } = await admin.from("profiles")
-      .update({ nome, role }).eq("id", invitedUserId).select("id").maybeSingle();
+    // Na recuperação, não redefina o papel do perfil: ele já foi validado
+    // acima. A condição role=usuario evita sobrescrever uma alteração administrativa
+    // concorrente ocorrida depois da validação inicial.
+    const profileUpdate = admin.from("profiles")
+      .update(studentRecoveryUserId ? { nome } : { nome, role })
+      .eq("id", invitedUserId);
+    if (studentRecoveryUserId) profileUpdate.eq("role", "usuario");
+
+    const { data: updatedProfile, error: updateProfileError } = await profileUpdate
+      .select("id").maybeSingle();
     if (updateProfileError || !updatedProfile) {
       const { error: deleteError } = studentRecoveryUserId
         ? { error: null }
@@ -425,7 +433,7 @@ Deno.serve(async (req: Request) => {
           .eq("id", studentInviteId).eq("owner_id", authData.user.id)
           .is("user_id", null).eq("invited_at", studentInviteReservation);
       }
-      console.error("Falha ao definir perfil do novo usuário:", updateProfileError?.message ?? "perfil não encontrado");
+      console.error("Falha ao confirmar o perfil do usuário:", updateProfileError?.message ?? "perfil não encontrado ou papel alterado durante a operação");
       return response({ error: "Não foi possível definir o acesso do novo usuário." }, 500);
     }
 
