@@ -1637,9 +1637,20 @@ function abrirVenda() {
       <div class="panel">
         <strong>Itens da venda</strong>
         <div id="itensCarrinhoVenda"><p>Nenhum item adicionado.</p></div>
-        <p>Total: <strong id="totalVenda">R$ 0,00</strong></p>
+        <p>Subtotal: <strong id="subtotalBrutoVenda">R$ 0,00</strong></p>
+        <p>Desconto aplicado: <strong id="descontoAplicadoVenda">R$ 0,00</strong></p>
+        <p>Total final: <strong id="totalVenda">R$ 0,00</strong></p>
         <p>Aulas que serão adicionadas: <strong id="aulasVenda">0</strong></p>
       </div>
+
+      <label>Tipo de desconto</label>
+      <select id="tipoDescontoVenda" name="descontoTipo">
+        <option value="valor">Valor fixo (R$)</option>
+        <option value="percentual">Percentual (%)</option>
+      </select>
+
+      <label id="rotuloDescontoVenda" for="valorDescontoVenda">Desconto em reais (R$)</label>
+      <input id="valorDescontoVenda" name="descontoValor" type="number" min="0" step="0.01" value="0">
 
       <label>Forma de pagamento do pedido</label>
       <select name="formaPagamento" required>
@@ -1662,6 +1673,26 @@ function abrirVenda() {
   const formulario = document.getElementById("formVenda");
   const campoProduto = document.getElementById("produtoVenda");
   const campoQuantidade = document.getElementById("quantidadeVenda");
+  const campoTipoDesconto = document.getElementById("tipoDescontoVenda");
+  const campoValorDesconto = document.getElementById("valorDescontoVenda");
+  const rotuloDesconto = document.getElementById("rotuloDescontoVenda");
+
+  function obterResumoDesconto(subtotal) {
+    const tipo = campoTipoDesconto.value;
+    const informado = numero(campoValorDesconto.value);
+    if (!Number.isFinite(informado) || informado < 0) {
+      return { valido: false, desconto: 0, total: subtotal };
+    }
+    if (tipo === "percentual") {
+      if (informado > 100) return { valido: false, desconto: 0, total: subtotal };
+      const desconto = Math.round(subtotal * informado) / 100;
+      return { valido: desconto < subtotal || desconto === 0, desconto, total: subtotal - desconto };
+    }
+    if (informado > subtotal || (subtotal > 0 && informado >= subtotal)) {
+      return { valido: false, desconto: 0, total: subtotal };
+    }
+    return { valido: true, desconto: Math.round(informado * 100) / 100, total: subtotal - informado };
+  }
 
   function atualizarCarrinho() {
     const lista = document.getElementById("itensCarrinhoVenda");
@@ -1678,11 +1709,25 @@ function abrirVenda() {
         `).join("")
       : "<p>Nenhum item adicionado.</p>";
 
-    const total = itensCarrinho.reduce((s, item) => s + item.total, 0);
+    const subtotal = Math.round(itensCarrinho.reduce((s, item) => s + item.total, 0) * 100) / 100;
     const aulas = itensCarrinho.reduce((s, item) => s + item.aulasContratadas, 0);
-    document.getElementById("totalVenda").textContent = moeda(total);
+    const resumo = obterResumoDesconto(subtotal);
+    document.getElementById("subtotalBrutoVenda").textContent = moeda(subtotal);
+    document.getElementById("descontoAplicadoVenda").textContent =
+      resumo.valido ? moeda(resumo.desconto) : "Desconto inválido";
+    document.getElementById("totalVenda").textContent =
+      resumo.valido ? moeda(resumo.total) : moeda(subtotal);
     document.getElementById("aulasVenda").textContent = aulas;
   }
+
+  campoTipoDesconto.onchange = () => {
+    const percentual = campoTipoDesconto.value === "percentual";
+    rotuloDesconto.textContent = percentual ? "Desconto percentual (%)" : "Desconto em reais (R$)";
+    campoValorDesconto.step = percentual ? "0.01" : "0.01";
+    campoValorDesconto.value = "0";
+    atualizarCarrinho();
+  };
+  campoValorDesconto.oninput = atualizarCarrinho;
 
   document.getElementById("adicionarItemVenda").onclick = () => {
     const produto = produtosAtivos.find(p => p.id === campoProduto.value);
@@ -1744,7 +1789,7 @@ function abrirVenda() {
 function calcularVenda() {
   const total = document.getElementById("totalVenda");
   if (!total) return 0;
-  return numero(total.textContent.replace(/[^\d,.-]/g, "").replace(",", "."));
+  return numero(total.textContent.replace(/[^\\d,.-]/g, "").replace(",", "."));
 }
 
 async function salvarVenda(evento, itensCarrinho) {
@@ -1753,6 +1798,9 @@ async function salvarVenda(evento, itensCarrinho) {
   const formulario = evento.currentTarget;
   const alunoId = formulario.elements.alunoId.value;
   const formaPagamento = formulario.elements.formaPagamento.value;
+  const descontoTipo = formulario.elements.descontoTipo.value;
+  const descontoValor = numero(formulario.elements.descontoValor.value);
+  const subtotalBruto = Math.round(itensCarrinho.reduce((s, item) => s + item.total, 0) * 100) / 100;
   const botao = formulario.querySelector('button[type="submit"]');
 
   if (!adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
@@ -1761,6 +1809,12 @@ async function salvarVenda(evento, itensCarrinho) {
   }
   if (!db.alunos.some(a => a.id === alunoId) || !itensCarrinho.length || !formaPagamento) {
     mostrarAviso("Selecione o aluno, adicione itens e informe a forma de pagamento.");
+    return;
+  }
+  if (!Number.isFinite(descontoValor) || descontoValor < 0 ||
+      (descontoTipo === "percentual" && descontoValor > 100) ||
+      (descontoTipo === "valor" && descontoValor >= subtotalBruto && descontoValor > 0)) {
+    mostrarAviso("Informe um desconto válido. Ele deve ser menor que o subtotal.");
     return;
   }
 
@@ -1777,7 +1831,9 @@ async function salvarVenda(evento, itensCarrinho) {
       p_items: itensCarrinho.map(item => ({
         product_id: item.produtoId,
         quantidade: item.quantidade
-      }))
+      })),
+      p_desconto_tipo: descontoTipo,
+      p_desconto_valor: descontoValor
     });
 
     if (error) throw error;
@@ -1792,8 +1848,8 @@ async function salvarVenda(evento, itensCarrinho) {
     const aulas = Number(data?.aulas_adicionadas || 0);
     mostrarAviso(
       aulas > 0
-        ? `Venda registrada! ${aulas} aulas adicionadas ao aluno.`
-        : "Venda de produtos registrada com sucesso!"
+        ? `Venda registrada! ${aulas} aulas adicionadas ao aluno. Total recebido: ${moeda(data?.total)}.`
+        : `Venda registrada! Total recebido: ${moeda(data?.total)}.`
     );
   } catch (erro) {
     console.error("Falha ao registrar venda no Supabase:", erro);
@@ -3052,6 +3108,10 @@ async function carregarDadosAdminSupabase() {
       descricao: v.observacoes || descricao,
       aulasVendidas: itens.reduce((total, item) => total + Number(item.aulasContratadas || 0), 0),
       aulasDevolvidas: itens.reduce((total, item) => total + Number(item.aulasDevolvidas || 0), 0),
+      subtotalBruto: Number(v.subtotal_bruto ?? v.total ?? 0),
+      descontoTipo: v.desconto_tipo || "valor",
+      descontoValor: Number(v.desconto_valor || 0),
+      desconto: Number(v.desconto || 0),
       valorTotal: Number(v.total || 0),
       valorDevolvido: itens.reduce((total, item) => total + Number(item.valorDevolvido || 0), 0),
       data: v.data_venda,
