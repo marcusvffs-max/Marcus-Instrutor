@@ -104,7 +104,7 @@ Deno.serve(async (req: Request) => {
         // Se a primeira confirmação foi gravada mas a resposta se perdeu na rede,
         // repetir a mesma tentativa pela mesma conta retorna sucesso sem novo vínculo.
         const { data: alreadyCompletedLink, error: alreadyCompletedError } = await admin
-          .from("students").select("id")
+          .from("students").select("id, invite_attempt_id, user_id")
           .eq("invite_attempt_id", attemptId)
           .eq("user_id", authData.user.id)
           .maybeSingle();
@@ -112,8 +112,8 @@ Deno.serve(async (req: Request) => {
         if (getCompletionFallbackOutcome({
           attemptId,
           userId: authData.user.id,
-          completedAttemptId: attemptId,
-          completedUserId: alreadyCompletedLink?.id ? authData.user.id : null,
+          completedAttemptId: alreadyCompletedLink?.invite_attempt_id,
+          completedUserId: alreadyCompletedLink?.user_id,
         }) === "already_completed" && alreadyCompletedLink) {
           return response({ ok: true, message: "Este acesso já foi confirmado por esta conta." });
         }
@@ -145,7 +145,7 @@ Deno.serve(async (req: Request) => {
         // Outra requisição pode ter confirmado entre a leitura e o UPDATE.
         // Só a mesma conta que concluiu a reserva recebe sucesso idempotente.
         const { data: racedCompletion, error: racedCompletionError } = await admin
-          .from("students").select("id")
+          .from("students").select("id, invite_attempt_id, user_id")
           .eq("invite_attempt_id", attemptId)
           .eq("user_id", authData.user.id)
           .maybeSingle();
@@ -153,8 +153,8 @@ Deno.serve(async (req: Request) => {
         if (getCompletionFallbackOutcome({
           attemptId,
           userId: authData.user.id,
-          completedAttemptId: attemptId,
-          completedUserId: racedCompletion ? authData.user.id : null,
+          completedAttemptId: racedCompletion?.invite_attempt_id,
+          completedUserId: racedCompletion?.user_id,
         }) === "already_completed" && racedCompletion) {
           return response({ ok: true, message: "Este acesso já foi confirmado por esta conta." });
         }
