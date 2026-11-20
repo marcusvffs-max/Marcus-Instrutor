@@ -30,11 +30,17 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 | INV-12 | Duas solicitações de convite simultâneas para o mesmo cadastro | No máximo uma solicitação conclui o vínculo; a outra falha sem deixar conta órfã. |
 | INV-13 | Conta antiga com e-mail confirmado que corresponde a exatamente um cadastro | Vínculo automático ocorre no primeiro acesso, desde que o cadastro ainda não esteja vinculado. |
 | INV-14 | Conta antiga com e-mail não confirmado ou duplicado entre cadastros | Nenhum vínculo automático é feito. |
-| INV-15 | Conta de aluno de teste é excluída pelo fluxo administrativo | Trigger limpa `user_id` e `invited_at`, permitindo novo convite posterior. |
+| INV-15 | Conta de aluno de teste é excluída pelo fluxo administrativo | Trigger limpa `user_id`, `invited_at` e `invite_attempt_id`, permitindo novo convite posterior. |
+| INV-16 | A conta Auth é criada e a Edge Function é interrompida antes de vincular o aluno | O trigger vincula o usuário ao cadastro na mesma transação de criação do Auth, desde que token, cadastro, instrutor e e-mail correspondam. |
+| INV-17 | Metadados do usuário são alterados depois da criação da conta | A associação já registrada pelo trigger não muda; metadados editáveis não são usados para reautorizar o vínculo. |
+| INV-18 | Duas tentativas usam o mesmo identificador de reserva | Índice único impede que o mesmo identificador fique reservado em dois cadastros. |
 
 ## Verificações de banco
 
 - [ ] Índice único parcial impede que uma conta fique associada a mais de um cadastro.
+- [ ] Índice único parcial impede reutilização do mesmo identificador de tentativa em cadastros diferentes.
+- [ ] Trigger AFTER INSERT em `auth.users` confere identificador aleatório reservado, ID do cadastro, ID do instrutor e e-mail normalizado antes de vincular.
+- [ ] O vínculo acontece na transação de criação da conta Auth, antes de qualquer edição posterior de `user_metadata`.
 - [ ] Chave estrangeira de `students.user_id` referencia `auth.users(id)`.
 - [ ] RPC exige usuário autenticado e perfil `usuario`.
 - [ ] RPC filtra aulas por `students.user_id = auth.uid()`.
