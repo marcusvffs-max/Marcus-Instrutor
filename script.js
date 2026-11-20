@@ -1886,37 +1886,53 @@ function abrirDevolucao() {
   db.vendas.forEach(venda => {
     const aluno = db.alunos.find(a => a.id === venda.alunoId);
     (venda.itens || []).forEach(item => {
-      if (item.tipo !== "servico" || !item.saleItemId) return;
-      const disponiveis = Number(item.aulasContratadas || 0) - Number(item.aulasDevolvidas || 0);
-      if (disponiveis > 0) {
-        opcoes.push({
-          valor: item.saleItemId,
-          texto: `${aluno?.nome || "Aluno"} — ${item.nome} — ${disponiveis} aulas`,
-          item,
-          disponiveis
-        });
-      }
+      if (!item.saleItemId) return;
+
+      const tipo = item.tipo === "produto" ? "produto" : "servico";
+      const quantidadeOriginal = tipo === "produto"
+        ? Number(item.quantidade || 0)
+        : Number(item.aulasContratadas || 0);
+      const quantidadeDevolvida = tipo === "produto"
+        ? Number(item.quantidadeDevolvida || 0)
+        : Number(item.aulasDevolvidas || 0);
+      const disponiveis = Math.max(0, quantidadeOriginal - quantidadeDevolvida);
+
+      if (disponiveis <= 0) return;
+
+      const valorLiquido = Number(item.valorLiquido ?? item.total ?? 0);
+      const valorUnitario = tipo === "produto"
+        ? (quantidadeOriginal > 0 ? valorLiquido / quantidadeOriginal : 0)
+        : Number(item.valorPorAula || 0);
+
+      opcoes.push({
+        valor: item.saleItemId,
+        tipo,
+        texto: `${aluno?.nome || "Aluno"} — ${item.nome} — ${disponiveis} ${tipo === "produto" ? "unidades" : "aulas"} disponíveis`,
+        item,
+        disponiveis,
+        valorUnitario
+      });
     });
   });
 
   if (!opcoes.length) {
-    mostrarAviso("Não existem aulas disponíveis para devolução.");
+    mostrarAviso("Não existem produtos ou serviços disponíveis para devolução.");
     return;
   }
 
   abrirModal(`
-    <h2>Devolução de aulas</h2>
+    <h2>Devolução de produtos e serviços</h2>
     <form id="formDevolucao">
       <label>Item da venda</label>
       <select name="itemVenda" id="devolucaoItemVenda" required>
         <option value="">Selecione</option>
-        ${opcoes.map(o => `<option value="${o.valor}">${escapar(o.texto)}</option>`).join("")}
+        ${opcoes.map(o => `<option value="${o.tipo}:${o.valor}">${escapar(o.texto)}</option>`).join("")}
       </select>
-      <label>Quantidade para devolver</label>
+      <label id="devolucaoRotuloQuantidade">Quantidade para devolver</label>
       <input name="quantidade" id="devolucaoQuantidade" type="number" min="1" step="1" required disabled>
       <div id="devolucaoPrevia" style="margin:14px 0;padding:12px;border:1px solid #d5dce5;border-radius:10px;background:#f7f9fc;">
         <strong>Resumo da devolução</strong>
-        <p style="margin:8px 0 0;">Selecione uma venda e informe a quantidade para calcular o estorno.</p>
+        <p style="margin:8px 0 0;">Selecione um item e informe a quantidade para calcular o estorno.</p>
       </div>
       <div class="modal-actions">
         <button type="button" class="secondary-button" data-close>Cancelar</button>
@@ -1928,6 +1944,7 @@ function abrirDevolucao() {
   const formulario = document.getElementById("formDevolucao");
   const seletor = formulario.elements.itemVenda;
   const campoQuantidade = formulario.elements.quantidade;
+  const rotuloQuantidade = document.getElementById("devolucaoRotuloQuantidade");
   const previa = document.getElementById("devolucaoPrevia");
 
   const moeda = valor => Number(valor || 0).toLocaleString("pt-BR", {
@@ -1936,28 +1953,41 @@ function abrirDevolucao() {
   });
 
   const atualizarPrevia = () => {
-    const opcao = opcoes.find(o => o.valor === seletor.value);
+    const [tipoSelecionado, idSelecionado] = (seletor.value || ":").split(":");
+    const opcao = opcoes.find(o => o.valor === idSelecionado && o.tipo === tipoSelecionado);
+
     if (!opcao) {
       campoQuantidade.value = "";
       campoQuantidade.disabled = true;
       campoQuantidade.removeAttribute("max");
-      previa.innerHTML = "<strong>Resumo da devolução</strong><p style='margin:8px 0 0;'>Selecione uma venda e informe a quantidade para calcular o estorno.</p>";
+      rotuloQuantidade.textContent = "Quantidade para devolver";
+      previa.innerHTML = "<strong>Resumo da devolução</strong><p style='margin:8px 0 0;'>Selecione um item e informe a quantidade para calcular o estorno.</p>";
       return;
     }
 
+    const unidade = opcao.tipo === "produto" ? "unidades" : "aulas";
+    rotuloQuantidade.textContent = opcao.tipo === "produto"
+      ? "Unidades para devolver"
+      : "Aulas para devolver";
     campoQuantidade.disabled = false;
     campoQuantidade.max = String(opcao.disponiveis);
+
     const quantidade = Number(campoQuantidade.value || 0);
-    const quantidadeValida = Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= opcao.disponiveis;
-    const valorLiquidoRestante = Math.max(0, Number(opcao.item.valorLiquido ?? opcao.item.total ?? 0) - Number(opcao.item.valorDevolvido || 0));
+    const quantidadeValida = Number.isInteger(quantidade) &&
+      quantidade >= 1 && quantidade <= opcao.disponiveis;
+    const valorLiquidoRestante = Math.max(
+      0,
+      Number(opcao.item.valorLiquido ?? opcao.item.total ?? 0) -
+      Number(opcao.item.valorDevolvido || 0)
+    );
     const valorEstimado = quantidadeValida
-      ? Math.min(Number(opcao.item.valorPorAula || 0) * quantidade, valorLiquidoRestante)
+      ? Math.min(opcao.valorUnitario * quantidade, valorLiquidoRestante)
       : 0;
 
     previa.innerHTML = quantidadeValida
       ? `<strong>Resumo da devolução</strong>
-         <p style="margin:8px 0 4px;">Aulas a devolver: <strong>${quantidade}</strong> de ${opcao.disponiveis} disponíveis</p>
-         <p style="margin:0;">Valor por aula: <strong>${moeda(opcao.item.valorPorAula)}</strong></p>
+         <p style="margin:8px 0 4px;">${opcao.tipo === "produto" ? "Unidades" : "Aulas"} a devolver: <strong>${quantidade}</strong> de ${opcao.disponiveis} disponíveis</p>
+         <p style="margin:0;">Valor por ${opcao.tipo === "produto" ? "unidade" : "aula"}: <strong>${moeda(opcao.valorUnitario)}</strong></p>
          <p style="margin:6px 0 0;font-size:1.05em;">Estorno estimado: <strong>${moeda(valorEstimado)}</strong></p>`
       : `<strong>Resumo da devolução</strong>
          <p style="margin:8px 0 0;">Informe uma quantidade inteira entre 1 e ${opcao.disponiveis}.</p>`;
@@ -1966,13 +1996,17 @@ function abrirDevolucao() {
   seletor.addEventListener("change", atualizarPrevia);
   campoQuantidade.addEventListener("input", atualizarPrevia);
   formulario.onsubmit = evento => {
-    const opcao = opcoes.find(o => o.valor === seletor.value);
+    const [tipoSelecionado, idSelecionado] = (seletor.value || ":").split(":");
+    const opcao = opcoes.find(o => o.valor === idSelecionado && o.tipo === tipoSelecionado);
     const quantidade = Number(campoQuantidade.value);
-    if (!opcao || !Number.isInteger(quantidade) || quantidade < 1 || quantidade > opcao.disponiveis) {
+
+    if (!opcao || !Number.isInteger(quantidade) ||
+        quantidade < 1 || quantidade > opcao.disponiveis) {
       evento.preventDefault();
-      mostrarAviso("Informe uma quantidade válida dentro do limite de aulas disponíveis.");
+      mostrarAviso("Informe uma quantidade válida dentro do limite disponível.");
       return;
     }
+
     salvarDevolucao(evento);
   };
 }
@@ -1981,11 +2015,12 @@ async function salvarDevolucao(evento) {
   evento.preventDefault();
 
   const formulario = evento.currentTarget;
-  const saleItemId = formulario.elements.itemVenda.value;
+  const [tipoItem, saleItemId] = (formulario.elements.itemVenda.value || ":").split(":");
   const quantidade = numero(formulario.elements.quantidade.value);
   const botao = formulario.querySelector('button[type="submit"]');
 
-  if (!saleItemId || !Number.isInteger(quantidade) || quantidade < 1) {
+  if (!saleItemId || !["produto", "servico"].includes(tipoItem) ||
+      !Number.isInteger(quantidade) || quantidade < 1) {
     mostrarAviso("Informe um item e uma quantidade válida.");
     return;
   }
@@ -2001,10 +2036,14 @@ async function salvarDevolucao(evento) {
     const cliente = window.getMarcusSupabase?.();
     if (!cliente) throw new Error("Conexão com o Supabase indisponível.");
 
-    const { error } = await cliente.rpc("admin_refund_sale_lessons", {
-      p_sale_item_id: saleItemId,
-      p_quantidade: quantidade
-    });
+    const nomeRpc = tipoItem === "produto"
+      ? "admin_refund_sale_product"
+      : "admin_refund_sale_lessons";
+    const parametros = tipoItem === "produto"
+      ? { p_sale_item_id: saleItemId, p_quantidade: quantidade }
+      : { p_sale_item_id: saleItemId, p_quantidade: quantidade };
+
+    const { error } = await cliente.rpc(nomeRpc, parametros);
     if (error) throw error;
 
     await carregarDadosAdminSupabase();
@@ -2013,7 +2052,7 @@ async function salvarDevolucao(evento) {
     listarMovimentacoes();
     atualizarFinanceiro();
     atualizarPainel();
-    mostrarAviso("Devolução registrada e saldo atualizado.");
+    mostrarAviso("Devolução registrada e valores atualizados.");
   } catch (erro) {
     console.error("Falha ao registrar devolução:", erro);
     mostrarAviso(erro.message || "Não foi possível registrar a devolução.");
@@ -3168,7 +3207,8 @@ async function carregarDadosAdminSupabase() {
         aulasContratadas: Number(item.aulas_contratadas || 0),
         aulasDevolvidas: Number(item.aulas_devolvidas || 0),
         valorPorAula: Number(item.valor_por_aula || 0),
-        valorDevolvido: Number(item.valor_devolvido || 0)
+        valorDevolvido: Number(item.valor_devolvido || 0),
+        quantidadeDevolvida: Number(item.quantidade_devolvida || 0)
       };
     });
     const aluno = alunos.find(a => a.id === v.student_id);
