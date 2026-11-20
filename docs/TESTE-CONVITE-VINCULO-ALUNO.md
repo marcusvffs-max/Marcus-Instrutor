@@ -50,6 +50,14 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 - [ ] Retorno da RPC preserva os sete campos esperados pelo frontend.
 - [ ] Funções e permissões não concedem acesso anônimo aos dados do aluno.
 
+## Risco de segurança pendente — associação automática por e-mail
+
+A compatibilidade com contas antigas associa automaticamente uma conta autenticada com e-mail confirmado quando encontra exatamente um cadastro com o mesmo e-mail normalizado. A unicidade evita ambiguidades entre cadastros, mas não comprova que o e-mail foi digitado corretamente no cadastro nem que pertence ao aluno pretendido.
+
+- [ ] **INV-20 — E-mail único incorreto ou pertencente a terceiro:** preparar um cadastro fictício com um endereço confirmado controlado por uma pessoa diferente do aluno pretendido. Verificar que a conta dessa pessoa não recebe acesso às aulas do cadastro.
+- [ ] Este cenário é um bloqueador de segurança: a implementação atual pode associar a conta apenas pela correspondência do e-mail. Não considerar a funcionalidade validada até definir e implementar uma prova adicional de titularidade ou desativar a associação automática por e-mail para contas antigas.
+- [ ] Não usar dados reais nem executar esse teste em produção.
+
 ## Critério para concluir
 
 A funcionalidade só será considerada validada depois de todos os testes aplicáveis passarem no ambiente isolado, incluindo isolamento entre dois alunos diferentes e falha SMTP. Registrar os resultados sem expor e-mails, tokens ou dados pessoais.
