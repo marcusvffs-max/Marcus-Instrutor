@@ -14,7 +14,7 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 - [ ] Não reutilizar ou excluir contas reais durante os testes.
 
 ## Testes funcionais
-Antes dos testes em ambiente isolado, as verificações locais podem ser executadas na raiz do repositório com `node --test scripts/test-student-link-flow.mjs scripts/student-link-rules.test.mjs`. O primeiro arquivo verifica invariantes estáticos do fluxo e da migration; o segundo executa testes puros do módulo compartilhado de validade/idempotência e confirma que o UPDATE continua condicional. O teste de corrida representa o estado persistido após o compare-and-set; não simula duas transações PostgreSQL reais. Essas verificações não substituem compilação Deno nem testes reais de Auth, banco, SMTP ou concorrência no Supabase.
+Antes dos testes em ambiente isolado, as verificações locais podem ser executadas na raiz do repositório com `node --test scripts/test-student-link-flow.mjs scripts/student-link-rules.test.mjs`. O primeiro arquivo verifica invariantes estáticos do fluxo e da migration, inclusive as condições do UPDATE; o segundo executa testes puros do módulo compartilhado de validade/idempotência. O teste de corrida representa o estado persistido após o compare-and-set; não simula duas transações PostgreSQL reais. Essas verificações não substituem compilação Deno nem testes reais de Auth, banco, SMTP ou concorrência no Supabase.
 
 
 | ID | Cenário | Resultado esperado |
