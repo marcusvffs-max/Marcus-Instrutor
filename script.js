@@ -1891,7 +1891,9 @@ function abrirDevolucao() {
       if (disponiveis > 0) {
         opcoes.push({
           valor: item.saleItemId,
-          texto: `${aluno?.nome || "Aluno"} — ${item.nome} — ${disponiveis} aulas`
+          texto: `${aluno?.nome || "Aluno"} — ${item.nome} — ${disponiveis} aulas`,
+          item,
+          disponiveis
         });
       }
     });
@@ -1906,12 +1908,16 @@ function abrirDevolucao() {
     <h2>Devolução de aulas</h2>
     <form id="formDevolucao">
       <label>Item da venda</label>
-      <select name="itemVenda" required>
+      <select name="itemVenda" id="devolucaoItemVenda" required>
         <option value="">Selecione</option>
         ${opcoes.map(o => `<option value="${o.valor}">${escapar(o.texto)}</option>`).join("")}
       </select>
       <label>Quantidade para devolver</label>
-      <input name="quantidade" type="number" min="1" step="1" required>
+      <input name="quantidade" id="devolucaoQuantidade" type="number" min="1" step="1" required disabled>
+      <div id="devolucaoPrevia" style="margin:14px 0;padding:12px;border:1px solid #d5dce5;border-radius:10px;background:#f7f9fc;">
+        <strong>Resumo da devolução</strong>
+        <p style="margin:8px 0 0;">Selecione uma venda e informe a quantidade para calcular o estorno.</p>
+      </div>
       <div class="modal-actions">
         <button type="button" class="secondary-button" data-close>Cancelar</button>
         <button type="submit" class="primary-button">Confirmar devolução</button>
@@ -1919,7 +1925,56 @@ function abrirDevolucao() {
     </form>
   `);
 
-  document.getElementById("formDevolucao").onsubmit = salvarDevolucao;
+  const formulario = document.getElementById("formDevolucao");
+  const seletor = formulario.elements.itemVenda;
+  const campoQuantidade = formulario.elements.quantidade;
+  const previa = document.getElementById("devolucaoPrevia");
+
+  const moeda = valor => Number(valor || 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  });
+
+  const atualizarPrevia = () => {
+    const opcao = opcoes.find(o => o.valor === seletor.value);
+    if (!opcao) {
+      campoQuantidade.value = "";
+      campoQuantidade.disabled = true;
+      campoQuantidade.removeAttribute("max");
+      previa.innerHTML = "<strong>Resumo da devolução</strong><p style='margin:8px 0 0;'>Selecione uma venda e informe a quantidade para calcular o estorno.</p>";
+      return;
+    }
+
+    campoQuantidade.disabled = false;
+    campoQuantidade.max = String(opcao.disponiveis);
+    const quantidade = Number(campoQuantidade.value || 0);
+    const quantidadeValida = Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= opcao.disponiveis;
+    const valorLiquidoRestante = Math.max(0, Number(opcao.item.valorLiquido ?? opcao.item.total ?? 0) - Number(opcao.item.valorDevolvido || 0));
+    const valorEstimado = quantidadeValida
+      ? Math.min(Number(opcao.item.valorPorAula || 0) * quantidade, valorLiquidoRestante)
+      : 0;
+
+    previa.innerHTML = quantidadeValida
+      ? `<strong>Resumo da devolução</strong>
+         <p style="margin:8px 0 4px;">Aulas a devolver: <strong>${quantidade}</strong> de ${opcao.disponiveis} disponíveis</p>
+         <p style="margin:0;">Valor por aula: <strong>${moeda(opcao.item.valorPorAula)}</strong></p>
+         <p style="margin:6px 0 0;font-size:1.05em;">Estorno estimado: <strong>${moeda(valorEstimado)}</strong></p>`
+      : `<strong>Resumo da devolução</strong>
+         <p style="margin:8px 0 0;">Informe uma quantidade inteira entre 1 e ${opcao.disponiveis}.</p>`;
+  };
+
+  seletor.addEventListener("change", atualizarPrevia);
+  campoQuantidade.addEventListener("input", atualizarPrevia);
+  formulario.onsubmit = evento => {
+    const opcao = opcoes.find(o => o.valor === seletor.value);
+    const quantidade = Number(campoQuantidade.value);
+    if (!opcao || !Number.isInteger(quantidade) || quantidade < 1 || quantidade > opcao.disponiveis) {
+      evento.preventDefault();
+      mostrarAviso("Informe uma quantidade válida dentro do limite de aulas disponíveis.");
+      return;
+    }
+    salvarDevolucao(evento);
+  };
 }
 
 async function salvarDevolucao(evento) {
@@ -3109,6 +3164,7 @@ async function carregarDadosAdminSupabase() {
         quantidade: Number(item.quantidade || 1),
         precoUnitario: Number(item.valor_unitario || 0),
         total: Number(item.subtotal || 0),
+        valorLiquido: Number(item.valor_liquido ?? item.subtotal ?? 0),
         aulasContratadas: Number(item.aulas_contratadas || 0),
         aulasDevolvidas: Number(item.aulas_devolvidas || 0),
         valorPorAula: Number(item.valor_por_aula || 0),
