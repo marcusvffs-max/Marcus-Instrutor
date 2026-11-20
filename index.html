@@ -543,6 +543,10 @@
           mostrarLogin("Não foi encontrado um perfil autorizado para esta conta.");
           return false;
         }
+        if (perfil.role === "usuario") {
+          window.location.replace("usuario.html");
+          return false;
+        }
         if (perfil.role === "instrutor") {
           window.location.replace("instrutor.html");
           return false;
