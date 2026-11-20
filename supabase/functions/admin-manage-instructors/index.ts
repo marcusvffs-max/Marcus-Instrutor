@@ -139,7 +139,18 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
       if (completeError) throw completeError;
       if (!completedLink) {
-        return response({ error: "O vínculo já foi concluído ou a solicitação expirou. Atualize a página ou peça um novo link ao instrutor." }, 409);
+        // Outra requisição pode ter confirmado entre a leitura e o UPDATE.
+        // Só a mesma conta que concluiu a reserva recebe sucesso idempotente.
+        const { data: racedCompletion, error: racedCompletionError } = await admin
+          .from("students").select("id")
+          .eq("invite_attempt_id", attemptId)
+          .eq("user_id", authData.user.id)
+          .maybeSingle();
+        if (racedCompletionError) throw racedCompletionError;
+        if (racedCompletion) {
+          return response({ ok: true, message: "Este acesso já foi confirmado por esta conta." });
+        }
+        return response({ error: "O vínculo já foi concluído por outra conta ou a solicitação expirou. Atualize a página ou peça um novo link ao instrutor." }, 409);
       }
       return response({ ok: true, message: "Conta vinculada com sucesso." });
     }
