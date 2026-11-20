@@ -219,11 +219,12 @@ A documentação atual do Supabase também descreve as novas chaves publishable/
 3. O corpo não aceita campo `role`; a função grava literalmente `instrutor`.
 4. A chave administrativa é usada somente após a confirmação de admin.
 5. O convite por e-mail não define senha no navegador; o instrutor conclui o acesso pelo fluxo de convite do Supabase Auth.
-6. O trigger `profiles_protect_role` permite que a chamada administrativa com `service_role` grave `role='instrutor'`, pois a requisição não tem `auth.uid()` de usuário final; chamadas autenticadas comuns não conseguem escolher outro papel. Isso depende de a chave `service_role` permanecer exclusivamente no servidor.\n7. Se a criação do perfil falhar, a função tenta remover o usuário Auth recém-criado. Essa compensação é uma tentativa, não uma transação atômica: o convite pode já ter sido disparado pelo Auth antes da falha do INSERT. O resultado deve ser monitorado e, em uma versão de produção, deve haver reconciliação/auditoria para cadastros incompletos.
-7. O endpoint não oferece criação de admin, promoção de papel, exclusão nem redefinição de senha.
-8. O controle CORS limita navegadores autorizados, mas não substitui autenticação nem autorização.
-9. Recomenda-se adicionar limite de requisições e auditoria administrativa antes de produção.
-10. A função não modifica tabelas de solicitações WhatsApp, configurações da IA ou regras da assistente.
+6. O trigger `profiles_protect_role` libera a operação somente quando `auth.jwt()->>'role' = 'service_role'`. Não se deve usar apenas `auth.uid() IS NULL` como bypass, pois requisições anônimas também podem ter UID nulo. A chave de serviço deve permanecer exclusivamente no servidor, e o cliente administrativo não pode encaminhar o JWT do usuário no cabeçalho Authorization.
+7. A função atual usa `inviteUserByEmail`, que pode disparar o convite antes da gravação do perfil. Se o INSERT falhar, a função tenta remover o usuário Auth, mas o e-mail pode já ter sido enviado. Essa compensação não é uma transação atômica; antes de produção, é necessário definir um fluxo de convite que permita criar o perfil antes de enviar a mensagem, ou implementar reconciliação e auditoria de cadastros incompletos.
+8. O endpoint não oferece criação de admin, promoção de papel, exclusão nem redefinição de senha.
+9. O controle CORS limita navegadores autorizados, mas não substitui autenticação nem autorização.
+10. Recomenda-se adicionar limite de requisições e auditoria administrativa antes de produção.
+11. A função não modifica tabelas de solicitações WhatsApp, configurações da IA ou regras da assistente.
 
 ## Testes obrigatórios antes de implantar
 
