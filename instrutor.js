@@ -118,8 +118,8 @@
         status === "finalizado" ? "student-status-finished" : "student-status-open";
       const accountStatus = !state.studentLinkFieldsAvailable
         ? "Vínculo indisponível durante a atualização"
-        : student.invited_at ? "Convite enviado · aguardando cadastro"
-        : student.user_id ? "Conta vinculada" : "Sem convite";
+        : student.user_id ? (student.invited_at ? "Conta vinculada · aguardando primeiro acesso" : "Conta vinculada")
+        : student.invited_at ? "Convite enviado · aguardando cadastro" : "Sem convite";
       const accountClass = state.studentLinkFieldsAvailable && student.invited_at ? "student-status-open" :
         state.studentLinkFieldsAvailable && student.user_id ? "student-status-approved" : "";
       const inviteButton = !state.studentLinkFieldsAvailable
@@ -1334,10 +1334,12 @@
           window.alert("O recurso de vínculo de contas estará disponível assim que a atualização do banco for concluída. Seus dados e aulas continuam acessíveis.");
           return;
         }
-        const situation = student.invited_at
-          ? "Convite enviado. A conta já está reservada para este cadastro; o vínculo será confirmado quando o aluno aceitar e concluir o primeiro acesso."
-          : student.user_id
-            ? "Conta vinculada com sucesso ao cadastro deste aluno."
+        const situation = student.user_id
+          ? student.invited_at
+            ? "Conta vinculada ao cadastro correto. Falta o aluno concluir o primeiro acesso."
+            : "Conta vinculada com sucesso ao cadastro deste aluno."
+          : student.invited_at
+            ? "Convite em processamento. Aguarde a conclusão antes de tentar novamente."
             : "Nenhum convite enviado. A conta será vinculada automaticamente ao cadastro correto após o convite.";
         window.alert("Vínculo da conta do aluno\n\n" + student.nome + "\n" +
           (student.email || "E-mail não informado") + "\n\nSituação: " + situation);
