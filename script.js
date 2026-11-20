@@ -39,7 +39,6 @@ let alunoEditando = null;
 let veiculoEditando = null;
 let aulaEditando = null;
 let relatorioAtual = null;
-let catalogoProdutosSyncEmAndamento = false;
 
 /* =========================================
    FUNÇÕES BÁSICAS
@@ -76,88 +75,6 @@ function salvarDados() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
   atualizarPainel();
 }
-
-async function sincronizarCatalogoProdutos() {
-  const cliente = window.getMarcusSupabase?.();
-  if (!cliente || catalogoProdutosSyncEmAndamento) return false;
-
-  catalogoProdutosSyncEmAndamento = true;
-
-  try {
-    const { data: sessaoData, error: sessaoErro } = await cliente.auth.getUser();
-    const usuario = sessaoData?.user;
-
-    if (sessaoErro || !usuario?.id) {
-      console.warn("Catálogo WhatsApp não sincronizado: usuário não autenticado.");
-      return false;
-    }
-
-    const { data: existentes, error: leituraErro } = await cliente
-      .from("products")
-      .select("app_product_id")
-      .eq("owner_id", usuario.id)
-      .not("app_product_id", "is", null);
-
-    if (leituraErro) throw leituraErro;
-
-    const produtosAtuais = (db.produtos || [])
-      .filter(produto => produto && produto.id && String(produto.nome || "").trim())
-      .map(produto => ({
-        owner_id: usuario.id,
-        app_product_id: String(produto.id),
-        nome: String(produto.nome).trim(),
-        tipo: produto.tipo ||
-          (/pacote\\s*(bronze|prata|ouro)|aula avulsa/i.test(produto.nome || "")
-            ? "servico"
-            : "produto"),
-        descricao: produto.descricao || null,
-        preco: Number(produto.preco || 0),
-        quantidade_aulas: Number.isInteger(Number(produto.quantidade_aulas))
-          ? Number(produto.quantidade_aulas)
-          : null,
-        ativo: true
-      }))
-      .filter(produto => Number.isFinite(produto.preco) && produto.preco > 0);
-
-    if (produtosAtuais.length) {
-      const { error: upsertErro } = await cliente
-        .from("products")
-        .upsert(produtosAtuais, { onConflict: "owner_id,app_product_id" });
-
-      if (upsertErro) throw upsertErro;
-    }
-
-    const idsAtuais = new Set(produtosAtuais.map(produto => produto.app_product_id));
-    const idsRemovidos = (existentes || [])
-      .map(produto => produto.app_product_id)
-      .filter(id => id && !idsAtuais.has(id));
-
-    if (idsRemovidos.length) {
-      const { error: desativarErro } = await cliente
-        .from("products")
-        .update({ ativo: false, updated_at: new Date().toISOString() })
-        .eq("owner_id", usuario.id)
-        .in("app_product_id", idsRemovidos);
-
-      if (desativarErro) throw desativarErro;
-    }
-
-    console.log("Catálogo de produtos sincronizado com o WhatsApp.", {
-      quantidade: produtosAtuais.length,
-      desativados: idsRemovidos.length
-    });
-    return true;
-  } catch (erro) {
-    console.error("Falha ao sincronizar catálogo do WhatsApp:", erro);
-    return false;
-  } finally {
-    catalogoProdutosSyncEmAndamento = false;
-  }
-}
-
-window.addEventListener("marcus-authenticated", () => {
-  sincronizarCatalogoProdutos();
-});
 
 function gerarId() {
   return Date.now().toString(36) +
@@ -1525,7 +1442,7 @@ function editarProduto(id = null) {
     </form>
   `);
 
-  document.getElementById("formProduto").onsubmit = async evento => {
+  document.getElementById("formProduto").onsubmit = evento => {
     evento.preventDefault();
 
     const dados = Object.fromEntries(
@@ -1573,16 +1490,13 @@ function editarProduto(id = null) {
     }
 
     salvarDados();
-    const catalogoSincronizado = await sincronizarCatalogoProdutos();
     fecharModal();
     listarProdutos();
-    mostrarAviso(catalogoSincronizado
-      ? "Cadastro salvo e catálogo do WhatsApp atualizado."
-      : "Cadastro salvo no aplicativo, mas não foi possível atualizar o catálogo do WhatsApp.");
+    mostrarAviso("Cadastro salvo com sucesso!");
   };
 }
 
-async function excluirProduto(id) {
+function excluirProduto(id) {
   const produto = db.produtos.find(p => p.id === id);
   if (!produto) return;
 
@@ -1591,11 +1505,8 @@ async function excluirProduto(id) {
   db.produtos = db.produtos.filter(p => p.id !== id);
 
   salvarDados();
-  const catalogoSincronizado = await sincronizarCatalogoProdutos();
   listarProdutos();
-  mostrarAviso(catalogoSincronizado
-    ? "Produto excluído e catálogo do WhatsApp atualizado."
-    : "Produto excluído no aplicativo, mas não foi possível atualizar o catálogo do WhatsApp.");
+  mostrarAviso("Produto excluído.");
 }
 
 
