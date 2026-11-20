@@ -1,0 +1,11 @@
+.user-summary { grid-template-columns:minmax(180px, 280px); }
+.user-summary .summary-card strong { color:var(--primary); }
+#btnAtualizar { min-width:104px; }
+#btnAtualizar:disabled { opacity:.6; cursor:wait; }
+#listaAulas .table-wrap { margin-top:4px; }
+#listaAulas table { min-width:560px; }
+#listaAulas .status { color:#164b7b; background:#e8f0f8; }
+@media (max-width:760px) {
+  .user-summary { grid-template-columns:1fr; }
+  .result-heading { align-items:center; }
+}
