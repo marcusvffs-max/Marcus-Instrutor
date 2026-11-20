@@ -99,3 +99,58 @@ footer { padding:20px; text-align:center; color:var(--muted); font-size:12px; }
   .table-wrap { overflow:visible; }
   table { min-width:0; }
 }
+
+
+/* Navegação do painel do instrutor */
+.content { padding-bottom: 92px; }
+.content [data-view] { display: none; animation: instructorPageIn .2s ease; }
+.content [data-view].active-view { display: block; }
+.content .summary-grid.active-view,
+.content .report-grid.active-view { display: grid; }
+.bottom-menu {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 2px;
+  min-height: 70px;
+  padding: 7px 5px calc(7px + env(safe-area-inset-bottom));
+  overflow-x: auto;
+  border-top: 1px solid var(--border);
+  background: #fff;
+  box-shadow: 0 -3px 15px rgba(0,0,0,.06);
+}
+.menu-item {
+  display: flex;
+  flex: 1 0 65px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 62px;
+  padding: 4px 2px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 10px;
+  cursor: pointer;
+}
+.menu-icon { font-size: 20px; line-height: 1; }
+.menu-item.active {
+  color: var(--primary);
+  background: #e8edf3;
+  font-weight: 800;
+}
+@keyframes instructorPageIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media print {
+  .bottom-menu { display: none !important; }
+  .content { padding-bottom: 0; }
+}
