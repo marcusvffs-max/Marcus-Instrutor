@@ -68,23 +68,44 @@ Deno.serve(async (req: Request) => {
     }
 
     if (body.action === "list") {
-      const { data: usersData, error: usersError } = await admin.auth.admin.listUsers({
-        page: 1, perPage: 200,
-      });
-      if (usersError) throw usersError;
-      const { data: profiles, error: profilesError } = await admin
-        .from("profiles").select("id, nome, role, instructor_access_until");
-      if (profilesError) throw profilesError;
-      const byId = new Map((profiles ?? []).map((p: any) => [p.id, p]));
-      const users = (usersData.users ?? []).map((u: any) => {
-        const p = byId.get(u.id) as any;
+      const perPage = 200;
+      const authUsers: any[] = [];
+
+      for (let page = 1; ; page += 1) {
+        const { data: usersData, error: usersError } = await admin.auth.admin.listUsers({
+          page, perPage,
+        });
+        if (usersError) throw usersError;
+
+        const pageUsers = usersData.users ?? [];
+        authUsers.push(...pageUsers);
+        if (pageUsers.length < perPage) break;
+      }
+
+      const allProfiles: any[] = [];
+      for (let from = 0; ; from += perPage) {
+        const { data: profilesPage, error: profilesError } = await admin
+          .from("profiles")
+          .select("id, nome, role, instructor_access_until")
+          .order("id", { ascending: true })
+          .range(from, from + perPage - 1);
+        if (profilesError) throw profilesError;
+
+        const pageProfiles = profilesPage ?? [];
+        allProfiles.push(...pageProfiles);
+        if (pageProfiles.length < perPage) break;
+      }
+
+      const byId = new Map(allProfiles.map((profile: any) => [profile.id, profile]));
+      const users = authUsers.map((user: any) => {
+        const profile = byId.get(user.id) as any;
         return {
-          id: u.id,
-          email: u.email ?? "",
-          nome: p?.nome ?? u.user_metadata?.nome ?? "Sem nome",
-          role: p?.role ?? "sem perfil",
-          instructor_access_until: p?.instructor_access_until ?? null,
-          confirmado: Boolean(u.email_confirmed_at),
+          id: user.id,
+          email: user.email ?? "",
+          nome: profile?.nome ?? user.user_metadata?.nome ?? "Sem nome",
+          role: profile?.role ?? "sem perfil",
+          instructor_access_until: profile?.instructor_access_until ?? null,
+          confirmado: Boolean(user.email_confirmed_at),
         };
       });
       return response({ ok: true, users });
