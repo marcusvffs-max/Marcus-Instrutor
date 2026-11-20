@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#12345a">
+  <meta name="referrer" content="no-referrer">
+  <title>Confirmar acesso | Marcus Instrutor</title>
+  <link rel="stylesheet" href="instrutor.css?v=18">
+  <style>
+    body { min-height:100vh; display:grid; place-items:center; padding:20px; background:#f3f6fa; }
+    .claim-card { width:min(100%,520px); padding:30px; border:1px solid #dbe5f0; border-radius:18px; background:#fff; box-shadow:0 12px 34px rgba(18,52,90,.08); text-align:center; }
+    .claim-card h1 { margin:0 0 12px; color:#12345a; font-size:1.45rem; }
+    .claim-card p { color:#475569; line-height:1.6; }
+    #claimStatus { margin-top:18px; font-weight:600; }
+    #claimBack { display:inline-block; margin-top:14px; color:#12345a; font-weight:700; }
+  </style>
+</head>
+<body>
+  <main class="claim-card">
+    <h1>Confirmar acesso de aluno</h1>
+    <p>Estamos verificando com segurança sua conta e a solicitação enviada pelo instrutor.</p>
+    <p id="claimStatus" role="status" aria-live="polite">Validando o link...</p>
+    <a id="claimBack" href="index.html" hidden>Voltar ao login</a>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
+  <script>
+    (async function () {
+      const status = document.getElementById("claimStatus");
+      const back = document.getElementById("claimBack");
+      function fail(message) {
+        status.textContent = message;
+        back.hidden = false;
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const attemptId = params.get("attempt_id") || "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(attemptId)) {
+        fail("Este link está incompleto ou inválido. Peça ao instrutor para enviar uma nova confirmação.");
+        return;
+      }
+      if (!window.supabase || typeof window.supabase.createClient !== "function") {
+        fail("Não foi possível carregar a autenticação. Atualize a página ou tente novamente mais tarde.");
+        return;
+      }
+
+      const client = window.supabase.createClient(
+        "https://ydyqagqsuqntuibzgwzd.supabase.co",
+        "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU",
+        { auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage } }
+      );
+
+      try {
+        const { data: sessionData, error: sessionError } = await client.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (!sessionData.session) {
+          fail("Não foi possível confirmar sua sessão. Abra novamente o link recebido por e-mail neste navegador.");
+          return;
+        }
+
+        window.history.replaceState({}, document.title, window.location.pathname);
+        status.textContent = "Confirmando o vínculo com seu cadastro...";
+        const { data, error } = await client.functions.invoke("admin-manage-instructors", {
+          body: { action: "complete_student_link", attempt_id: attemptId }
+        });
+        if (error) {
+          let message = "Não foi possível concluir o vínculo. Peça ao instrutor para conferir a solicitação e enviar um novo link.";
+          if (error.context && typeof error.context.json === "function") {
+            const details = await error.context.json().catch(() => null);
+            if (details && details.error) message = details.error;
+          }
+          throw new Error(message);
+        }
+        if (!data || !data.ok) throw new Error(data && data.error ? data.error : "Não foi possível confirmar o acesso.");
+        status.textContent = "Acesso confirmado! Abrindo sua área de aluno...";
+        window.location.replace("usuario.html");
+      } catch (error) {
+        console.error("Falha ao confirmar vínculo de aluno:", error);
+        fail(error && error.message ? error.message : "Ocorreu um erro ao confirmar seu acesso. Peça um novo link ao instrutor.");
+      }
+    })();
+  </script>
+</body>
+</html>
