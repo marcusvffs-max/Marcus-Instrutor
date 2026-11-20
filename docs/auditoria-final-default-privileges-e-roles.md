@@ -102,3 +102,10 @@ A Edge Function atual `admin-manage-instructors` foi revisada estaticamente junt
 - `change_role` impede alterar o próprio papel, valida os papéis permitidos, protege o único administrador e limpa `instructor_access_until` ao trocar o papel.
 
 Essa proteção é do endpoint e deve permanecer alinhada ao trigger SQL: a chave `service_role` não pode ser exposta ao navegador e nenhuma chamada administrativa pode confiar apenas no corpo enviado pelo cliente.
+
+
+## Verificação estática desta revisão
+
+Em 20/11/2026, os 19 testes do arquivo `scripts/test-student-link-flow.mjs` foram executados em um harness JavaScript isolado com os arquivos atuais obtidos da branch. Resultado: 19/19 passaram.
+
+O harness não equivale a executar `node --test`; não foi executado PostgreSQL, não foi compilada a Edge Function Deno e nenhum teste autenticado foi feito contra o Supabase. A validação confirma a presença dos controles no código e no rascunho, não a efetividade das permissões no banco.
