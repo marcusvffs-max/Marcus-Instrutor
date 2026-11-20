@@ -146,3 +146,26 @@ Auditoria dos índices atuais:
 - as constraints UNIQUE (id, owner_id) criam os índices únicos necessários nos pais.
 
 O SQL revisado foi atualizado para incluir as FKs compostas e remover as FKs simples equivalentes, dentro da mesma transação. Continua sendo apenas rascunho, não executado.
+
+## 9. Verificação estática adicional — 20/11/2026
+
+O arquivo `scripts/test-student-link-flow.mjs` recebeu quatro testes para a integridade referencial. O harness JavaScript isolado executado com os arquivos atuais da branch terminou com **24/24 testes aprovados**.
+
+Os quatro casos novos verificam:
+- existência das chaves únicas compostas `(id, owner_id)` nos pais;
+- FKs compostas entre aulas/alunos/veículos, vendas/alunos, itens/vendas e movimentações;
+- `ON DELETE SET NULL` limitado à coluna opcional e `ON DELETE CASCADE` dos itens;
+- remoção das seis FKs simples antigas na mesma transação;
+- exceção intencional de `sale_items.product_id` para o catálogo central e preservação da FK de `app_settings.owner_id`.
+
+**Limite do resultado:** trata-se de verificação estática de texto/código em harness JavaScript. Não foi executado `node --test`, PostgreSQL, Deno nem teste contra o Supabase. Não comprova que o DDL será aceito ou que as constraints estejam ativas no banco.
+
+O rascunho continua **não aprovado para execução**. Antes de qualquer DDL, repetir em leitura somente:
+1. nulidade/tipos das colunas de relacionamento e `owner_id`;
+2. existência e nomes das constraints antigas e das novas;
+3. linhas órfãs e divergências de proprietário;
+4. versão PostgreSQL;
+5. índices existentes e impacto de lock.
+
+Nenhuma migration, constraint, índice, policy ou dado foi aplicado/criado nesta etapa.
+
