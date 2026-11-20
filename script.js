@@ -1744,7 +1744,7 @@ function abrirVenda() {
 function calcularVenda() {
   const total = document.getElementById("totalVenda");
   if (!total) return 0;
-  return numero(total.textContent.replace(/[^\\d,.-]/g, "").replace(",", "."));
+  return numero(total.textContent.replace(/[^\d,.-]/g, "").replace(",", "."));
 }
 
 async function salvarVenda(evento, itensCarrinho) {
@@ -1802,10 +1802,6 @@ async function salvarVenda(evento, itensCarrinho) {
     botao.textContent = "Confirmar venda";
   }
 }
-
-/* =========================================
-   DEVOLUÇÕES
-========================================= */
 
 /* =========================================
    DEVOLUÇÕES
@@ -1897,10 +1893,6 @@ async function salvarDevolucao(evento) {
     botao.textContent = "Confirmar devolução";
   }
 }
-
-/* =========================================
-   DESPESAS E EXCLUSÕES FINANCEIRAS
-========================================= */
 
 /* =========================================
    DESPESAS E EXCLUSÕES FINANCEIRAS
