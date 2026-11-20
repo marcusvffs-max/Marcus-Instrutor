@@ -15,6 +15,7 @@
     studentEditingId: null,
     studentSearch: "",
     vehicleEditingId: null,
+    vehicleSearch: "",
     lessonEditingId: null
   };
 
@@ -129,27 +130,46 @@
 
   function renderVehicles() {
     const container = el("listaVeiculos");
+    const counter = el("contadorVeiculos");
+    const term = String(state.vehicleSearch || "").trim().toLocaleLowerCase("pt-BR");
+    const filtered = state.vehicles.filter(vehicle => {
+      const searchable = [
+        vehicle.nome, vehicle.tipo, vehicle.categoria, vehicle.placa,
+        vehicleLabel(vehicle)
+      ].join(" ").toLocaleLowerCase("pt-BR");
+      return !term || searchable.includes(term);
+    });
+
+    if (counter) {
+      counter.textContent = state.vehicles.length + (state.vehicles.length === 1 ? " veículo cadastrado" : " veículos cadastrados");
+    }
     if (!state.vehicles.length) {
-      container.innerHTML = '<div class="empty-state">Você ainda não cadastrou veículos.</div>';
+      container.innerHTML = '<div class="empty-state">Você ainda não cadastrou veículos. Use “+ Novo veículo” para começar.</div>';
+      return;
+    }
+    if (!filtered.length) {
+      container.innerHTML = '<div class="empty-state">Nenhum veículo encontrado para essa busca.</div>';
       return;
     }
 
-    container.innerHTML = '<table class="students-table"><thead><tr>' +
-      '<th>Identificação</th><th>Tipo</th><th>Categoria</th><th>Placa</th><th>Ações</th>' +
-      '</tr></thead><tbody>' +
-      state.vehicles.map(vehicle =>
-        '<tr>' +
-          '<td>' + escapeHtml(vehicle.nome || "—") + '</td>' +
-          '<td>' + escapeHtml(vehicle.tipo) + '</td>' +
-          '<td>' + escapeHtml(vehicle.categoria) + '</td>' +
-          '<td>' + escapeHtml(vehicle.placa || "—") + '</td>' +
-          '<td class="student-actions">' +
-            '<button class="button button-outline button-small" type="button" data-vehicle-action="edit" data-vehicle-id="' + escapeHtml(vehicle.id) + '">Editar</button>' +
-            '<button class="button button-danger button-small" type="button" data-vehicle-action="delete" data-vehicle-id="' + escapeHtml(vehicle.id) + '">Excluir</button>' +
-          '</td>' +
-        '</tr>'
-      ).join("") +
-      '</tbody></table>';
+    container.innerHTML = filtered.map(vehicle => {
+      const isMoto = String(vehicle.tipo || "").toLowerCase().includes("moto");
+      return '<article class="vehicle-card">' +
+        '<div class="vehicle-card-symbol" aria-hidden="true">' + (isMoto ? '🏍' : '🚗') + '</div>' +
+        '<div class="vehicle-card-main">' +
+          '<div class="vehicle-card-heading"><h4>' + escapeHtml(vehicle.nome || vehicle.tipo || "Veículo") + '</h4>' +
+            '<span class="vehicle-category">Categoria ' + escapeHtml(vehicle.categoria || "—") + '</span></div>' +
+          '<div class="vehicle-card-details">' +
+            '<span><small>Tipo</small><strong>' + escapeHtml(vehicle.tipo || "Não informado") + '</strong></span>' +
+            '<span><small>Placa</small><strong>' + escapeHtml(vehicle.placa || "Não informada") + '</strong></span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="vehicle-card-actions">' +
+          '<button class="button button-outline button-small" type="button" data-vehicle-action="edit" data-vehicle-id="' + escapeHtml(vehicle.id) + '">Editar</button>' +
+          '<button class="button button-danger button-small" type="button" data-vehicle-action="delete" data-vehicle-id="' + escapeHtml(vehicle.id) + '">Excluir</button>' +
+        '</div>' +
+      '</article>';
+    }).join("");
   }
 
   function renderLessons() {
@@ -758,6 +778,10 @@
     });
 
     el("btnNovoVeiculo").addEventListener("click", () => openVehicleForm());
+    el("filtroBuscaVeiculos").addEventListener("input", event => {
+      state.vehicleSearch = event.target.value;
+      renderVehicles();
+    });
     el("btnCancelarVeiculo").addEventListener("click", resetVehicleForm);
     el("formVeiculo").addEventListener("submit", saveVehicle);
     el("listaVeiculos").addEventListener("click", event => {
