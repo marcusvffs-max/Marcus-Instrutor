@@ -344,6 +344,7 @@ Deno.serve(async (req: Request) => {
     let studentInviteId: string | null = null;
     let studentInviteReservation: string | null = null;
     let studentInviteAttemptId: string | null = null;
+    let studentInvitePreviousInvitedAt: string | null = null;
     let studentRecoveryUserId: string | null = null;
     let studentLegacyLinkUserId: string | null = null;
 
@@ -361,6 +362,7 @@ Deno.serve(async (req: Request) => {
       if (studentError) throw studentError;
       if (!student) return response({ error: "Aluno não encontrado na sua lista de cadastros." }, 404);
       studentInviteId = student.id;
+      studentInvitePreviousInvitedAt = student.invited_at ?? null;
       nome = String(student.nome ?? "").trim();
       email = String(student.email ?? "").trim().toLowerCase();
       if (!email) return response({ error: "Cadastre o e-mail deste aluno antes de enviar o convite." }, 400);
@@ -465,7 +467,7 @@ Deno.serve(async (req: Request) => {
         .eq("id", studentInviteId)
         .eq("owner_id", authData.user.id)
         .is("user_id", null)
-        .eq("invited_at", student.invited_at);
+        .eq("invited_at", studentInvitePreviousInvitedAt);
       if (clearStaleError) throw clearStaleError;
 
       studentInviteReservation = new Date().toISOString();
