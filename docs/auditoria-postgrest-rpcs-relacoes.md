@@ -127,3 +127,14 @@ O advisor retornou:
 ### Conclusão
 
 As cinco RPCs financeiras apresentam verificações internas de role/owner e ACL sem PUBLIC/anon. O achado prioritário é a função de agenda SECURITY DEFINER acessível no schema private para authenticated e o fluxo ativo por correspondência de e-mail, enquanto a migração de vínculo por user_id ainda não está aplicada no banco. Nenhuma alteração foi feita no Supabase.
+
+
+## Atualização crítica — verificação de dados e revisão da migration (20/11/2026)
+
+Foi feita consulta adicional somente SELECT no catálogo e em dados agregados, sem retornar identificadores pessoais. A função interna atualmente implantada usa e-mail do JWT para selecionar registros em `students`, sem `owner_id` ou `user_id`. Ela é SECURITY DEFINER e authenticated tem USAGE no schema private e EXECUTE nela. As policies RLS de students/lessons limitam leitura direta a admin/instrutor, portanto a função privilegiada é a via que contorna esse isolamento.
+
+A consulta agregada identificou 1 e-mail normalizado compartilhado por cadastros de 2 instrutores, com 1 conta Auth correspondente, 2 cadastros e 2 aulas agendadas nesses cadastros. Nenhum e-mail, nome ou UUID foi exposto no resultado. Isso confirma que a condição de dados para cruzamento existe no banco atual. Não foi executada exploração autenticada nem chamada à RPC; classificação: vulnerabilidade de isolamento confirmada por análise da função + condição de dados, exposição REST direta ainda não verificada.
+
+A migration `20261121120000_student_account_link.sql` foi revisada. Ela adiciona `students.user_id`, remove o fallback por e-mail da consulta da agenda, revoga EXECUTE da função interna para PUBLIC/anon/authenticated e mantém a RPC pública apenas para authenticated. O wrapper SECURITY DEFINER, owner postgres, pode chamar a função interna como owner. O USAGE do schema private deve permanecer porque as policies RLS chamam `private.current_app_role()`; a correção é restringir EXECUTE da função interna específica.
+
+O banco ainda não possui a coluna `students.user_id` e o histórico não contém essa migration. A correção existe somente na branch. Nenhuma migration ou alteração de dados foi aplicada. Consulte também `docs/revisao-migration-vinculo-agenda-user-id.md`.

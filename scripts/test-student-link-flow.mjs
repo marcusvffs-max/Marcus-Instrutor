@@ -348,3 +348,34 @@ test("auditoria sinaliza fluxo de agenda por email e migration user_id ainda nã
   assert.match(liveRpcAudit, /não aparece.*histórico/i);
   assert.match(liveRpcAudit, /nenhuma migration foi aplicada/i);
 });
+
+
+const agendaMigrationReview = read("../docs/revisao-migration-vinculo-agenda-user-id.md");
+
+test("migration de vínculo impede fallback por email e restringe execução da função interna", () => {
+  const internalStart = migration.indexOf("CREATE OR REPLACE FUNCTION private.get_my_scheduled_lessons_internal()");
+  const internalEnd = migration.indexOf("$function$;", migration.indexOf("AS $function$", internalStart));
+  assert.ok(internalStart >= 0 && internalEnd > internalStart);
+  const internal = migration.slice(internalStart, internalEnd);
+  assert.match(internal, /WHERE s\.user_id = current_user_id/);
+  assert.doesNotMatch(internal, /current_email|lower\(btrim\(COALESCE\(s\.email/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION private\.get_my_scheduled_lessons_internal\(\) FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.get_my_scheduled_lessons\(\) TO authenticated/);
+  assert.match(agendaMigrationReview, /2 instrutores/);
+  assert.match(agendaMigrationReview, /2 aulas agendadas/);
+});
+
+test("revisão documenta que a correção de user_id ainda não foi aplicada no banco", () => {
+  assert.match(agendaMigrationReview, /ainda não possui a coluna/);
+  assert.match(agendaMigrationReview, /Nenhuma migration foi aplicada/);
+  assert.match(agendaMigrationReview, /não foi executada exploração autenticada/i);
+  assert.match(rpcAudit, /condição de dados para cruzamento existe/i);
+});
+
+test("função interna de agenda mantém joins compostos com owner_id", () => {
+  const internalStart = migration.indexOf("CREATE OR REPLACE FUNCTION private.get_my_scheduled_lessons_internal()");
+  const internalEnd = migration.indexOf("$function$;", migration.indexOf("AS $function$", internalStart));
+  const internal = migration.slice(internalStart, internalEnd);
+  assert.match(internal, /l\.student_id = s\.id[\s\S]*l\.owner_id = s\.owner_id/);
+  assert.match(internal, /v\.id = l\.vehicle_id[\s\S]*v\.owner_id = l\.owner_id/);
+});

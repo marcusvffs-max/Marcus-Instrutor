@@ -183,3 +183,10 @@ Achado prioritário: `private.get_my_scheduled_lessons_internal()` é SECURITY D
 Advisors: RLS sem policies em whatsapp_conversations e whatsapp_messages (INFO; possivelmente backend-only) e proteção de senhas vazadas desabilitada (WARN). Nenhuma configuração foi alterada.
 
 As consultas foram somente SELECT/listagem. Nenhuma RPC de negócio, migration, grant, deploy ou alteração de configuração foi executada.
+
+
+## Achado crítico confirmado — isolamento da agenda por e-mail
+
+Consulta read-only adicional ao banco atual encontrou um e-mail normalizado compartilhado por cadastros de 2 instrutores, 1 conta Auth correspondente e 2 aulas agendadas nesses cadastros. A função interna atual é SECURITY DEFINER, filtra somente pelo e-mail do JWT e não limita owner_id nem students.user_id. As policies RLS de students/lessons não dão SELECT ao papel usuario, mas a função privilegiada lê esses dados. A condição para cruzamento de aulas entre instrutores existe; não foi feita exploração autenticada.
+
+A migration `20261121120000_student_account_link.sql` da branch corrige o fluxo: usa students.user_id = auth.uid(), não tem fallback por e-mail e revoga EXECUTE direto da função interna a authenticated. Ela ainda não foi aplicada; o banco atual não possui a coluna user_id. Não foi feita alteração no banco.
