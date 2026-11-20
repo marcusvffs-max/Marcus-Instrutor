@@ -15,7 +15,8 @@ const ARQUIVOS = [
 const ARQUIVOS_ADMINISTRATIVOS = [
   "/script.js",
   "/contratos.js",
-  "/whatsapp-panel.js"
+  "/whatsapp-panel.js",
+  "/admin-users.js"
 ];
 
 self.addEventListener("install", event => {
