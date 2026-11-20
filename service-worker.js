@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v8-acesso-instrutor";
+const CACHE_NAME = "marcus-instrutor-v9-convite-aluno";
 
 const ARQUIVOS = [
   "./",
@@ -8,7 +8,7 @@ const ARQUIVOS = [
   "./instrutor.html",
   "./style.css?v=atendimentos-whatsapp-v2",
   "./instrutor.css?v=18",
-  "./instrutor.js?v=13",
+  "./instrutor.js?v=14",
   "./manifest.json"
 ];
 
