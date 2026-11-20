@@ -5,7 +5,15 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
 
   const el = id => document.getElementById(id);
-  const state = { supabase: null, user: null, profile: null, students: [], lessons: [], vehicles: [] };
+  const state = {
+    supabase: null,
+    user: null,
+    profile: null,
+    students: [],
+    lessons: [],
+    vehicles: [],
+    studentEditingId: null
+  };
 
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, char => ({
@@ -50,10 +58,55 @@
     );
   }
 
+  function studentStatusLabel(status) {
+    const labels = {
+      em_aberto: "Em aberto",
+      finalizado: "Finalizado",
+      aprovado: "Aprovado"
+    };
+    return labels[status] || status || "Em aberto";
+  }
+
+  function renderStudents() {
+    const container = el("listaAlunos");
+    if (!state.students.length) {
+      container.innerHTML = '<div class="empty-state">Você ainda não cadastrou alunos.</div>';
+      return;
+    }
+
+    container.innerHTML = '<table class="students-table"><thead><tr>' +
+      '<th>Aluno</th><th>E-mail</th><th>Telefone</th><th>Categoria</th><th>Situação</th><th>Ações</th>' +
+      '</tr></thead><tbody>' +
+      state.students.map(student =>
+        '<tr>' +
+          '<td>' + escapeHtml(student.nome) + '</td>' +
+          '<td>' + escapeHtml(student.email || "—") + '</td>' +
+          '<td>' + escapeHtml(student.telefone || "—") + '</td>' +
+          '<td>' + escapeHtml(student.categoria || "—") + '</td>' +
+          '<td>' + escapeHtml(studentStatusLabel(student.status)) + '</td>' +
+          '<td class="student-actions">' +
+            '<button class="button button-outline button-small" type="button" data-student-action="edit" data-student-id="' + escapeHtml(student.id) + '">Editar</button>' +
+            '<button class="button button-danger button-small" type="button" data-student-action="delete" data-student-id="' + escapeHtml(student.id) + '">Excluir</button>' +
+          '</td>' +
+        '</tr>'
+      ).join("") +
+      '</tbody></table>';
+  }
+
+  function updateStudentSelect() {
+    const select = el("filtroAluno");
+    const selected = select.value;
+    select.innerHTML = '<option value="">Selecione um aluno</option>' +
+      state.students.map(student =>
+        '<option value="' + escapeHtml(student.id) + '">' + escapeHtml(student.nome) + '</option>'
+      ).join("");
+    if (state.students.some(student => student.id === selected)) select.value = selected;
+  }
+
   async function loadOwnData() {
     const [studentsResult, lessonsResult, vehiclesResult] = await Promise.all([
       state.supabase.from("students")
-        .select("id,nome,categoria,aulas_compradas,aulas_restantes")
+        .select("id,nome,email,telefone,cpf,endereco,categoria,status,aulas_compradas,aulas_restantes")
         .order("nome", { ascending: true }),
       state.supabase.from("lessons")
         .select("id,student_id,data_aula,horario,numero_aula,status,vehicle_id")
@@ -72,14 +125,106 @@
     state.vehicles = vehiclesResult.data || [];
 
     el("totalAlunos").textContent = state.students.length;
-    el("totalRealizadas").textContent = state.lessons.filter(item => item.status === "Realizada").length;
-    el("totalAgendadas").textContent = state.lessons.filter(item => item.status === "Agendada").length;
+    el("totalRealizadas").textContent = state.lessons.filter(item =>
+      ["Realizada", "realizada", "realizada"].includes(item.status)
+    ).length;
+    el("totalAgendadas").textContent = state.lessons.filter(item =>
+      ["Agendada", "agendada"].includes(item.status)
+    ).length;
 
-    const select = el("filtroAluno");
-    select.innerHTML = '<option value="">Selecione um aluno</option>' +
-      state.students.map(student =>
-        '<option value="' + escapeHtml(student.id) + '">' + escapeHtml(student.nome) + '</option>'
-      ).join("");
+    renderStudents();
+    updateStudentSelect();
+  }
+
+  function resetStudentForm() {
+    state.studentEditingId = null;
+    el("formAluno").reset();
+    el("tituloFormAluno").textContent = "Cadastrar aluno";
+    el("btnSalvarAluno").textContent = "Salvar aluno";
+    el("formAluno").hidden = true;
+  }
+
+  function openStudentForm(student = null) {
+    el("formAluno").reset();
+    state.studentEditingId = student ? student.id : null;
+    el("tituloFormAluno").textContent = student ? "Editar aluno" : "Cadastrar aluno";
+    el("btnSalvarAluno").textContent = student ? "Salvar alterações" : "Salvar aluno";
+
+    if (student) {
+      el("alunoNome").value = student.nome || "";
+      el("alunoEmail").value = student.email || "";
+      el("alunoTelefone").value = student.telefone || "";
+      el("alunoCpf").value = student.cpf || "";
+      el("alunoEndereco").value = student.endereco || "";
+      el("alunoCategoria").value = student.categoria || "";
+      el("alunoStatus").value = student.status || "em_aberto";
+    }
+
+    el("formAluno").hidden = false;
+    el("alunoNome").focus();
+  }
+
+  async function saveStudent(event) {
+    event.preventDefault();
+    const button = el("btnSalvarAluno");
+    const student = {
+      nome: el("alunoNome").value.trim(),
+      email: el("alunoEmail").value.trim().toLowerCase() || null,
+      telefone: el("alunoTelefone").value.trim() || null,
+      cpf: el("alunoCpf").value.trim() || null,
+      endereco: el("alunoEndereco").value.trim() || null,
+      categoria: el("alunoCategoria").value || null,
+      status: el("alunoStatus").value
+    };
+
+    if (!student.nome) {
+      showMessage("Informe o nome do aluno.");
+      el("alunoNome").focus();
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Salvando...";
+    showMessage("");
+
+    try {
+      let result;
+      if (state.studentEditingId) {
+        result = await state.supabase.from("students")
+          .update(student)
+          .eq("id", state.studentEditingId);
+      } else {
+        result = await state.supabase.from("students")
+          .insert({ ...student, owner_id: state.user.id });
+      }
+      if (result.error) throw result.error;
+
+      resetStudentForm();
+      await loadOwnData();
+      showMessage("Aluno salvo com sucesso.", false);
+    } catch (error) {
+      console.error("Falha ao salvar aluno:", error);
+      showMessage("Não foi possível salvar o aluno. Confira os dados e tente novamente.");
+    } finally {
+      button.disabled = false;
+      button.textContent = state.studentEditingId ? "Salvar alterações" : "Salvar aluno";
+    }
+  }
+
+  async function deleteStudent(id) {
+    const student = state.students.find(item => item.id === id);
+    if (!student) return;
+    if (!window.confirm('Deseja excluir o aluno "' + student.nome + '"?')) return;
+
+    try {
+      const { error } = await state.supabase.from("students").delete().eq("id", id);
+      if (error) throw error;
+      await loadOwnData();
+      showMessage("Aluno excluído com sucesso.", false);
+    } catch (error) {
+      console.error("Falha ao excluir aluno:", error);
+      showMessage("Não foi possível excluir este aluno. Se ele já possuir aulas vinculadas, mantenha o cadastro e apenas edite seus dados.");
+    }
   }
 
   function reportTable(items, includeSignature) {
@@ -92,7 +237,7 @@
       '</tr></thead><tbody>' +
       rows.map(lesson => {
         const status = String(lesson.status || "—");
-        const statusClass = status === "Realizada" ? "status status-realizada" : "status";
+        const statusClass = ["Realizada", "realizada"].includes(status) ? "status status-realizada" : "status";
         return '<tr>' +
           '<td>' + escapeHtml(formatDate(lesson.data_aula)) + '</td>' +
           '<td>' + escapeHtml(lesson.horario || "—") + '</td>' +
@@ -125,7 +270,7 @@
     const summary = '<span>Contratadas: <strong>' + escapeHtml(student.aulas_compradas ?? "—") +
       '</strong></span><span>Restantes: <strong>' + escapeHtml(student.aulas_restantes ?? "—") +
       '</strong></span><span>Realizadas: <strong>' +
-      lessons.filter(item => item.status === "Realizada").length + '</strong></span>';
+      lessons.filter(item => ["Realizada", "realizada"].includes(item.status)).length + '</strong></span>';
     showReport("Relatório por aluno", student.nome + " · Categoria " + (student.categoria || "—"), lessons, false, summary);
   }
 
@@ -145,7 +290,7 @@
     const date = el("dataDiaria").value;
     if (!date) { showMessage("Informe a data da lista diária."); return; }
     const lessons = state.lessons.filter(item =>
-      String(item.data_aula || "").slice(0, 10) === date && item.status !== "Cancelada"
+      String(item.data_aula || "").slice(0, 10) === date && !["Cancelada", "cancelada"].includes(item.status)
     );
     showReport("Lista diária de aulas", formatDate(date), lessons, true);
   }
@@ -188,6 +333,18 @@
     el("nomeInstrutor").textContent = profile.nome || state.user.email || "Instrutor";
     await loadOwnData();
 
+    el("btnNovoAluno").addEventListener("click", () => openStudentForm());
+    el("btnCancelarAluno").addEventListener("click", resetStudentForm);
+    el("formAluno").addEventListener("submit", saveStudent);
+    el("listaAlunos").addEventListener("click", event => {
+      const button = event.target.closest("[data-student-action]");
+      if (!button) return;
+      const id = button.dataset.studentId;
+      const student = state.students.find(item => item.id === id);
+      if (button.dataset.studentAction === "edit" && student) openStudentForm(student);
+      if (button.dataset.studentAction === "delete") deleteStudent(id);
+    });
+
     el("btnRelatorioAluno").addEventListener("click", reportByStudent);
     el("btnRelatorioPeriodo").addEventListener("click", reportByPeriod);
     el("btnRelatorioDiario").addEventListener("click", reportDaily);
@@ -201,6 +358,6 @@
 
   initialize().catch(error => {
     console.error("Falha ao abrir área do instrutor:", error);
-    showMessage("Não foi possível carregar seus relatórios. Verifique sua sessão e as permissões do banco.");
+    showMessage("Não foi possível carregar seus dados. Verifique sua sessão e as permissões do banco.");
   });
 })();
