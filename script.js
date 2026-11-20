@@ -2914,6 +2914,207 @@ if (filtroAlunoAulas) {
   filtroAlunoAulas.addEventListener("change", listarAulas);
 }
 
+
+/* =========================================
+   SUPABASE — CARREGAMENTO SEGURO DO ADMIN
+   Esta etapa é somente leitura. Não migra nem
+   sobrescreve dados locais automaticamente.
+========================================= */
+
+function statusAulaParaTela(status) {
+  const valor = String(status || "").toLowerCase();
+  if (valor === "realizada") return "Realizada";
+  if (valor === "cancelada") return "Cancelada";
+  return "Agendada";
+}
+
+function statusAlunoParaTela(status) {
+  const mapa = {
+    em_aberto: "Em aberto",
+    finalizado: "Finalizado",
+    aprovado: "Aprovado"
+  };
+  return mapa[String(status || "").toLowerCase()] || "Em aberto";
+}
+
+function horarioBancoParaTela(horario) {
+  const inicio = String(horario || "").slice(0, 5);
+  if (!inicio) return "";
+  const [hora, minuto] = inicio.split(":").map(Number);
+  const data = new Date(2000, 0, 1, hora || 0, minuto || 0);
+  data.setMinutes(data.getMinutes() + 50);
+  const fim = data.toTimeString().slice(0, 5);
+  return `${inicio} - ${fim}`;
+}
+
+function existeDadoLocalOperacional() {
+  return ["alunos", "veiculos", "aulas", "vendas", "movimentacoes"]
+    .some(chave => Array.isArray(db[chave]) && db[chave].length > 0);
+}
+
+async function carregarDadosAdminSupabase() {
+  const cliente = window.getMarcusSupabase?.();
+  if (!cliente) throw new Error("Cliente Supabase não disponível.");
+
+  const { data: sessaoData, error: erroSessao } = await cliente.auth.getSession();
+  if (erroSessao) throw erroSessao;
+  const usuario = sessaoData?.session?.user;
+  if (!usuario?.id) throw new Error("Sessão administrativa não encontrada.");
+
+  const { data: perfil, error: erroPerfil } = await cliente
+    .from("profiles")
+    .select("id, role")
+    .eq("id", usuario.id)
+    .maybeSingle();
+
+  if (erroPerfil) throw erroPerfil;
+  if (perfil?.role !== "admin") {
+    throw new Error("A conta atual não possui permissão administrativa.");
+  }
+
+  const tabelas = [
+    "students", "vehicles", "lessons", "products",
+    "sales", "sale_items", "financial_transactions", "app_settings"
+  ];
+
+  const resultados = await Promise.all(tabelas.map(async tabela => {
+    const consulta = await cliente.from(tabela).select("*").eq("owner_id", usuario.id);
+    if (consulta.error) throw new Error(`Falha ao carregar ${tabela}: ${consulta.error.message}`);
+    return [tabela, consulta.data || []];
+  }));
+
+  const dados = Object.fromEntries(resultados);
+  const temDadosNuvem = tabelas.some(tabela => dados[tabela].length > 0);
+
+  if (!temDadosNuvem) {
+    console.info("Supabase admin: ainda não há registros operacionais nesta conta.");
+    return { carregado: false, motivo: "nuvem_vazia" };
+  }
+
+  if (existeDadoLocalOperacional()) {
+    console.warn("Há dados locais e dados no Supabase. A carga automática foi interrompida para evitar mistura ou ocultação de registros.");
+    return { carregado: false, motivo: "conflito_local_nuvem" };
+  }
+
+  const produtosPorId = new Map(dados.products.map(p => [p.id, p]));
+  const alunos = dados.students.map(a => ({
+    id: a.id,
+    nome: a.nome || "",
+    telefone: a.telefone || "",
+    cpf: a.cpf || "",
+    endereco: a.endereco || "",
+    categoria: a.categoria || "B",
+    situacao: statusAlunoParaTela(a.status),
+    contratadas: Number(a.aulas_compradas || 0),
+    saldo: Number(a.aulas_restantes || 0)
+  }));
+
+  const veiculos = dados.vehicles.map(v => ({
+    id: v.id,
+    tipo: v.tipo || "Carro",
+    modelo: v.nome || "",
+    placa: v.placa || "",
+    categoria: v.categoria || "B"
+  }));
+
+  const aulas = dados.lessons.map(a => ({
+    id: a.id,
+    alunoId: a.student_id,
+    data: a.data_aula,
+    horario: horarioBancoParaTela(a.horario),
+    veiculoId: a.vehicle_id || "",
+    status: statusAulaParaTela(a.status),
+    observacoes: a.observacoes || ""
+  }));
+
+  const produtos = dados.products.map(p => ({
+    id: p.id,
+    nome: p.nome || "",
+    preco: Number(p.preco || 0),
+    tipo: p.tipo === "produto" ? "produto" : "servico",
+    quantidadeAulas: p.quantidade_aulas ?? null
+  }));
+
+  const vendas = dados.sales.map(v => {
+    const itens = dados.sale_items.filter(item => item.sale_id === v.id).map(item => {
+      const produto = produtosPorId.get(item.product_id);
+      const tipo = produto?.tipo === "produto" ? "produto" : "servico";
+      return {
+        produtoId: item.product_id,
+        nome: item.descricao || produto?.nome || "Item",
+        tipo,
+        quantidade: Number(item.quantidade || 1),
+        precoUnitario: Number(item.valor_unitario || 0),
+        total: Number(item.subtotal || 0),
+        aulasDevolvidas: 0,
+        valorDevolvido: 0
+      };
+    });
+    const aluno = alunos.find(a => a.id === v.student_id);
+    const descricao = itens.map(item => `${item.nome} (${item.quantidade})`).join(", ");
+    return {
+      id: v.id,
+      alunoId: v.student_id,
+      itens,
+      pacote: descricao,
+      descricao: v.observacoes || descricao,
+      aulasVendidas: itens.reduce((total, item) => total + (item.tipo === "servico" ? item.quantidade : 0), 0),
+      aulasDevolvidas: 0,
+      valorTotal: Number(v.total || 0),
+      valorDevolvido: 0,
+      data: v.data_venda,
+      formaPagamento: v.forma_pagamento || "",
+      status: v.status || "confirmada",
+      nomeAluno: aluno?.nome || ""
+    };
+  });
+
+  const movimentacoes = dados.financial_transactions.map(m => ({
+    id: m.id,
+    tipo: m.tipo,
+    descricao: m.descricao || "",
+    valor: Number(m.valor || 0),
+    alunoId: m.student_id || null,
+    vendaId: m.sale_id || null,
+    data: m.data_movimento,
+    status: m.status || "confirmado"
+  }));
+
+  const configuracao = dados.app_settings[0];
+  const configuracoes = configuracao ? {
+    nome: configuracao.nome_empresa || "Marcus Instrutor",
+    corPrincipal: configuracao.cor_principal || "#12345a",
+    corSecundaria: configuracao.cor_secundaria || "#e8edf3",
+    logo: configuracao.logo_url || ""
+  } : structuredClone(estadoInicial.configuracoes);
+
+  db = {
+    ...structuredClone(estadoInicial),
+    alunos,
+    veiculos,
+    aulas,
+    produtos: produtos.length ? produtos : structuredClone(estadoInicial.produtos),
+    vendas,
+    movimentacoes,
+    configuracoes
+  };
+
+  console.info("Dados operacionais do administrador carregados do Supabase em modo somente leitura.");
+  return { carregado: true, motivo: "sucesso" };
+}
+
+async function prepararDadosAdmin() {
+  try {
+    const resultado = await carregarDadosAdminSupabase();
+    if (resultado.motivo === "conflito_local") {
+      mostrarAviso("Há dados locais e na nuvem. Mantivemos os dados locais para evitar mistura. A migração será feita com conferência.");
+    }
+  } catch (erro) {
+    console.error("Não foi possível carregar os dados administrativos do Supabase:", erro);
+    mostrarAviso("Não foi possível consultar a nuvem. Os dados locais foram mantidos.");
+  }
+}
+
 /* =========================================
    INICIALIZAÇÃO
 ========================================= */
@@ -2948,7 +3149,7 @@ function iniciarAplicativo() {
   console.log("Marcus Instrutor iniciado.");
           }
 
-iniciarAplicativo();
+prepararDadosAdmin().finally(() => iniciarAplicativo());
 
 /* =========================================
    LIMPAR TODOS OS REGISTROS
