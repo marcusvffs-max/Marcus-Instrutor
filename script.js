@@ -1637,8 +1637,9 @@ function abrirVenda() {
       <div class="panel">
         <strong>Itens da venda</strong>
         <div id="itensCarrinhoVenda"><p>Nenhum item adicionado.</p></div>
-        <p>Subtotal: <strong id="subtotalBrutoVenda">R$ 0,00</strong></p>
-        <p>Desconto aplicado: <strong id="descontoAplicadoVenda">R$ 0,00</strong></p>
+        <p>Subtotal de produtos: <strong id="subtotalProdutosVenda">R$ 0,00</strong></p>
+        <p>Subtotal de serviços: <strong id="subtotalServicosVenda">R$ 0,00</strong></p>
+        <p>Desconto aplicado somente aos serviços: <strong id="descontoAplicadoVenda">R$ 0,00</strong></p>
         <p>Total final: <strong id="totalVenda">R$ 0,00</strong></p>
         <p>Aulas que serão adicionadas: <strong id="aulasVenda">0</strong></p>
       </div>
@@ -1677,21 +1678,25 @@ function abrirVenda() {
   const campoValorDesconto = document.getElementById("valorDescontoVenda");
   const rotuloDesconto = document.getElementById("rotuloDescontoVenda");
 
-  function obterResumoDesconto(subtotal) {
+  function obterResumoDesconto(subtotalServicos, subtotalGeral) {
     const tipo = campoTipoDesconto.value;
     const informado = numero(campoValorDesconto.value);
+    if (subtotalServicos <= 0) {
+      return { valido: informado === 0, desconto: 0, total: subtotalGeral };
+    }
     if (!Number.isFinite(informado) || informado < 0) {
-      return { valido: false, desconto: 0, total: subtotal };
+      return { valido: false, desconto: 0, total: subtotalGeral };
     }
     if (tipo === "percentual") {
-      if (informado > 100) return { valido: false, desconto: 0, total: subtotal };
-      const desconto = Math.round(subtotal * informado) / 100;
-      return { valido: desconto < subtotal || desconto === 0, desconto, total: subtotal - desconto };
+      if (informado >= 100) return { valido: false, desconto: 0, total: subtotalGeral };
+      const desconto = Math.round(subtotalServicos * informado) / 100;
+      return { valido: true, desconto, total: subtotalGeral - desconto };
     }
-    if (informado > subtotal || (subtotal > 0 && informado >= subtotal)) {
-      return { valido: false, desconto: 0, total: subtotal };
+    if (informado >= subtotalServicos && informado > 0) {
+      return { valido: false, desconto: 0, total: subtotalGeral };
     }
-    return { valido: true, desconto: Math.round(informado * 100) / 100, total: subtotal - informado };
+    const desconto = Math.round(informado * 100) / 100;
+    return { valido: true, desconto, total: subtotalGeral - desconto };
   }
 
   function atualizarCarrinho() {
@@ -1709,14 +1714,23 @@ function abrirVenda() {
         `).join("")
       : "<p>Nenhum item adicionado.</p>";
 
-    const subtotal = Math.round(itensCarrinho.reduce((s, item) => s + item.total, 0) * 100) / 100;
+    const subtotalProdutos = Math.round(itensCarrinho.filter(item => item.tipo === "produto").reduce((s, item) => s + item.total, 0) * 100) / 100;
+    const subtotalServicos = Math.round(itensCarrinho.filter(item => item.tipo === "servico").reduce((s, item) => s + item.total, 0) * 100) / 100;
+    const subtotalGeral = Math.round((subtotalProdutos + subtotalServicos) * 100) / 100;
     const aulas = itensCarrinho.reduce((s, item) => s + item.aulasContratadas, 0);
-    const resumo = obterResumoDesconto(subtotal);
-    document.getElementById("subtotalBrutoVenda").textContent = moeda(subtotal);
+    const temServicos = subtotalServicos > 0;
+    campoTipoDesconto.disabled = !temServicos;
+    campoValorDesconto.disabled = !temServicos;
+    rotuloDesconto.textContent = temServicos
+      ? (campoTipoDesconto.value === "percentual" ? "Desconto percentual sobre serviços (%)" : "Desconto em reais sobre serviços (R$)")
+      : "Desconto indisponível: adicione um serviço";
+    const resumo = obterResumoDesconto(subtotalServicos, subtotalGeral);
+    document.getElementById("subtotalProdutosVenda").textContent = moeda(subtotalProdutos);
+    document.getElementById("subtotalServicosVenda").textContent = moeda(subtotalServicos);
     document.getElementById("descontoAplicadoVenda").textContent =
       resumo.valido ? moeda(resumo.desconto) : "Desconto inválido";
     document.getElementById("totalVenda").textContent =
-      resumo.valido ? moeda(resumo.total) : moeda(subtotal);
+      resumo.valido ? moeda(resumo.total) : moeda(subtotalGeral);
     document.getElementById("aulasVenda").textContent = aulas;
   }
 
@@ -1801,6 +1815,7 @@ async function salvarVenda(evento, itensCarrinho) {
   const descontoTipo = formulario.elements.descontoTipo.value;
   const descontoValor = numero(formulario.elements.descontoValor.value);
   const subtotalBruto = Math.round(itensCarrinho.reduce((s, item) => s + item.total, 0) * 100) / 100;
+  const subtotalServicos = Math.round(itensCarrinho.filter(item => item.tipo === "servico").reduce((s, item) => s + item.total, 0) * 100) / 100;
   const botao = formulario.querySelector('button[type="submit"]');
 
   if (!adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
@@ -1812,9 +1827,10 @@ async function salvarVenda(evento, itensCarrinho) {
     return;
   }
   if (!Number.isFinite(descontoValor) || descontoValor < 0 ||
-      (descontoTipo === "percentual" && (descontoValor > 100 || (subtotalBruto > 0 && descontoValor >= 100))) ||
-      (descontoTipo === "valor" && descontoValor >= subtotalBruto && descontoValor > 0)) {
-    mostrarAviso("Informe um desconto válido. Ele deve ser menor que o subtotal.");
+      (descontoValor > 0 && subtotalServicos <= 0) ||
+      (descontoTipo === "percentual" && descontoValor >= 100) ||
+      (descontoTipo === "valor" && descontoValor >= subtotalServicos && descontoValor > 0)) {
+    mostrarAviso("O desconto só pode ser aplicado aos serviços e deve ser menor que o subtotal dos serviços.");
     return;
   }
 
