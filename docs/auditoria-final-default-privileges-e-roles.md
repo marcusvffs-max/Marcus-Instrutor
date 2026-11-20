@@ -172,3 +172,14 @@ Nenhuma RPC foi chamada, nenhum SQL foi executado, nenhuma migration/grant/confi
 ## Coleta de catálogo para RPCs — 20/11/2026
 
 Criado `docs/PRECHECK-READONLY-RPCS-POSTGREST.md`, com sete consultas somente SELECT para definições SQL, ACL efetiva, schemas, triggers e memberships. O roteiro não chama funções de negócio nem altera o banco. A ausência das definições das cinco RPCs financeiras permanece pendência crítica de evidência, não vulnerabilidade confirmada. Nenhuma conexão ao Supabase ou alteração de banco ocorreu nesta etapa. Harness atualizado para 29 testes estáticos.
+
+
+## Evidência de catálogo real — RPCs e fluxo de agenda (20/11/2026)
+
+Consulta read-only no projeto Supabase confirmou que as cinco RPCs financeiras são SECURITY INVOKER, owner postgres, search_path vazio, executáveis por authenticated/service_role e não por anon. Os corpos verificam papel administrativo ou de instrutor e owner_id dos registros manipulados. Não foram feitos testes de transação com contas reais.
+
+Achado prioritário: `private.get_my_scheduled_lessons_internal()` é SECURITY DEFINER, tem EXECUTE para authenticated e o schema private concede USAGE a authenticated. A função verifica role usuario, mas ainda encontra aulas por comparação de e-mail, não por students.user_id. O histórico real do banco contém `20261120154116_student_email_and_user_scheduled_lessons_by_email`; não contém a migration `20261121120000_student_account_link.sql` versionada na branch. Logo, o fluxo novo de vínculo por user_id ainda não está ativo no banco consultado. A exposição REST direta do schema private não foi confirmada: os GUCs pgrst consultados retornaram NULL.
+
+Advisors: RLS sem policies em whatsapp_conversations e whatsapp_messages (INFO; possivelmente backend-only) e proteção de senhas vazadas desabilitada (WARN). Nenhuma configuração foi alterada.
+
+As consultas foram somente SELECT/listagem. Nenhuma RPC de negócio, migration, grant, deploy ou alteração de configuração foi executada.

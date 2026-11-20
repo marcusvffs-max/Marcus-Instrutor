@@ -82,3 +82,48 @@ Não alterar código funcional, grants, migrations, schemas ou configuração da
 Foi criado `docs/PRECHECK-READONLY-RPCS-POSTGREST.md`, com sete consultas SELECT para obter definições completas, sobrecargas, owner, SECURITY DEFINER, configurações, EXECUTE efetivo, ACL incluindo PUBLIC, schemas, triggers e memberships. Nenhuma consulta chama RPC de negócio.
 
 A falta das definições das cinco RPCs financeiras permanece uma pendência crítica de evidência, não vulnerabilidade confirmada. A documentação financeira existente registra uma consulta prévia ao projeto, mas esta etapa não acessou o Supabase e não reutiliza esse registro como prova das definições atuais. A coleta deve ocorrer apenas em ambiente autorizado, gratuito e com resultados sanitizados.
+
+
+## Evidência do catálogo real — consulta somente leitura em 20/11/2026
+
+Projeto consultado: `ydyqagqsuqntuibzgwzd` (PostgreSQL 17.11; status ACTIVE_HEALTHY). Foram executadas somente consultas SELECT de catálogo e listagem de migrations; nenhuma RPC de negócio foi chamada.
+
+### RPCs financeiras
+
+As cinco RPCs existem em `public`, owner `postgres`, `SECURITY INVOKER` (`prosecdef=false`), `search_path=""`. O catálogo confirmou `EXECUTE` efetivo para `authenticated` e `service_role`, e negou para `anon`. A ACL expandida mostra grant a `authenticated` (além de owner e service_role), sem entrada `PUBLIC`.
+
+- `admin_create_sale`: exige `auth.uid()` e `private.current_app_role()='admin'`; aluno e produto são filtrados por `owner_id=v_uid`.
+- `admin_delete_sale`: exige admin e localiza venda/aluno por `owner_id=v_uid`.
+- `admin_refund_sale_lessons`: exige admin; venda, item e aluno são limitados ao owner autenticado.
+- `admin_refund_sale_product`: exige admin; venda e item são limitados ao owner autenticado.
+- `create_instructor_sale`: exige papel instrutor; aluno e produto são limitados ao owner autenticado; a venda e os lançamentos usam o mesmo owner.
+
+Conclusão limitada: não foi identificada, nas definições obtidas, falha óbvia de autorização por papel/owner nessas cinco funções. Elas são INVOKER, não SECURITY DEFINER. Não foram executadas transações de negócio ou testes negativos com usuários reais; portanto, isso não equivale a teste de exploração completo.
+
+### Função interna de agenda — achado que exige atenção
+
+`private.get_my_scheduled_lessons_internal()` é `SECURITY DEFINER`, owner `postgres`, `search_path=""`. O catálogo mostra `USAGE` do schema `private` para `authenticated` e `EXECUTE` concedido a `authenticated`. `anon` não possui USAGE no schema e não executa a função.
+
+O corpo verifica `auth.uid()` e `profiles.role='usuario'`, mas filtra as aulas comparando o e-mail do JWT com `students.email`; não usa `students.user_id`. A RPC pública `get_my_scheduled_lessons()` chama essa função interna. Isso é compatível com a migration histórica `20261120154116_student_email_and_user_scheduled_lessons_by_email`, que aparece no histórico real do banco.
+
+A migration nova `20261121120000_student_account_link.sql` presente na branch **não aparece** no histórico de migrations aplicado ao banco consultado. Portanto, o banco atual ainda está no fluxo antigo por e-mail, enquanto a branch contém a migração planejada para vínculo por `students.user_id`.
+
+Risco/decisão: como `private` não foi confirmado como schema exposto pela Data API, não está provado que a função interna possa ser chamada diretamente via REST. Porém, authenticated tem USAGE e EXECUTE no SQL; se `private` estiver exposto, a função pode ser invocada diretamente. Mesmo via wrapper público, o vínculo por e-mail é o mecanismo atualmente ativo. Recomenda-se priorizar revisão do fluxo de agenda e não considerar a migração user_id efetiva no banco até aplicação autorizada e validação.
+
+### Limitação da configuração PostgREST
+
+`current_setting('pgrst.db_schemas', true)` e os demais parâmetros consultados retornaram NULL; isso não revela a lista de schemas expostos. A configuração da Data API precisa ser conferida no painel ou por configuração administrativa específica. Não alterar configuração nesta auditoria.
+
+### Histórico de migrations
+
+O histórico real retornado contém migrations até `20261120193615_add_product_sale_item_refunds`; não contém as migrations de 21/11 que estão na branch de testes. Nenhuma migration foi aplicada nesta etapa.
+
+### Advisors de segurança
+
+O advisor retornou:
+- INFO: RLS habilitado sem policies em `public.whatsapp_conversations` e `public.whatsapp_messages`. Isso bloqueia acesso por roles comuns; pode ser intencional se somente backend service_role acessa.
+- WARN: proteção contra senhas vazadas desabilitada no Auth. É uma configuração de segurança de autenticação, não foi alterada.
+
+### Conclusão
+
+As cinco RPCs financeiras apresentam verificações internas de role/owner e ACL sem PUBLIC/anon. O achado prioritário é a função de agenda SECURITY DEFINER acessível no schema private para authenticated e o fluxo ativo por correspondência de e-mail, enquanto a migração de vínculo por user_id ainda não está aplicada no banco. Nenhuma alteração foi feita no Supabase.

@@ -330,3 +330,21 @@ test("pré-checagem RPC/PostgREST contém somente SELECT e verifica ACL/roles", 
   }
   assert.match(rpcCatalogPrecheck, /Não executar RPCs financeiras como teste/i);
 });
+
+
+const liveRpcAudit = read("../docs/auditoria-postgrest-rpcs-relacoes.md");
+
+test("auditoria registra evidência real das RPCs financeiras como SECURITY INVOKER", () => {
+  assert.match(liveRpcAudit, /SECURITY INVOKER/);
+  assert.match(liveRpcAudit, /anon/);
+  assert.match(liveRpcAudit, /owner_id=v_uid/);
+  assert.match(liveRpcAudit, /não foi identificada.*falha óbvia/i);
+});
+
+test("auditoria sinaliza fluxo de agenda por email e migration user_id ainda não aplicada", () => {
+  assert.match(liveRpcAudit, /get_my_scheduled_lessons_internal/);
+  assert.match(liveRpcAudit, /SECURITY DEFINER/);
+  assert.match(liveRpcAudit, /students\.user_id/);
+  assert.match(liveRpcAudit, /não aparece.*histórico/i);
+  assert.match(liveRpcAudit, /nenhuma migration foi aplicada/i);
+});
