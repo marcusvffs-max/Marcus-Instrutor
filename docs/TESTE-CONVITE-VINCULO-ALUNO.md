@@ -63,12 +63,12 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 - [ ] Retorno da RPC preserva os sete campos esperados pelo frontend.
 - [ ] Funções e permissões não concedem acesso anônimo aos dados do aluno.
 
-## Risco de segurança pendente — associação automática por e-mail
+## Proteção contra associação indevida por e-mail
 
-A compatibilidade com contas antigas associa automaticamente uma conta autenticada com e-mail confirmado quando encontra exatamente um cadastro com o mesmo e-mail normalizado. A unicidade evita ambiguidades entre cadastros, mas não comprova que o e-mail foi digitado corretamente no cadastro nem que pertence ao aluno pretendido.
+A associação automática de contas antigas por correspondência de e-mail foi removida. Uma conta Auth existente só pode ser associada depois de uma solicitação iniciada pelo instrutor e da confirmação autenticada do titular pelo link enviado ao endereço cadastrado. A confirmação valida e-mail confirmado, perfil `usuario`, token aleatório de tentativa, reserva ainda válida e cadastro específico. Isso comprova o controle da caixa de e-mail; por isso, o instrutor ainda precisa conferir previamente com o aluno se o endereço informado está correto.
 
-- [x] **INV-20 — E-mail único incorreto ou pertencente a terceiro:** associação automática por e-mail foi removida da migration na branch de testes. Validar que a conta de terceiro não recebe acesso ao cadastro.
-- [x] A proteção implementada é não associar contas antigas automaticamente por e-mail. Para contas existentes, o instrutor inicia uma solicitação e o titular precisa abrir um link de recuperação enviado ao endereço já cadastrado; uma Edge Function valida a sessão autenticada, o e-mail confirmado, o token de tentativa, a reserva e o cadastro antes de associar.
+- [x] **INV-20 — E-mail único incorreto ou pertencente a terceiro:** não existe mais associação automática por e-mail; contas antigas sem solicitação pendente não recebem aulas.
+- [ ] Validar em ambiente isolado que uma conta de terceiro não consegue concluir uma solicitação reservada para outro e-mail.
 - [ ] Não usar dados reais nem executar esse teste em produção.
 
 ## Tratamento de conta antiga sem vínculo
