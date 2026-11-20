@@ -141,3 +141,17 @@ Não foi feito REVOKE global. A ação correta é controlar grants em cada migra
 A auditoria de memberships não encontrou usuário final herdando diretamente `service_role`; `authenticator` tem memberships com `INHERIT=false` e `SET=true`, compatível com a troca de papel do PostgREST. Não remover memberships internas.
 
 Documento: `docs/auditoria-final-default-privileges-e-roles.md`.
+
+
+## Revisão consolidada de migration e endpoint (20/11/2026)
+
+A revisão completa do SQL (521 linhas) confirmou que as seis FKs simples a remover têm os nomes exatos existentes no catálogo. O SQL permanece NÃO aprovado para execução até validação de integração, verificação da lista de schemas expostos e testes isolados.
+
+Foi encontrado e corrigido um conflito no rascunho da Edge Function: o código fazia INSERT manual em `profiles` após `inviteUserByEmail`, embora o trigger Auth já deva criar o perfil. A versão atual remove o INSERT manual e consulta o perfil criado pelo trigger, confirmando `role='instrutor'`.
+
+O endpoint ainda não existe na lista de Edge Functions implantadas. Quando for criado, deve usar `verify_jwt=true`, CORS com origem real, rate limit e service_role apenas no servidor. Não implantar antes do trigger validado.
+
+Documento de revisão consolidada: `docs/revisao-consolidada-migration-seguranca-relatorios.md`.
+Endpoint proposto: `docs/edge-function-gerenciar-instrutores.md`.
+
+Advisor baseline antes de qualquer alteração: 3 tabelas financeiras sem policies (no escopo da migration), 2 tabelas WhatsApp sem policies (fora do escopo) e proteção de senha vazada desabilitada (não alterar sem autorização). Nenhuma mudança no banco ou deploy.
