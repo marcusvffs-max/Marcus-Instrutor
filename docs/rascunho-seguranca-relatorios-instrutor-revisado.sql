@@ -466,6 +466,21 @@ alter table public.financial_transactions
   references public.sales (id, owner_id)
   on delete set null (sale_id);
 
+-- As FKs compostas passam a substituir as FKs simples equivalentes.
+-- Remover as antigas evita duplicar ações de exclusão/atualização.
+alter table public.lessons
+  drop constraint lessons_student_id_fkey,
+  drop constraint lessons_vehicle_id_fkey;
+
+alter table public.sales
+  drop constraint sales_student_id_fkey;
+
+alter table public.sale_items
+  drop constraint sale_items_sale_id_fkey;
+
+alter table public.financial_transactions
+  drop constraint financial_transactions_student_id_fkey,
+  drop constraint financial_transactions_sale_id_fkey;
 
 commit;
 
