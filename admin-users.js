@@ -63,7 +63,10 @@
   overlay.append(dialog);
   document.body.append(overlay);
 
-  function closeModal() { overlay.hidden = true; }
+  function closeModal() {
+    overlay.hidden = true;
+    stopAccessCountdownRefresh();
+  }
   close.addEventListener("click", closeModal);
   overlay.addEventListener("click", (event) => { if (event.target === overlay) closeModal(); });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !overlay.hidden) closeModal(); });
@@ -81,10 +84,42 @@
     return data;
   }
 
+  let accessRefreshTimer = null;
+
   function accessDays(until) {
     if (!until) return null;
     const remaining = new Date(until).getTime() - Date.now();
     return remaining > 0 ? Math.ceil(remaining / 86400000) : 0;
+  }
+
+  function updateAccessCountdowns() {
+    list.querySelectorAll("[data-access-until]").forEach((access) => {
+      const until = access.dataset.accessUntil || null;
+      const days = accessDays(until);
+      access.classList.toggle("active", days > 0);
+      access.classList.toggle("blocked", days === null || days === 0);
+      access.textContent = days === null ? "Acesso bloqueado · ainda não liberado" :
+        days === 0 ? "Acesso expirado · renovação necessária" :
+        "Acesso liberado · faltam " + days + (days === 1 ? " dia" : " dias");
+    });
+
+    list.querySelectorAll("button[data-activate-until]").forEach((activate) => {
+      const days = accessDays(activate.dataset.activateUntil || null);
+      activate.textContent = days > 0 ? "Renovar 31 dias" : "Liberar por 31 dias";
+    });
+  }
+
+  function startAccessCountdownRefresh() {
+    if (accessRefreshTimer !== null) window.clearInterval(accessRefreshTimer);
+    updateAccessCountdowns();
+    accessRefreshTimer = window.setInterval(updateAccessCountdowns, 60_000);
+  }
+
+  function stopAccessCountdownRefresh() {
+    if (accessRefreshTimer !== null) {
+      window.clearInterval(accessRefreshTimer);
+      accessRefreshTimer = null;
+    }
   }
 
   async function loadUsers() {
@@ -106,10 +141,9 @@
         if (user.role === "instrutor") {
           const days = accessDays(user.instructor_access_until);
           const access = create("span", {
-            class: "users-access " + (days > 0 ? "active" : "blocked")
-          }, days === null ? "Acesso bloqueado · ainda não liberado" :
-             days === 0 ? "Acesso expirado · renovação necessária" :
-             "Acesso liberado · faltam " + days + (days === 1 ? " dia" : " dias"));
+            class: "users-access " + (days > 0 ? "active" : "blocked"),
+            "data-access-until": user.instructor_access_until || ""
+          });
           info.append(access);
         }
         const role = create("span", { class: "users-role" }, user.role === "admin" ? "Administrador" : user.role === "instrutor" ? "Instrutor" : user.role === "usuario" ? "Aluno" : "Sem perfil");
@@ -129,10 +163,14 @@
         let activate = null;
         if (user.role === "instrutor") {
           const days = accessDays(user.instructor_access_until);
-          activate = create("button", { class: "users-activate", type: "button" },
-            days > 0 ? "Renovar 31 dias" : "Liberar por 31 dias");
+          activate = create("button", {
+            class: "users-activate",
+            type: "button",
+            "data-activate-until": user.instructor_access_until || ""
+          }, days > 0 ? "Renovar 31 dias" : "Liberar por 31 dias");
           activate.addEventListener("click", async () => {
-            const verb = days > 0 ? "renovar" : "liberar";
+            const currentDays = accessDays(activate.dataset.activateUntil || null);
+            const verb = currentDays > 0 ? "renovar" : "liberar";
             if (!window.confirm("Deseja " + verb + " o acesso de " + (user.nome || user.email) + " por mais 31 dias?")) return;
             activate.disabled = true;
             activate.textContent = "Ativando...";
@@ -143,7 +181,7 @@
             } catch (error) {
               message.textContent = error.message;
               activate.disabled = false;
-              activate.textContent = days > 0 ? "Renovar 31 dias" : "Liberar por 31 dias";
+              updateAccessCountdowns();
             }
           });
         }
@@ -210,6 +248,7 @@
     overlay.hidden = false;
     message.textContent = "";
     await loadUsers();
+    startAccessCountdownRefresh();
     nameInput.focus();
   });
 
