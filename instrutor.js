@@ -696,7 +696,7 @@
     button.disabled = true;
     button.textContent = "Registrando...";
     try {
-      const { data, error } = await state.supabase.rpc("create_instructor_sale", {
+      const { error } = await state.supabase.rpc("create_instructor_sale", {
         p_sale_id: saleId,
         p_student_id: studentId,
         p_items: items,
@@ -704,13 +704,20 @@
         p_notes: el("vendaObservacoes").value.trim() || null
       });
       if (error) throw error;
+
+      // A transação foi confirmada no banco; limpar o carrinho antes de atualizar as listas.
       el("formVenda").reset();
       el("vendaQuantidade").value = "1";
       state.saleCart = [];
       renderSaleCart();
-      await loadOwnData();
-      await loadProductsAndSales();
-      showMessage("Venda confirmada! A entrada financeira e o saldo de aulas foram atualizados.", false);
+
+      try {
+        await loadOwnData();
+        showMessage("Venda confirmada! A entrada financeira e o saldo de aulas foram atualizados.", false);
+      } catch (refreshError) {
+        console.error("Venda salva, mas houve falha ao atualizar as telas:", refreshError);
+        showMessage("A venda foi registrada. Recarregue a página para atualizar os saldos e o histórico.", false);
+      }
     } catch (error) {
       console.error("Falha ao registrar venda:", error);
       showMessage(error.message || "Não foi possível registrar a venda. Nenhum lançamento parcial foi salvo.");
