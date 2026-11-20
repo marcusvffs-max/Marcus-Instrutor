@@ -264,6 +264,7 @@ Deno.serve(async (req: Request) => {
 
     let studentInviteId: string | null = null;
     let studentInviteReservation: string | null = null;
+    let studentInviteAttemptId: string | null = null;
 
     if (isStudentInvite) {
       const studentId = typeof body.student_id === "string" ? body.student_id.trim() : "";
@@ -272,7 +273,7 @@ Deno.serve(async (req: Request) => {
       }
       const { data: student, error: studentError } = await admin
         .from("students")
-        .select("id, nome, email, user_id, invited_at")
+        .select("id, nome, email, user_id, invited_at, invite_attempt_id")
         .eq("id", studentId)
         .eq("owner_id", authData.user.id)
         .maybeSingle();
@@ -317,7 +318,7 @@ Deno.serve(async (req: Request) => {
 
     if (isStudentInvite && studentInviteId) {
       const { error: clearStaleError } = await admin.from("students")
-        .update({ invited_at: null })
+        .update({ invited_at: null, invite_attempt_id: null })
         .eq("id", studentInviteId)
         .eq("owner_id", authData.user.id)
         .is("user_id", null)
@@ -325,8 +326,9 @@ Deno.serve(async (req: Request) => {
       if (clearStaleError) throw clearStaleError;
 
       studentInviteReservation = new Date().toISOString();
+      studentInviteAttemptId = crypto.randomUUID();
       const { data: reservedStudent, error: reserveError } = await admin.from("students")
-        .update({ invited_at: studentInviteReservation })
+        .update({ invited_at: studentInviteReservation, invite_attempt_id: studentInviteAttemptId })
         .eq("id", studentInviteId)
         .eq("owner_id", authData.user.id)
         .is("user_id", null)
@@ -344,7 +346,7 @@ Deno.serve(async (req: Request) => {
       email,
       options: {
         data: isStudentInvite
-          ? { nome, student_id: studentInviteId, instructor_id: authData.user.id }
+          ? { nome, student_id: studentInviteId, instructor_id: authData.user.id, invite_attempt_id: studentInviteAttemptId }
           : { nome },
         redirectTo: APP_URL,
       },
@@ -352,7 +354,7 @@ Deno.serve(async (req: Request) => {
     if (linkError) {
       if (studentInviteId && studentInviteReservation) {
         await admin.from("students")
-          .update({ invited_at: null })
+          .update({ invited_at: null, invite_attempt_id: null })
           .eq("id", studentInviteId)
           .eq("owner_id", authData.user.id)
           .is("user_id", null)
@@ -376,7 +378,7 @@ Deno.serve(async (req: Request) => {
         if (deleteError) console.error("Falha ao remover conta incompleta:", deleteError.message);
       }
       if (accountRemoved && studentInviteId && studentInviteReservation) {
-        await admin.from("students").update({ invited_at: null })
+        await admin.from("students").update({ invited_at: null, invite_attempt_id: null })
           .eq("id", studentInviteId).eq("owner_id", authData.user.id)
           .is("user_id", null).eq("invited_at", studentInviteReservation);
       }
@@ -389,7 +391,7 @@ Deno.serve(async (req: Request) => {
     if (updateProfileError || !updatedProfile) {
       const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
       if (!deleteError && studentInviteId && studentInviteReservation) {
-        await admin.from("students").update({ invited_at: null })
+        await admin.from("students").update({ invited_at: null, invite_attempt_id: null })
           .eq("id", studentInviteId).eq("owner_id", authData.user.id)
           .is("user_id", null).eq("invited_at", studentInviteReservation);
       }
@@ -398,19 +400,33 @@ Deno.serve(async (req: Request) => {
     }
 
     if (isStudentInvite && studentInviteId && studentInviteReservation) {
-      const { data: linkedStudent, error: linkStudentError } = await admin
+      let { data: linkedStudent, error: linkStudentError } = await admin
         .from("students")
-        .update({ user_id: invitedUserId })
+        .select("id")
         .eq("id", studentInviteId)
         .eq("owner_id", authData.user.id)
-        .is("user_id", null)
+        .eq("user_id", invitedUserId)
         .eq("invited_at", studentInviteReservation)
-        .select("id")
+        .eq("invite_attempt_id", studentInviteAttemptId)
         .maybeSingle();
+      if (!linkStudentError && !linkedStudent) {
+        const { data: linkedByUpdate, error: fallbackLinkError } = await admin
+          .from("students")
+          .update({ user_id: invitedUserId })
+          .eq("id", studentInviteId)
+          .eq("owner_id", authData.user.id)
+          .is("user_id", null)
+          .eq("invited_at", studentInviteReservation)
+          .eq("invite_attempt_id", studentInviteAttemptId)
+          .select("id")
+          .maybeSingle();
+        linkedStudent = linkedByUpdate;
+        linkStudentError = fallbackLinkError;
+      }
       if (linkStudentError || !linkedStudent) {
         const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
         if (!deleteError) {
-          await admin.from("students").update({ invited_at: null })
+          await admin.from("students").update({ invited_at: null, invite_attempt_id: null })
             .eq("id", studentInviteId).eq("owner_id", authData.user.id)
             .is("user_id", null).eq("invited_at", studentInviteReservation);
         } else {
@@ -452,7 +468,7 @@ Deno.serve(async (req: Request) => {
       const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
       if (!deleteError && studentInviteId && studentInviteReservation) {
         await admin.from("students")
-          .update({ invited_at: null })
+          .update({ invited_at: null, invite_attempt_id: null })
           .eq("id", studentInviteId)
           .eq("owner_id", authData.user.id)
           .is("user_id", null)
