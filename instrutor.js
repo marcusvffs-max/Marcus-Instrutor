@@ -1384,7 +1384,7 @@
         } catch (error) {
           showMessage(error.message || "Não foi possível enviar o convite.");
           button.disabled = false;
-          button.textContent = student.user_id ? "Reenviar acesso" : "Convidar para área do aluno";
+          button.textContent = student.user_id ? "Reenviar acesso" : student.invited_at ? "Reenviar confirmação" : "Convidar para área do aluno";
         }
       }
     });
