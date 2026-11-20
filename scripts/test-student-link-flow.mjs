@@ -110,3 +110,28 @@ test("plano documenta concorrência, expiração e resposta perdida", () => {
     assert.ok(docs.includes(id), `Cenário ausente: ${id}`);
   }
 });
+
+
+test("schema private é criado antes das funções e não permite criação por clientes", () => {
+  const accessMigration = read("../supabase/migrations/20261121090000_instructor_access_expiration.sql");
+  assert.match(accessMigration, /CREATE SCHEMA IF NOT EXISTS private/);
+  assert.match(accessMigration, /REVOKE ALL ON SCHEMA private FROM PUBLIC, anon, authenticated/);
+  assert.match(accessMigration, /GRANT USAGE ON SCHEMA private TO authenticated/);
+  assert.match(accessMigration, /ALTER FUNCTION private\.current_app_role\(\) OWNER TO postgres/);
+  assert.match(accessMigration, /REVOKE ALL ON FUNCTION private\.current_app_role\(\) FROM PUBLIC, anon, authenticated/);
+  assert.match(accessMigration, /GRANT EXECUTE ON FUNCTION private\.current_app_role\(\) TO authenticated/);
+});
+
+test("funções SECURITY DEFINER do vínculo têm owner explícito e execução restrita", () => {
+  for (const signature of [
+    "private.get_my_scheduled_lessons_internal()",
+    "private.clear_student_account_link_on_user_delete()",
+    "public.get_my_scheduled_lessons()",
+    "private.link_student_account_from_invite()",
+  ]) assert.ok(migration.includes(`ALTER FUNCTION ${signature} OWNER TO postgres;`), `Owner não fixado: ${signature}`);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.get_my_scheduled_lessons\(\) FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.get_my_scheduled_lessons\(\) TO authenticated/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION private\.get_my_scheduled_lessons_internal\(\) FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION private\.link_student_account_from_invite\(\) FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION private\.clear_student_account_link_on_user_delete\(\) FROM PUBLIC, anon, authenticated/);
+});
