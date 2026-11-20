@@ -658,15 +658,28 @@ function abrirFormularioVeiculo(id = null) {
   document.getElementById("formVeiculo").onsubmit = salvarVeiculo;
 }
 
-function salvarVeiculo(evento) {
+async function salvarVeiculo(evento) {
   evento.preventDefault();
 
-  const dados = Object.fromEntries(new FormData(evento.target).entries());
-  const placa = dados.placa.trim().toUpperCase();
+  if (!adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
+    mostrarAviso("Não foi possível conectar ao Supabase. O veículo não foi salvo.");
+    return;
+  }
+
+  const formulario = evento.currentTarget;
+  const botaoSalvar = formulario.querySelector('button[type="submit"]');
+  const dados = Object.fromEntries(new FormData(formulario).entries());
+  const placa = String(dados.placa || "").trim().toUpperCase();
+  const modelo = String(dados.modelo || "").trim();
+
+  if (!modelo || !placa) {
+    mostrarAviso("Informe o modelo e a placa do veículo.");
+    return;
+  }
 
   const duplicado = db.veiculos.find(v =>
-    v.placa.toUpperCase() === placa &&
-    v.id !== veiculoEditando
+    String(v.placa || "").trim().toUpperCase() === placa &&
+    String(v.id) !== String(veiculoEditando)
   );
 
   if (duplicado) {
@@ -674,26 +687,75 @@ function salvarVeiculo(evento) {
     return;
   }
 
-  const veiculo = {
-    id: veiculoEditando || gerarId(),
+  const cliente = window.getMarcusSupabase?.();
+  if (!cliente) {
+    mostrarAviso("Conexão com o Supabase indisponível. Tente novamente.");
+    return;
+  }
+
+  const payload = {
+    owner_id: adminSupabaseUserId,
     tipo: dados.tipo,
-    modelo: dados.modelo.trim(),
+    nome: modelo,
     placa,
     categoria: dados.categoria
   };
 
-  if (veiculoEditando) {
-    const indice = db.veiculos.findIndex(v => v.id === veiculoEditando);
-    if (indice >= 0) db.veiculos[indice] = veiculo;
-  } else {
-    db.veiculos.push(veiculo);
+  if (botaoSalvar) {
+    botaoSalvar.disabled = true;
+    botaoSalvar.textContent = "Salvando...";
   }
 
-  salvarDados();
-  fecharModal();
-  listarVeiculos();
-  mostrarAviso("Veículo salvo!");
-  veiculoEditando = null;
+  try {
+    let resposta;
+    if (veiculoEditando !== null) {
+      resposta = await cliente
+        .from("vehicles")
+        .update(payload)
+        .eq("id", veiculoEditando)
+        .eq("owner_id", adminSupabaseUserId)
+        .select("*")
+        .single();
+    } else {
+      resposta = await cliente
+        .from("vehicles")
+        .insert(payload)
+        .select("*")
+        .single();
+    }
+
+    if (resposta.error) throw resposta.error;
+
+    const salvo = resposta.data;
+    const veiculo = {
+      id: salvo.id,
+      tipo: salvo.tipo || "Carro",
+      modelo: salvo.nome || "",
+      placa: salvo.placa || "",
+      categoria: salvo.categoria || "B"
+    };
+
+    if (veiculoEditando !== null) {
+      const indice = db.veiculos.findIndex(v => String(v.id) === String(veiculoEditando));
+      if (indice >= 0) db.veiculos[indice] = veiculo;
+    } else {
+      db.veiculos.push(veiculo);
+    }
+
+    fecharModal();
+    listarVeiculos();
+    atualizarSeletoresAlunos();
+    mostrarAviso("Veículo salvo no Supabase com sucesso!");
+    veiculoEditando = null;
+  } catch (erro) {
+    console.error("Erro ao salvar veículo no Supabase:", erro);
+    mostrarAviso("Não foi possível salvar o veículo na nuvem.");
+  } finally {
+    if (botaoSalvar) {
+      botaoSalvar.disabled = false;
+      botaoSalvar.textContent = "Salvar veículo";
+    }
+  }
 }
 
 function listarVeiculos() {
@@ -724,18 +786,42 @@ function listarVeiculos() {
     : '<div class="empty-state">Nenhum veículo encontrado.</div>';
 }
 
-function excluirVeiculo(id) {
-  if (db.aulas.some(a => a.veiculoId === id)) {
+async function excluirVeiculo(id) {
+  if (db.aulas.some(a => String(a.veiculoId) === String(id))) {
     mostrarAviso("Este veículo possui aulas vinculadas.");
+    return;
+  }
+
+  if (!adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
+    mostrarAviso("Não foi possível conectar ao Supabase. O veículo não foi excluído.");
     return;
   }
 
   if (!confirmar("Excluir este veículo?")) return;
 
-  db.veiculos = db.veiculos.filter(v => v.id !== id);
-  salvarDados();
-  listarVeiculos();
-  mostrarAviso("Veículo excluído.");
+  const cliente = window.getMarcusSupabase?.();
+  if (!cliente) {
+    mostrarAviso("Conexão com o Supabase indisponível. Tente novamente.");
+    return;
+  }
+
+  try {
+    const { error } = await cliente
+      .from("vehicles")
+      .delete()
+      .eq("id", id)
+      .eq("owner_id", adminSupabaseUserId);
+
+    if (error) throw error;
+
+    db.veiculos = db.veiculos.filter(v => String(v.id) !== String(id));
+    listarVeiculos();
+    atualizarSeletoresAlunos();
+    mostrarAviso("Veículo excluído do Supabase.");
+  } catch (erro) {
+    console.error("Erro ao excluir veículo no Supabase:", erro);
+    mostrarAviso("Não foi possível excluir. Verifique se há aulas vinculadas.");
+  }
 }
 
 /* =========================================
@@ -3088,11 +3174,8 @@ async function carregarDadosAdminSupabase() {
     return { carregado: false, motivo: "nuvem_vazia" };
   }
 
-  if (existeDadoLocalOperacional()) {
-    console.warn("Há dados locais e dados no Supabase. A carga automática foi interrompida para evitar mistura ou ocultação de registros.");
-    return { carregado: false, motivo: "conflito_local_nuvem" };
-  }
-
+  // O Supabase é a fonte oficial dos dados operacionais do painel admin.
+  // Os registros antigos do navegador não são mesclados nem utilizados.
   const produtosPorId = new Map(dados.products.map(p => [p.id, p]));
   const alunos = dados.students.map(a => ({
     id: a.id,
