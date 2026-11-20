@@ -41,6 +41,7 @@ let aulaEditando = null;
 let relatorioAtual = null;
 let adminSupabaseUserId = null;
 let adminAlunosSupabaseAtivo = false;
+let idProdutoEditando = null;
 
 /* =========================================
    FUNÇÕES BÁSICAS
@@ -1393,7 +1394,8 @@ function listarProdutos() {
 }
 
 function editarProduto(id = null) {
-  const produto = db.produtos.find(p => p.id === id) || {};
+  idProdutoEditando = id;
+  const produto = db.produtos.find(p => String(p.id) === String(id)) || {};
 
   const tipoAtual = produto.tipo ||
     (/pacote\s*(bronze|prata|ouro)|aula avulsa/i.test(produto.nome || "")
@@ -1434,71 +1436,156 @@ function editarProduto(id = null) {
     </form>
   `);
 
-  document.getElementById("formProduto").onsubmit = evento => {
-    evento.preventDefault();
+  document.getElementById("formProduto").onsubmit = salvarProduto;
+}
 
-    const dados = Object.fromEntries(
-      new FormData(evento.target).entries()
-    );
+async function salvarProduto(evento) {
+  evento.preventDefault();
 
-    const nome = dados.nome.trim();
-    const preco = numero(dados.preco);
-    const tipo = dados.tipo;
+  if (!adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
+    mostrarAviso("Não foi possível conectar ao Supabase. O produto não foi salvo.");
+    return;
+  }
 
-    if (!nome || preco <= 0 ||
-        !["servico", "produto"].includes(tipo)) {
-      mostrarAviso("Confira o nome, a classificação e o valor.");
-      return;
-    }
+  const formulario = evento.currentTarget;
+  const botaoSalvar = formulario.querySelector('button[type="submit"]');
+  const dados = Object.fromEntries(new FormData(formulario).entries());
+  const nome = String(dados.nome || "").trim();
+  const preco = numero(dados.preco);
+  const tipo = dados.tipo;
 
-    const duplicado = db.produtos.find(p =>
-      p.nome.toLowerCase() === nome.toLowerCase() &&
-      p.id !== id
-    );
+  if (!nome || preco <= 0 || !["servico", "produto"].includes(tipo)) {
+    mostrarAviso("Confira o nome, a classificação e o valor.");
+    return;
+  }
 
-    if (duplicado) {
-      mostrarAviso("Já existe um produto com esse nome.");
-      return;
-    }
+  const duplicado = db.produtos.find(p =>
+    String(p.nome || "").trim().toLowerCase() === nome.toLowerCase() &&
+    String(p.id) !== String(idProdutoEditando)
+  );
 
-    if (id) {
-      const indice = db.produtos.findIndex(p => p.id === id);
+  if (duplicado) {
+    mostrarAviso("Já existe um produto com esse nome.");
+    return;
+  }
 
-      if (indice >= 0) {
-        db.produtos[indice] = {
-          ...db.produtos[indice],
-          nome,
-          preco,
-          tipo
-        };
-      }
+  const cliente = window.getMarcusSupabase?.();
+  if (!cliente) {
+    mostrarAviso("Conexão com o Supabase indisponível. Tente novamente.");
+    return;
+  }
+
+  const produtoAnterior = idProdutoEditando
+    ? db.produtos.find(p => String(p.id) === String(idProdutoEditando))
+    : null;
+
+  if (idProdutoEditando && !produtoAnterior) {
+    mostrarAviso("Não foi possível localizar o produto para edição.");
+    return;
+  }
+
+  if (botaoSalvar) {
+    botaoSalvar.disabled = true;
+    botaoSalvar.textContent = "Salvando...";
+  }
+
+  try {
+    const payload = { nome, preco, tipo };
+
+    let resposta;
+    if (produtoAnterior) {
+      resposta = await cliente
+        .from("products")
+        .update(payload)
+        .eq("id", produtoAnterior.id)
+        .eq("owner_id", adminSupabaseUserId)
+        .select("*")
+        .single();
     } else {
-      db.produtos.push({
-        id: gerarId(),
-        nome,
-        preco,
-        tipo
-      });
+      resposta = await cliente
+        .from("products")
+        .insert({ ...payload, owner_id: adminSupabaseUserId, ativo: true })
+        .select("*")
+        .single();
     }
 
-    salvarDados();
+    if (resposta.error) throw resposta.error;
+
+    const salvo = resposta.data;
+    const produtoSalvo = {
+      ...produtoAnterior,
+      id: salvo.id,
+      nome: salvo.nome || "",
+      preco: Number(salvo.preco || 0),
+      tipo: salvo.tipo === "produto" ? "produto" : "servico",
+      quantidadeAulas: salvo.quantidade_aulas ?? produtoAnterior?.quantidadeAulas ?? null
+    };
+
+    if (produtoAnterior) {
+      const indice = db.produtos.findIndex(p => String(p.id) === String(produtoAnterior.id));
+      if (indice >= 0) db.produtos[indice] = produtoSalvo;
+    } else {
+      db.produtos.push(produtoSalvo);
+    }
+
+    idProdutoEditando = null;
     fecharModal();
     listarProdutos();
-    mostrarAviso("Cadastro salvo com sucesso!");
-  };
+    mostrarAviso("Produto salvo no Supabase com sucesso!");
+  } catch (erro) {
+    console.error("Erro ao salvar produto no Supabase:", erro);
+    mostrarAviso("Não foi possível salvar o produto na nuvem. Nenhuma alteração foi aplicada.");
+  } finally {
+    if (botaoSalvar) {
+      botaoSalvar.disabled = false;
+      botaoSalvar.textContent = "Salvar";
+    }
+  }
 }
 
 async function excluirProduto(id) {
-  const produto = db.produtos.find(p => p.id === id);
+  const produto = db.produtos.find(p => String(p.id) === String(id));
   if (!produto) return;
+
+  if (!adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
+    mostrarAviso("Não foi possível conectar ao Supabase. O produto não foi excluído.");
+    return;
+  }
+
+  const possuiVenda = db.vendas.some(venda =>
+    Array.isArray(venda.itens) &&
+    venda.itens.some(item => String(item.produtoId || "") === String(id))
+  );
+
+  if (possuiVenda) {
+    mostrarAviso("Este produto possui vendas vinculadas e não pode ser excluído.");
+    return;
+  }
 
   if (!(await confirmar(`Excluir o produto "${produto.nome}"?`))) return;
 
-  db.produtos = db.produtos.filter(p => p.id !== id);
+  const cliente = window.getMarcusSupabase?.();
+  if (!cliente) {
+    mostrarAviso("Conexão com o Supabase indisponível. Tente novamente.");
+    return;
+  }
 
-  salvarDados();
-  listarProdutos();
-  mostrarAviso("Produto excluído.");
+  try {
+    const { error } = await cliente
+      .from("products")
+      .delete()
+      .eq("id", id)
+      .eq("owner_id", adminSupabaseUserId);
+
+    if (error) throw error;
+
+    db.produtos = db.produtos.filter(p => String(p.id) !== String(id));
+    listarProdutos();
+    mostrarAviso("Produto excluído do Supabase.");
+  } catch (erro) {
+    console.error("Erro ao excluir produto do Supabase:", erro);
+    mostrarAviso("Não foi possível excluir o produto. Verifique se existem vendas vinculadas.");
+  }
 }
 
 
@@ -3041,8 +3128,20 @@ async function carregarDadosAdminSupabase() {
     id: p.id,
     nome: p.nome || "",
     preco: Number(p.preco || 0),
-    tipo: p.tipo === "produto" ? "produto" : "servico",
-    quantidadeAulas: p.quantidade_aulas ?? null
+    tipo: (
+      p.quantidade_aulas != null ||
+      p.quantidade_aulas_min != null ||
+      p.quantidade_aulas_max != null ||
+      ["bronze", "prata", "ouro"].includes(String(p.app_product_id || "").toLowerCase())
+    ) ? "servico" : (p.tipo === "produto" ? "produto" : "servico"),
+    quantidadeAulas: p.quantidade_aulas ?? null,
+    descricao: p.descricao || "",
+    ativo: p.ativo !== false,
+    appProductId: p.app_product_id || null,
+    quantidadeAulasMin: p.quantidade_aulas_min ?? null,
+    quantidadeAulasMax: p.quantidade_aulas_max ?? null,
+    formaCobranca: p.forma_cobranca || null,
+    obrigatorioConclusao: p.obrigatorio_conclusao === true
   }));
 
   const vendas = dados.sales.map(v => {
@@ -3103,13 +3202,13 @@ async function carregarDadosAdminSupabase() {
     alunos,
     veiculos,
     aulas,
-    produtos: produtos.length ? produtos : structuredClone(estadoInicial.produtos),
+    produtos,
     vendas,
     movimentacoes,
     configuracoes
   };
 
-  console.info("Dados operacionais do administrador carregados do Supabase em modo somente leitura.");
+  console.info("Dados operacionais do administrador carregados do Supabase.");
   return { carregado: true, motivo: "sucesso" };
 }
 
