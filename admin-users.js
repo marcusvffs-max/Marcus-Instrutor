@@ -7,7 +7,7 @@
 
   const style = document.createElement("style");
   style.textContent = `
-    .users-overlay{position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.62);display:flex;align-items:center;justify-content:center;padding:16px}
+    .users-overlay[hidden]{display:none}.users-overlay{position:fixed;inset:0;z-index:10000;background:rgba(15,23,42,.62);display:flex;align-items:center;justify-content:center;padding:16px}
     .users-dialog{background:#fff;color:#172033;width:min(100%,620px);max-height:90vh;overflow:auto;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
     .users-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
     .users-head h2{margin:0;font-size:1.25rem}.users-close{border:0;background:#eef2f7;border-radius:9px;padding:9px 12px;font-size:1.1rem}
