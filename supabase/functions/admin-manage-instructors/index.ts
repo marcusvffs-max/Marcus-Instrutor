@@ -399,8 +399,9 @@ Deno.serve(async (req: Request) => {
 
       if (student.invited_at && !student.user_id) {
         const reservationTime = new Date(student.invited_at).getTime();
+        const reservationAge = Date.now() - reservationTime;
         const reservationIsRecent = Number.isFinite(reservationTime)
-          && Date.now() - reservationTime < 15 * 60 * 1000;
+          && reservationAge >= 0 && reservationAge < 15 * 60 * 1000;
         if (reservationIsRecent) {
           return response({ error: "Já existe um convite em processamento para este aluno. Aguarde alguns minutos e atualize a lista." }, 409);
         }
@@ -439,7 +440,7 @@ Deno.serve(async (req: Request) => {
         .eq("id", studentInviteId)
         .eq("owner_id", authData.user.id)
         .is("user_id", null)
-        .lt("invited_at", new Date(Date.now() - 15 * 60 * 1000).toISOString());
+        .eq("invited_at", student.invited_at);
       if (clearStaleError) throw clearStaleError;
 
       studentInviteReservation = new Date().toISOString();
