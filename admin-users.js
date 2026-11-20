@@ -17,6 +17,10 @@
     .users-message{min-height:22px;margin:8px 0;color:#334155}.users-list{margin-top:22px;border-top:1px solid #e2e8f0;padding-top:16px}
     .users-item{padding:12px 0;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
     .users-item small{display:block;color:#64748b;margin-top:3px}.users-role{font-size:.82rem;background:#eef2f7;padding:4px 8px;border-radius:20px;white-space:nowrap}
+    .users-item-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+    .users-item-actions button{border:0;border-radius:8px;padding:8px 10px;font:inherit;font-size:.82rem;font-weight:600;cursor:pointer}
+    .users-resend{background:#e8edf3;color:#172033}.users-delete{background:#fee2e2;color:#991b1b}
+    .users-item-actions button:disabled{opacity:.55;cursor:wait}
   `;
   document.head.appendChild(style);
 
@@ -89,7 +93,39 @@
         info.append(create("strong", {}, user.nome || "Sem nome"));
         info.append(create("small", {}, user.email || "Sem e-mail"));
         const role = create("span", { class: "users-role" }, user.role === "admin" ? "Administrador" : user.role === "instrutor" ? "Instrutor" : "Sem perfil");
-        item.append(info, role);
+        const controls = create("div", { class: "users-item-actions" });
+        const resend = create("button", { class: "users-resend", type: "button" }, "Reenviar acesso");
+        const remove = create("button", { class: "users-delete", type: "button" }, "Excluir");
+        resend.addEventListener("click", async () => {
+          if (!window.confirm(`Enviar um novo link de acesso para ${user.email}?`)) return;
+          resend.disabled = true;
+          resend.textContent = "Enviando...";
+          try {
+            const result = await call("resend", { user_id: user.id });
+            message.textContent = result.message || "Novo link de acesso enviado.";
+          } catch (error) {
+            message.textContent = error.message;
+          } finally {
+            resend.disabled = false;
+            resend.textContent = "Reenviar acesso";
+          }
+        });
+        remove.addEventListener("click", async () => {
+          if (!window.confirm(`Tem certeza de que deseja excluir o usuário ${user.nome || user.email}? Essa ação não pode ser desfeita.`)) return;
+          remove.disabled = true;
+          remove.textContent = "Excluindo...";
+          try {
+            const result = await call("delete", { user_id: user.id });
+            message.textContent = result.message || "Usuário excluído.";
+            await loadUsers();
+          } catch (error) {
+            message.textContent = error.message;
+            remove.disabled = false;
+            remove.textContent = "Excluir";
+          }
+        });
+        controls.append(resend, remove);
+        item.append(info, role, controls);
         list.append(item);
       });
     } catch (error) {
