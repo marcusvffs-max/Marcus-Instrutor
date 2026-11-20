@@ -18,7 +18,7 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 |---|---|---|
 | INV-01 | Instrutor autorizado convida aluno de sua própria lista | Convite enviado; cadastro recebe `user_id` da conta criada e `invited_at` preenchido. |
 | INV-02 | Instrutor tenta convidar cadastro pertencente a outro instrutor | HTTP 404; nenhuma conta criada e nenhum vínculo alterado. |
-| INV-03 | Instrutor tenta convidar cadastro já vinculado | HTTP 409; nenhum segundo usuário criado. |
+| INV-03 | Instrutor solicita novo acesso para cadastro já vinculado | O servidor valida a conta vinculada e envia link de recuperação; não cria outro usuário nem altera o vínculo. |
 | INV-04 | Instrutor tenta reenviar convite enquanto `invited_at` está preenchido | HTTP 409; nenhum convite duplicado. |
 | INV-05 | Instrutor sem autorização ou com autorização vencida tenta convidar | HTTP 403; nenhuma alteração. |
 | INV-06 | Instrutor tenta executar ação administrativa diferente de `invite_student` | HTTP 403. |
@@ -26,7 +26,7 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 | INV-08 | Aluno consulta a área do aluno | Recebe somente aulas agendadas do cadastro associado à sua própria conta. |
 | INV-09 | Conta de aluno A tenta consultar dados do aluno B | Nenhuma aula ou cadastro de B é retornado. |
 | INV-10 | E-mail já cadastrado no Auth tenta receber novo convite | HTTP 409; nenhum vínculo indevido. |
-| INV-11 | Envio SMTP falha depois da criação da conta | Conta criada pelo convite é removida e vínculo/estado pendente são limpos. |
+| INV-11 | Envio SMTP falha depois da criação da conta em um convite novo | A conta criada nessa tentativa é removida e vínculo/estado pendente são limpos. Em recuperação de conta já vinculada, a conta e o vínculo são preservados. |
 | INV-12 | Duas solicitações de convite simultâneas para o mesmo cadastro | No máximo uma solicitação conclui o vínculo; a outra falha sem deixar conta órfã. |
 | INV-13 | Conta antiga com e-mail confirmado que corresponde a exatamente um cadastro | Vínculo automático ocorre no primeiro acesso, desde que o cadastro ainda não esteja vinculado. |
 | INV-14 | Conta antiga com e-mail não confirmado ou duplicado entre cadastros | Nenhum vínculo automático é feito. |
