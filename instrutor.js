@@ -13,6 +13,7 @@
     lessons: [],
     vehicles: [],
     studentEditingId: null,
+    studentSearch: "",
     vehicleEditingId: null,
     lessonEditingId: null
   };
@@ -76,29 +77,49 @@
 
   function renderStudents() {
     const container = el("listaAlunos");
+    const counter = el("contadorAlunos");
+    const term = String(state.studentSearch || "").trim().toLocaleLowerCase("pt-BR");
+    const filtered = state.students.filter(student => {
+      const searchable = [
+        student.nome, student.email, student.telefone, student.cpf,
+        student.categoria, studentStatusLabel(student.status)
+      ].join(" ").toLocaleLowerCase("pt-BR");
+      return !term || searchable.includes(term);
+    });
+
+    if (counter) {
+      counter.textContent = state.students.length + (state.students.length === 1 ? " aluno cadastrado" : " alunos cadastrados");
+    }
     if (!state.students.length) {
-      container.innerHTML = '<div class="empty-state">Você ainda não cadastrou alunos.</div>';
+      container.innerHTML = '<div class="empty-state">Você ainda não cadastrou alunos. Use “+ Novo aluno” para começar.</div>';
+      return;
+    }
+    if (!filtered.length) {
+      container.innerHTML = '<div class="empty-state">Nenhum aluno encontrado para essa busca.</div>';
       return;
     }
 
-    container.innerHTML = '<table class="students-table"><thead><tr>' +
-      '<th>Aluno</th><th>E-mail</th><th>Telefone</th><th>Categoria</th><th>Situação</th><th>Aulas restantes</th><th>Ações</th>' +
-      '</tr></thead><tbody>' +
-      state.students.map(student =>
-        '<tr>' +
-          '<td>' + escapeHtml(student.nome) + '</td>' +
-          '<td>' + escapeHtml(student.email || "—") + '</td>' +
-          '<td>' + escapeHtml(student.telefone || "—") + '</td>' +
-          '<td>' + escapeHtml(student.categoria || "—") + '</td>' +
-          '<td>' + escapeHtml(studentStatusLabel(student.status)) + '</td>' +
-          '<td>' + escapeHtml(student.aulas_restantes ?? 0) + '</td>' +
-          '<td class="student-actions">' +
-            '<button class="button button-outline button-small" type="button" data-student-action="edit" data-student-id="' + escapeHtml(student.id) + '">Editar</button>' +
-            '<button class="button button-danger button-small" type="button" data-student-action="delete" data-student-id="' + escapeHtml(student.id) + '">Excluir</button>' +
-          '</td>' +
-        '</tr>'
-      ).join("") +
-      '</tbody></table>';
+    container.innerHTML = filtered.map(student => {
+      const status = String(student.status || "em_aberto").toLowerCase();
+      const statusClass = status === "aprovado" ? "student-status-approved" :
+        status === "finalizado" ? "student-status-finished" : "student-status-open";
+      return '<article class="student-card">' +
+        '<div class="student-card-main">' +
+          '<div class="student-card-heading"><h4>' + escapeHtml(student.nome) + '</h4>' +
+            '<span class="student-status ' + statusClass + '">' + escapeHtml(studentStatusLabel(student.status)) + '</span></div>' +
+          '<div class="student-card-details">' +
+            '<span><small>Telefone</small><strong>' + escapeHtml(student.telefone || "Não informado") + '</strong></span>' +
+            '<span><small>Categoria</small><strong>' + escapeHtml(student.categoria || "Não definida") + '</strong></span>' +
+            '<span><small>Aulas restantes</small><strong class="student-balance">' + escapeHtml(student.aulas_restantes ?? 0) + '</strong></span>' +
+          '</div>' +
+          (student.email ? '<p class="student-card-email">' + escapeHtml(student.email) + '</p>' : '') +
+        '</div>' +
+        '<div class="student-card-actions">' +
+          '<button class="button button-outline button-small" type="button" data-student-action="edit" data-student-id="' + escapeHtml(student.id) + '">Editar</button>' +
+          '<button class="button button-danger button-small" type="button" data-student-action="delete" data-student-id="' + escapeHtml(student.id) + '">Excluir</button>' +
+        '</div>' +
+      '</article>';
+    }).join("");
   }
 
   function vehicleLabel(vehicle) {
@@ -721,6 +742,10 @@
     await loadOwnData();
 
     el("btnNovoAluno").addEventListener("click", () => openStudentForm());
+    el("filtroBuscaAlunos").addEventListener("input", event => {
+      state.studentSearch = event.target.value;
+      renderStudents();
+    });
     el("btnCancelarAluno").addEventListener("click", resetStudentForm);
     el("formAluno").addEventListener("submit", saveStudent);
     el("listaAlunos").addEventListener("click", event => {
