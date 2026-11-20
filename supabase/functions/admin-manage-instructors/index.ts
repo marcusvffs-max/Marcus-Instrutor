@@ -265,6 +265,7 @@ Deno.serve(async (req: Request) => {
     let studentInviteId: string | null = null;
     let studentInviteReservation: string | null = null;
     let studentInviteAttemptId: string | null = null;
+    let studentRecoveryUserId: string | null = null;
 
     if (isStudentInvite) {
       const studentId = typeof body.student_id === "string" ? body.student_id.trim() : "";
@@ -279,8 +280,31 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
       if (studentError) throw studentError;
       if (!student) return response({ error: "Aluno não encontrado na sua lista de cadastros." }, 404);
-      if (student.user_id) return response({ error: "Este aluno já possui uma conta vinculada." }, 409);
-      if (student.invited_at) {
+      if (student.user_id) {
+        const { data: existingAuth, error: existingAuthError } = await admin.auth.admin.getUserById(student.user_id);
+        if (existingAuthError || !existingAuth.user?.email ||
+            existingAuth.user.email.trim().toLowerCase() !== String(student.email ?? "").trim().toLowerCase()) {
+          return response({ error: "A conta vinculada não corresponde ao e-mail atual deste cadastro. Não foi feita nenhuma alteração." }, 409);
+        }
+        const { data: existingProfile, error: existingProfileError } = await admin
+          .from("profiles").select("role").eq("id", student.user_id).maybeSingle();
+        if (existingProfileError) throw existingProfileError;
+        if (!existingProfile) {
+          return response({ error: "O perfil da conta vinculada não foi encontrado. Solicite uma verificação administrativa." }, 409);
+        }
+        if (existingProfile.role === "instrutor" &&
+            !existingAuth.user.email_confirmed_at &&
+            student.invited_at && student.invite_attempt_id) {
+          const { error: repairProfileError } = await admin.from("profiles")
+            .update({ nome: student.nome, role: "usuario" })
+            .eq("id", student.user_id).eq("role", "instrutor");
+          if (repairProfileError) throw repairProfileError;
+        } else if (existingProfile.role !== "usuario") {
+          return response({ error: "A conta vinculada não está no perfil de aluno. Não foi alterada por segurança." }, 409);
+        }
+        studentRecoveryUserId = student.user_id;
+      }
+      if (student.invited_at && !student.user_id) {
         const reservationTime = new Date(student.invited_at).getTime();
         const reservationIsRecent = Number.isFinite(reservationTime)
           && Date.now() - reservationTime < 15 * 60 * 1000;
@@ -316,7 +340,7 @@ Deno.serve(async (req: Request) => {
       return response({ error: "O envio de e-mail ainda não está configurado corretamente." }, 500);
     }
 
-    if (isStudentInvite && studentInviteId) {
+    if (isStudentInvite && studentInviteId && !studentRecoveryUserId) {
       const { error: clearStaleError } = await admin.from("students")
         .update({ invited_at: null, invite_attempt_id: null })
         .eq("id", studentInviteId)
@@ -342,7 +366,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-      type: "invite",
+      type: studentRecoveryUserId ? "recovery" : "invite",
       email,
       options: {
         data: isStudentInvite
@@ -368,11 +392,11 @@ Deno.serve(async (req: Request) => {
       return response({ error: "Não foi possível criar o convite. Confira o e-mail e tente novamente." }, 400);
     }
 
-    const invitedUserId = linkData.user?.id;
+    const invitedUserId = linkData.user?.id ?? studentRecoveryUserId;
     const actionLink = linkData.properties?.action_link;
     if (!invitedUserId || !actionLink) {
       let accountRemoved = !invitedUserId;
-      if (invitedUserId) {
+      if (invitedUserId && !studentRecoveryUserId) {
         const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
         accountRemoved = !deleteError;
         if (deleteError) console.error("Falha ao remover conta incompleta:", deleteError.message);
@@ -389,7 +413,9 @@ Deno.serve(async (req: Request) => {
     const { data: updatedProfile, error: updateProfileError } = await admin.from("profiles")
       .update({ nome, role }).eq("id", invitedUserId).select("id").maybeSingle();
     if (updateProfileError || !updatedProfile) {
-      const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
+      const { error: deleteError } = studentRecoveryUserId
+        ? { error: null }
+        : await admin.auth.admin.deleteUser(invitedUserId);
       if (!deleteError && studentInviteId && studentInviteReservation) {
         await admin.from("students").update({ invited_at: null, invite_attempt_id: null })
           .eq("id", studentInviteId).eq("owner_id", authData.user.id)
@@ -412,8 +438,10 @@ Deno.serve(async (req: Request) => {
       // O vínculo precisa ter sido feito pelo trigger transacional do Auth.
       // A Edge Function não faz fallback que contorne essa validação.
       if (linkStudentError || !linkedStudent) {
-        const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
-        if (!deleteError) {
+        const { error: deleteError } = studentRecoveryUserId
+          ? { error: null }
+          : await admin.auth.admin.deleteUser(invitedUserId);
+        if (!deleteError && !studentRecoveryUserId) {
           await admin.from("students").update({ invited_at: null, invite_attempt_id: null })
             .eq("id", studentInviteId).eq("owner_id", authData.user.id)
             .is("user_id", null).eq("invited_at", studentInviteReservation);
@@ -453,7 +481,9 @@ Deno.serve(async (req: Request) => {
         command: err?.command ?? null,
         responseCode: err?.responseCode ?? null,
       });
-      const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
+      const { error: deleteError } = studentRecoveryUserId
+        ? { error: null }
+        : await admin.auth.admin.deleteUser(invitedUserId);
       if (!deleteError && studentInviteId && studentInviteReservation) {
         await admin.from("students")
           .update({ invited_at: null, invite_attempt_id: null })
@@ -469,7 +499,7 @@ Deno.serve(async (req: Request) => {
       transporter.close();
     }
 
-    return response({ ok: true, message: "Convite enviado com sucesso." });
+    return response({ ok: true, message: studentRecoveryUserId ? "Novo link de acesso enviado ao aluno." : "Convite enviado com sucesso." });
   } catch (error) {
     console.error("Erro interno ao gerenciar usuários:", error instanceof Error ? error.message : "erro desconhecido");
     return response({ error: "Ocorreu um erro interno. Tente novamente." }, 500);
