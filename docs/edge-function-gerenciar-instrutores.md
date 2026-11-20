@@ -219,7 +219,7 @@ A documentação atual do Supabase também descreve as novas chaves publishable/
 3. O corpo não aceita campo `role`; a função grava literalmente `instrutor`.
 4. A chave administrativa é usada somente após a confirmação de admin.
 5. O convite por e-mail não define senha no navegador; o instrutor conclui o acesso pelo fluxo de convite do Supabase Auth.
-6. Se a criação do perfil falhar, a função tenta remover o usuário Auth recém-criado para evitar cadastro incompleto.
+6. O trigger `profiles_protect_role` permite que a chamada administrativa com `service_role` grave `role='instrutor'`, pois a requisição não tem `auth.uid()` de usuário final; chamadas autenticadas comuns não conseguem escolher outro papel. Isso depende de a chave `service_role` permanecer exclusivamente no servidor.\n7. Se a criação do perfil falhar, a função tenta remover o usuário Auth recém-criado. Essa compensação é uma tentativa, não uma transação atômica: o convite pode já ter sido disparado pelo Auth antes da falha do INSERT. O resultado deve ser monitorado e, em uma versão de produção, deve haver reconciliação/auditoria para cadastros incompletos.
 7. O endpoint não oferece criação de admin, promoção de papel, exclusão nem redefinição de senha.
 8. O controle CORS limita navegadores autorizados, mas não substitui autenticação nem autorização.
 9. Recomenda-se adicionar limite de requisições e auditoria administrativa antes de produção.
