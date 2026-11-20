@@ -523,17 +523,30 @@ Deno.serve(async (req: Request) => {
       return response({ error: "Não foi possível preparar o convite." }, 500);
     }
 
-    // Na recuperação, não redefina o papel do perfil: ele já foi validado
-    // acima. A condição role=usuario evita sobrescrever uma alteração administrativa
-    // concorrente ocorrida depois da validação inicial.
-    const profileUpdate = admin.from("profiles")
-      .update((studentRecoveryUserId || studentLegacyLinkUserId) ? { nome } : { nome, role })
-      .eq("id", invitedUserId);
-    if (studentRecoveryUserId || studentLegacyLinkUserId) profileUpdate.eq("role", "usuario");
-
-    const { data: updatedProfile, error: updateProfileError } = await profileUpdate
-      .select("id").maybeSingle();
-    if (updateProfileError || !updatedProfile) {
+    // Para conta legada, não altere nenhum dado do perfil antes da confirmação
+    // explícita do titular. Revalide apenas o papel; a conclusão do vínculo fará
+    // outra validação autenticada antes de gravar students.user_id.
+    let profileReady = false;
+    let profileErrorMessage: string | null = null;
+    if (studentLegacyLinkUserId) {
+      const { data: legacyProfileStillValid, error: legacyProfileCheckError } = await admin
+        .from("profiles").select("id")
+        .eq("id", invitedUserId).eq("role", "usuario").maybeSingle();
+      profileReady = Boolean(legacyProfileStillValid);
+      profileErrorMessage = legacyProfileCheckError?.message ?? null;
+    } else {
+      // Na recuperação de conta já vinculada, não redefina o papel. A condição
+      // role=usuario evita sobrescrever uma alteração administrativa concorrente.
+      const profileUpdate = admin.from("profiles")
+        .update(studentRecoveryUserId ? { nome } : { nome, role })
+        .eq("id", invitedUserId);
+      if (studentRecoveryUserId) profileUpdate.eq("role", "usuario");
+      const { data: updatedProfile, error: updateProfileError } = await profileUpdate
+        .select("id").maybeSingle();
+      profileReady = Boolean(updatedProfile);
+      profileErrorMessage = updateProfileError?.message ?? null;
+    }
+    if (!profileReady) {
       const { error: deleteError } = (studentRecoveryUserId || studentLegacyLinkUserId)
         ? { error: null }
         : await admin.auth.admin.deleteUser(invitedUserId);
@@ -542,7 +555,7 @@ Deno.serve(async (req: Request) => {
           .eq("id", studentInviteId).eq("owner_id", authData.user.id)
           .is("user_id", null).eq("invited_at", studentInviteReservation);
       }
-      console.error("Falha ao confirmar o perfil do usuário:", updateProfileError?.message ?? "perfil não encontrado ou papel alterado durante a operação");
+      console.error("Falha ao confirmar o perfil do usuário:", profileErrorMessage ?? "perfil não encontrado ou papel alterado durante a operação");
       return response({ error: "Não foi possível definir o acesso do novo usuário." }, 500);
     }
 
