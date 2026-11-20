@@ -1,15 +1,21 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v6-atendimentos";
+const CACHE_NAME = "marcus-instrutor-v7-perfis-relatorios";
 
 const ARQUIVOS = [
   "./",
   "./index.html",
+  "./instrutor.html",
   "./style.css?v=atendimentos-whatsapp-v2",
-  "./script.js?v=relatorios3",
-  "./whatsapp-panel.js?v=whatsapp-panel-v2-manual-status",
-  "./contratos.js?v=contratos30",
+  "./instrutor.css?v=1",
+  "./instrutor.js?v=1",
   "./manifest.json"
+];
+
+const ARQUIVOS_ADMINISTRATIVOS = [
+  "/script.js",
+  "/contratos.js",
+  "/whatsapp-panel.js"
 ];
 
 self.addEventListener("install", event => {
@@ -46,8 +52,14 @@ self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
 
   const url = new URL(event.request.url);
-
   if (url.origin !== self.location.origin) return;
+
+  // Os scripts administrativos só são requisitados depois da validação
+  // de role=admin e não devem ser armazenados no cache compartilhado.
+  if (ARQUIVOS_ADMINISTRATIVOS.some(caminho => url.pathname.endsWith(caminho))) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
   event.respondWith(
     fetch(event.request)
@@ -58,7 +70,6 @@ self.addEventListener("fetch", event => {
             cache.put(event.request, copia)
           );
         }
-
         return resposta;
       })
       .catch(() =>
