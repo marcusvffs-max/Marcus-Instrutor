@@ -59,6 +59,14 @@ A compatibilidade com contas antigas associa automaticamente uma conta autentica
 - [x] A proteção implementada é não associar contas antigas automaticamente por e-mail, mesmo quando o endereço está confirmado e aparece em um único cadastro. O vínculo passa a depender exclusivamente do fluxo de convite validado pelo servidor e pelo trigger.
 - [ ] Não usar dados reais nem executar esse teste em produção.
 
+## Tratamento de conta antiga sem vínculo
+
+- [ ] **INV-21 — Conta antiga com perfil `usuario`, mas sem `students.user_id`:** login é permitido, mas a RPC retorna o código controlado `P0002` e não retorna dados de alunos; a tela mostra orientação para falar com o instrutor, conferir o e-mail e solicitar convite.
+- [ ] A mensagem não informa se existe cadastro correspondente, não revela nome, e-mail ou aulas e não tenta vincular a conta.
+- [ ] **INV-22 — Conta vinculada sem aulas agendadas:** a RPC retorna lista vazia normalmente e a tela mostra “Nenhuma aula agendada”; não deve exibir a mensagem de conta sem vínculo.
+- [ ] O botão “Atualizar” mantém o comportamento e permite repetir a consulta sem sair da tela.
+- [ ] O aluno não recebe botão ou fluxo para criar vínculo por conta própria.
+
 ## Critério para concluir
 
 A funcionalidade só será considerada validada depois de todos os testes aplicáveis passarem no ambiente isolado, incluindo isolamento entre dois alunos diferentes e falha SMTP. Registrar os resultados sem expor e-mails, tokens ou dados pessoais.
