@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#12345a">
   <meta name="description" content="Área do instrutor - Marcus Instrutor">
   <title>Área do Instrutor | Marcus Instrutor</title>
-  <link rel="stylesheet" href="instrutor.css?v=5">
+  <link rel="stylesheet" href="instrutor.css?v=6">
 </head>
 <body>
   <div class="app-shell">
@@ -109,7 +109,8 @@
           </div>
         </form>
 
-        <div id="listaAlunos" class="table-wrap">
+        <div class="list-toolbar"><div class="list-toolbar-copy"><strong>Seus alunos</strong><span id="contadorAlunos">0 cadastrados</span></div><label class="search-field" for="filtroBuscaAlunos"><span>⌕</span><input id="filtroBuscaAlunos" type="search" placeholder="Buscar por nome, telefone, CPF ou categoria" autocomplete="off"></label></div>
+        <div id="listaAlunos" class="student-cards">
           <div class="empty-state">Carregando seus alunos...</div>
         </div>
       </section>
@@ -258,6 +259,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="instrutor.js?v=5"></script>
+  <script src="instrutor.js?v=6"></script>
 </body>
 </html>
