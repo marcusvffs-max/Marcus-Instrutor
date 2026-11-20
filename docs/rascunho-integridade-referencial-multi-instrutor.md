@@ -70,3 +70,21 @@ O script RLS atual revoga privilégios de tabela de PUBLIC, anon e authenticated
 
 ## 6. Estado
 Somente consultas de catálogo. Nenhuma constraint, FK, trigger, índice, policy, grant ou dado foi alterado. Não houve execução de DDL.
+
+
+## Correção após nova consulta ao catálogo (20/11/2026)
+
+A afirmação da seção 1 sobre `app_settings.owner_id` estava incorreta: consulta completa a `pg_constraint` confirmou `app_settings_owner_id_fkey` referenciando `auth.users(id)` com comportamento NO ACTION. A informação foi corrigida e detalhada em `docs/revisao-integridade-fks-compostas-instrutores.md`.
+
+A mesma revisão confirmou os comportamentos atuais de exclusão:
+- lessons -> students/vehicles: NO ACTION;
+- sales -> students: SET NULL;
+- sale_items -> sales: CASCADE;
+- financial_transactions -> students/sales: SET NULL;
+- sale_items -> products: SET NULL.
+
+As seis consultas de inconsistência entre owner_id dos registros relacionados retornaram zero linhas inconsistentes na auditoria de 20/11/2026. As tabelas estavam vazias naquele momento; isso não elimina a necessidade de constraints para os novos dados.
+
+A solução proposta agora é adicionar chaves únicas compostas `(id, owner_id)` e FKs compostas entre aulas/alunos/veículos, vendas/alunos, itens/vendas e movimentações/alunos/vendas. Para relações opcionais com exclusão SET NULL, o desenho usa `ON DELETE SET NULL (coluna)`, preservando `owner_id`. A relação de produto permanece como exceção do catálogo central.
+
+Nenhuma constraint foi executada.
