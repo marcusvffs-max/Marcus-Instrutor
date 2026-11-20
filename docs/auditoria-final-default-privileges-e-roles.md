@@ -154,3 +154,16 @@ Esse resultado não equivale a executar SQL no PostgreSQL, `node --test` ou test
 
 **Decisão:** não aplicar REVOKE global, não alterar default privileges e não alterar views/funções até obter o inventário do catálogo e mapear as dependências no ambiente isolado.
 
+
+
+## Auditoria estática PostgREST/RPCs — 20/11/2026
+
+Foi examinado o frontend atual e o inventário de migrations versionadas da branch. Foram identificadas chamadas para `create_instructor_sale`, `admin_create_sale`, `admin_refund_sale_product`, `admin_refund_sale_lessons` e `admin_delete_sale`, além da RPC de agenda `get_my_scheduled_lessons()`.
+
+As cinco RPCs de venda/estorno/exclusão não têm suas definições SQL nas migrations versionadas da branch. Assim, não é possível confirmar estaticamente owner, SECURITY DEFINER/INVOKER, search_path, ACL EXECUTE ou verificações internas de role/owner. Isso é uma **pendência crítica de evidência, não uma vulnerabilidade confirmada**. Chamadas feitas pelo frontend não provam autorização no servidor.
+
+Também não há `supabase/config.toml` na branch; schemas expostos pela Data API precisam ser confirmados na configuração real do projeto. Foram adicionados os casos SEC-058 a SEC-063 para testes diretos das RPCs, inclusive tentativas de acesso cruzado entre instrutores.
+
+O harness foi ampliado com uma verificação estática do inventário de RPCs. Resultado atualizado: **28 testes estáticos aprovados** (harness isolado; não é execução PostgreSQL, Deno ou teste real contra Supabase). Os novos casos SEC-058 a SEC-063 permanecem pendentes de execução em ambiente isolado.
+
+Nenhuma RPC foi chamada, nenhum SQL foi executado, nenhuma migration/grant/configuração foi alterada e nenhuma publicação foi feita.

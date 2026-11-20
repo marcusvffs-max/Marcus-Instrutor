@@ -112,3 +112,15 @@ A área do aluno não deve receber acesso direto às tabelas `students`, `lesson
 - Não usar contas, cadastros ou alunos reais.
 - Não publicar em produção nem enviar convites.
 - Não executar operações destrutivas sem snapshot e sem confirmar que o ambiente é descartável.
+
+
+### F. RPCs/PostgREST e chamadas diretas
+
+- [ ] **SEC-058:** Instrutor chama diretamente cada RPC `admin_*`; todas negam sem alterar dados.
+- [ ] **SEC-059:** Aluno e anon tentam executar `create_instructor_sale`; negar.
+- [ ] **SEC-060:** Instrutor A tenta vender usando UUID de aluno de B ou produto fora do escopo permitido; negar sem gravação parcial.
+- [ ] **SEC-061:** Instrutor A tenta estornar ou excluir venda de B por RPC direta; negar.
+- [ ] **SEC-062:** RPC de agenda não retorna aulas de outro aluno e não aceita UUID arbitrário como identidade.
+- [ ] **SEC-063:** nenhuma RPC em schema exposto possui EXECUTE inadvertido para PUBLIC/anon.
+
+Os novos casos estão pendentes de execução em ambiente isolado. A existência dos casos não significa que as RPCs foram testadas.

@@ -291,3 +291,26 @@ test("auditoria cobre views com security_invoker, SECURITY DEFINER e triggers", 
   assert.match(accessCatalogPrecheck, /Não revogar permissões/i);
 });
 
+
+
+const rpcAudit = read("../docs/auditoria-postgrest-rpcs-relacoes.md");
+const instructorFrontend = read("../instrutor.js");
+const adminFrontend = read("../script.js");
+
+test("inventário PostgREST documenta RPCs chamadas e bloqueia aprovação sem SQL/ACL", () => {
+  for (const rpc of [
+    "create_instructor_sale",
+    "admin_create_sale",
+    "admin_refund_sale_product",
+    "admin_refund_sale_lessons",
+    "admin_delete_sale"
+  ]) {
+    assert.ok(instructorFrontend.includes(rpc) || adminFrontend.includes(rpc), `RPC não localizada no frontend: ${rpc}`);
+    assert.ok(rpcAudit.includes(rpc), `RPC não documentada na auditoria: ${rpc}`);
+  }
+  assert.match(rpcAudit, /definições SQL ausentes/i);
+  assert.match(rpcAudit, /pendência crítica de evidência/i);
+  assert.match(rpcAudit, /não comprova autorização no servidor/i);
+  assert.match(rpcAudit, /SEC-063/);
+  assert.match(rpcAudit, /não executar migrations/i);
+});
