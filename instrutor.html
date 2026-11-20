@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#12345a">
   <meta name="description" content="Área do instrutor - Marcus Instrutor">
   <title>Área do Instrutor | Marcus Instrutor</title>
-  <link rel="stylesheet" href="instrutor.css?v=8">
+  <link rel="stylesheet" href="instrutor.css?v=9">
 </head>
 <body>
   <div class="app-shell">
@@ -234,6 +234,35 @@
         </div>
       </section>
 
+      <section class="panel finance-panel" data-view="financeiro">
+        <div class="section-heading">
+          <div>
+            <h3>Meu financeiro</h3>
+            <p>Acompanhe suas entradas, despesas e saldo. Os dados são exclusivos da sua conta.</p>
+          </div>
+        </div>
+        <div class="finance-summary">
+          <article class="finance-summary-card"><span>Entradas</span><strong id="financeEntradas">R$ 0,00</strong></article>
+          <article class="finance-summary-card"><span>Despesas</span><strong id="financeDespesas">R$ 0,00</strong></article>
+          <article class="finance-summary-card finance-balance-card"><span>Saldo</span><strong id="financeSaldo">R$ 0,00</strong></article>
+        </div>
+        <form id="formMovimentacao" class="student-form">
+          <h4>Registrar movimentação</h4>
+          <div class="student-form-grid">
+            <div><label for="movimentoTipo">Tipo *</label><select id="movimentoTipo" required><option value="entrada">Entrada</option><option value="saida">Despesa</option></select></div>
+            <div><label for="movimentoDescricao">Descrição *</label><input id="movimentoDescricao" type="text" maxlength="180" required placeholder="Ex.: combustível, pagamento de aula"></div>
+            <div><label for="movimentoValor">Valor (R$) *</label><input id="movimentoValor" type="number" min="0.01" step="0.01" required></div>
+            <div><label for="movimentoData">Data *</label><input id="movimentoData" type="date" required></div>
+          </div>
+          <div class="student-form-actions"><button class="button button-primary" id="btnSalvarMovimentacao" type="submit">Registrar movimentação</button></div>
+        </form>
+        <div class="list-toolbar">
+          <div class="list-toolbar-copy"><strong>Histórico financeiro</strong><span id="contadorMovimentacoes">0 movimentações</span></div>
+          <label class="search-field" for="filtroBuscaFinanceiro"><span>⌕</span><input id="filtroBuscaFinanceiro" type="search" placeholder="Buscar descrição, tipo ou data" autocomplete="off"></label>
+        </div>
+        <div id="listaMovimentacoes" class="finance-list"><div class="empty-state">Carregando movimentações...</div></div>
+      </section>
+
       <section class="report-grid" data-view="relatorios">
         <article class="panel">
           <h3>Relatório por aluno</h3>
@@ -269,12 +298,13 @@
       <button type="button" data-instructor-page="alunos" class="menu-item"><span class="menu-icon">♙</span><span>Alunos</span></button>
       <button type="button" data-instructor-page="veiculos" class="menu-item"><span class="menu-icon">▣</span><span>Veículos</span></button>
       <button type="button" data-instructor-page="aulas" class="menu-item"><span class="menu-icon">▦</span><span>Aulas</span></button>
+      <button type="button" data-instructor-page="financeiro" class="menu-item"><span class="menu-icon">＄</span><span>Financeiro</span></button>
       <button type="button" data-instructor-page="relatorios" class="menu-item"><span class="menu-icon">▤</span><span>Relatórios</span></button>
     </nav>
     <footer>Marcus Instrutor · Área restrita</footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="instrutor.js?v=8"></script>
+  <script src="instrutor.js?v=9"></script>
 </body>
 </html>
