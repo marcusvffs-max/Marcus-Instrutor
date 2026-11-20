@@ -56,7 +56,7 @@
         .select("id,nome,categoria,aulas_compradas,aulas_restantes")
         .order("nome", { ascending: true }),
       state.supabase.from("lessons")
-        .select("id,student_id,data_aula,horario,numero_aula,status,vehicle_id,assinatura")
+        .select("id,student_id,data_aula,horario,numero_aula,status,vehicle_id")
         .order("data_aula", { ascending: true })
         .order("horario", { ascending: true }),
       state.supabase.from("vehicles")
@@ -100,7 +100,7 @@
           '<td>' + escapeHtml(vehicleName(lesson.vehicle_id)) + '</td>' +
           '<td>' + escapeHtml(lesson.numero_aula ?? "—") + '</td>' +
           '<td><span class="' + statusClass + '">' + escapeHtml(status) + '</span></td>' +
-          (includeSignature ? '<td>' + (lesson.assinatura ? escapeHtml(lesson.assinatura) : '________________') + '</td>' : '') +
+          (includeSignature ? '<td>________________</td>' : '') +
           '</tr>';
       }).join("") +
       '</tbody></table></div>';
