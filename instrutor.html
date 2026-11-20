@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#12345a">
   <meta name="description" content="Área do instrutor - Marcus Instrutor">
   <title>Área do Instrutor | Marcus Instrutor</title>
-  <link rel="stylesheet" href="instrutor.css?v=2">
+  <link rel="stylesheet" href="instrutor.css?v=3">
 </head>
 <body>
   <div class="app-shell">
@@ -84,6 +84,11 @@
                 <option value="aprovado">Aprovado</option>
               </select>
             </div>
+            <div>
+              <label for="alunoAulasCompradas">Aulas contratadas *</label>
+              <input id="alunoAulasCompradas" type="number" min="0" step="1" value="0" required>
+              <small>O saldo restante será calculado automaticamente pelas aulas realizadas.</small>
+            </div>
           </div>
           <div class="student-form-actions">
             <button id="btnCancelarAluno" class="button button-outline" type="button">Cancelar</button>
@@ -145,6 +150,60 @@
         </div>
       </section>
 
+      <section class="panel lessons-panel">
+        <div class="section-heading">
+          <div>
+            <h3>Agendamento e gerenciamento de aulas</h3>
+            <p>Agende aulas vinculadas aos seus alunos e veículos. A confirmação de aula realizada desconta o saldo automaticamente.</p>
+          </div>
+          <button id="btnNovaAula" class="button button-primary" type="button">+ Agendar aula</button>
+        </div>
+
+        <form id="formAula" class="student-form" hidden>
+          <h4 id="tituloFormAula">Agendar aula</h4>
+          <div class="student-form-grid">
+            <div>
+              <label for="aulaAluno">Aluno *</label>
+              <select id="aulaAluno" required><option value="">Selecione um aluno</option></select>
+            </div>
+            <div>
+              <label for="aulaData">Data *</label>
+              <input id="aulaData" type="date" required>
+            </div>
+            <div>
+              <label for="aulaHorario">Horário de início *</label>
+              <input id="aulaHorario" type="time" step="60" required>
+              <small>Informe o horário de início da aula de 50 minutos.</small>
+            </div>
+            <div>
+              <label for="aulaVeiculo">Veículo</label>
+              <select id="aulaVeiculo"><option value="">Sem veículo definido</option></select>
+            </div>
+            <div>
+              <label for="aulaStatus">Situação *</label>
+              <select id="aulaStatus" required>
+                <option value="agendada">Agendada</option>
+                <option value="realizada">Realizada</option>
+                <option value="cancelada">Cancelada</option>
+              </select>
+            </div>
+            <div>
+              <label for="aulaObservacoes">Observações</label>
+              <input id="aulaObservacoes" type="text" maxlength="500">
+            </div>
+          </div>
+          <div id="saldoAlunoAula" class="lesson-balance-hint"></div>
+          <div class="student-form-actions">
+            <button id="btnCancelarAula" class="button button-outline" type="button">Cancelar</button>
+            <button id="btnSalvarAula" class="button button-primary" type="submit">Salvar aula</button>
+          </div>
+        </form>
+
+        <div id="listaAulas" class="table-wrap">
+          <div class="empty-state">Carregando suas aulas...</div>
+        </div>
+      </section>
+
       <section class="report-grid">
         <article class="panel">
           <h3>Relatório por aluno</h3>
@@ -179,6 +238,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="instrutor.js?v=2"></script>
+  <script src="instrutor.js?v=3"></script>
 </body>
 </html>
