@@ -12,6 +12,8 @@
     students: [],
     lessons: [],
     vehicles: [],
+    transactions: [],
+    financialSearch: "",
     studentEditingId: null,
     studentSearch: "",
     vehicleEditingId: null,
@@ -45,6 +47,8 @@
     const parts = date.split("-");
     return parts.length === 3 ? parts.reverse().join("/") : date;
   }
+
+  function currency(value) { return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
 
   function studentName(id) {
     const student = state.students.find(item => item.id === id);
@@ -540,6 +544,72 @@
     if (state.students.some(student => student.id === selected)) select.value = selected;
   }
 
+  async function loadFinancialData() {
+    const { data, error } = await state.supabase.from("financial_transactions")
+      .select("id,tipo,descricao,valor,data_movimento,status,student_id,sale_id,created_at")
+      .order("data_movimento", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    state.transactions = data || [];
+    renderFinancial();
+  }
+
+  function renderFinancial() {
+    const transactions = state.transactions.filter(item => String(item.status || "confirmado").toLowerCase() !== "cancelado");
+    const income = transactions.filter(item => item.tipo === "entrada").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+    const expenses = transactions.filter(item => item.tipo === "saida").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+    el("financeEntradas").textContent = currency(income);
+    el("financeDespesas").textContent = currency(expenses);
+    el("financeSaldo").textContent = currency(income - expenses);
+    const term = String(state.financialSearch || "").trim().toLocaleLowerCase("pt-BR");
+    const filtered = [...state.transactions].filter(item => [
+      item.descricao, item.tipo, formatDate(item.data_movimento), String(item.data_movimento || "")
+    ].join(" ").toLocaleLowerCase("pt-BR").includes(term));
+    el("contadorMovimentacoes").textContent = filtered.length + (filtered.length === 1 ? " movimentação" : " movimentações");
+    const list = el("listaMovimentacoes");
+    if (!filtered.length) {
+      list.innerHTML = '<div class="empty-state">' + (state.transactions.length ? "Nenhuma movimentação encontrada." : "Nenhuma movimentação financeira cadastrada.") + '</div>';
+      return;
+    }
+    list.innerHTML = filtered.map(item => {
+      const isIncome = item.tipo === "entrada";
+      return '<article class="finance-row"><div class="finance-row-icon ' + (isIncome ? "finance-income" : "finance-expense") + '">' + (isIncome ? "↗" : "↙") + '</div><div class="finance-row-main"><strong>' + escapeHtml(item.descricao) + '</strong><span>' + escapeHtml(formatDate(item.data_movimento)) + ' · ' + (isIncome ? "Entrada" : "Despesa") + '</span></div><strong class="finance-row-value ' + (isIncome ? "finance-income-text" : "finance-expense-text") + '">' + (isIncome ? "+" : "−") + currency(item.valor) + '</strong></article>';
+    }).join("");
+  }
+
+  async function saveFinancialTransaction(event) {
+    event.preventDefault();
+    const button = el("btnSalvarMovimentacao");
+    const transaction = {
+      owner_id: state.user.id,
+      tipo: el("movimentoTipo").value,
+      descricao: el("movimentoDescricao").value.trim(),
+      valor: Number(el("movimentoValor").value),
+      data_movimento: el("movimentoData").value,
+      status: "confirmado"
+    };
+    if (!transaction.descricao || !Number.isFinite(transaction.valor) || transaction.valor <= 0 || !transaction.data_movimento) {
+      showMessage("Informe descrição, valor e data válidos.");
+      return;
+    }
+    button.disabled = true;
+    button.textContent = "Salvando...";
+    try {
+      const { error } = await state.supabase.from("financial_transactions").insert(transaction);
+      if (error) throw error;
+      el("formMovimentacao").reset();
+      el("movimentoData").value = localToday();
+      await loadFinancialData();
+      showMessage("Movimentação registrada com sucesso.", false);
+    } catch (error) {
+      console.error("Falha ao registrar movimentação financeira:", error);
+      showMessage("Não foi possível registrar a movimentação. Confira os dados e tente novamente.");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Registrar movimentação";
+    }
+  }
+
   async function loadOwnData() {
     const [studentsResult, lessonsResult, vehiclesResult] = await Promise.all([
       state.supabase.from("students")
@@ -573,6 +643,7 @@
     renderVehicles();
     renderLessons();
     renderUpcomingLessons();
+    await loadFinancialData();
     updateStudentSelect();
     updateLessonSelects();
   }
@@ -853,6 +924,10 @@
       if (button.dataset.lessonAction === "edit" && lesson) openLessonForm(lesson);
       if (button.dataset.lessonAction === "delete") deleteLesson(id);
     });
+
+    el("formMovimentacao").addEventListener("submit", saveFinancialTransaction);
+    el("filtroBuscaFinanceiro").addEventListener("input", event => { state.financialSearch = event.target.value; renderFinancial(); });
+    el("movimentoData").value = localToday();
 
     el("btnRelatorioAluno").addEventListener("click", reportByStudent);
     el("btnRelatorioPeriodo").addEventListener("click", reportByPeriod);
