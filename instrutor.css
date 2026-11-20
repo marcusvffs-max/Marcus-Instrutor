@@ -452,10 +452,71 @@ footer { padding:20px; text-align:center; color:var(--muted); font-size:12px; }
   .contract-signatures { grid-template-columns:1fr; gap:45px; }
 }
 @media print {
-  @page { size:A4; margin:18mm; }
-  body.printing-contract * { visibility:hidden !important; }
-  body.printing-contract #contratoPreviewInstrutor,
-  body.printing-contract #contratoPreviewInstrutor * { visibility:visible !important; }
-  body.printing-contract #contratoPreviewInstrutor { position:absolute; inset:0 auto auto 0; width:100%; margin:0; }
-  body.printing-contract .contract-sheet { max-width:none; padding:0; border:0; border-radius:0; box-shadow:none; }
+  @page { size:A4; margin:12mm; }
+
+  body.printing-contract { background:#fff; }
+  body.printing-contract .app-shell > .topbar,
+  body.printing-contract .app-shell > .bottom-menu,
+  body.printing-contract .app-shell > footer,
+  body.printing-contract .content > :not(.contract-panel) {
+    display:none !important;
+  }
+
+  body.printing-contract .content {
+    width:100%;
+    margin:0;
+    padding:0;
+  }
+
+  body.printing-contract .contract-panel {
+    display:block !important;
+    margin:0;
+    padding:0;
+    border:0;
+    box-shadow:none;
+  }
+
+  body.printing-contract .contract-panel > :not(#contratoPreviewInstrutor) {
+    display:none !important;
+  }
+
+  body.printing-contract #contratoPreviewInstrutor {
+    display:block !important;
+    position:static;
+    width:100%;
+    margin:0;
+  }
+
+  body.printing-contract .contract-sheet {
+    max-width:none;
+    margin:0;
+    padding:0;
+    border:0;
+    border-radius:0;
+    box-shadow:none;
+    break-after:avoid;
+    page-break-after:avoid;
+  }
+
+  body.printing-contract .contract-sheet main {
+    font-size:10.5pt;
+    line-height:1.45;
+  }
+
+  body.printing-contract .contract-sheet main h3 {
+    margin:14px 0 6px;
+    break-after:avoid;
+    page-break-after:avoid;
+  }
+
+  body.printing-contract .contract-place-date {
+    margin-top:18px !important;
+  }
+
+  body.printing-contract .contract-signatures {
+    gap:28px;
+    margin-top:38px;
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
 }
