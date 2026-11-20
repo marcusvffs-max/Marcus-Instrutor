@@ -88,3 +88,17 @@ A revisão estática do rascunho SQL confirma os seguintes controles propostos:
 - A remoção de grants por coluna e os grants finais devem ser conferidos por privilégios efetivos após execução em ambiente isolado.
 - Não alterar default privileges globais nem memberships internos do Supabase como parte desta etapa.
 - Nenhuma mudança foi aplicada ao Supabase atual.
+
+
+## Verificação do backend administrativo
+
+A Edge Function atual `admin-manage-instructors` foi revisada estaticamente junto ao rascunho SQL:
+
+- Autentica o solicitante com `auth.getUser(token)` antes de usar o cliente privilegiado.
+- Lê o papel do solicitante em `profiles` com o cliente de serviço.
+- Rejeita papéis fora de `admin`, `instrutor` e `usuario`.
+- Instrutor só pode executar `invite_student`; usuário só pode executar `complete_student_link`.
+- Portanto, ações gerais de gerenciamento, incluindo `change_role`, `delete`, `list` e `activate_access`, ficam restritas ao admin.
+- `change_role` impede alterar o próprio papel, valida os papéis permitidos, protege o único administrador e limpa `instructor_access_until` ao trocar o papel.
+
+Essa proteção é do endpoint e deve permanecer alinhada ao trigger SQL: a chave `service_role` não pode ser exposta ao navegador e nenhuma chamada administrativa pode confiar apenas no corpo enviado pelo cliente.
