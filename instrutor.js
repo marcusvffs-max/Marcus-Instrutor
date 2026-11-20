@@ -16,7 +16,9 @@
     studentSearch: "",
     vehicleEditingId: null,
     vehicleSearch: "",
-    lessonEditingId: null
+    lessonEditingId: null,
+    lessonSearch: "",
+    lessonStatusFilter: ""
   };
 
   function escapeHtml(value) {
@@ -174,31 +176,60 @@
 
   function renderLessons() {
     const container = el("listaAulas");
+    const counter = el("contadorAulas");
+    const term = String(state.lessonSearch || "").trim().toLocaleLowerCase("pt-BR");
+    const statusFilter = String(state.lessonStatusFilter || "").toLowerCase();
+    const filtered = sortLessons(state.lessons).filter(lesson => {
+      const status = String(lesson.status || "").toLowerCase();
+      const searchable = [
+        studentName(lesson.student_id),
+        vehicleName(lesson.vehicle_id),
+        formatDate(lesson.data_aula),
+        String(lesson.data_aula || "").slice(0, 10),
+        String(lesson.horario || "").slice(0, 5),
+        lesson.numero_aula,
+        lesson.observacoes,
+        lessonStatusLabel(status)
+      ].join(" ").toLocaleLowerCase("pt-BR");
+      return (!term || searchable.includes(term)) && (!statusFilter || status === statusFilter);
+    });
+
+    if (counter) {
+      counter.textContent = state.lessons.length + (state.lessons.length === 1 ? " aula cadastrada" : " aulas cadastradas");
+    }
     if (!state.lessons.length) {
-      container.innerHTML = '<div class="empty-state">Você ainda não cadastrou aulas.</div>';
+      container.innerHTML = '<div class="empty-state">Você ainda não cadastrou aulas. Use “+ Agendar aula” para começar.</div>';
+      return;
+    }
+    if (!filtered.length) {
+      container.innerHTML = '<div class="empty-state">Nenhuma aula encontrada com esses filtros.</div>';
       return;
     }
 
-    const rows = sortLessons(state.lessons);
-    container.innerHTML = '<table class="students-table"><thead><tr>' +
-      '<th>Data</th><th>Horário</th><th>Aluno</th><th>Veículo</th><th>Aula</th><th>Situação</th><th>Ações</th>' +
-      '</tr></thead><tbody>' +
-      rows.map(lesson =>
-        '<tr>' +
-          '<td>' + escapeHtml(formatDate(lesson.data_aula)) + '</td>' +
-          '<td>' + escapeHtml(String(lesson.horario || "").slice(0, 5)) + '</td>' +
-          '<td>' + escapeHtml(studentName(lesson.student_id)) + '</td>' +
-          '<td>' + escapeHtml(vehicleName(lesson.vehicle_id)) + '</td>' +
-          '<td>' + escapeHtml(lesson.numero_aula ?? "—") + '</td>' +
-          '<td><span class="status ' + (String(lesson.status).toLowerCase() === "realizada" ? "status-realizada" : "") + '">' +
-            escapeHtml(lessonStatusLabel(lesson.status)) + '</span></td>' +
-          '<td class="student-actions">' +
-            '<button class="button button-outline button-small" type="button" data-lesson-action="edit" data-lesson-id="' + escapeHtml(lesson.id) + '">Editar</button>' +
-            '<button class="button button-danger button-small" type="button" data-lesson-action="delete" data-lesson-id="' + escapeHtml(lesson.id) + '">Excluir</button>' +
-          '</td>' +
-        '</tr>'
-      ).join("") +
-      '</tbody></table>';
+    container.innerHTML = filtered.map(lesson => {
+      const status = String(lesson.status || "").toLowerCase();
+      const statusClass = status === "realizada" ? "lesson-status-done" :
+        status === "cancelada" ? "lesson-status-cancelled" : "lesson-status-scheduled";
+      return '<article class="lesson-card">' +
+        '<div class="lesson-card-top">' +
+          '<div class="lesson-card-date"><strong>' + escapeHtml(formatDate(lesson.data_aula)) + '</strong>' +
+            '<span>' + escapeHtml(String(lesson.horario || "").slice(0, 5)) + '</span></div>' +
+          '<span class="lesson-status ' + statusClass + '">' + escapeHtml(lessonStatusLabel(status)) + '</span>' +
+        '</div>' +
+        '<div class="lesson-card-main">' +
+          '<h4>' + escapeHtml(studentName(lesson.student_id)) + '</h4>' +
+          '<div class="lesson-card-details">' +
+            '<span><small>Veículo</small><strong>' + escapeHtml(vehicleName(lesson.vehicle_id)) + '</strong></span>' +
+            '<span><small>Número da aula</small><strong>' + escapeHtml(lesson.numero_aula ?? "—") + '</strong></span>' +
+          '</div>' +
+          (lesson.observacoes ? '<p class="lesson-card-notes">' + escapeHtml(lesson.observacoes) + '</p>' : '') +
+        '</div>' +
+        '<div class="lesson-card-actions">' +
+          '<button class="button button-outline button-small" type="button" data-lesson-action="edit" data-lesson-id="' + escapeHtml(lesson.id) + '">Editar</button>' +
+          '<button class="button button-danger button-small" type="button" data-lesson-action="delete" data-lesson-id="' + escapeHtml(lesson.id) + '">Excluir</button>' +
+        '</div>' +
+      '</article>';
+    }).join("");
   }
 
   function renderUpcomingLessons() {
@@ -806,6 +837,14 @@
     el("btnCancelarAula").addEventListener("click", resetLessonForm);
     el("formAula").addEventListener("submit", saveLesson);
     el("aulaAluno").addEventListener("change", updateLessonBalanceHint);
+    el("filtroBuscaAulas").addEventListener("input", event => {
+      state.lessonSearch = event.target.value;
+      renderLessons();
+    });
+    el("filtroStatusAulas").addEventListener("change", event => {
+      state.lessonStatusFilter = event.target.value;
+      renderLessons();
+    });
     el("listaAulas").addEventListener("click", event => {
       const button = event.target.closest("[data-lesson-action]");
       if (!button) return;
