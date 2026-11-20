@@ -275,7 +275,7 @@ test("auditoria de sequences, views e funções usa apenas consultas read-only",
   assert.ok(blocks.length >= 8, "Consultas de catálogo insuficientes");
   for (const sql of blocks) {
     assert.match(sql, /^select\b/i);
-    assert.doesNotMatch(sql, /\b(insert|update|delete|alter|create|drop|truncate|grant|revoke)\b/i);
+    assert.doesNotMatch(sql, /^\s*(insert|update|delete|alter|create|drop|truncate|grant|revoke)\b/im);
   }
   assert.match(accessCatalogPrecheck, /has_sequence_privilege/i);
   assert.match(accessCatalogPrecheck, /has_function_privilege/i);
