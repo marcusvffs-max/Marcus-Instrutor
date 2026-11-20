@@ -20,6 +20,7 @@
     .users-item-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
     .users-item-actions button{border:0;border-radius:8px;padding:8px 10px;font:inherit;font-size:.82rem;font-weight:600;cursor:pointer}
     .users-resend{background:#e8edf3;color:#172033}.users-delete{background:#fee2e2;color:#991b1b}
+    .users-access{display:block;margin-top:7px;font-size:.82rem;font-weight:700}.users-access.active{color:#16794b}.users-access.blocked{color:#b42318}.users-activate{background:#dbeafe;color:#12345a}
     .users-item-actions button:disabled{opacity:.55;cursor:wait}
   `;
   document.head.appendChild(style);
@@ -80,6 +81,12 @@
     return data;
   }
 
+  function accessDays(until) {
+    if (!until) return null;
+    const remaining = new Date(until).getTime() - Date.now();
+    return remaining > 0 ? Math.ceil(remaining / 86400000) : 0;
+  }
+
   async function loadUsers() {
     list.replaceChildren(create("strong", {}, "Usuários cadastrados"));
     const loading = create("p", {}, "Carregando...");
@@ -96,6 +103,15 @@
         const info = create("div");
         info.append(create("strong", {}, user.nome || "Sem nome"));
         info.append(create("small", {}, user.email || "Sem e-mail"));
+        if (user.role === "instrutor") {
+          const days = accessDays(user.instructor_access_until);
+          const access = create("span", {
+            class: "users-access " + (days > 0 ? "active" : "blocked")
+          }, days === null ? "Acesso bloqueado · ainda não liberado" :
+             days === 0 ? "Acesso expirado · renovação necessária" :
+             "Acesso liberado · faltam " + days + (days === 1 ? " dia" : " dias"));
+          info.append(access);
+        }
         const role = create("span", { class: "users-role" }, user.role === "admin" ? "Administrador" : user.role === "instrutor" ? "Instrutor" : user.role === "usuario" ? "Aluno" : "Sem perfil");
         const controls = create("div", { class: "users-item-actions" });
         const roleEditor = create("select", { "aria-label": "Alterar tipo de acesso de " + (user.nome || user.email) });
@@ -110,6 +126,27 @@
         });
         const saveRole = create("button", { class: "users-resend", type: "button" }, "Salvar acesso");
         const resend = create("button", { class: "users-resend", type: "button" }, "Reenviar acesso");
+        let activate = null;
+        if (user.role === "instrutor") {
+          const days = accessDays(user.instructor_access_until);
+          activate = create("button", { class: "users-activate", type: "button" },
+            days > 0 ? "Renovar 31 dias" : "Liberar por 31 dias");
+          activate.addEventListener("click", async () => {
+            const verb = days > 0 ? "renovar" : "liberar";
+            if (!window.confirm("Deseja " + verb + " o acesso de " + (user.nome || user.email) + " por mais 31 dias?")) return;
+            activate.disabled = true;
+            activate.textContent = "Ativando...";
+            try {
+              const result = await call("activate_access", { user_id: user.id });
+              message.textContent = result.message || "Acesso liberado por 31 dias.";
+              await loadUsers();
+            } catch (error) {
+              message.textContent = error.message;
+              activate.disabled = false;
+              activate.textContent = days > 0 ? "Renovar 31 dias" : "Liberar por 31 dias";
+            }
+          });
+        }
         const remove = create("button", { class: "users-delete", type: "button" }, "Excluir");
         saveRole.addEventListener("click", async () => {
           if (roleEditor.value === user.role) {
@@ -158,7 +195,9 @@
             remove.textContent = "Excluir";
           }
         });
-        controls.append(roleEditor, saveRole, resend, remove);
+        controls.append(roleEditor, saveRole);
+        if (activate) controls.append(activate);
+        controls.append(resend, remove);
         item.append(info, role, controls);
         list.append(item);
       });
