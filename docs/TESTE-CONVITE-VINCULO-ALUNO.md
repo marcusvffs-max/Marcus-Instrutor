@@ -66,6 +66,8 @@ A compatibilidade com contas antigas associa automaticamente uma conta autentica
 - [ ] **INV-22 — Conta vinculada sem aulas agendadas:** a RPC retorna lista vazia normalmente e a tela mostra “Nenhuma aula agendada”; não deve exibir a mensagem de conta sem vínculo.
 - [ ] O botão “Atualizar” mantém o comportamento e permite repetir a consulta sem sair da tela.
 - [ ] O aluno não recebe botão ou fluxo para criar vínculo por conta própria.
+- [ ] Se o e-mail da conta antiga já existir no Auth, o convite novo pode ser recusado como e-mail já cadastrado. Não excluir a conta antiga nem fazer vínculo manual no banco; tratar como caso pendente de fluxo seguro de recuperação/regularização. A tela deve orientar o aluno a informar ao instrutor que já possuía uma conta.
+
 
 ## Critério para concluir
 
