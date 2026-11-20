@@ -99,10 +99,18 @@ Deno.serve(async (req: Request) => {
         .not("invited_at", "is", null)
         .maybeSingle();
       if (pendingError) throw pendingError;
-      if (!pendingStudent || !pendingStudent.invited_at ||
-          Date.now() - new Date(pendingStudent.invited_at).getTime() > 15 * 60 * 1000 ||
+      const reservationTime = pendingStudent?.invited_at ? new Date(pendingStudent.invited_at).getTime() : NaN;
+      const reservationAge = Date.now() - reservationTime;
+      if (!pendingStudent || !Number.isFinite(reservationTime) || reservationAge < 0 ||
+          reservationAge > 15 * 60 * 1000 ||
           String(pendingStudent.email ?? "").trim().toLowerCase() !== authData.user.email.trim().toLowerCase()) {
         return response({ error: "Este link não corresponde a uma solicitação válida ou expirou. Peça ao instrutor para enviar um novo acesso." }, 409);
+      }
+      const { data: currentStudentProfile, error: currentStudentProfileError } = await admin
+        .from("profiles").select("role").eq("id", authData.user.id).maybeSingle();
+      if (currentStudentProfileError) throw currentStudentProfileError;
+      if (!currentStudentProfile || currentStudentProfile.role !== "usuario") {
+        return response({ error: "O perfil desta conta não está autorizado como aluno. Solicite uma verificação administrativa." }, 403);
       }
       const { data: completedLink, error: completeError } = await admin
         .from("students")
@@ -327,6 +335,9 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
       if (studentError) throw studentError;
       if (!student) return response({ error: "Aluno não encontrado na sua lista de cadastros." }, 404);
+      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254) {
+        return response({ error: "O e-mail cadastrado para este aluno é inválido. Corrija o cadastro antes de continuar." }, 400);
+      }
       if (student.user_id) {
         const { data: existingAuth, error: existingAuthError } = await admin.auth.admin.getUserById(student.user_id);
         if (existingAuthError || !existingAuth.user?.email ||
@@ -354,7 +365,7 @@ Deno.serve(async (req: Request) => {
       if (!student.user_id) {
         let matchingAuthUser: any = null;
         for (let page = 1; ; page += 1) {
-          const { data: usersPage, error: usersPageError } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+          const { data: usersPage, error: usersPageError } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
           if (usersPageError) throw usersPageError;
           const matches = (usersPage.users ?? []).filter((user: any) =>
             String(user.email ?? "").trim().toLowerCase() === String(student.email ?? "").trim().toLowerCase()
@@ -366,7 +377,7 @@ Deno.serve(async (req: Request) => {
             matchingAuthUser = matches[0];
             break;
           }
-          if ((usersPage.users ?? []).length < 200) break;
+          if ((usersPage.users ?? []).length < 1000) break;
         }
         if (matchingAuthUser) {
           if (!matchingAuthUser.email_confirmed_at) {
