@@ -335,7 +335,11 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
       if (studentError) throw studentError;
       if (!student) return response({ error: "Aluno não encontrado na sua lista de cadastros." }, 404);
-      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254) {
+      studentInviteId = student.id;
+      nome = String(student.nome ?? "").trim();
+      email = String(student.email ?? "").trim().toLowerCase();
+      if (!email) return response({ error: "Cadastre o e-mail deste aluno antes de enviar o convite." }, 400);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
         return response({ error: "O e-mail cadastrado para este aluno é inválido. Corrija o cadastro antes de continuar." }, 400);
       }
       if (student.user_id) {
