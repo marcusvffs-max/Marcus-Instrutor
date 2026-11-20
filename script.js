@@ -39,6 +39,8 @@ let alunoEditando = null;
 let veiculoEditando = null;
 let aulaEditando = null;
 let relatorioAtual = null;
+let adminSupabaseUserId = null;
+let adminAlunosSupabaseAtivo = false;
 
 /* =========================================
    FUNÇÕES BÁSICAS
@@ -424,11 +426,18 @@ function abrirFormularioAluno(id = null) {
 
 
 
-function salvarAluno(evento) {
+async function salvarAluno(evento) {
   evento.preventDefault();
 
-  const dados = Object.fromEntries(new FormData(evento.target).entries());
-  const nome = dados.nome.trim();
+  if (!adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
+    mostrarAviso("Não foi possível conectar ao Supabase. O aluno não foi salvo.");
+    return;
+  }
+
+  const formulario = evento.currentTarget;
+  const botaoSalvar = formulario.querySelector('button[type="submit"]');
+  const dados = Object.fromEntries(new FormData(formulario).entries());
+  const nome = String(dados.nome || "").trim();
 
   if (!nome) {
     mostrarAviso("Informe o nome do aluno.");
@@ -445,7 +454,7 @@ function salvarAluno(evento) {
   }
 
   const duplicado = db.alunos.find(a =>
-    a.nome.toLowerCase() === nome.toLowerCase() &&
+    String(a.nome || "").trim().toLowerCase() === nome.toLowerCase() &&
     String(a.id) !== String(alunoEditando)
   );
 
@@ -454,38 +463,90 @@ function salvarAluno(evento) {
     return;
   }
 
-  const aluno = {
-    id: alunoAnterior ? alunoAnterior.id : gerarId(),
-    nome,
-    telefone: dados.telefone,
-    cpf: dados.cpf,
-    endereco: dados.endereco,
-    categoria: dados.categoria,
-    situacao: dados.situacao,
-    contratadas: Number(alunoAnterior?.contratadas || 0),
-    saldo: Number(alunoAnterior?.saldo || 0)
-  };
-
-  if (alunoAnterior) {
-    const indice = db.alunos.findIndex(
-      a => String(a.id) === String(alunoEditando)
-    );
-
-    db.alunos[indice] = aluno;
-  } else {
-    db.alunos.push(aluno);
+  const cliente = window.getMarcusSupabase?.();
+  if (!cliente) {
+    mostrarAviso("Conexão com o Supabase indisponível. Tente novamente.");
+    return;
   }
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  const payload = {
+    owner_id: adminSupabaseUserId,
+    nome,
+    telefone: dados.telefone?.trim() || null,
+    cpf: dados.cpf?.trim() || null,
+    endereco: dados.endereco?.trim() || null,
+    categoria: dados.categoria || "B",
+    status: ({
+      "Em aberto": "em_aberto",
+      "Finalizado": "finalizado",
+      "Aprovado": "aprovado"
+    })[dados.situacao] || "em_aberto",
+    aulas_compradas: Number(alunoAnterior?.contratadas || 0),
+    aulas_restantes: Number(alunoAnterior?.saldo || 0)
+  };
 
-  alunoEditando = null;
+  if (botaoSalvar) {
+    botaoSalvar.disabled = true;
+    botaoSalvar.textContent = "Salvando...";
+  }
 
-  fecharModal();
-  listarAlunos();
-  atualizarSeletoresAlunos();
-  atualizarPainel();
+  try {
+    let resposta;
+    if (alunoAnterior) {
+      resposta = await cliente
+        .from("students")
+        .update(payload)
+        .eq("id", alunoAnterior.id)
+        .eq("owner_id", adminSupabaseUserId)
+        .select("*")
+        .single();
+    } else {
+      const { owner_id, ...novosDados } = payload;
+      resposta = await cliente
+        .from("students")
+        .insert({ ...novosDados, owner_id })
+        .select("*")
+        .single();
+    }
 
-  mostrarAviso("Aluno salvo com sucesso!");
+    if (resposta.error) throw resposta.error;
+
+    const salvo = resposta.data;
+    const aluno = {
+      id: salvo.id,
+      nome: salvo.nome || "",
+      telefone: salvo.telefone || "",
+      cpf: salvo.cpf || "",
+      endereco: salvo.endereco || "",
+      categoria: salvo.categoria || "B",
+      situacao: statusAlunoParaTela(salvo.status),
+      contratadas: Number(salvo.aulas_compradas || 0),
+      saldo: Number(salvo.aulas_restantes || 0)
+    };
+
+    if (alunoAnterior) {
+      const indice = db.alunos.findIndex(a => String(a.id) === String(alunoAnterior.id));
+      if (indice >= 0) db.alunos[indice] = aluno;
+    } else {
+      db.alunos.push(aluno);
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    alunoEditando = null;
+    fecharModal();
+    listarAlunos();
+    atualizarSeletoresAlunos();
+    atualizarPainel();
+    mostrarAviso("Aluno salvo no Supabase com sucesso!");
+  } catch (erro) {
+    console.error("Erro ao salvar aluno no Supabase:", erro);
+    mostrarAviso("Não foi possível salvar o aluno na nuvem. Nenhuma alteração local foi aplicada.");
+  } finally {
+    if (botaoSalvar) {
+      botaoSalvar.disabled = false;
+      botaoSalvar.textContent = "Salvar aluno";
+    }
+  }
 }
 
 
@@ -521,20 +582,45 @@ function listarAlunos() {
     : '<div class="empty-state">Nenhum aluno encontrado.</div>';
 }
 
-function excluirAluno(id) {
-  if (db.aulas.some(a => a.alunoId === id)) {
+async function excluirAluno(id) {
+  if (db.aulas.some(a => String(a.alunoId) === String(id))) {
     mostrarAviso("Este aluno possui aulas vinculadas. Não é possível excluí-lo.");
+    return;
+  }
+
+  if (!adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
+    mostrarAviso("Não foi possível conectar ao Supabase. O aluno não foi excluído.");
     return;
   }
 
   if (!confirmar("Deseja realmente excluir este aluno?")) return;
 
-  db.alunos = db.alunos.filter(a => a.id !== id);
-  salvarDados();
-  listarAlunos();
-  atualizarSeletoresAlunos();
-  mostrarAviso("Aluno excluído.");
-                            }
+  const cliente = window.getMarcusSupabase?.();
+  if (!cliente) {
+    mostrarAviso("Conexão com o Supabase indisponível. Tente novamente.");
+    return;
+  }
+
+  try {
+    const { error } = await cliente
+      .from("students")
+      .delete()
+      .eq("id", id)
+      .eq("owner_id", adminSupabaseUserId);
+
+    if (error) throw error;
+
+    db.alunos = db.alunos.filter(a => String(a.id) !== String(id));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    listarAlunos();
+    atualizarSeletoresAlunos();
+    atualizarPainel();
+    mostrarAviso("Aluno excluído do Supabase.");
+  } catch (erro) {
+    console.error("Erro ao excluir aluno do Supabase:", erro);
+    mostrarAviso("Não foi possível excluir. Verifique se há aulas ou vendas vinculadas.");
+  }
+}
 /* =========================================
    VEÍCULOS
 ========================================= */
@@ -2977,6 +3063,24 @@ async function carregarDadosAdminSupabase() {
   }));
 
   const dados = Object.fromEntries(resultados);
+
+  // A partir desta etapa, a lista de alunos do painel admin tem o Supabase
+  // como fonte oficial. Os registros antigos do navegador permanecem
+  // preservados no localStorage, mas não são misturados com os da nuvem.
+  adminSupabaseUserId = usuario.id;
+  adminAlunosSupabaseAtivo = true;
+  db.alunos = (dados.students || []).map(a => ({
+    id: a.id,
+    nome: a.nome || "",
+    telefone: a.telefone || "",
+    cpf: a.cpf || "",
+    endereco: a.endereco || "",
+    categoria: a.categoria || "B",
+    situacao: statusAlunoParaTela(a.status),
+    contratadas: Number(a.aulas_compradas || 0),
+    saldo: Number(a.aulas_restantes || 0)
+  }));
+
   const temDadosNuvem = tabelas.some(tabela => dados[tabela].length > 0);
 
   if (!temDadosNuvem) {
