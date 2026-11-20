@@ -393,6 +393,9 @@ function abrirFormularioAluno(id = null) {
       <label>Nome completo</label>
       <input name="nome" required value="${escapar(aluno.nome)}">
 
+      <label>E-mail</label>
+      <input name="email" type="email" maxlength="254" autocomplete="email" value="${escapar(aluno.email)}">
+
       <label>Telefone</label>
       <input name="telefone" type="tel" value="${escapar(aluno.telefone)}">
 
@@ -477,6 +480,7 @@ async function salvarAluno(evento) {
   const payload = {
     owner_id: adminSupabaseUserId,
     nome,
+    email: String(dados.email || "").trim().toLowerCase() || null,
     telefone: dados.telefone?.trim() || null,
     cpf: dados.cpf?.trim() || null,
     endereco: dados.endereco?.trim() || null,
@@ -520,6 +524,7 @@ async function salvarAluno(evento) {
     const aluno = {
       id: salvo.id,
       nome: salvo.nome || "",
+      email: salvo.email || "",
       telefone: salvo.telefone || "",
       cpf: salvo.cpf || "",
       endereco: salvo.endereco || "",
@@ -565,6 +570,7 @@ function listarAlunos() {
 
   const alunos = db.alunos.filter(a =>
     a.nome.toLowerCase().includes(busca) ||
+    String(a.email || "").toLowerCase().includes(busca) ||
     String(a.cpf || "").includes(busca)
   );
 
@@ -573,6 +579,7 @@ function listarAlunos() {
         <div class="record">
           <div class="record-info">
             <strong>${escapar(a.nome)}</strong>
+            <p>E-mail: ${escapar(a.email || "Não informado")}</p>
             <p>Telefone: ${escapar(a.telefone || "Não informado")}</p>
             <p>Categoria: ${escapar(a.categoria)}</p>
             <p>Situação: ${escapar(a.situacao)}</p>
@@ -3196,6 +3203,7 @@ async function carregarDadosAdminSupabase() {
   db.alunos = (dados.students || []).map(a => ({
     id: a.id,
     nome: a.nome || "",
+    email: a.email || "",
     telefone: a.telefone || "",
     cpf: a.cpf || "",
     endereco: a.endereco || "",
