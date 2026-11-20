@@ -122,13 +122,17 @@
         : student.user_id ? "Conta vinculada" : "Sem convite";
       const accountClass = state.studentLinkFieldsAvailable && student.invited_at ? "student-status-open" :
         state.studentLinkFieldsAvailable && student.user_id ? "student-status-approved" : "";
-      const inviteButton = !state.studentLinkFieldsAvailable || student.user_id
+      const inviteButton = !state.studentLinkFieldsAvailable
         ? ""
-        : student.invited_at
-          ? '<button class="button button-outline button-small" type="button" disabled>Convite enviado</button>'
-          : student.email
-            ? '<button class="button button-primary button-small" type="button" data-student-action="invite" data-student-id="' + escapeHtml(student.id) + '">Convidar para área do aluno</button>'
-            : "";
+        : student.user_id
+          ? student.email
+            ? '<button class="button button-outline button-small" type="button" data-student-action="invite" data-student-id="' + escapeHtml(student.id) + '">Reenviar acesso</button>'
+            : ""
+          : student.invited_at
+            ? '<button class="button button-outline button-small" type="button" disabled>Convite enviado</button>'
+            : student.email
+              ? '<button class="button button-primary button-small" type="button" data-student-action="invite" data-student-id="' + escapeHtml(student.id) + '">Convidar para área do aluno</button>'
+              : "";
       return '<article class="student-card">' +
         '<div class="student-card-main">' +
           '<div class="student-card-heading"><h4>' + escapeHtml(student.nome) + '</h4>' +
@@ -1347,9 +1351,11 @@
           showMessage("Cadastre o e-mail do aluno antes de enviar o convite.");
           return;
         }
-        if (!window.confirm("Enviar convite de acesso à área do aluno para " + student.nome + " (" + student.email + ")?")) return;
+        const isRecovery = Boolean(student.user_id);
+        const actionLabel = isRecovery ? "Reenviar link de acesso" : "Enviar convite de acesso";
+        if (!window.confirm(actionLabel + " para " + student.nome + " (" + student.email + ")?")) return;
         button.disabled = true;
-        button.textContent = "Enviando...";
+        button.textContent = isRecovery ? "Reenviando..." : "Enviando...";
         try {
           const { data, error } = await state.supabase.functions.invoke("admin-manage-instructors", {
             body: { action: "invite_student", student_id: student.id }
@@ -1360,13 +1366,13 @@
             throw new Error(detail || "Não foi possível enviar o convite.");
           }
           if (!data?.ok) throw new Error(data?.error || "Não foi possível enviar o convite.");
-          student.invited_at = new Date().toISOString();
+          if (!student.user_id) student.invited_at = new Date().toISOString();
           showMessage(data.message || "Convite de aluno enviado com sucesso.", false);
           renderStudents();
         } catch (error) {
           showMessage(error.message || "Não foi possível enviar o convite.");
           button.disabled = false;
-          button.textContent = "Convidar para área do aluno";
+          button.textContent = student.user_id ? "Reenviar acesso" : "Convidar para área do aluno";
         }
       }
     });
