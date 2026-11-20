@@ -35,7 +35,6 @@ Esta primeira versão deliberadamente permite somente **convidar instrutores**. 
 
 > Código de referência para revisão. Não foi implantado. Antes do uso, confirmar os nomes das variáveis de ambiente existentes no projeto e configurar a lista de origens autorizadas.
 
-```ts
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -47,14 +46,17 @@ const ALLOWED_ORIGINS = (Deno.env.get("APP_ALLOWED_ORIGINS") ?? "")
   .map((value) => value.trim())
   .filter(Boolean);
 
-const jsonHeaders = { "Content-Type": "application/json; charset=utf-8" };
+const MAX_BODY_BYTES = 8 * 1024;
+const JSON_HEADERS = {
+  "Content-Type": "application/json; charset=utf-8",
+};
 
 function response(
   body: Record<string, unknown>,
   status: number,
   origin: string | null,
 ): Response {
-  const headers = new Headers(jsonHeaders);
+  const headers = new Headers(JSON_HEADERS);
   headers.set("Vary", "Origin");
 
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
@@ -64,6 +66,42 @@ function response(
   }
 
   return new Response(JSON.stringify(body), { status, headers });
+}
+
+async function readJsonBody(
+  req: Request,
+): Promise<Record<string, unknown>> {
+  const reader = req.body?.getReader();
+  if (!reader) throw new Error("EMPTY_BODY");
+
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+
+    total += value.byteLength;
+    if (total > MAX_BODY_BYTES) {
+      await reader.cancel();
+      throw new Error("BODY_TOO_LARGE");
+    }
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("INVALID_JSON_OBJECT");
+  }
+  return parsed as Record<string, unknown>;
 }
 
 Deno.serve(async (req: Request) => {
@@ -79,7 +117,6 @@ Deno.serve(async (req: Request) => {
       "Access-Control-Allow-Methods": "POST, OPTIONS",
       "Vary": "Origin",
     });
-
     if (origin) headers.set("Access-Control-Allow-Origin", origin);
     return new Response("ok", { headers });
   }
@@ -88,118 +125,136 @@ Deno.serve(async (req: Request) => {
     return response({ ok: false, error: "Método não permitido." }, 405, origin);
   }
 
-  if (
-    !SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY
-  ) {
-    return response({ ok: false, error: "Configuração do servidor incompleta." }, 500, origin);
-  }
-
   if (origin && !ALLOWED_ORIGINS.includes(origin)) {
     return response({ ok: false, error: "Origem não autorizada." }, 403, origin);
   }
 
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
+    return response({ ok: false, error: "Configuração do servidor incompleta." }, 500, origin);
+  }
+
   const authorization = req.headers.get("Authorization") ?? "";
   const match = authorization.match(/^Bearer\s+(.+)$/i);
-
   if (!match) {
     return response({ ok: false, error: "Autenticação obrigatória." }, 401, origin);
   }
 
-  const accessToken = match[1];
-
-  // Cliente público valida o JWT apresentado. Não confiar em user_metadata
-  // nem em role enviada no corpo da requisição.
-  const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  const { data: authData, error: authError } =
-    await authClient.auth.getUser(accessToken);
-
-  if (authError || !authData.user) {
-    return response({ ok: false, error: "Sessão inválida ou expirada." }, 401, origin);
-  }
-
-  // Cliente administrativo é usado somente no servidor e somente depois
-  // da validação do JWT. Esta chave ignora RLS e nunca pode ir ao navegador.
-  const adminClient = createClient(
-    SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
-
-  const { data: requesterProfile, error: profileError } = await adminClient
-    .from("profiles")
-    .select("id, role")
-    .eq("id", authData.user.id)
-    .maybeSingle();
-
-  if (
-    profileError ||
-    !requesterProfile ||
-    requesterProfile.role !== "admin"
-  ) {
-    return response({ ok: false, error: "Acesso permitido somente ao administrador." }, 403, origin);
-  }
-
-  let payload: Record<string, unknown>;
   try {
-    payload = await req.json();
-  } catch {
-    return response({ ok: false, error: "Corpo JSON inválido." }, 400, origin);
-  }
+    const accessToken = match[1];
 
-  if (payload.action !== "invite_instructor") {
-    return response({ ok: false, error: "Ação não permitida." }, 400, origin);
-  }
-
-  const email = typeof payload.email === "string"
-    ? payload.email.trim().toLowerCase()
-    : "";
-  const nome = typeof payload.nome === "string"
-    ? payload.nome.trim()
-    : "";
-
-  const emailIsValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-  if (!emailIsValid || nome.length < 2 || nome.length > 120) {
-    return response({ ok: false, error: "Informe nome e e-mail válidos." }, 400, origin);
-  }
-
-  // Papel fixo no servidor: o cliente não pode solicitar role=admin.
-  const { data: inviteData, error: inviteError } =
-    await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: { nome },
+    // Valida o token apresentado; não confia em ID, email ou role do body.
+    const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
     });
 
-  if (inviteError || !inviteData.user) {
-    return response({ ok: false, error: "Não foi possível enviar o convite." }, 500, origin);
-  }
+    const { data: authData, error: authError } =
+      await authClient.auth.getUser(accessToken);
 
-  const newUserId = inviteData.user.id;
+    if (authError || !authData.user) {
+      return response({ ok: false, error: "Sessão inválida ou expirada." }, 401, origin);
+    }
 
-  const { error: insertProfileError } = await adminClient
-    .from("profiles")
-    .insert({
-      id: newUserId,
-      nome,
+    // O cliente service_role existe apenas no servidor e só é usado depois
+    // de validar o JWT. Não encaminhar o Authorization do solicitante.
+    const adminClient = createClient(
+      SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+
+    const { data: requesterProfile, error: profileError } = await adminClient
+      .from("profiles")
+      .select("id, role")
+      .eq("id", authData.user.id)
+      .maybeSingle();
+
+    if (
+      profileError ||
+      !requesterProfile ||
+      requesterProfile.role !== "admin"
+    ) {
+      return response({ ok: false, error: "Acesso permitido somente ao administrador." }, 403, origin);
+    }
+
+    let payload: Record<string, unknown>;
+    try {
+      payload = await readJsonBody(req);
+    } catch (error) {
+      if (error instanceof Error && error.message === "BODY_TOO_LARGE") {
+        return response({ ok: false, error: "Requisição muito grande." }, 413, origin);
+      }
+      return response({ ok: false, error: "Corpo JSON inválido." }, 400, origin);
+    }
+
+    if (payload.action !== "invite_instructor") {
+      return response({ ok: false, error: "Ação não permitida." }, 400, origin);
+    }
+
+    const email = typeof payload.email === "string"
+      ? payload.email.trim().toLowerCase()
+      : "";
+    const nome = typeof payload.nome === "string"
+      ? payload.nome.trim()
+      : "";
+    const emailIsValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    if (!emailIsValid || nome.length < 2 || nome.length > 120) {
+      return response({ ok: false, error: "Informe nome e e-mail válidos." }, 400, origin);
+    }
+
+    // O trigger em auth.users cria profiles(id,nome,role='instrutor')
+    // na mesma transação do Auth. NÃO inserir profiles manualmente aqui.
+    const { data: inviteData, error: inviteError } =
+      await adminClient.auth.admin.inviteUserByEmail(email, {
+        data: { nome },
+      });
+
+    if (inviteError || !inviteData.user) {
+      return response({ ok: false, error: "Não foi possível enviar o convite." }, 500, origin);
+    }
+
+    const newUserId = inviteData.user.id;
+
+    // Confirma que o trigger foi executado e que o papel é o esperado.
+    const { data: newProfile, error: newProfileError } = await adminClient
+      .from("profiles")
+      .select("id, nome, role")
+      .eq("id", newUserId)
+      .maybeSingle();
+
+    if (
+      newProfileError ||
+      !newProfile ||
+      newProfile.role !== "instrutor"
+    ) {
+      // Compensação excepcional: o convite pode já ter sido enviado.
+      // Registrar e reconciliar esta falha antes de permitir novo convite.
+      const { error: cleanupError } =
+        await adminClient.auth.admin.deleteUser(newUserId);
+
+      console.error("Falha de reconciliação do perfil de instrutor.", {
+        userId: newUserId,
+        profileQueryFailed: Boolean(newProfileError),
+        cleanupFailed: Boolean(cleanupError),
+      });
+
+      return response({
+        ok: false,
+        error: "Não foi possível confirmar o cadastro do instrutor.",
+      }, 500, origin);
+    }
+
+    return response({
+      ok: true,
+      user_id: newUserId,
       role: "instrutor",
-    });
-
-  if (insertProfileError) {
-    // Evita deixar usuário Auth sem o perfil correspondente.
-    await adminClient.auth.admin.deleteUser(newUserId);
-    return response({ ok: false, error: "Não foi possível concluir o cadastro do perfil." }, 500, origin);
+      message: "Convite enviado ao instrutor.",
+    }, 200, origin);
+  } catch {
+    // Não devolver detalhes internos, tokens, emails ou segredos.
+    return response({ ok: false, error: "Erro interno ao processar o convite." }, 500, origin);
   }
-
-  return response({
-    ok: true,
-    user_id: newUserId,
-    role: "instrutor",
-    message: "Convite enviado ao instrutor.",
-  }, 200, origin);
 });
-```
 
 ## Secrets e configuração
 
@@ -248,3 +303,20 @@ A documentação atual do Supabase também descreve as novas chaves publishable/
 - Nenhuma conta ou convite foi criado.
 - Nenhum SQL foi executado.
 - Nenhuma mudança foi feita no login ou na interface do aplicativo.
+
+
+## Revisão consolidada após desenho do trigger
+
+**Correção obrigatória no código:** a primeira versão deste documento fazia INSERT manual em `profiles` depois de `inviteUserByEmail`. Isso se torna incorreto quando o trigger transacional em `auth.users` estiver instalado: o perfil já terá sido criado, e o INSERT manual duplicaria a chave primária, acionando o rollback compensatório e podendo apagar uma conta válida após o envio do convite.
+
+A versão atualizada do código:
+- não faz INSERT manual em `profiles`;
+- consulta o perfil criado pelo trigger e confirma `role='instrutor'`;
+- limita o corpo JSON a 8 KiB;
+- mantém autenticação do solicitante antes de criar o cliente administrativo;
+- não encaminha o Authorization do solicitante no cliente service_role;
+- tenta compensação apenas se o perfil esperado não aparecer, registrando se a limpeza falhou.
+
+**Ordem obrigatória:** esta versão do endpoint só pode ser implantada depois de o trigger transacional estar instalado e validado. Antes disso, a função não terá quem crie o profile automaticamente.
+
+**Ainda não aprovado para produção:** falta configurar e verificar `APP_ALLOWED_ORIGINS`, definir rate limit contra abuso de convites, confirmar as variáveis reais do projeto e executar testes de falha parcial em ambiente isolado autorizado. O endpoint não foi criado nem implantado.
