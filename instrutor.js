@@ -1169,23 +1169,66 @@
   function renderAccessCountdown(accessUntil) {
     const banner = el("avisoValidadeAcesso");
     if (!banner) return;
+
     const expiresAt = new Date(accessUntil).getTime();
+    const maxTimeout = 24 * 60 * 60 * 1000;
+    let intervalId = null;
+    let expirationTimeoutId = null;
+    let blocked = false;
+
+    const blockAccess = () => {
+      if (blocked) return;
+      blocked = true;
+      if (intervalId !== null) window.clearInterval(intervalId);
+      if (expirationTimeoutId !== null) window.clearTimeout(expirationTimeoutId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      renderAccessBlocked();
+    };
+
     const update = () => {
+      if (blocked) return;
       const remaining = expiresAt - Date.now();
       if (remaining <= 0) {
-        renderAccessBlocked();
+        blockAccess();
         return;
       }
+
       const days = Math.ceil(remaining / 86400000);
       banner.textContent = "Autorização ativa · faltam " + days +
         (days === 1 ? " dia para o bloqueio automático." : " dias para o bloqueio automático.");
       banner.classList.toggle("access-expiry-warning", days <= 3);
     };
+
+    const scheduleExpirationCheck = () => {
+      if (blocked) return;
+      if (expirationTimeoutId !== null) window.clearTimeout(expirationTimeoutId);
+
+      const remaining = expiresAt - Date.now();
+      if (remaining <= 0) {
+        blockAccess();
+        return;
+      }
+
+      // Reagenda em etapas de até 24h para não exceder o limite de setTimeout.
+      expirationTimeoutId = window.setTimeout(() => {
+        update();
+        if (!blocked) scheduleExpirationCheck();
+      }, Math.min(remaining, maxTimeout));
+    };
+
+    function handleVisibilityChange() {
+      if (!document.hidden) {
+        update();
+        if (!blocked) scheduleExpirationCheck();
+      }
+    }
+
     update();
-    window.setInterval(update, 60_000);
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) update();
-    });
+    if (blocked) return;
+
+    scheduleExpirationCheck();
+    intervalId = window.setInterval(update, 60_000);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
   }
 
   async function initialize() {
