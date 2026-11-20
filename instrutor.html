@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#12345a">
-  <meta name="description" content="Área de relatórios do instrutor - Marcus Instrutor">
-  <title>Relatórios do Instrutor | Marcus Instrutor</title>
-  <link rel="stylesheet" href="instrutor.css?v=1">
+  <meta name="description" content="Área do instrutor - Marcus Instrutor">
+  <title>Área do Instrutor | Marcus Instrutor</title>
+  <link rel="stylesheet" href="instrutor.css?v=2">
 </head>
 <body>
   <div class="app-shell">
@@ -23,15 +23,77 @@
 
     <main class="content">
       <section class="intro">
-        <span class="eyebrow">CONSULTAS</span>
-        <h2>Meus relatórios</h2>
-        <p>Consulte suas aulas e gere relatórios para impressão.</p>
+        <span class="eyebrow">ÁREA DO INSTRUTOR</span>
+        <h2>Meus alunos e relatórios</h2>
+        <p>Cadastre seus alunos, mantenha os dados atualizados e consulte suas aulas.</p>
       </section>
 
       <section class="summary-grid" aria-label="Resumo das aulas">
         <article class="summary-card"><span>Total de alunos</span><strong id="totalAlunos">—</strong></article>
         <article class="summary-card"><span>Aulas realizadas</span><strong id="totalRealizadas">—</strong></article>
         <article class="summary-card"><span>Aulas agendadas</span><strong id="totalAgendadas">—</strong></article>
+      </section>
+
+      <section class="panel students-panel">
+        <div class="section-heading">
+          <div>
+            <h3>Meus alunos</h3>
+            <p>Os alunos cadastrados aqui pertencem somente à sua conta de instrutor.</p>
+          </div>
+          <button id="btnNovoAluno" class="button button-primary" type="button">+ Novo aluno</button>
+        </div>
+
+        <form id="formAluno" class="student-form" hidden>
+          <h4 id="tituloFormAluno">Cadastrar aluno</h4>
+          <div class="student-form-grid">
+            <div>
+              <label for="alunoNome">Nome completo *</label>
+              <input id="alunoNome" name="nome" type="text" maxlength="160" required>
+            </div>
+            <div>
+              <label for="alunoEmail">E-mail</label>
+              <input id="alunoEmail" name="email" type="email" maxlength="254" autocomplete="email">
+              <small>Use o mesmo e-mail da conta de acesso do aluno para vincular as aulas automaticamente.</small>
+            </div>
+            <div>
+              <label for="alunoTelefone">Telefone</label>
+              <input id="alunoTelefone" name="telefone" type="tel" maxlength="40">
+            </div>
+            <div>
+              <label for="alunoCpf">CPF</label>
+              <input id="alunoCpf" name="cpf" type="text" maxlength="20">
+            </div>
+            <div>
+              <label for="alunoEndereco">Endereço</label>
+              <input id="alunoEndereco" name="endereco" type="text" maxlength="240">
+            </div>
+            <div>
+              <label for="alunoCategoria">Categoria em andamento</label>
+              <select id="alunoCategoria" name="categoria">
+                <option value="">Selecione</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="AB">AB</option>
+              </select>
+            </div>
+            <div>
+              <label for="alunoStatus">Situação</label>
+              <select id="alunoStatus" name="status">
+                <option value="em_aberto">Em aberto</option>
+                <option value="finalizado">Finalizado</option>
+                <option value="aprovado">Aprovado</option>
+              </select>
+            </div>
+          </div>
+          <div class="student-form-actions">
+            <button id="btnCancelarAluno" class="button button-outline" type="button">Cancelar</button>
+            <button id="btnSalvarAluno" class="button button-primary" type="submit">Salvar aluno</button>
+          </div>
+        </form>
+
+        <div id="listaAlunos" class="table-wrap">
+          <div class="empty-state">Carregando seus alunos...</div>
+        </div>
       </section>
 
       <section class="report-grid">
@@ -68,6 +130,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="instrutor.js?v=1"></script>
+  <script src="instrutor.js?v=2"></script>
 </body>
 </html>
