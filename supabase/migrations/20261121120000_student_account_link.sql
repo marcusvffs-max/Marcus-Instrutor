@@ -146,11 +146,21 @@ RETURNS TABLE(
 )
 LANGUAGE sql
 VOLATILE
+SECURITY DEFINER
 SET search_path TO ''
 AS $function$
   SELECT *
   FROM private.get_my_scheduled_lessons_internal();
 $function$;
+
+-- A RPC pública não deve herdar EXECUTE de PUBLIC/anon.
+-- O wrapper valida a sessão e o perfil dentro da função interna.
+REVOKE ALL ON FUNCTION public.get_my_scheduled_lessons() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_scheduled_lessons() TO authenticated;
+
+-- A função interna privilegiada só pode ser alcançada pelo wrapper/owner.
+REVOKE ALL ON FUNCTION private.get_my_scheduled_lessons_internal() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION private.clear_student_account_link_on_user_delete() FROM PUBLIC, anon, authenticated;
 
 
 -- Vincula a conta no próprio INSERT do Auth, usando um token aleatório
