@@ -1600,8 +1600,9 @@ function abrirVenda() {
     return;
   }
 
-  if (!db.produtos.length) {
-    mostrarAviso("Cadastre um produto primeiro.");
+  const produtosAtivos = db.produtos.filter(p => p.ativo !== false);
+  if (!produtosAtivos.length) {
+    mostrarAviso("Cadastre um produto ou serviço ativo primeiro.");
     return;
   }
 
@@ -1609,7 +1610,6 @@ function abrirVenda() {
 
   abrirModal(`
     <h2>Nova venda</h2>
-
     <form id="formVenda">
       <label>Aluno</label>
       <select name="alunoId" required>
@@ -1622,10 +1622,8 @@ function abrirVenda() {
       <label>Produto ou serviço</label>
       <select id="produtoVenda">
         <option value="">Selecione</option>
-        ${db.produtos.map(p =>
-          `<option value="${p.id}" data-preco="${p.preco}">
-            ${escapar(p.nome)} — ${moeda(p.preco)}
-          </option>`
+        ${produtosAtivos.map(p =>
+          `<option value="${p.id}">${escapar(p.nome)} — ${moeda(p.preco)}</option>`
         ).join("")}
       </select>
 
@@ -1638,22 +1636,25 @@ function abrirVenda() {
 
       <div class="panel">
         <strong>Itens da venda</strong>
-        <div id="itensCarrinhoVenda">
-          <p>Nenhum item adicionado.</p>
-        </div>
+        <div id="itensCarrinhoVenda"><p>Nenhum item adicionado.</p></div>
         <p>Total: <strong id="totalVenda">R$ 0,00</strong></p>
-        <p>Aulas que serão adicionadas:
-          <strong id="aulasVenda">0</strong>
-        </p>
+        <p>Aulas que serão adicionadas: <strong id="aulasVenda">0</strong></p>
       </div>
 
+      <label>Forma de pagamento do pedido</label>
+      <select name="formaPagamento" required>
+        <option value="">Selecione</option>
+        <option value="Pix">Pix</option>
+        <option value="Dinheiro">Dinheiro</option>
+        <option value="Cartão de débito">Cartão de débito</option>
+        <option value="Cartão de crédito">Cartão de crédito</option>
+        <option value="Transferência bancária">Transferência bancária</option>
+        <option value="Outro">Outro</option>
+      </select>
+
       <div class="modal-actions">
-        <button type="button" class="secondary-button" data-close>
-          Cancelar
-        </button>
-        <button type="submit" class="primary-button">
-          Confirmar venda
-        </button>
+        <button type="button" class="secondary-button" data-close>Cancelar</button>
+        <button type="submit" class="primary-button">Confirmar venda</button>
       </div>
     </form>
   `);
@@ -1664,33 +1665,27 @@ function abrirVenda() {
 
   function atualizarCarrinho() {
     const lista = document.getElementById("itensCarrinhoVenda");
-
     lista.innerHTML = itensCarrinho.length
       ? itensCarrinho.map((item, indice) => `
           <div class="record">
             <strong>${escapar(item.nome)}</strong>
             <p>Classificação: ${item.tipo === "servico" ? "Serviço" : "Produto"}</p>
             <p>Quantidade: ${item.quantidade}</p>
+            ${item.aulasContratadas > 0 ? `<p>Aulas adicionadas: ${item.aulasContratadas}</p>` : ""}
             <p>Subtotal: ${moeda(item.total)}</p>
-            <button type="button" data-remover-item="${indice}">
-              Remover
-            </button>
+            <button type="button" data-remover-item="${indice}">Remover</button>
           </div>
         `).join("")
       : "<p>Nenhum item adicionado.</p>";
 
     const total = itensCarrinho.reduce((s, item) => s + item.total, 0);
-    const aulas = itensCarrinho.reduce(
-      (s, item) => s + (item.tipo === "servico" ? item.quantidade : 0),
-      0
-    );
-
+    const aulas = itensCarrinho.reduce((s, item) => s + item.aulasContratadas, 0);
     document.getElementById("totalVenda").textContent = moeda(total);
     document.getElementById("aulasVenda").textContent = aulas;
   }
 
   document.getElementById("adicionarItemVenda").onclick = () => {
-    const produto = db.produtos.find(p => p.id === campoProduto.value);
+    const produto = produtosAtivos.find(p => p.id === campoProduto.value);
     const quantidade = numero(campoQuantidade.value);
 
     if (!produto || !Number.isInteger(quantidade) || quantidade < 1) {
@@ -1700,15 +1695,26 @@ function abrirVenda() {
 
     const tipo = produto.tipo ||
       (/pacote\s*(bronze|prata|ouro)|aula avulsa/i.test(produto.nome || "")
-        ? "servico"
-        : "produto");
+        ? "servico" : "produto");
+
+    const minimo = produto.quantidadeAulasMin;
+    const maximo = produto.quantidadeAulasMax;
+    if ((minimo != null && quantidade < Number(minimo)) ||
+        (maximo != null && quantidade > Number(maximo))) {
+      mostrarAviso(`A quantidade deste pacote deve ficar entre ${minimo ?? 1} e ${maximo ?? "sem limite"} aulas.`);
+      return;
+    }
 
     const preco = Number(produto.preco);
-
     if (preco <= 0) {
       mostrarAviso("O item possui um valor inválido.");
       return;
     }
+
+    const temFaixa = minimo != null || maximo != null;
+    const aulasContratadas = tipo === "servico"
+      ? (temFaixa ? quantidade : quantidade * Math.max(1, Number(produto.quantidadeAulas || 1)))
+      : 0;
 
     itensCarrinho.push({
       produtoId: produto.id,
@@ -1716,7 +1722,8 @@ function abrirVenda() {
       tipo,
       quantidade,
       precoUnitario: preco,
-      total: preco * quantidade
+      total: Math.round(preco * quantidade * 100) / 100,
+      aulasContratadas
     });
 
     campoProduto.value = "";
@@ -1727,9 +1734,7 @@ function abrirVenda() {
   document.getElementById("itensCarrinhoVenda").onclick = evento => {
     const botao = evento.target.closest("[data-remover-item]");
     if (!botao) return;
-
-    const indice = Number(botao.dataset.removerItem);
-    itensCarrinho.splice(indice, 1);
+    itensCarrinho.splice(Number(botao.dataset.removerItem), 1);
     atualizarCarrinho();
   };
 
@@ -1739,83 +1744,68 @@ function abrirVenda() {
 function calcularVenda() {
   const total = document.getElementById("totalVenda");
   if (!total) return 0;
-
-  return numero(
-    total.textContent.replace(/[^\d,.-]/g, "").replace(",", ".")
-  );
+  return numero(total.textContent.replace(/[^\\d,.-]/g, "").replace(",", "."));
 }
 
-function salvarVenda(evento, itensCarrinho) {
+async function salvarVenda(evento, itensCarrinho) {
   evento.preventDefault();
 
-  const formulario = evento.target;
+  const formulario = evento.currentTarget;
+  const alunoId = formulario.elements.alunoId.value;
+  const formaPagamento = formulario.elements.formaPagamento.value;
+  const botao = formulario.querySelector('button[type="submit"]');
 
-  const aluno = db.alunos.find(a =>
-    a.id === formulario.elements.alunoId.value
-  );
-
-  if (!aluno || !itensCarrinho.length) {
-    mostrarAviso("Selecione o aluno e adicione pelo menos um item.");
+  if (!adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
+    mostrarAviso("A conexão administrativa com o Supabase não está ativa.");
+    return;
+  }
+  if (!db.alunos.some(a => a.id === alunoId) || !itensCarrinho.length || !formaPagamento) {
+    mostrarAviso("Selecione o aluno, adicione itens e informe a forma de pagamento.");
     return;
   }
 
-  const total = itensCarrinho.reduce((s, item) => s + item.total, 0);
+  botao.disabled = true;
+  botao.textContent = "Registrando...";
 
-  const aulasVendidas = itensCarrinho.reduce(
-    (s, item) => s + (item.tipo === "servico" ? item.quantidade : 0),
-    0
-  );
+  try {
+    const cliente = window.getMarcusSupabase?.();
+    if (!cliente) throw new Error("Conexão com o Supabase indisponível.");
 
-  const descricaoItens = itensCarrinho.map(item =>
-    `${item.nome} (${item.quantidade})`
-  ).join(", ");
+    const { data, error } = await cliente.rpc("admin_create_sale", {
+      p_student_id: alunoId,
+      p_forma_pagamento: formaPagamento,
+      p_items: itensCarrinho.map(item => ({
+        product_id: item.produtoId,
+        quantidade: item.quantidade
+      }))
+    });
 
-  const venda = {
-    id: gerarId(),
-    alunoId: aluno.id,
-    itens: itensCarrinho.map(item => ({
-      ...item,
-      aulasDevolvidas: 0,
-      valorDevolvido: 0
-    })),
-    pacote: descricaoItens,
-    descricao: descricaoItens,
-    aulasVendidas,
-    aulasDevolvidas: 0,
-    valorTotal: total,
-    valorDevolvido: 0,
-    data: dataHoje()
-  };
+    if (error) throw error;
 
-  db.vendas.push(venda);
+    await carregarDadosAdminSupabase();
+    fecharModal();
+    listarAlunos();
+    listarMovimentacoes();
+    atualizarFinanceiro();
+    atualizarPainel();
 
-  if (aulasVendidas > 0) {
-    aluno.saldo = Number(aluno.saldo || 0) + aulasVendidas;
-    aluno.contratadas = Number(aluno.contratadas || 0) + aulasVendidas;
+    const aulas = Number(data?.aulas_adicionadas || 0);
+    mostrarAviso(
+      aulas > 0
+        ? `Venda registrada! ${aulas} aulas adicionadas ao aluno.`
+        : "Venda de produtos registrada com sucesso!"
+    );
+  } catch (erro) {
+    console.error("Falha ao registrar venda no Supabase:", erro);
+    mostrarAviso(erro.message || "Não foi possível registrar a venda.");
+    botao.disabled = false;
+    botao.textContent = "Confirmar venda";
   }
-
-  db.movimentacoes.push({
-    id: gerarId(),
-    tipo: "entrada",
-    descricao: `Venda para ${aluno.nome}: ${descricaoItens}`,
-    valor: total,
-    alunoId: aluno.id,
-    vendaId: venda.id,
-    data: dataHoje()
-  });
-
-  salvarDados();
-  fecharModal();
-  listarAlunos();
-  listarMovimentacoes();
-  atualizarFinanceiro();
-
-  mostrarAviso(
-    aulasVendidas > 0
-      ? `Venda registrada! ${aulasVendidas} aulas adicionadas ao aluno.`
-      : "Venda de produtos registrada com sucesso!"
-  );
 }
+
+/* =========================================
+   DEVOLUÇÕES
+========================================= */
 
 /* =========================================
    DEVOLUÇÕES
@@ -1826,34 +1816,16 @@ function abrirDevolucao() {
 
   db.vendas.forEach(venda => {
     const aluno = db.alunos.find(a => a.id === venda.alunoId);
-
-    if (Array.isArray(venda.itens)) {
-      venda.itens.forEach((item, indice) => {
-        if (item.tipo !== "servico") return;
-
-        const disponiveis =
-          Number(item.quantidade || 0) -
-          Number(item.aulasDevolvidas || 0);
-
-        if (disponiveis > 0) {
-          opcoes.push({
-            valor: `${venda.id}::${indice}`,
-            texto: `${aluno?.nome || "Aluno"} — ${item.nome} — ${disponiveis} aulas`
-          });
-        }
-      });
-    } else {
-      const disponiveis =
-        Number(venda.aulasVendidas || 0) -
-        Number(venda.aulasDevolvidas || 0);
-
+    (venda.itens || []).forEach(item => {
+      if (item.tipo !== "servico" || !item.saleItemId) return;
+      const disponiveis = Number(item.aulasContratadas || 0) - Number(item.aulasDevolvidas || 0);
       if (disponiveis > 0) {
         opcoes.push({
-          valor: `${venda.id}::legacy`,
-          texto: `${aluno?.nome || "Aluno"} — ${venda.descricao} — ${disponiveis} aulas`
+          valor: item.saleItemId,
+          texto: `${aluno?.nome || "Aluno"} — ${item.nome} — ${disponiveis} aulas`
         });
       }
-    }
+    });
   });
 
   if (!opcoes.length) {
@@ -1863,26 +1835,17 @@ function abrirDevolucao() {
 
   abrirModal(`
     <h2>Devolução de aulas</h2>
-
     <form id="formDevolucao">
       <label>Item da venda</label>
       <select name="itemVenda" required>
         <option value="">Selecione</option>
-        ${opcoes.map(o =>
-          `<option value="${o.valor}">${escapar(o.texto)}</option>`
-        ).join("")}
+        ${opcoes.map(o => `<option value="${o.valor}">${escapar(o.texto)}</option>`).join("")}
       </select>
-
       <label>Quantidade para devolver</label>
       <input name="quantidade" type="number" min="1" step="1" required>
-
       <div class="modal-actions">
-        <button type="button" class="secondary-button" data-close>
-          Cancelar
-        </button>
-        <button type="submit" class="primary-button">
-          Confirmar devolução
-        </button>
+        <button type="button" class="secondary-button" data-close>Cancelar</button>
+        <button type="submit" class="primary-button">Confirmar devolução</button>
       </div>
     </form>
   `);
@@ -1890,107 +1853,54 @@ function abrirDevolucao() {
   document.getElementById("formDevolucao").onsubmit = salvarDevolucao;
 }
 
-function salvarDevolucao(evento) {
+async function salvarDevolucao(evento) {
   evento.preventDefault();
 
-  const formulario = evento.target;
-  const [vendaId, indiceItem] = formulario.elements.itemVenda.value.split("::");
-
-  const venda = db.vendas.find(v => v.id === vendaId);
+  const formulario = evento.currentTarget;
+  const saleItemId = formulario.elements.itemVenda.value;
   const quantidade = numero(formulario.elements.quantidade.value);
+  const botao = formulario.querySelector('button[type="submit"]');
 
-  if (!venda || !Number.isInteger(quantidade) || quantidade < 1) {
-    mostrarAviso("Informe uma devolução válida.");
+  if (!saleItemId || !Number.isInteger(quantidade) || quantidade < 1) {
+    mostrarAviso("Informe um item e uma quantidade válida.");
+    return;
+  }
+  if (!adminAlunosSupabaseAtivo) {
+    mostrarAviso("A conexão administrativa com o Supabase não está ativa.");
     return;
   }
 
-  const aluno = db.alunos.find(a => a.id === venda.alunoId);
+  botao.disabled = true;
+  botao.textContent = "Registrando...";
 
-  if (!aluno || quantidade > Number(aluno.saldo || 0)) {
-    mostrarAviso("Quantidade indisponível ou aulas já utilizadas.");
-    return;
+  try {
+    const cliente = window.getMarcusSupabase?.();
+    if (!cliente) throw new Error("Conexão com o Supabase indisponível.");
+
+    const { error } = await cliente.rpc("admin_refund_sale_lessons", {
+      p_sale_item_id: saleItemId,
+      p_quantidade: quantidade
+    });
+    if (error) throw error;
+
+    await carregarDadosAdminSupabase();
+    fecharModal();
+    listarAlunos();
+    listarMovimentacoes();
+    atualizarFinanceiro();
+    atualizarPainel();
+    mostrarAviso("Devolução registrada e saldo atualizado.");
+  } catch (erro) {
+    console.error("Falha ao registrar devolução:", erro);
+    mostrarAviso(erro.message || "Não foi possível registrar a devolução.");
+    botao.disabled = false;
+    botao.textContent = "Confirmar devolução";
   }
-
-  let disponiveis;
-  let preco;
-  let valor;
-
-  if (indiceItem === "legacy") {
-    disponiveis =
-      Number(venda.aulasVendidas || 0) -
-      Number(venda.aulasDevolvidas || 0);
-
-    preco = Number(
-      venda.precoUnitario ||
-      venda.valorTotal / venda.aulasVendidas
-    );
-
-    if (quantidade > disponiveis) {
-      mostrarAviso("Quantidade maior que o disponível para devolução.");
-      return;
-    }
-
-    valor = Math.min(
-      preco * quantidade,
-      Number(venda.valorTotal) - Number(venda.valorDevolvido || 0)
-    );
-
-    venda.aulasDevolvidas = Number(venda.aulasDevolvidas || 0) + quantidade;
-    venda.valorDevolvido = Number(venda.valorDevolvido || 0) + valor;
-  } else {
-    const item = venda.itens?.[Number(indiceItem)];
-
-    if (!item || item.tipo !== "servico") {
-      mostrarAviso("Item de serviço não encontrado.");
-      return;
-    }
-
-    disponiveis =
-      Number(item.quantidade || 0) -
-      Number(item.aulasDevolvidas || 0);
-
-    if (quantidade > disponiveis) {
-      mostrarAviso("Quantidade maior que o disponível para devolução.");
-      return;
-    }
-
-    preco = Number(item.precoUnitario || 0);
-    valor = Math.min(
-      preco * quantidade,
-      Number(item.total) - Number(item.valorDevolvido || 0)
-    );
-
-    item.aulasDevolvidas = Number(item.aulasDevolvidas || 0) + quantidade;
-    item.valorDevolvido = Number(item.valorDevolvido || 0) + valor;
-
-    venda.aulasDevolvidas = Number(venda.aulasDevolvidas || 0) + quantidade;
-    venda.valorDevolvido = Number(venda.valorDevolvido || 0) + valor;
-  }
-
-  aluno.saldo = Number(aluno.saldo || 0) - quantidade;
-  aluno.contratadas = Math.max(
-    0,
-    Number(aluno.contratadas || 0) - quantidade
-  );
-
-  db.movimentacoes.push({
-    id: gerarId(),
-    tipo: "saida",
-    descricao: `Devolução de ${quantidade} aula(s) para ${aluno.nome}`,
-    valor,
-    alunoId: aluno.id,
-    vendaId: venda.id,
-    data: dataHoje()
-  });
-
-  salvarDados();
-  fecharModal();
-  listarAlunos();
-  listarMovimentacoes();
-  atualizarFinanceiro();
-  mostrarAviso("Devolução registrada.");
 }
 
+/* =========================================
+   DESPESAS E EXCLUSÕES FINANCEIRAS
+========================================= */
 
 /* =========================================
    DESPESAS E EXCLUSÕES FINANCEIRAS
@@ -2035,60 +1945,32 @@ async function excluirVenda(id) {
   const venda = db.vendas.find(v => v.id === id);
   if (!venda) return;
 
-  const aluno = db.alunos.find(a => a.id === venda.alunoId);
-
-  if (!aluno) {
-    mostrarAviso("Aluno da venda não encontrado.");
-    return;
-  }
-
-  let aulasLiquidas = 0;
-
-  if (Array.isArray(venda.itens)) {
-    aulasLiquidas = venda.itens.reduce((total, item) => {
-      if (item.tipo !== "servico") return total;
-
-      const quantidade = Number(item.quantidade || 0);
-      const devolvidas = Number(item.aulasDevolvidas || 0);
-
-      return total + Math.max(0, quantidade - devolvidas);
-    }, 0);
-  } else {
-    aulasLiquidas =
-      Number(venda.aulasVendidas || 0) -
-      Number(venda.aulasDevolvidas || 0);
-  }
-
-  if (Number(aluno.saldo || 0) < aulasLiquidas) {
-    mostrarAviso(
-      "Não é possível excluir: parte das aulas já foi utilizada."
-    );
-    return;
-  }
-
   if (!(await confirmar("Excluir esta venda e seus lançamentos financeiros?"))) {
     return;
   }
 
-  if (aulasLiquidas > 0) {
-    aluno.saldo = Number(aluno.saldo || 0) - aulasLiquidas;
+  try {
+    const cliente = window.getMarcusSupabase?.();
+    if (!cliente) throw new Error("Conexão com o Supabase indisponível.");
 
-    aluno.contratadas = Math.max(
-      0,
-      Number(aluno.contratadas || 0) - aulasLiquidas
-    );
+    const { error } = await cliente.rpc("admin_delete_sale", {
+      p_sale_id: id
+    });
+    if (error) throw error;
+
+    await carregarDadosAdminSupabase();
+    listarAlunos();
+    listarMovimentacoes();
+    atualizarFinanceiro();
+    atualizarPainel();
+    mostrarAviso("Venda excluída e saldo atualizado.");
+  } catch (erro) {
+    console.error("Falha ao excluir venda:", erro);
+    mostrarAviso(erro.message || "Não foi possível excluir a venda.");
   }
-
-  db.vendas = db.vendas.filter(v => v.id !== id);
-  db.movimentacoes = db.movimentacoes.filter(m => m.vendaId !== id);
-
-  salvarDados();
-  listarAlunos();
-  listarMovimentacoes();
-  atualizarFinanceiro();
-
-  mostrarAviso("Venda excluída e saldo atualizado.");
 }
+
+
 
 
 async function excluirDespesa(id) {
@@ -3147,16 +3029,25 @@ async function carregarDadosAdminSupabase() {
   const vendas = dados.sales.map(v => {
     const itens = dados.sale_items.filter(item => item.sale_id === v.id).map(item => {
       const produto = produtosPorId.get(item.product_id);
-      const tipo = produto?.tipo === "produto" ? "produto" : "servico";
+      const tipo = item.tipo_item ||
+        (produto?.tipo === "produto" &&
+         produto?.quantidadeAulas == null &&
+         produto?.quantidadeAulasMin == null &&
+         produto?.quantidadeAulasMax == null &&
+         !["bronze", "prata", "ouro"].includes(String(produto?.appProductId || "").toLowerCase())
+          ? "produto" : "servico");
       return {
+        saleItemId: item.id,
         produtoId: item.product_id,
         nome: item.descricao || produto?.nome || "Item",
         tipo,
         quantidade: Number(item.quantidade || 1),
         precoUnitario: Number(item.valor_unitario || 0),
         total: Number(item.subtotal || 0),
-        aulasDevolvidas: 0,
-        valorDevolvido: 0
+        aulasContratadas: Number(item.aulas_contratadas || 0),
+        aulasDevolvidas: Number(item.aulas_devolvidas || 0),
+        valorPorAula: Number(item.valor_por_aula || 0),
+        valorDevolvido: Number(item.valor_devolvido || 0)
       };
     });
     const aluno = alunos.find(a => a.id === v.student_id);
@@ -3167,10 +3058,10 @@ async function carregarDadosAdminSupabase() {
       itens,
       pacote: descricao,
       descricao: v.observacoes || descricao,
-      aulasVendidas: itens.reduce((total, item) => total + (item.tipo === "servico" ? item.quantidade : 0), 0),
-      aulasDevolvidas: 0,
+      aulasVendidas: itens.reduce((total, item) => total + Number(item.aulasContratadas || 0), 0),
+      aulasDevolvidas: itens.reduce((total, item) => total + Number(item.aulasDevolvidas || 0), 0),
       valorTotal: Number(v.total || 0),
-      valorDevolvido: 0,
+      valorDevolvido: itens.reduce((total, item) => total + Number(item.valorDevolvido || 0), 0),
       data: v.data_venda,
       formaPagamento: v.forma_pagamento || "",
       status: v.status || "confirmada",
