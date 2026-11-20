@@ -358,3 +358,28 @@ footer { padding:20px; text-align:center; color:var(--muted); font-size:12px; }
   .lesson-card-actions { display: grid; grid-template-columns: 1fr 1fr; }
   .lesson-card-actions .button { width: 100%; }
 }
+
+
+/* Módulo financeiro do instrutor */
+.finance-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:18px 0 22px; }
+.finance-summary-card { display:grid; gap:8px; padding:17px; border:1px solid var(--border); border-radius:14px; background:#fff; }
+.finance-summary-card span { color:var(--muted); font-size:12px; }
+.finance-summary-card strong { font-size:clamp(18px,3vw,25px); overflow-wrap:anywhere; }
+.finance-balance-card { background:#edf4fb; border-color:#d8e5f2; }
+.finance-list { display:grid; gap:9px; }
+.finance-row { display:flex; align-items:center; gap:12px; padding:13px; border:1px solid var(--border); border-radius:13px; background:#fff; }
+.finance-row-icon { display:grid; flex:0 0 38px; width:38px; height:38px; place-items:center; border-radius:11px; font-size:20px; font-weight:800; }
+.finance-income { color:#16794b; background:#e8f6ee; }
+.finance-expense { color:#a12b2b; background:#fff0f0; }
+.finance-row-main { display:grid; flex:1; min-width:0; gap:4px; }
+.finance-row-main strong { font-size:13px; overflow-wrap:anywhere; }
+.finance-row-main span { color:var(--muted); font-size:11px; }
+.finance-row-value { flex:0 0 auto; font-size:13px; white-space:nowrap; }
+.finance-income-text { color:#16794b; }
+.finance-expense-text { color:#a12b2b; }
+@media(max-width:620px) {
+ .finance-summary { grid-template-columns:1fr; }
+ .finance-summary-card { padding:13px; }
+ .finance-row { align-items:flex-start; flex-wrap:wrap; }
+ .finance-row-value { margin-left:50px; }
+}
