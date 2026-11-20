@@ -12,6 +12,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS students_user_id_unique
   ON public.students (user_id)
   WHERE user_id IS NOT NULL;
 
+CREATE UNIQUE INDEX IF NOT EXISTS students_invite_attempt_id_unique
+  ON public.students (invite_attempt_id)
+  WHERE invite_attempt_id IS NOT NULL;
+
 CREATE OR REPLACE FUNCTION private.get_my_scheduled_lessons_internal()
 RETURNS TABLE(
   lesson_id uuid,
