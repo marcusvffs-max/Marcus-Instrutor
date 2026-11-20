@@ -112,3 +112,21 @@ Só liberar acesso comum após todos os testes aprovados e revisão do Advisor.
 - Nenhum usuário foi criado ou convidado.
 - Nenhum deploy foi realizado.
 - Nenhum recurso pago ou branch de banco foi criado.
+
+
+## Atualização crítica — trigger de perfil (20/11/2026)
+
+A revisão da função de proteção de papel encontrou conflito com o trigger em `auth.users`: a versão anterior rejeitava INSERT quando `auth.uid()` fosse NULL, o que poderia bloquear a criação de usuários pelo Supabase Auth.
+
+A proposta foi corrigida:
+- todo novo usuário Auth recebe perfil `instrutor` por padrão, em trigger transacional;
+- o papel não é lido de metadata;
+- INSERT interno de perfil não exige `auth.uid()`;
+- mudança de papel em UPDATE continua reservada ao backend com claim `service_role`;
+- clientes autenticados não recebem INSERT/UPDATE/DELETE em `profiles`.
+
+O SQL de revisão agora inclui a função e o trigger, mas permanece documento não executado. O desenho exige teste em ambiente isolado antes da produção. O trigger se aplica a qualquer usuário criado em Auth, inclusive usuários criados pelo Dashboard; novos administradores exigirão fluxo backend explícito e autorizado.
+
+Ver:
+- `docs/desenho-corrigido-trigger-auth-perfis.md`
+- `docs/rascunho-seguranca-relatorios-instrutor-revisado.sql`
