@@ -167,3 +167,8 @@ Também não há `supabase/config.toml` na branch; schemas expostos pela Data AP
 O harness foi ampliado com uma verificação estática do inventário de RPCs. Resultado atualizado: **28 testes estáticos aprovados** (harness isolado; não é execução PostgreSQL, Deno ou teste real contra Supabase). Os novos casos SEC-058 a SEC-063 permanecem pendentes de execução em ambiente isolado.
 
 Nenhuma RPC foi chamada, nenhum SQL foi executado, nenhuma migration/grant/configuração foi alterada e nenhuma publicação foi feita.
+
+
+## Coleta de catálogo para RPCs — 20/11/2026
+
+Criado `docs/PRECHECK-READONLY-RPCS-POSTGREST.md`, com sete consultas somente SELECT para definições SQL, ACL efetiva, schemas, triggers e memberships. O roteiro não chama funções de negócio nem altera o banco. A ausência das definições das cinco RPCs financeiras permanece pendência crítica de evidência, não vulnerabilidade confirmada. Nenhuma conexão ao Supabase ou alteração de banco ocorreu nesta etapa. Harness atualizado para 29 testes estáticos.

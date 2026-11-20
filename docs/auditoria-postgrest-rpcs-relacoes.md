@@ -75,3 +75,10 @@ As funções `admin_*` devem negar instrutor/aluno mesmo se forem chamadas diret
 ## Decisão
 
 Não alterar código funcional, grants, migrations, schemas ou configuração da Data API nesta etapa. A prioridade é obter as definições e ACLs reais das cinco RPCs não versionadas e confirmar os schemas expostos. Não executar migrations nem usar o Supabase atual para testes destrutivos. Nenhuma ação paga foi realizada.
+
+
+## Coleta segura das definições reais
+
+Foi criado `docs/PRECHECK-READONLY-RPCS-POSTGREST.md`, com sete consultas SELECT para obter definições completas, sobrecargas, owner, SECURITY DEFINER, configurações, EXECUTE efetivo, ACL incluindo PUBLIC, schemas, triggers e memberships. Nenhuma consulta chama RPC de negócio.
+
+A falta das definições das cinco RPCs financeiras permanece uma pendência crítica de evidência, não vulnerabilidade confirmada. A documentação financeira existente registra uma consulta prévia ao projeto, mas esta etapa não acessou o Supabase e não reutiliza esse registro como prova das definições atuais. A coleta deve ocorrer apenas em ambiente autorizado, gratuito e com resultados sanitizados.
