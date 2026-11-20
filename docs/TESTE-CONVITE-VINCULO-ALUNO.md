@@ -42,7 +42,7 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 - [ ] **INV-23 — Conta existente, confirmada e com perfil `usuario`:** o instrutor solicita acesso; o servidor reserva o cadastro com UUID aleatório e envia link de recuperação para o e-mail já cadastrado. Não cria nova conta nem altera `students.user_id` antes do clique.
 - [ ] Ao abrir o link, a sessão autenticada precisa pertencer ao mesmo e-mail confirmado do cadastro reservado. Só então a Edge Function grava `user_id` e limpa a reserva na mesma atualização condicional.
 - [ ] **INV-24 — Link de confirmação usado por outra conta:** o servidor recusa se o e-mail autenticado não corresponder ao e-mail reservado; nenhum vínculo é alterado.
-- [ ] **INV-25 — Link expirado, token incorreto ou reserva substituída:** HTTP 409/400; nenhum vínculo é criado.
+- [ ] **INV-25 — Link expirado, token incorreto ou reserva substituída:** a reserva vence em 15 minutos; HTTP 409/400; nenhum vínculo é criado. Após expirar, o instrutor pode reenviar a confirmação (atualize a lista se o botão ainda estiver desabilitado).
 - [ ] **INV-26 — E-mail existente sem confirmação ou perfil ausente/incompatível:** o servidor recusa e orienta verificação administrativa; não cria conta, não muda papel e não associa cadastro.
 - [ ] **INV-27 — Duas confirmações simultâneas para a mesma reserva:** somente uma atualização condicional pode concluir; a segunda recebe conflito.
 - [ ] **INV-28 — Falha SMTP ao enviar confirmação para conta existente:** preserva a conta Auth e libera apenas a reserva daquela tentativa; não apaga nem altera a conta.
