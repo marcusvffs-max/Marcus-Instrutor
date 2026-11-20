@@ -9,6 +9,7 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 - [ ] Revisar e aplicar a migration `20261121120000_student_account_link.sql` somente no banco de teste.
 - [ ] Publicar a Edge Function `admin-manage-instructors` somente no projeto Supabase de teste.
 - [ ] Confirmar o `APP_ORIGIN` da Edge Function e o redirect de autenticação para o domínio exato do preview.
+- [ ] Na lista de URLs de redirecionamento do Supabase Auth de teste, permitir exatamente `https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app/claim-student.html`. Não alterar as configurações do Supabase atual/produção.
 - [ ] Preparar instrutor autorizado, aluno fictício com e-mail controlado e dados de aula fictícios.
 - [ ] Não reutilizar ou excluir contas reais durante os testes.
 
@@ -103,4 +104,4 @@ Não executar migration no Supabase atual, não enviar convites a alunos reais, 
 
 
 
-- [ ] Confirmar em ambiente isolado se o Supabase aceita `generateLink({ type: "recovery" })` para conta ainda não confirmada criada por convite. Se não aceitar, registrar o erro e não alterar nem excluir a conta.
+- [ ] O fluxo de confirmação de conta antiga usa `generateLink({ type: "recovery" })` somente para contas existentes com e-mail confirmado e perfil `usuario`. Contas não confirmadas ou com perfil ausente/incompatível são recusadas sem alteração; não tentar contornar essa proteção.
