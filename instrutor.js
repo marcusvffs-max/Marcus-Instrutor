@@ -870,25 +870,55 @@
       showMessage("Preencha nome, CPF, categoria, quantidade de aulas, valor e forma de pagamento.");
       return;
     }
-    const city = el("contratoCidade").value.trim() || "________________________";
+
+    const city = el("contratoCidade").value.trim() || "Governador Valadares";
     const instructor = state.profile?.nome || "Instrutor";
-    const cartao = el("contratoCartaoMoto").checked ? ", CARTÃO MOTO PISTA" : "";
-    const aluguel = el("contratoAluguelVeiculo").checked ? " E ALUGUEL DO VEÍCULO PARA EXAME" : "";
+    const cartao = el("contratoCartaoMoto").checked ? "CARTÃO MOTO PISTA" : "";
+    const aluguel = el("contratoAluguelVeiculo").checked ? "ALUGUEL DO VEÍCULO PARA EXAME PRÁTICO" : "";
+    const services = ["Pacote de aulas adquirido", cartao, aluguel].filter(Boolean).join(", ");
     const money = moneyInWordsForContract(valor);
     const safe = escapeHtml;
     const clauses = [
-      "<h3>1. DO OBJETO E DO PAGAMENTO</h3><p>O CONTRATADO compromete-se a fornecer ao CONTRATANTE aulas práticas de direção veicular para a categoria " + safe(categoria) + ", no total de " + aulas + " aulas" + safe(cartao) + safe(aluguel) + ". O CONTRATANTE pagará o valor de " + safe(money) + ", por meio de " + safe(pagamento) + ".</p>",
-      "<h3>2. OBRIGAÇÕES DO CONTRATADO</h3><p>Disponibilizar as aulas práticas contratadas e veículo em condições adequadas de uso, conforme disponibilidade e agendamento entre as partes.</p>",
-      "<h3>3. OBRIGAÇÕES DO CONTRATANTE</h3><p>3.1. Arcar com taxas de novos exames e com custos de aluguel do veículo para retestes, quando aplicáveis e previamente informados.</p><p>3.2. Comparecer pontualmente às aulas, portando os documentos exigidos e utilizando vestimenta e calçado adequados.</p><p>3.3. Comunicar impossibilidade de comparecimento com antecedência mínima de 24 horas para solicitar transferência da aula, sujeita à disponibilidade. A ausência sem aviso poderá implicar cobrança de nova aula, conforme condições previamente acordadas.</p><p>3.4. Manter seus dados de contato atualizados e seguir as orientações de segurança durante as aulas.</p>",
-      "<h3>4. CONDIÇÕES GERAIS</h3><p>4.1. Datas de exames e disponibilidade de vagas dependem do órgão de trânsito competente, não sendo garantidas pelo CONTRATADO.</p><p>4.2. A duração de cada aula será de 50 minutos, salvo ajuste expresso entre as partes.</p><p>4.3. Cancelamento, reembolso, transferência de aulas e eventuais custos administrativos deverão observar a legislação aplicável e as condições informadas e aceitas pelas partes.</p>",
-      "<p class='contract-place-date'>" + safe(city) + ", ______ de __________________ de __________.</p><div class='contract-signature-space' aria-hidden='true'></div><div class='contract-signatures'><div><span></span><strong>" + safe(instructor) + "</strong><small>CONTRATADO(A) / INSTRUTOR(A)</small></div><div><span></span><strong>" + safe(nome) + "</strong><small>CONTRATANTE / ALUNO(A) · CPF " + safe(cpf) + "</small></div></div>"
+      "<p>O CONTRATADO compromete-se a fornecer ao CONTRATANTE os seguintes serviços: " + safe(services) + ".</p>",
+      "<p>O CONTRATANTE deverá estar com o pagamento em dia para o agendamento de aulas práticas e para marcação de exames junto ao DETRAN.</p>",
+      "<h3>1. MATRÍCULAS</h3><p>1. Pelos serviços contratado(s) " + safe(categoria) + " com " + aulas + " aulas, " + safe(services) + ", o CONTRATANTE paga ao CONTRATADO a importância de " + safe(money) + ", da seguinte forma: " + safe(pagamento) + ".</p>",
+      "<h3>SÃO OBRIGAÇÕES DO CONTRATADO:</h3><p>2- A realização das aulas práticas e disponibilizar ao Candidato, para a realização das aulas práticas e exame, veículos em boas condições de uso, de acordo com a sua disponibilidade.</p>",
+      "<h3>3- SÃO OBRIGAÇÕES DO CONTRATANTE:</h3>" +
+        "<p>3.1- Caso seja necessária a realização de novos exames o Aluno deverá arcar com as novas taxas cobradas.</p>" +
+        "<p>3.2- Para marcação de retestes do CONTRATANTE junto ao DETRAN, seja por não comparecimento ou reprovação em exames, o mesmo deverá pagar ao CONTRATADO os valores referentes ao pagamento de novo aluguel do veículo quantas vezes for necessário para a conclusão do curso.</p>" +
+        "<p>3.3- Em caso de adição ou mudança de categoria, o número mínimo necessário de aulas práticas será de 02 aulas práticas na categoria devidamente inclusa no presente contrato. Se houver necessidade de mais aulas que a carga horária obrigatória, o mesmo deverá adquiri-las com o CONTRATADO.</p>" +
+        "<p>3.4- O CONTRATANTE está ciente e concorda que o processo de habilitação terá início assim que houver vaga do contratado, para as aulas práticas.</p>" +
+        "<p>3.5- Observar e cumprir estrita e rigorosamente tudo o que lhe for determinado durante o aprendizado, inclusive no que diz respeito aos horários de aulas práticas, às quais o CONTRATANTE deverá chegar com antecedência mínima de 10 (dez) minutos do horário marcado para início. Havendo atraso do mesmo, a aula será reposta mediante pagamento da multa no valor de R$ 20,00 (vinte reais).</p>" +
+        "<p>3.6- Quando o CONTRATANTE solicitar serviços junto ao CONTRATADO, deverá retirá-los nas datas indicadas nas solicitações, sob pena de perder os serviços solicitados e incorrer em novas taxas do DETRAN, bem como novos honorários do CONTRATADO.</p>" +
+        "<p>3.7- É obrigação de o CONTRATANTE entrar em contato com o CONTRATADO, no prazo de 48 horas após ter requerido a marcação de seus exames para que tome ciência da data marcada e posteriormente retire o protocolo junto ao CONTRATADO.</p>" +
+        "<p>3.8- Na impossibilidade de comparecer às aulas, o (a) CONTRATANTE deverá cientificar o CONTRATADO, com antecedência mínima de 24 (vinte e quatro) horas, para que seja efetivada a transferência das referidas aulas. O não cumprimento implicará em novos valores para aulas não canceladas. Para as aulas marcadas nas segundas-feiras o prazo de adiamento e transferências será até às 12h00min (doze horas) do Sábado que as antecede. A transferência fora da hipótese acima NÃO OCORRERÁ, devendo o CONTRATANTE adquirir novas aulas.</p>" +
+        "<p>3.9- Os exames marcados no DETRAN são INTRANSMISSÍVEIS e se realizarão independente das condições climáticas, devendo o CONTRATANTE comparecer aos mesmos na data marcada no PROTOCOLO DO DETRAN, com um mínimo de 30 (trinta) minutos de antecedência dos mesmos, portando Carteira de Identidade, LADV, protocolo do DETRAN e lentes corretivas visuais se for o caso.</p>" +
+        "<p>3.10- O CONTRATANTE após autorização do INSTRUTOR, para a marcação do exame prático, deverá dirigir-se ao CONTRATADO, no prazo máximo de 48 (quarenta e oito) horas para efetivar a solicitação de marcação dos mesmos, sob pena, de ter que submeter-se a nova avaliação prática através da aquisição de novas aulas.</p>" +
+        "<p>3.11- É obrigatório portar carteira de identidade e LADV enquanto o Aluno estiver frequentando as aulas e realizando os exames. A falta destes documentos impedirá a participação nas aulas e realização de exames junto ao DETRAN.</p>" +
+        "<p>3.12- Da mesma forma, é necessária a utilização de calçado adequado para a realização das aulas e dos exames práticos sob pena do Aluno não poder realizá-los. A perda da aula ou do exame, quando decorrer do fato do aluno estar utilizando vestimenta incompatível é de inteira responsabilidade do CONTRATANTE, razão pela qual a aula e o exame só serão repostos após novo pagamento.</p>" +
+        "<p>3.13- Os Alunos matriculados no curso prático de condução para qualquer das categorias assumem o risco por eventuais acidentes que possam lhe ocorrer.</p>" +
+        "<p>3.14- O CONTRATANTE compromete-se a informar qualquer alteração do seu telefone junto ao contratado, durante a vigência deste contrato, sob pena de não responsabilizar o CONTRATADO por danos decorrentes da impossibilidade ou dificuldade de comunicação.</p>" +
+        "<p>3.15- O CONTRATANTE autoriza, desde o ato de assinatura desse contrato, em caráter irretratável, irrevogável e de forma não onerosa o uso de sua imagem, seja foto ou vídeo, para utilizar e veicular em fins de publicidade institucional, sem qualquer limitação de número de inserções e reproduções junto ao site e às redes sociais do CONTRATADO, na internet e extranet do CONTRATADO.</p>",
+      "<h3>4. CONDIÇÕES GERAIS:</h3>" +
+        "<p>4.1- O CONTRATANTE não comparecendo junto ao CONTRATADO no prazo de 90 dias para qualquer utilização do serviço CONTRATADO deverá efetuar nova matrícula obedecendo a disponibilidade do CONTRATADO.</p>" +
+        "<p>4.2- O CONTRATADO não se responsabilizará por falhas que decorram de erro no sistema de informações do DETRAN e que comprometam a autenticação e reconhecimento das aulas. Neste caso o CONTRATADO realizará o reagendamento apenas após resposta conclusiva do DETRAN.</p>" +
+        "<p>4.3- Nas aulas práticas contar-se-á o tempo a partir do momento que o veículo for colocado à disposição do CONTRATANTE, desde a locomoção até a área de treinamento e o retorno à sede do CONTRATADO, mesmo que realizado pelo Instrutor.</p>" +
+        "<p>4.4- O CONTRATANTE fica ciente desde já, que a disponibilidade de vagas junto ao DETRAN para exames independe da vontade do CONTRATADO, além deste não assumir compromissos com datas e horários para marcação dos exames.</p>" +
+        "<p>4.5- Conforme previsão legal contida na Resolução 168/04 CONTRAN, os processos de primeira habilitação, obrigatoriamente, deverão estar concluídos no prazo de 12 (doze) meses, contados da data de abertura dos mesmos, sob pena de cancelamento.</p>" +
+        "<p>4.6- Depois de firmado o presente CONTRATO DE PRESTAÇÃO DE SERVIÇOS o mesmo poderá ser cancelado desde que o CONTRATANTE efetue o pagamento dos serviços prestados pelo CONTRATADO.</p>" +
+        "<p>4.7- A título de custos administrativos será cobrado do CONTRATANTE 20% (vinte por cento) sobre o valor a ser devolvido no prazo de até 120 dias.</p>" +
+        "<p>4.8- Assim CONTRATADO e CONTRATANTE firmam o presente contrato em duas vias de igual teor e forma, para os fins de direito, ficando eleito o Foro Regional da cidade, para dirimir quaisquer divergências decorrentes deste contrato. Passando o prazo estipulado, a importância paga não será devolvida, poderá ser feita somente a transferência para outro CONTRATADO, com o mesmo pagando a diferença em caso de reajuste. NÃO FAZEMOS TRANSFERÊNCIA PARA OUTRO CPF.</p>"
     ];
+
     el("contratoPreviewInstrutor").innerHTML =
       '<article class="contract-sheet"><header><h2>' + safe(instructor) + '</h2><p>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</p></header>' +
       '<main><p><strong>CONTRATANTE:</strong> ' + safe(nome) + '</p><p><strong>CPF:</strong> ' + safe(cpf) + '</p>' +
-      '<p>As partes identificadas celebram o presente contrato de prestação de serviços, mediante as condições abaixo.</p>' +
-      clauses.join("") + '</main></article>';
-    showMessage("Pré-visualização do contrato gerada. Confira todos os dados antes de imprimir.", false);
+      clauses.join("") +
+      '<p class="contract-place-date">' + safe(city) + ' - ______/______/________</p>' +
+      '<div class="contract-signature-space" aria-hidden="true"></div>' +
+      '<div class="contract-signatures"><div><span></span><strong>' + safe(instructor) + '</strong><small>CONTRATADO(A) / INSTRUTOR(A)</small></div>' +
+      '<div><span></span><strong>' + safe(nome) + '</strong><small>CONTRATANTE / ALUNO(A) · CPF ' + safe(cpf) + '</small></div></div></main></article>';
+    showMessage("Contrato completo gerado. Confira todos os dados e as cláusulas antes de imprimir.", false);
   }
 
   function printInstructorContract() {
