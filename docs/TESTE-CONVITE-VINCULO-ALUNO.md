@@ -28,8 +28,8 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 | INV-10 | E-mail já cadastrado no Auth tenta receber novo convite | HTTP 409; nenhum vínculo indevido. |
 | INV-11 | Envio SMTP falha depois da criação da conta em um convite novo | A conta criada nessa tentativa é removida e vínculo/estado pendente são limpos. Em recuperação de conta já vinculada, a conta e o vínculo são preservados. |
 | INV-12 | Duas solicitações de convite simultâneas para o mesmo cadastro | No máximo uma solicitação conclui o vínculo; a outra falha sem deixar conta órfã. |
-| INV-13 | Conta antiga com e-mail confirmado que corresponde a exatamente um cadastro | Vínculo automático ocorre no primeiro acesso, desde que o cadastro ainda não esteja vinculado. |
-| INV-14 | Conta antiga com e-mail não confirmado ou duplicado entre cadastros | Nenhum vínculo automático é feito. |
+| INV-13 | Conta antiga sem vínculo tenta acessar a área do aluno, mesmo com e-mail confirmado igual ao de um cadastro | Não ocorre associação automática; a conta não recebe aulas desse cadastro. |
+| INV-14 | Conta antiga sem vínculo tem e-mail não confirmado, duplicado ou único | Em todos os casos, nenhum vínculo automático por e-mail é feito. |
 | INV-15 | Conta de aluno de teste é excluída pelo fluxo administrativo | Trigger limpa `user_id`, `invited_at` e `invite_attempt_id`, permitindo novo convite posterior. |
 | INV-16 | A conta Auth é criada e a Edge Function é interrompida antes de vincular o aluno | O trigger vincula o usuário ao cadastro na mesma transação de criação do Auth, desde que token, cadastro, instrutor e e-mail correspondam. |
 | INV-17 | Metadados do usuário são alterados depois da criação da conta | A associação já registrada pelo trigger não muda; metadados editáveis não são usados para reautorizar o vínculo. |
@@ -41,7 +41,8 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 - [ ] Índice único parcial impede que uma conta fique associada a mais de um cadastro.
 - [ ] Índice único parcial impede reutilização do mesmo identificador de tentativa em cadastros diferentes.
 - [ ] Trigger AFTER INSERT em `auth.users` confere identificador aleatório reservado, ID do cadastro, ID do instrutor e e-mail normalizado antes de vincular.
-- [ ] O vínculo acontece na transação de criação da conta Auth, antes de qualquer edição posterior de `user_metadata`.
+- [ ] O vínculo de contas novas acontece na transação de criação da conta Auth, antes de qualquer edição posterior de `user_metadata`.
+- [ ] Contas antigas sem `user_id` não são associadas por e-mail, independentemente de confirmação ou unicidade.
 - [ ] Chave estrangeira de `students.user_id` referencia `auth.users(id)`.
 - [ ] RPC exige usuário autenticado e perfil `usuario`.
 - [ ] RPC filtra aulas por `students.user_id = auth.uid()`.
@@ -54,8 +55,8 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 
 A compatibilidade com contas antigas associa automaticamente uma conta autenticada com e-mail confirmado quando encontra exatamente um cadastro com o mesmo e-mail normalizado. A unicidade evita ambiguidades entre cadastros, mas não comprova que o e-mail foi digitado corretamente no cadastro nem que pertence ao aluno pretendido.
 
-- [ ] **INV-20 — E-mail único incorreto ou pertencente a terceiro:** preparar um cadastro fictício com um endereço confirmado controlado por uma pessoa diferente do aluno pretendido. Verificar que a conta dessa pessoa não recebe acesso às aulas do cadastro.
-- [ ] Este cenário é um bloqueador de segurança: a implementação atual pode associar a conta apenas pela correspondência do e-mail. Não considerar a funcionalidade validada até definir e implementar uma prova adicional de titularidade ou desativar a associação automática por e-mail para contas antigas.
+- [x] **INV-20 — E-mail único incorreto ou pertencente a terceiro:** associação automática por e-mail foi removida da migration na branch de testes. Validar que a conta de terceiro não recebe acesso ao cadastro.
+- [x] A proteção implementada é não associar contas antigas automaticamente por e-mail, mesmo quando o endereço está confirmado e aparece em um único cadastro. O vínculo passa a depender exclusivamente do fluxo de convite validado pelo servidor e pelo trigger.
 - [ ] Não usar dados reais nem executar esse teste em produção.
 
 ## Critério para concluir
@@ -70,6 +71,7 @@ Não executar migration no Supabase atual, não enviar convites a alunos reais, 
 ## Recuperação de convite interrompido
 
 - [ ] Se a conta Auth foi criada e o cadastro ficou vinculado, o instrutor consegue solicitar **Reenviar acesso** sem criar outra conta.
+- [ ] Contas antigas que ainda não possuem vínculo não recebem acesso automaticamente; devem passar pelo fluxo de convite autorizado para criar vínculo.
 - [ ] O servidor confere que o ID da conta vinculada existe e que o e-mail Auth corresponde exatamente ao e-mail do cadastro.
 - [ ] Se o perfil ficou no papel inicial `instrutor`, só é corrigido para `usuario` quando o e-mail ainda não foi confirmado e a reserva de convite original continua registrada.
 - [ ] Para conta já vinculada, o servidor gera link de recuperação; não executa `deleteUser`, não cria outra conta e não altera o vínculo se o envio falhar.
