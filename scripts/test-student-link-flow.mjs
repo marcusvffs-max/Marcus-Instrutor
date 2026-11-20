@@ -208,3 +208,50 @@ test("matriz de autorização cobre aluno, dois instrutores, admin e ataques cru
   assert.match(matrix, /não aplicar o rascunho SQL no Supabase atual/i);
   assert.match(matrix, /Se houver custo, parar/i);
 });
+
+const integrityDraft = read("../docs/rascunho-integridade-referencial-multi-instrutor.md");
+const fkReview = read("../docs/revisao-integridade-fks-compostas-instrutores.md");
+
+test("FKs compostas exigem que aluno e veículo pertençam ao mesmo instrutor", () => {
+  for (const expected of [
+    "unique (id, owner_id)",
+    "foreign key (student_id, owner_id)",
+    "references public.students (id, owner_id)",
+    "foreign key (vehicle_id, owner_id)",
+    "references public.vehicles (id, owner_id)",
+    "foreign key (sale_id, owner_id)",
+    "references public.sales (id, owner_id)",
+  ]) assert.ok(securityDraft.toLowerCase().includes(expected), `FK composta ausente: ${expected}`);
+});
+
+test("ações de exclusão preservam owner_id e mantêm o cascade dos itens", () => {
+  assert.match(securityDraft, /on delete set null \\(student_id\\)/i);
+  assert.match(securityDraft, /on delete set null \\(sale_id\\)/i);
+  assert.match(securityDraft, /foreign key \\(sale_id, owner_id\\)[\\s\\S]{0,180}on delete cascade/i);
+  assert.match(securityDraft, /drop constraint lessons_student_id_fkey/i);
+  assert.match(securityDraft, /drop constraint lessons_vehicle_id_fkey/i);
+  assert.match(securityDraft, /drop constraint sales_student_id_fkey/i);
+  assert.match(securityDraft, /drop constraint sale_items_sale_id_fkey/i);
+  assert.match(securityDraft, /drop constraint financial_transactions_student_id_fkey/i);
+  assert.match(securityDraft, /drop constraint financial_transactions_sale_id_fkey/i);
+});
+
+test("exceção do catálogo central e FK de app_settings permanecem documentadas", () => {
+  assert.match(fkReview, /sale_items\.product_id.*catálogo central/i);
+  assert.match(fkReview, /app_settings_owner_id_fkey.*auth\.users/i);
+  assert.match(integrityDraft, /sale_items\.product_id.*catálogo central/i);
+  assert.doesNotMatch(securityDraft, /foreign key \\(product_id, owner_id\\)/i);
+});
+
+test("revisão das FKs registra versão PostgreSQL e semânticas originais", () => {
+  assert.match(fkReview, /PostgreSQL 17\.11/i);
+  for (const expected of [
+    "lessons.student_id -> students.id: NO ACTION",
+    "lessons.vehicle_id -> vehicles.id: NO ACTION",
+    "sales.student_id -> students.id: ON DELETE SET NULL",
+    "sale_items.sale_id -> sales.id: ON DELETE CASCADE",
+    "financial_transactions.student_id -> students.id: ON DELETE SET NULL",
+    "financial_transactions.sale_id -> sales.id: ON DELETE SET NULL",
+  ]) assert.ok(fkReview.includes(expected), `Comportamento original não documentado: ${expected}`);
+});
+
