@@ -155,3 +155,14 @@ Não executar testes criando contas reais sem autorização. Como não há branc
 - Nenhum usuário ou convite foi criado.
 - Nenhum e-mail foi enviado.
 - A função de proteção do SQL anterior foi identificada como incompatível com o trigger proposto e precisa ser substituída antes de qualquer execução.
+
+
+## Verificação adicional de permissões do trigger (20/11/2026)
+
+O catálogo confirmou:
+- `auth.users` é propriedade de `supabase_auth_admin`;
+- `postgres` não é proprietário de `auth.users` e não é membro de `supabase_auth_admin`;
+- apesar disso, `has_table_privilege('postgres','auth.users','TRIGGER')` retornou TRUE, assim como SELECT e INSERT;
+- `postgres` é proprietário de `public.profiles` e tem BYPASSRLS.
+
+Portanto, a proposta não deve depender de transferir a propriedade de `auth.users` nem de conceder membership administrativa. O privilégio TRIGGER já existente para postgres permite avaliar a criação do trigger sem alterar o owner do Auth. A execução real ainda precisa ser testada em ambiente isolado; não foi criada trigger.
