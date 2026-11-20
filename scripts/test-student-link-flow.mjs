@@ -37,7 +37,7 @@ test("confirmação exige sessão com e-mail confirmado e perfil de aluno", () =
 
 test("confirmação rejeita reserva futura e reserva com mais de 15 minutos", () => {
   assert.match(edge, /reservationAge < 0/);
-  assert.match(edge, /reservationAge > 15 \* 60 \* 1000/);
+  assert.match(edge, /reservationAge >= 15 \* 60 \* 1000/);
 });
 
 test("gravação do vínculo é condicional ao cadastro, instrutor, tentativa e e-mail", () => {
