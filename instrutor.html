@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#12345a">
   <meta name="description" content="Área do instrutor - Marcus Instrutor">
   <title>Área do Instrutor | Marcus Instrutor</title>
-  <link rel="stylesheet" href="instrutor.css?v=6">
+  <link rel="stylesheet" href="instrutor.css?v=7">
 </head>
 <body>
   <div class="app-shell">
@@ -159,7 +159,8 @@
           </div>
         </form>
 
-        <div id="listaVeiculos" class="table-wrap">
+        <div class="list-toolbar"><div class="list-toolbar-copy"><strong>Seus veículos</strong><span id="contadorVeiculos">0 cadastrados</span></div><label class="search-field" for="filtroBuscaVeiculos"><span>⌕</span><input id="filtroBuscaVeiculos" type="search" placeholder="Buscar por identificação, tipo, categoria ou placa" autocomplete="off"></label></div>
+        <div id="listaVeiculos" class="vehicle-cards">
           <div class="empty-state">Carregando seus veículos...</div>
         </div>
       </section>
@@ -259,6 +260,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="instrutor.js?v=6"></script>
+  <script src="instrutor.js?v=7"></script>
 </body>
 </html>
