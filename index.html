@@ -486,7 +486,7 @@
       const btnMostrarRecuperacao = document.getElementById("btnMostrarRecuperacao");
       const parametrosUrl = new URLSearchParams(window.location.search);
       const parametrosHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-      let modoRecuperacao = parametrosUrl.has("code") || parametrosUrl.get("type") === "recovery" || parametrosHash.get("type") === "recovery";
+      let modoRecuperacao = parametrosUrl.has("code") || ["recovery", "invite"].includes(parametrosUrl.get("type")) || ["recovery", "invite"].includes(parametrosHash.get("type"));
       function mostrarLogin(mensagem) {
         document.body.classList.remove("autenticado");
         if (mensagemLogin) mensagemLogin.textContent = mensagem || "";
@@ -508,6 +508,7 @@
         await carregarScript("script.js?v=relatorios-instrutor4");
         await carregarScript("contratos.js?v=contratos30");
         await carregarScript("whatsapp-panel.js?v=whatsapp-panel-v2-manual-status");
+        await carregarScript("admin-users.js?v=admin-users-v1");
         painelAdminCarregado = true;
       }
       async function mostrarAplicativo() {
@@ -625,7 +626,7 @@
         mensagemRecuperacao.textContent = "";
         try {
           const { error } = await clienteSupabase.auth.resetPasswordForEmail(email, {
-            redirectTo: "https://marcusinstrutor-git-feature-atendimentos-df167b-marcusvffs-2839.vercel.app/"
+            redirectTo: "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app/"
           });
           if (error) throw error;
           mensagemRecuperacao.textContent = "Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha. Verifique também o spam.";
