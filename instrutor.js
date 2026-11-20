@@ -1182,7 +1182,7 @@
       banner.classList.toggle("access-expiry-warning", days <= 3);
     };
     update();
-    const timer = window.setTimeout(() => renderAccessBlocked(), Math.max(0, expiresAt - Date.now()));
+    window.setInterval(update, 60_000);
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) update();
     });
