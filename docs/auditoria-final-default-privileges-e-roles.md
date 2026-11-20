@@ -119,3 +119,38 @@ A matriz é um roteiro de teste em ambiente isolado, não uma declaração de qu
 
 
 A cobertura adicional inclui a existência da matriz SEC-001 a SEC-057 em `docs/TESTE-RLS-ISOLAMENTO-INSTRUTORES.md`. Os casos ainda estão pendentes de execução em banco descartável; os 20 testes estáticos verificam somente a presença e consistência documental da matriz.
+
+## Auditoria adicional de sequences, views e funções — 20/11/2026
+
+Foi criado o roteiro `docs/PRECHECK-READONLY-SEQUENCES-VIEWS-FUNCTIONS.md`, com consultas somente de leitura para:
+- privilégios efetivos de sequences;
+- views e materialized views, owner, ACL e `security_invoker`;
+- funções/RPCs, owner, SECURITY DEFINER, `search_path`, ACL explícita e EXECUTE efetivo;
+- funções de trigger e chamadas indiretas;
+- schemas, schemas expostos pelo PostgREST e default privileges.
+
+### Evidências estáticas disponíveis no repositório
+
+A leitura das migrations atuais da branch encontrou estas funções SECURITY DEFINER relacionadas aos fluxos já revisados:
+- `private.current_app_role()`: owner `postgres`; EXECUTE concedido a `authenticated` para uso nas policies.
+- `private.get_my_scheduled_lessons_internal()`: owner `postgres`; execução direta revogada de PUBLIC/anon/authenticated.
+- `public.get_my_scheduled_lessons()`: owner `postgres`; EXECUTE concedido a `authenticated`.
+- `private.clear_student_account_link_on_user_delete()`: owner `postgres`; execução direta revogada de PUBLIC/anon/authenticated.
+- `private.link_student_account_from_invite()`: owner `postgres`; execução direta revogada de PUBLIC/anon/authenticated.
+
+As funções privadas de trigger são chamadas pelo mecanismo de triggers; a ausência de EXECUTE direto para clientes não impede a execução pelo trigger. A RPC pública de aulas agendadas é intencionalmente acessível a authenticated e precisa continuar filtrando por `auth.uid()`, sem fallback por e-mail.
+
+O rascunho de segurança propõe outras duas funções de trigger em `private`: `handle_new_auth_user_profile()` e `protect_profile_role()`. Elas ainda não existem no banco, pois o rascunho não foi aplicado.
+
+### Limitação importante
+
+A documentação estática não contém inventário completo e atual do catálogo de sequences, views, materialized views e funções do banco. Portanto, não afirmo que não existam views ou sequences expostas, nem que todas as ACLs efetivas estejam seguras. O roteiro deve ser executado em ambiente de teste autorizado para obter essa evidência. A lista de schemas expostos pela Data API também precisa ser confirmada separadamente se `current_setting('pgrst.db_schemas', true)` não estiver disponível.
+
+### Testes
+
+O harness JavaScript isolado foi executado novamente com os arquivos atuais da branch: **27/27 testes aprovados**. Os dois testes novos verificam que as consultas de catálogo são somente leitura e que o roteiro cobre SECURITY DEFINER, ACL efetiva, views, triggers e default privileges.
+
+Esse resultado não equivale a executar SQL no PostgreSQL, `node --test` ou testes reais de autorização. Nenhuma consulta deste roteiro foi executada e nenhum privilégio, view, função, sequence, schema, policy ou default privilege foi alterado.
+
+**Decisão:** não aplicar REVOKE global, não alterar default privileges e não alterar views/funções até obter o inventário do catálogo e mapear as dependências no ambiente isolado.
+
