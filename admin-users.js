@@ -45,7 +45,11 @@
   const emailInput = create("input", { id: "usersEmail", name: "email", type: "email", maxlength: "254", required: "required", placeholder: "email@exemplo.com" });
   const roleLabel = create("label", { for: "usersRole" }, "Tipo de acesso");
   const roleSelect = create("select", { id: "usersRole", name: "role" });
-  roleSelect.append(create("option", { value: "instrutor" }, "Usuário"), create("option", { value: "admin" }, "Administrador"));
+  roleSelect.append(
+    create("option", { value: "instrutor" }, "Instrutor"),
+    create("option", { value: "usuario" }, "Usuário"),
+    create("option", { value: "admin" }, "Administrador")
+  );
   const actions = create("div", { class: "users-actions" });
   const send = create("button", { class: "users-primary", type: "submit" }, "Enviar convite");
   const refresh = create("button", { class: "users-secondary", type: "button" }, "Atualizar lista");
@@ -92,7 +96,7 @@
         const info = create("div");
         info.append(create("strong", {}, user.nome || "Sem nome"));
         info.append(create("small", {}, user.email || "Sem e-mail"));
-        const role = create("span", { class: "users-role" }, user.role === "admin" ? "Administrador" : user.role === "instrutor" ? "Usuário" : "Sem perfil");
+        const role = create("span", { class: "users-role" }, user.role === "admin" ? "Administrador" : user.role === "instrutor" ? "Instrutor" : user.role === "usuario" ? "Usuário" : "Sem perfil");
         const controls = create("div", { class: "users-item-actions" });
         const resend = create("button", { class: "users-resend", type: "button" }, "Reenviar acesso");
         const remove = create("button", { class: "users-delete", type: "button" }, "Excluir");
