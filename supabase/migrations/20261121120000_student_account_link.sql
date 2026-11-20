@@ -5,7 +5,8 @@
 ALTER TABLE public.students
   ADD COLUMN IF NOT EXISTS user_id uuid
     REFERENCES auth.users(id) ON DELETE SET NULL,
-  ADD COLUMN IF NOT EXISTS invited_at timestamptz;
+  ADD COLUMN IF NOT EXISTS invited_at timestamptz,
+  ADD COLUMN IF NOT EXISTS invite_attempt_id uuid;
 
 CREATE UNIQUE INDEX IF NOT EXISTS students_user_id_unique
   ON public.students (user_id)
@@ -76,7 +77,8 @@ BEGIN
 
   -- A primeira consulta autenticada confirma que o aluno concluiu o acesso.
   UPDATE public.students
-  SET invited_at = NULL
+  SET invited_at = NULL,
+      invite_attempt_id = NULL
   WHERE user_id = current_user_id
     AND invited_at IS NOT NULL;
 
@@ -113,7 +115,8 @@ AS $function$
 BEGIN
   UPDATE public.students
   SET user_id = NULL,
-      invited_at = NULL
+      invited_at = NULL,
+      invite_attempt_id = NULL
   WHERE user_id = OLD.id;
 
   RETURN OLD;
@@ -144,3 +147,51 @@ AS $function$
   SELECT *
   FROM private.get_my_scheduled_lessons_internal();
 $function$;
+
+
+-- Vincula a conta no próprio INSERT do Auth, usando um token aleatório
+-- reservado previamente no cadastro. O trigger captura o valor no instante
+-- da criação, antes que o usuário possa editar user_metadata.
+CREATE OR REPLACE FUNCTION private.link_student_account_from_invite()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+DECLARE
+  attempt_id_text text;
+  student_id_text text;
+  instructor_id_text text;
+BEGIN
+  attempt_id_text := NEW.raw_user_meta_data ->> 'invite_attempt_id';
+  student_id_text := NEW.raw_user_meta_data ->> 'student_id';
+  instructor_id_text := NEW.raw_user_meta_data ->> 'instructor_id';
+
+  IF attempt_id_text IS NULL OR student_id_text IS NULL OR instructor_id_text IS NULL
+     OR attempt_id_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+     OR student_id_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+     OR instructor_id_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+    RETURN NEW;
+  END IF;
+
+  UPDATE public.students
+  SET user_id = NEW.id
+  WHERE id = student_id_text::uuid
+    AND owner_id = instructor_id_text::uuid
+    AND invite_attempt_id = attempt_id_text::uuid
+    AND invited_at IS NOT NULL
+    AND user_id IS NULL
+    AND lower(btrim(COALESCE(email, ''))) = lower(btrim(COALESCE(NEW.email, '')));
+
+  RETURN NEW;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION private.link_student_account_from_invite() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS link_student_account_from_invite ON auth.users;
+
+CREATE TRIGGER link_student_account_from_invite
+AFTER INSERT ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION private.link_student_account_from_invite();
