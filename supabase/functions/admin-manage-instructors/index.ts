@@ -491,6 +491,20 @@ Deno.serve(async (req: Request) => {
       return response({ error: "Não foi possível criar o convite. Confira o e-mail e tente novamente." }, 400);
     }
 
+    const expectedExistingUserId = studentRecoveryUserId ?? studentLegacyLinkUserId;
+    if (expectedExistingUserId && linkData.user?.id && linkData.user.id !== expectedExistingUserId) {
+      if (studentInviteId && studentInviteReservation) {
+        await admin.from("students")
+          .update({ invited_at: null, invite_attempt_id: null })
+          .eq("id", studentInviteId)
+          .eq("owner_id", authData.user.id)
+          .is("user_id", null)
+          .eq("invited_at", studentInviteReservation);
+      }
+      console.error("O Supabase retornou uma conta diferente da conta existente esperada.");
+      return response({ error: "Não foi possível confirmar a conta existente. Nenhuma conta ou vínculo foi alterado." }, 409);
+    }
+
     const invitedUserId = linkData.user?.id ?? studentRecoveryUserId ?? studentLegacyLinkUserId;
     const actionLink = linkData.properties?.action_link;
     if (!invitedUserId || !actionLink) {
