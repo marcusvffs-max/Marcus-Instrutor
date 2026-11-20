@@ -268,3 +268,26 @@ test("roteiro de pré-checagem contém apenas consultas SQL de leitura", () => {
   assert.match(readOnlyPrecheck, /não autoriza DDL/i);
 });
 
+const accessCatalogPrecheck = read("../docs/PRECHECK-READONLY-SEQUENCES-VIEWS-FUNCTIONS.md");
+
+test("auditoria de sequences, views e funções usa apenas consultas read-only", () => {
+  const blocks = [...accessCatalogPrecheck.matchAll(/```sql\\s*([\\s\\S]*?)```/gi)].map(match => match[1].trim());
+  assert.ok(blocks.length >= 8, "Consultas de catálogo insuficientes");
+  for (const sql of blocks) {
+    assert.match(sql, /^select\\b/i);
+    assert.doesNotMatch(sql, /\\b(insert|update|delete|alter|create|drop|truncate|grant|revoke)\\b/i);
+  }
+  assert.match(accessCatalogPrecheck, /has_sequence_privilege/i);
+  assert.match(accessCatalogPrecheck, /has_function_privilege/i);
+  assert.match(accessCatalogPrecheck, /acldefault\\('f'/i);
+});
+
+test("auditoria cobre views com security_invoker, SECURITY DEFINER e triggers", () => {
+  assert.match(accessCatalogPrecheck, /reloptions/i);
+  assert.match(accessCatalogPrecheck, /security_invoker=true/i);
+  assert.match(accessCatalogPrecheck, /prosecdef/i);
+  assert.match(accessCatalogPrecheck, /pg_get_triggerdef/i);
+  assert.match(accessCatalogPrecheck, /pg_default_acl/i);
+  assert.match(accessCatalogPrecheck, /Não revogar permissões/i);
+});
+
