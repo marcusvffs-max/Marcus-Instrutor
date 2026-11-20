@@ -182,3 +182,16 @@ test("grants excessivos são removidos sem revogar service_role", () => {
   assert.match(securityDraft, /grant select, insert, update, delete on table/i);
   assert.doesNotMatch(securityDraft, /alter default privileges/i);
 });
+
+
+test("Edge Function reserva gerenciamento de papéis ao admin", () => {
+  assert.match(edge, /!\["admin", "instrutor", "usuario"\]\.includes\(profile\.role\)/);
+  assert.match(edge, /profile\.role === "usuario" && !isStudentLinkCompletion/);
+  assert.match(edge, /profile\.role === "instrutor"[\s\S]{0,300}body\.action !== "invite_student"/);
+  assert.match(edge, /if \(body\.action === "change_role"\)/);
+  const changeStart = edge.indexOf('if (body.action === "change_role")');
+  const changeEnd = edge.indexOf('if (body.action === "delete")', changeStart);
+  const changeRole = edge.slice(changeStart, changeEnd);
+  assert.match(changeRole, /userId === authData\.user\.id/);
+  assert.match(changeRole, /update\(\{ role: newRole, instructor_access_until: null \}\)/);
+});
