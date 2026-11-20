@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#12345a">
   <meta name="description" content="Área do instrutor - Marcus Instrutor">
   <title>Área do Instrutor | Marcus Instrutor</title>
-  <link rel="stylesheet" href="instrutor.css?v=10">
+  <link rel="stylesheet" href="instrutor.css?v=11">
 </head>
 <body>
   <div class="app-shell">
@@ -328,6 +328,38 @@
       <section id="resultado" data-view="relatorios" class="panel result-panel" aria-live="polite">
         <div class="empty-state">Escolha um dos relatórios acima para começar.</div>
       </section>
+
+      <section class="panel contract-panel" data-view="contratos">
+        <div class="section-heading">
+          <div><h3>Contrato de prestação de serviços</h3><p>Gere um contrato com os dados dos seus alunos e a sua identificação de instrutor.</p></div>
+        </div>
+        <div class="student-form contract-form">
+          <div class="student-form-grid">
+            <div class="form-full">
+              <label for="contratoAlunoInstrutor">Usar aluno cadastrado</label>
+              <select id="contratoAlunoInstrutor"><option value="">Preencher manualmente</option></select>
+            </div>
+            <div><label for="contratoNomeAluno">Nome completo do aluno *</label><input id="contratoNomeAluno" maxlength="160"></div>
+            <div><label for="contratoCpfAluno">CPF do aluno *</label><input id="contratoCpfAluno" maxlength="20"></div>
+            <div><label for="contratoCategoriaAluno">Categoria *</label><select id="contratoCategoriaAluno"><option value="">Selecione</option><option value="A">A</option><option value="B">B</option><option value="AB">AB</option></select></div>
+            <div><label for="contratoQuantidadeAulas">Quantidade de aulas *</label><input id="contratoQuantidadeAulas" type="number" min="1" step="1" placeholder="Ex.: 20"></div>
+            <div><label for="contratoValor">Valor do pacote (R$) *</label><input id="contratoValor" type="number" min="0.01" step="0.01"></div>
+            <div><label for="contratoPagamento">Forma de pagamento *</label><input id="contratoPagamento" maxlength="100" placeholder="Ex.: Pix, dinheiro ou cartão"></div>
+            <div><label for="contratoCidade">Cidade</label><input id="contratoCidade" maxlength="100" placeholder="Cidade onde será assinado"></div>
+          </div>
+          <div class="contract-options">
+            <label class="contract-check"><input id="contratoCartaoMoto" type="checkbox" checked> Incluir Cartão Moto Pista</label>
+            <label class="contract-check"><input id="contratoAluguelVeiculo" type="checkbox" checked> Incluir aluguel do veículo para exame</label>
+          </div>
+          <div class="student-form-actions">
+            <button id="btnGerarContratoInstrutor" class="button button-primary" type="button">Gerar pré-visualização</button>
+            <button id="btnImprimirContratoInstrutor" class="button button-outline" type="button">Imprimir / Salvar PDF</button>
+          </div>
+        </div>
+        <div id="contratoPreviewInstrutor" class="contract-preview"><div class="empty-state">Preencha os dados e gere a pré-visualização do contrato.</div></div>
+        <p class="contract-note">O documento é gerado para conferência e impressão. Revise as condições e os dados antes da assinatura.</p>
+      </section>
+
       <p id="mensagem" class="message" role="status" aria-live="polite"></p>
     </main>
     <nav class="bottom-menu" aria-label="Menu principal do instrutor">
@@ -339,11 +371,12 @@
       <button type="button" data-instructor-page="vendas" class="menu-item"><span class="menu-icon">＋</span><span>Vendas</span></button>
       <button type="button" data-instructor-page="financeiro" class="menu-item"><span class="menu-icon">＄</span><span>Financeiro</span></button>
       <button type="button" data-instructor-page="relatorios" class="menu-item"><span class="menu-icon">▤</span><span>Relatórios</span></button>
+      <button type="button" data-instructor-page="contratos" class="menu-item"><span class="menu-icon">▧</span><span>Contratos</span></button>
     </nav>
     <footer>Marcus Instrutor · Área restrita</footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="instrutor.js?v=10"></script>
+  <script src="instrutor.js?v=11"></script>
 </body>
 </html>
