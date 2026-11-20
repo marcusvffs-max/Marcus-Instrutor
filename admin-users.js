@@ -22,6 +22,9 @@
     .users-resend{background:#e8edf3;color:#172033}.users-delete{background:#fee2e2;color:#991b1b}
     .users-access{display:block;margin-top:7px;font-size:.82rem;font-weight:700}.users-access.active{color:#16794b}.users-access.blocked{color:#b42318}.users-activate{background:#dbeafe;color:#12345a}
     .users-item-actions button:disabled{opacity:.55;cursor:wait}
+    .users-filters{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 8px}
+    .users-filter{border:1px solid #cbd5e1;background:#f8fafc;color:#334155;border-radius:20px;padding:8px 12px;font:inherit;font-size:.84rem;font-weight:600;cursor:pointer}
+    .users-filter.active{background:#12345a;border-color:#12345a;color:#fff}
   `;
   document.head.appendChild(style);
 
@@ -58,6 +61,40 @@
   const message = create("p", { class: "users-message", role: "status", "aria-live": "polite" });
   const list = create("div", { class: "users-list" });
   list.append(create("strong", {}, "Usuários cadastrados"));
+  const filters = create("div", { class: "users-filters", role: "group", "aria-label": "Filtrar usuários por tipo de acesso" });
+  const filterOptions = [
+    ["todos", "Todos"],
+    ["usuario", "Alunos"],
+    ["instrutor", "Instrutores"],
+    ["admin", "Administradores"],
+  ];
+  let activeUserFilter = "todos";
+
+  function applyUserFilter() {
+    filters.querySelectorAll("button[data-user-filter]").forEach((filterButton) => {
+      const selected = filterButton.dataset.userFilter === activeUserFilter;
+      filterButton.classList.toggle("active", selected);
+      filterButton.setAttribute("aria-pressed", selected ? "true" : "false");
+    });
+    list.querySelectorAll(".users-item[data-role]").forEach((item) => {
+      item.hidden = activeUserFilter !== "todos" && item.dataset.role !== activeUserFilter;
+    });
+  }
+
+  filterOptions.forEach(([value, label]) => {
+    const filterButton = create("button", {
+      class: "users-filter" + (value === activeUserFilter ? " active" : ""),
+      type: "button",
+      "data-user-filter": value,
+      "aria-pressed": value === activeUserFilter ? "true" : "false"
+    }, label);
+    filterButton.addEventListener("click", () => {
+      activeUserFilter = value;
+      applyUserFilter();
+    });
+    filters.append(filterButton);
+  });
+
   dialog.append(head, form, message, list);
   form.append(nameLabel, nameInput, emailLabel, emailInput, roleLabel, roleSelect, actions);
   overlay.append(dialog);
@@ -123,7 +160,7 @@
   }
 
   async function loadUsers() {
-    list.replaceChildren(create("strong", {}, "Usuários cadastrados"));
+    list.replaceChildren(create("strong", {}, "Usuários cadastrados"), filters);
     const loading = create("p", {}, "Carregando...");
     list.append(loading);
     try {
@@ -134,7 +171,7 @@
         return;
       }
       result.users.forEach((user) => {
-        const item = create("div", { class: "users-item" });
+        const item = create("div", { class: "users-item", "data-role": user.role || "sem-perfil" });
         const info = create("div");
         info.append(create("strong", {}, user.nome || "Sem nome"));
         info.append(create("small", {}, user.email || "Sem e-mail"));
@@ -239,6 +276,7 @@
         item.append(info, role, controls);
         list.append(item);
       });
+      applyUserFilter();
     } catch (error) {
       loading.textContent = error.message;
     }
