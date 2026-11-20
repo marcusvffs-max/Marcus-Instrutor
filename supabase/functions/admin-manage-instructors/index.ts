@@ -399,7 +399,7 @@ Deno.serve(async (req: Request) => {
       if (invitedUserId && !studentRecoveryUserId) {
         const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
         accountRemoved = !deleteError;
-        if (deleteError) console.error("Falha ao remover conta incompleta:", deleteError.message);
+        if (deleteError) console.error("Falha ao remover conta incompleta:", deleteError?.message ?? "erro desconhecido");
       }
       if (accountRemoved && studentInviteId && studentInviteReservation) {
         await admin.from("students").update({ invited_at: null, invite_attempt_id: null })
