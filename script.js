@@ -2737,51 +2737,78 @@ function carregarConfiguracoes() {
   if (secundaria) secundaria.value = db.configuracoes.corSecundaria;
 }
 
-function salvarConfiguracoes() {
-  db.configuracoes.nome =
-    document.getElementById("nomeEmpresa").value.trim() || "Marcus Instrutor";
+async function salvarConfiguracoes() {
+  const cliente = window.getMarcusSupabase?.();
 
-  db.configuracoes.corPrincipal =
-    document.getElementById("corPrincipal").value;
-
-  db.configuracoes.corSecundaria =
-    document.getElementById("corSecundaria").value;
-
-  const arquivo = document.getElementById("logoEmpresa").files[0];
-
-  const aplicar = () => {
-    document.documentElement.style.setProperty(
-      "--primary",
-      db.configuracoes.corPrincipal
-    );
-
-    document.documentElement.style.setProperty(
-      "--secondary",
-      db.configuracoes.corSecundaria
-    );
-
-    const titulo = document.querySelector(".brand h1");
-    if (titulo) titulo.textContent = db.configuracoes.nome;
-
-    aplicarLogo();
-
-    salvarDados();
-    mostrarAviso("Configurações salvas.");
-  };
-
-  if (!arquivo) {
-    aplicar();
+  if (!cliente || !adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
+    mostrarAviso("Não foi possível salvar: conexão administrativa com o Supabase indisponível.");
     return;
   }
 
-  const leitor = new FileReader();
+  const botao = document.getElementById("btnSalvarConfiguracoes");
+  const nome = document.getElementById("nomeEmpresa").value.trim() || "Marcus Instrutor";
+  const corPrincipal = document.getElementById("corPrincipal").value;
+  const corSecundaria = document.getElementById("corSecundaria").value;
+  const arquivo = document.getElementById("logoEmpresa").files[0];
 
-  leitor.onload = () => {
-    db.configuracoes.logo = leitor.result;
-    aplicar();
-  };
+  if (botao) {
+    botao.disabled = true;
+    botao.textContent = "Salvando...";
+  }
 
-  leitor.readAsDataURL(arquivo);
+  try {
+    let logoLocal = null;
+
+    if (arquivo) {
+      logoLocal = await new Promise((resolve, reject) => {
+        const leitor = new FileReader();
+        leitor.onload = () => resolve(leitor.result);
+        leitor.onerror = () => reject(new Error("Não foi possível ler o arquivo do logo."));
+        leitor.readAsDataURL(arquivo);
+      });
+    }
+
+    const { error } = await cliente
+      .from("app_settings")
+      .upsert({
+        owner_id: adminSupabaseUserId,
+        nome_empresa: nome,
+        cor_principal: corPrincipal,
+        cor_secundaria: corSecundaria
+      }, { onConflict: "owner_id" });
+
+    if (error) throw error;
+
+    db.configuracoes.nome = nome;
+    db.configuracoes.corPrincipal = corPrincipal;
+    db.configuracoes.corSecundaria = corSecundaria;
+
+    // O arquivo de logo continua local até configurarmos o Storage.
+    if (logoLocal) db.configuracoes.logo = logoLocal;
+
+    document.documentElement.style.setProperty("--primary", corPrincipal);
+    document.documentElement.style.setProperty("--secondary", corSecundaria);
+
+    const titulo = document.querySelector(".brand h1");
+    if (titulo) titulo.textContent = nome;
+
+    aplicarLogo();
+    salvarDados();
+
+    mostrarAviso(
+      logoLocal
+        ? "Nome e cores salvos na nuvem. O logo foi salvo somente neste navegador."
+        : "Configurações salvas na nuvem."
+    );
+  } catch (erro) {
+    console.error("Erro ao salvar configurações no Supabase:", erro);
+    mostrarAviso("Não foi possível salvar as configurações na nuvem. Nenhuma alteração foi confirmada.");
+  } finally {
+    if (botao) {
+      botao.disabled = false;
+      botao.textContent = "Salvar configurações";
+    }
+  }
 }
 /* =========================================
    MODAIS
@@ -3303,8 +3330,9 @@ async function carregarDadosAdminSupabase() {
     nome: configuracao.nome_empresa || "Marcus Instrutor",
     corPrincipal: configuracao.cor_principal || "#12345a",
     corSecundaria: configuracao.cor_secundaria || "#e8edf3",
-    logo: configuracao.logo_url || ""
-  } : structuredClone(estadoInicial.configuracoes);
+    // Preserva o logo local existente enquanto o Storage não é configurado.
+    logo: configuracao.logo_url || db.configuracoes?.logo || ""
+  } : structuredClone(db.configuracoes || estadoInicial.configuracoes);
 
   db = {
     ...structuredClone(estadoInicial),
