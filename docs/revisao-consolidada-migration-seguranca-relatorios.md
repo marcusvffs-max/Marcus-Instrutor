@@ -117,3 +117,19 @@ O Supabase recomenda trigger em `auth.users` com `SECURITY DEFINER` e `search_pa
 - PR3 e PR4 não alteradas.
 - WhatsApp e IA não alterados.
 - Nenhum recurso pago criado.
+
+
+## 8. Revisão do endpoint de convite — conflito corrigido
+
+A inspeção do documento `docs/edge-function-gerenciar-instrutores.md` encontrou conflito: o código anterior chamava `inviteUserByEmail` e depois fazia INSERT manual em `profiles`. Com o trigger transacional proposto, o profile já existe quando Auth retorna; o INSERT manual duplicaria a PK e poderia disparar exclusão compensatória do usuário após o convite.
+
+O documento foi corrigido:
+- convite Auth cria o usuário;
+- trigger cria o perfil instrutor;
+- Edge Function apenas consulta e confirma o perfil;
+- não existe mais INSERT manual;
+- o endpoint só poderá ser implantado depois do trigger validado.
+
+O código agora limita o corpo JSON a 8 KiB e não encaminha o Authorization do solicitante ao cliente service_role. Rate limit, allowlist CORS real, verificação das variáveis e teste de falha parcial continuam pendentes.
+
+Arquivo: `docs/edge-function-gerenciar-instrutores.md`. Nenhuma Edge Function foi criada ou implantada.
