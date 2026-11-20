@@ -76,3 +76,8 @@ Não chamar a função interna diretamente como authenticated em produção para
 Nenhuma migration foi aplicada, nenhum dado foi alterado e nenhuma RPC de negócio foi chamada. A migration existente na branch já contém a correção necessária para a consulta da agenda; não foi criada uma segunda migration redundante.
 
 A prioridade operacional é aplicar e validar a migration em ambiente de teste isolado e gratuito, depois planejar a implantação no projeto ativo com autorização explícita. Até lá, o fluxo de agenda por e-mail deve ser tratado como vulnerável a cruzamento entre instrutores.
+
+
+## 6. Casos de teste adicionais preparados
+
+Foram acrescentados SEC-064 a SEC-070 à matriz de isolamento para cobrir especificamente o cenário observado de e-mail compartilhado entre instrutores, execução direta da função interna, wrapper privilegiado, conta sem vínculo, fluxo de conta legada, metadados de convite inválidos e limpeza de reserva após o primeiro acesso. São critérios pendentes; não foram executados contra o banco.

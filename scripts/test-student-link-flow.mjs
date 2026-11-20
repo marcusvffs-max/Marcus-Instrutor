@@ -391,3 +391,53 @@ test("wrapper público passa a SECURITY DEFINER para encapsular a função inter
   assert.match(wrapper, /FROM private\.get_my_scheduled_lessons_internal\(\)/);
   assert.match(migration, /REVOKE ALL ON FUNCTION private\.get_my_scheduled_lessons_internal\(\) FROM PUBLIC, anon, authenticated/);
 });
+
+
+const securityMatrix = read("../docs/TESTE-RLS-ISOLAMENTO-INSTRUTORES.md");
+
+test("matriz inclui testes específicos para corrigir o cruzamento de agenda por email", () => {
+  for (const id of ["SEC-064","SEC-065","SEC-066","SEC-067","SEC-068","SEC-069","SEC-070"]) {
+    assert.ok(securityMatrix.includes(id), `Caso específico de agenda ausente: ${id}`);
+  }
+});
+
+test("fluxo de conta legada exige confirmação autenticada e update condicional", () => {
+  const completionStart = edge.indexOf("if (isStudentLinkCompletion) {");
+  const completionEnd = edge.indexOf('if (body.action === "list")', completionStart);
+  const completion = edge.slice(completionStart, completionEnd);
+  assert.match(completion, /authData\.user\.email_confirmed_at/);
+  assert.match(completion, /getReservationStatus\(pendingStudent\.invited_at\) !== "active"/);
+  for (const expected of [
+    '.eq("id", pendingStudent.id)',
+    '.eq("owner_id", pendingStudent.owner_id)',
+    '.eq("invite_attempt_id", attemptId)',
+    '.eq("invited_at", pendingStudent.invited_at)',
+    '.eq("email", pendingStudent.email)',
+    '.is("user_id", null)',
+  ]) assert.ok(completion.includes(expected), `Condição do vínculo legado ausente: ${expected}`);
+});
+
+test("trigger de convite valida tentativa, cadastro, instrutor, email e janela de reserva", () => {
+  const start = migration.indexOf("CREATE OR REPLACE FUNCTION private.link_student_account_from_invite()");
+  const end = migration.indexOf("$function$;", migration.indexOf("AS $function$", start));
+  const trigger = migration.slice(start, end);
+  for (const expected of [
+    /NEW\.raw_user_meta_data/,
+    /student_id_text::uuid/,
+    /instructor_id_text::uuid/,
+    /invite_attempt_id = attempt_id_text::uuid/,
+    /invited_at > statement_timestamp\(\) - interval '15 minutes'/,
+    /invited_at <= statement_timestamp\(\)/,
+    /user_id IS NULL/,
+    /lower\(btrim\(COALESCE\(email, ''\)\)\) = lower\(btrim\(COALESCE\(NEW\.email, ''\)\)\)/,
+  ]) assert.match(trigger, expected);
+});
+
+test("consulta de agenda limpa apenas metadados temporários e mantém o vínculo user_id", () => {
+  const start = migration.indexOf("CREATE OR REPLACE FUNCTION private.get_my_scheduled_lessons_internal()");
+  const end = migration.indexOf("$function$;", migration.indexOf("AS $function$", start));
+  const internal = migration.slice(start, end);
+  assert.match(internal, /SET invited_at = NULL,[\s\S]*invite_attempt_id = NULL/);
+  assert.doesNotMatch(internal, /SET user_id = NULL/);
+  assert.match(internal, /WHERE s\.user_id = current_user_id/);
+});

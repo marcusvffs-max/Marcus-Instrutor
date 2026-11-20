@@ -124,3 +124,16 @@ A área do aluno não deve receber acesso direto às tabelas `students`, `lesson
 - [ ] **SEC-063:** nenhuma RPC em schema exposto possui EXECUTE inadvertido para PUBLIC/anon.
 
 Os novos casos estão pendentes de execução em ambiente isolado. A existência dos casos não significa que as RPCs foram testadas.
+
+
+### G. Correção do cruzamento por e-mail — novos casos após a migration user_id
+
+- [ ] **SEC-064:** preparar dois cadastros fictícios de instrutores diferentes com o mesmo e-mail normalizado e somente uma conta Auth; depois do vínculo explícito, a RPC da conta retorna somente aulas do cadastro cujo `students.user_id` corresponde ao `auth.uid()`.
+- [ ] **SEC-065:** após a migration, a chamada direta de `private.get_my_scheduled_lessons_internal()` por `authenticated` falha por falta de EXECUTE; a RPC pública continua executável.
+- [ ] **SEC-066:** confirmar que `public.get_my_scheduled_lessons()` é SECURITY DEFINER, owner postgres, `search_path` vazio, e que a função interna não é executável diretamente por PUBLIC/anon/authenticated.
+- [ ] **SEC-067:** aluno autenticado sem `students.user_id` correspondente recebe `CONTA_SEM_VINCULO`, mesmo quando existe cadastro com e-mail idêntico.
+- [ ] **SEC-068:** conta legada só conclui vínculo com e-mail confirmado, perfil `usuario`, tentativa válida, reserva dentro de 15 minutos e UPDATE condicional ao cadastro, owner, tentativa, timestamp e user_id NULL.
+- [ ] **SEC-069:** convite novo com metadados ausentes, UUID inválido, e-mail divergente, tentativa errada, reserva expirada/futura ou cadastro pertencente a outro instrutor não vincula nenhuma linha.
+- [ ] **SEC-070:** após a primeira consulta autenticada, a limpeza de `invited_at` e `invite_attempt_id` não remove nem troca `students.user_id`.
+
+Esses casos são novos critérios de validação. Permanecem pendentes de execução com contas fictícias em ambiente isolado.
