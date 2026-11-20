@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const edge = read("../supabase/functions/admin-manage-instructors/index.ts");
 const migration = read("../supabase/migrations/20261121120000_student_account_link.sql");
+const rules = read("../supabase/functions/_shared/student-link-rules.mjs");
 const claim = read("../claim-student.html");
 const docs = read("../docs/TESTE-CONVITE-VINCULO-ALUNO.md");
 
@@ -35,9 +36,12 @@ test("confirmação exige sessão com e-mail confirmado e perfil de aluno", () =
   assert.match(edge, /currentStudentProfile\.role !== "usuario"/);
 });
 
-test("confirmação rejeita reserva futura e reserva com mais de 15 minutos", () => {
-  assert.match(edge, /reservationAge < 0/);
-  assert.match(edge, /reservationAge >= 15 \* 60 \* 1000/);
+test("confirmação e reenvio usam a regra compartilhada de validade de 15 minutos", () => {
+  assert.match(edge, /getReservationStatus\(pendingStudent\.invited_at\) !== "active"/);
+  assert.match(edge, /getReservationStatus\(student\.invited_at\) === "active"/);
+  assert.match(rules, /age < 0/);
+  assert.match(rules, /age >= STUDENT_LINK_RESERVATION_TTL_MS/);
+  assert.match(rules, /return "invalid"/);
 });
 
 test("gravação do vínculo é condicional ao cadastro, instrutor, tentativa e e-mail", () => {
