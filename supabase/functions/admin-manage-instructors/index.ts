@@ -99,9 +99,23 @@ Deno.serve(async (req: Request) => {
         .not("invited_at", "is", null)
         .maybeSingle();
       if (pendingError) throw pendingError;
-      const reservationTime = pendingStudent?.invited_at ? new Date(pendingStudent.invited_at).getTime() : NaN;
+      if (!pendingStudent) {
+        // Se a primeira confirmação foi gravada mas a resposta se perdeu na rede,
+        // repetir a mesma tentativa pela mesma conta retorna sucesso sem novo vínculo.
+        const { data: alreadyCompletedLink, error: alreadyCompletedError } = await admin
+          .from("students").select("id")
+          .eq("invite_attempt_id", attemptId)
+          .eq("user_id", authData.user.id)
+          .maybeSingle();
+        if (alreadyCompletedError) throw alreadyCompletedError;
+        if (alreadyCompletedLink) {
+          return response({ ok: true, message: "Este acesso já foi confirmado por esta conta." });
+        }
+        return response({ error: "Este link não corresponde a uma solicitação válida ou expirou. Peça ao instrutor para enviar um novo acesso." }, 409);
+      }
+      const reservationTime = pendingStudent.invited_at ? new Date(pendingStudent.invited_at).getTime() : NaN;
       const reservationAge = Date.now() - reservationTime;
-      if (!pendingStudent || !Number.isFinite(reservationTime) || reservationAge < 0 ||
+      if (!Number.isFinite(reservationTime) || reservationAge < 0 ||
           reservationAge > 15 * 60 * 1000 ||
           String(pendingStudent.email ?? "").trim().toLowerCase() !== authData.user.email.trim().toLowerCase()) {
         return response({ error: "Este link não corresponde a uma solicitação válida ou expirou. Peça ao instrutor para enviar um novo acesso." }, 409);
@@ -114,7 +128,7 @@ Deno.serve(async (req: Request) => {
       }
       const { data: completedLink, error: completeError } = await admin
         .from("students")
-        .update({ user_id: authData.user.id, invited_at: null, invite_attempt_id: null })
+        .update({ user_id: authData.user.id, invited_at: null })
         .eq("id", pendingStudent.id)
         .eq("owner_id", pendingStudent.owner_id)
         .eq("invite_attempt_id", attemptId)
