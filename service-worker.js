@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v18-confirmacao-conta-legada";
+const CACHE_NAME = "marcus-instrutor-v19-confirmacao-conta-legada";
 
 const ARQUIVOS = [
   "./",
@@ -8,7 +8,7 @@ const ARQUIVOS = [
   "./instrutor.html",
   "./style.css?v=atendimentos-whatsapp-v2",
   "./instrutor.css?v=18",
-  "./instrutor.js?v=22",
+  "./instrutor.js?v=23",
   "./manifest.json"
 ];
 
