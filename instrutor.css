@@ -302,3 +302,59 @@ footer { padding:20px; text-align:center; color:var(--muted); font-size:12px; }
   .vehicle-card-actions { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
   .vehicle-card-actions .button { width: 100%; }
 }
+
+
+/* Lista de aulas em cartões responsivos */
+.lesson-toolbar { align-items: flex-end; }
+.lesson-filters { display: flex; align-items: center; gap: 10px; width: min(650px, 72%); }
+.lesson-filters .search-field { flex: 1; width: auto; }
+.lesson-filters select { width: 190px; min-width: 0; }
+.lesson-cards { display: grid; gap: 11px; }
+.lesson-card {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 12px 16px;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+}
+.lesson-card-top {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #edf1f5;
+}
+.lesson-card-date { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; color: var(--primary); }
+.lesson-card-date strong { font-size: 14px; }
+.lesson-card-date span { color: var(--muted); font-size: 13px; }
+.lesson-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 800;
+}
+.lesson-status-scheduled { color: #8a5b08; background: #fff4d8; }
+.lesson-status-done { color: #16794b; background: #e8f6ee; }
+.lesson-status-cancelled { color: #9b2929; background: #fff0f0; }
+.lesson-card-main { min-width: 0; }
+.lesson-card-main h4 { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.lesson-card-details { display: flex; flex-wrap: wrap; gap: 16px 22px; margin-top: 10px; }
+.lesson-card-details span { display: grid; gap: 3px; }
+.lesson-card-details small { color: var(--muted); font-size: 10px; }
+.lesson-card-details strong { font-size: 12px; font-weight: 650; overflow-wrap: anywhere; }
+.lesson-card-notes { margin: 9px 0 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.lesson-card-actions { display: flex; align-items: flex-end; gap: 7px; }
+@media (max-width: 620px) {
+  .lesson-toolbar { align-items: stretch; }
+  .lesson-filters { flex-direction: column; align-items: stretch; width: 100%; }
+  .lesson-filters .search-field, .lesson-filters select { width: 100%; }
+  .lesson-card { grid-template-columns: 1fr; }
+  .lesson-card-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .lesson-card-actions .button { width: 100%; }
+}
