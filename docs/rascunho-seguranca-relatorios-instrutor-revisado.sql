@@ -129,6 +129,17 @@ drop policy if exists sales_instrutor_read_own on public.sales;
 drop policy if exists sale_items_instrutor_read_own on public.sale_items;
 drop policy if exists financial_transactions_instrutor_read_own on public.financial_transactions;
 
+-- Garantir RLS habilitado em todas as tabelas cobertas.
+alter table public.profiles enable row level security;
+alter table public.students enable row level security;
+alter table public.lessons enable row level security;
+alter table public.vehicles enable row level security;
+alter table public.app_settings enable row level security;
+alter table public.products enable row level security;
+alter table public.sales enable row level security;
+alter table public.sale_items enable row level security;
+alter table public.financial_transactions enable row level security;
+
 -- ---------------------------------------------------------------------------
 -- 4. Perfis: cada usuario ve o proprio perfil; admin ve todos.
 -- Nenhum INSERT/UPDATE/DELETE via cliente. Gerenciamento fica no backend.
