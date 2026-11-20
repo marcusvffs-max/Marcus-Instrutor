@@ -79,6 +79,10 @@ as $function$
   limit 1;
 $function$;
 
+-- O dono precisa poder consultar profiles mesmo com RLS habilitado.
+-- postgres tem BYPASSRLS no projeto (confirmado na auditoria read-only).
+alter function private.current_app_role() owner to postgres;
+
 revoke all on function private.current_app_role() from public, anon, authenticated;
 grant execute on function private.current_app_role() to authenticated;
 
@@ -119,6 +123,8 @@ begin
   return new;
 end;
 $function$;
+
+alter function private.protect_profile_role() owner to postgres;
 
 revoke all on function private.protect_profile_role() from public, anon, authenticated;
 
