@@ -1812,7 +1812,7 @@ async function salvarVenda(evento, itensCarrinho) {
     return;
   }
   if (!Number.isFinite(descontoValor) || descontoValor < 0 ||
-      (descontoTipo === "percentual" && descontoValor > 100) ||
+      (descontoTipo === "percentual" && (descontoValor > 100 || (subtotalBruto > 0 && descontoValor >= 100))) ||
       (descontoTipo === "valor" && descontoValor >= subtotalBruto && descontoValor > 0)) {
     mostrarAviso("Informe um desconto válido. Ele deve ser menor que o subtotal.");
     return;
