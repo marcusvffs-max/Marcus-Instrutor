@@ -57,14 +57,23 @@ Deno.serve(async (req: Request) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const { data: profile, error: profileError } = await admin
-      .from("profiles").select("role").eq("id", authData.user.id).maybeSingle();
-    if (profileError || profile?.role !== "admin") {
-      return response({ error: "Somente administradores podem gerenciar usuários." }, 403);
+      .from("profiles").select("role, instructor_access_until").eq("id", authData.user.id).maybeSingle();
+    if (profileError || !profile || !["admin", "instrutor"].includes(profile.role)) {
+      return response({ error: "Seu perfil não tem permissão para esta operação." }, 403);
     }
 
     const body = await req.json().catch(() => null);
     if (!body || typeof body.action !== "string") {
       return response({ error: "Solicitação inválida." }, 400);
+    }
+    if (profile.role === "instrutor") {
+      const accessUntil = profile.instructor_access_until ? new Date(profile.instructor_access_until).getTime() : 0;
+      if (accessUntil <= Date.now()) {
+        return response({ error: "Sua autorização de instrutor está vencida ou não foi liberada." }, 403);
+      }
+      if (body.action !== "invite_student") {
+        return response({ error: "Instrutores podem enviar somente convites de acesso para alunos." }, 403);
+      }
     }
 
     if (body.action === "list") {
@@ -246,11 +255,30 @@ Deno.serve(async (req: Request) => {
       return response({ ok: true, message: "Novo link de acesso enviado com sucesso." });
     }
 
-    if (body.action !== "invite") return response({ error: "Ação não reconhecida." }, 400);
+    const isStudentInvite = body.action === "invite_student";
+    if (body.action !== "invite" && !isStudentInvite) return response({ error: "Ação não reconhecida." }, 400);
 
-    const nome = typeof body.nome === "string" ? body.nome.trim() : "";
-    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-    const role = body.role;
+    let nome = typeof body.nome === "string" ? body.nome.trim() : "";
+    let email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const role = isStudentInvite ? "usuario" : body.role;
+
+    if (isStudentInvite) {
+      const studentId = typeof body.student_id === "string" ? body.student_id.trim() : "";
+      if (!/^[0-9a-f-]{36}$/i.test(studentId)) {
+        return response({ error: "Cadastro de aluno inválido." }, 400);
+      }
+      const { data: student, error: studentError } = await admin
+        .from("students")
+        .select("id, nome, email")
+        .eq("id", studentId)
+        .eq("owner_id", authData.user.id)
+        .maybeSingle();
+      if (studentError) throw studentError;
+      if (!student) return response({ error: "Aluno não encontrado na sua lista de cadastros." }, 404);
+      nome = String(student.nome ?? "").trim();
+      email = String(student.email ?? "").trim().toLowerCase();
+      if (!email) return response({ error: "Cadastre o e-mail deste aluno antes de enviar o convite." }, 400);
+    }
     if (nome.length < 2 || nome.length > 100) {
       return response({ error: "Informe um nome entre 2 e 100 caracteres." }, 400);
     }
