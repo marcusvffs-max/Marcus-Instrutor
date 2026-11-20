@@ -25,16 +25,27 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 | INV-07 | Aluno aceita convite e entra pela primeira vez | Perfil permanece `usuario`; consulta RPC limpa `invited_at` e mantém o `user_id` correto. |
 | INV-08 | Aluno consulta a área do aluno | Recebe somente aulas agendadas do cadastro associado à sua própria conta. |
 | INV-09 | Conta de aluno A tenta consultar dados do aluno B | Nenhuma aula ou cadastro de B é retornado. |
-| INV-10 | E-mail já cadastrado no Auth tenta receber novo convite | HTTP 409; nenhum vínculo indevido. |
+| INV-10 | E-mail já cadastrado no Auth, confirmado e com perfil `usuario`, mas cadastro sem `user_id` | Envia link de confirmação para a conta existente; não cria outra conta e só vincula depois da confirmação autenticada do titular. |
 | INV-11 | Envio SMTP falha depois da criação da conta em um convite novo | A conta criada nessa tentativa é removida e vínculo/estado pendente são limpos. Em recuperação de conta já vinculada, a conta e o vínculo são preservados. |
 | INV-12 | Duas solicitações de convite simultâneas para o mesmo cadastro | No máximo uma solicitação conclui o vínculo; a outra falha sem deixar conta órfã. |
-| INV-13 | Conta antiga sem vínculo tenta acessar a área do aluno, mesmo com e-mail confirmado igual ao de um cadastro | Não ocorre associação automática; a conta não recebe aulas desse cadastro. |
+| INV-13 | Conta antiga sem vínculo tenta acessar a área do aluno sem solicitação de confirmação pendente | Não ocorre associação automática; a conta não recebe aulas desse cadastro. O vínculo exige solicitação do instrutor e confirmação autenticada do titular. |
 | INV-14 | Conta antiga sem vínculo tem e-mail não confirmado, duplicado ou único | Em todos os casos, nenhum vínculo automático por e-mail é feito. |
 | INV-15 | Conta de aluno de teste é excluída pelo fluxo administrativo | Trigger limpa `user_id`, `invited_at` e `invite_attempt_id`, permitindo novo convite posterior. |
 | INV-16 | A conta Auth é criada e a Edge Function é interrompida antes de vincular o aluno | O trigger vincula o usuário ao cadastro na mesma transação de criação do Auth, desde que token, cadastro, instrutor e e-mail correspondam. |
 | INV-17 | Metadados do usuário são alterados depois da criação da conta | A associação já registrada pelo trigger não muda; metadados editáveis não são usados para reautorizar o vínculo. |
 | INV-18 | Duas tentativas usam o mesmo identificador de reserva | Índice único impede que o mesmo identificador fique reservado em dois cadastros. |
 | INV-19 | O papel do perfil é alterado administrativamente durante uma recuperação de acesso | A recuperação não redefine o papel; a atualização condicional falha sem sobrescrever o papel alterado. A conta e o vínculo são preservados. |
+
+## Confirmação segura de conta Auth já existente
+
+- [ ] **INV-23 — Conta existente, confirmada e com perfil `usuario`:** o instrutor solicita acesso; o servidor reserva o cadastro com UUID aleatório e envia link de recuperação para o e-mail já cadastrado. Não cria nova conta nem altera `students.user_id` antes do clique.
+- [ ] Ao abrir o link, a sessão autenticada precisa pertencer ao mesmo e-mail confirmado do cadastro reservado. Só então a Edge Function grava `user_id` e limpa a reserva na mesma atualização condicional.
+- [ ] **INV-24 — Link de confirmação usado por outra conta:** o servidor recusa se o e-mail autenticado não corresponder ao e-mail reservado; nenhum vínculo é alterado.
+- [ ] **INV-25 — Link expirado, token incorreto ou reserva substituída:** HTTP 409/400; nenhum vínculo é criado.
+- [ ] **INV-26 — E-mail existente sem confirmação ou perfil ausente/incompatível:** o servidor recusa e orienta verificação administrativa; não cria conta, não muda papel e não associa cadastro.
+- [ ] **INV-27 — Duas confirmações simultâneas para a mesma reserva:** somente uma atualização condicional pode concluir; a segunda recebe conflito.
+- [ ] **INV-28 — Falha SMTP ao enviar confirmação para conta existente:** preserva a conta Auth e libera apenas a reserva daquela tentativa; não apaga nem altera a conta.
+- [ ] **INV-29 — Solicitação iniciada por instrutor para e-mail incorreto:** confirmar que o instrutor precisa conferir explicitamente com o aluno o endereço antes de enviar; somente o titular do endereço pode abrir o link. Não executar com dados reais.
 
 ## Verificações de banco
 
@@ -56,7 +67,7 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 A compatibilidade com contas antigas associa automaticamente uma conta autenticada com e-mail confirmado quando encontra exatamente um cadastro com o mesmo e-mail normalizado. A unicidade evita ambiguidades entre cadastros, mas não comprova que o e-mail foi digitado corretamente no cadastro nem que pertence ao aluno pretendido.
 
 - [x] **INV-20 — E-mail único incorreto ou pertencente a terceiro:** associação automática por e-mail foi removida da migration na branch de testes. Validar que a conta de terceiro não recebe acesso ao cadastro.
-- [x] A proteção implementada é não associar contas antigas automaticamente por e-mail, mesmo quando o endereço está confirmado e aparece em um único cadastro. O vínculo passa a depender exclusivamente do fluxo de convite validado pelo servidor e pelo trigger.
+- [x] A proteção implementada é não associar contas antigas automaticamente por e-mail. Para contas existentes, o instrutor inicia uma solicitação e o titular precisa abrir um link de recuperação enviado ao endereço já cadastrado; uma Edge Function valida a sessão autenticada, o e-mail confirmado, o token de tentativa, a reserva e o cadastro antes de associar.
 - [ ] Não usar dados reais nem executar esse teste em produção.
 
 ## Tratamento de conta antiga sem vínculo
