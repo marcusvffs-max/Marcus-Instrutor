@@ -110,3 +110,17 @@ Não executar migration no Supabase atual, não enviar convites a alunos reais, 
 
 
 - [ ] O fluxo de confirmação de conta antiga usa `generateLink({ type: "recovery" })` somente para contas existentes com e-mail confirmado e perfil `usuario`. Contas não confirmadas ou com perfil ausente/incompatível são recusadas sem alteração; não tentar contornar essa proteção.
+
+
+## Auditoria complementar de schema, RPC e funções privilegiadas
+
+- [x] A primeira migration cria o schema `private` antes de criar `private.current_app_role()`.
+- [x] O schema `private` revoga privilégios de PUBLIC, anon e authenticated e concede somente USAGE a authenticated, necessário para as políticas RLS que chamam `current_app_role()`.
+- [x] `private.current_app_role()` tem EXECUTE revogado de PUBLIC/anon/authenticated e concedido explicitamente a authenticated; seu retorno é limitado ao perfil da própria sessão por `auth.uid()`.
+- [x] As quatro funções privilegiadas da migration de vínculo têm owner explicitamente definido como postgres.
+- [x] A RPC pública concede EXECUTE somente a authenticated; a função interna e as funções de trigger revogam EXECUTE de PUBLIC, anon e authenticated.
+- [ ] Confirmar no Dashboard que `private` não está em Exposed schemas. O repositório não contém `supabase/config.toml` e a consulta anterior ao banco não conseguiu comprovar a configuração efetiva do PostgREST.
+- [ ] Confirmar no banco, após aplicação em ambiente isolado, os owners efetivos, ACLs, privilégios herdados e se `private` está fora dos schemas expostos.
+- [ ] Validar as políticas RLS reais de `students`, `lessons` e `vehicles`. As migrations versionadas nesta branch não contêm a criação dessas policies; os relatórios anteriores são evidência de auditoria do banco em 20/11/2026, não substituem uma nova leitura do catálogo.
+
+A revisão estática não prova a segurança do estado atual do banco. Não executar esta migration no Supabase atual para tentar validá-la.
