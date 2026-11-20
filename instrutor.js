@@ -1338,13 +1338,18 @@
           window.alert("O recurso de vínculo de contas estará disponível assim que a atualização do banco for concluída. Seus dados e aulas continuam acessíveis.");
           return;
         }
+        const requestTime = student.invited_at ? new Date(student.invited_at).getTime() : NaN;
+        const requestAge = Date.now() - requestTime;
+        const requestPending = Boolean(student.invited_at) && Number.isFinite(requestTime) && requestAge >= 0 && requestAge < 15 * 60 * 1000;
         const situation = student.user_id
           ? student.invited_at
             ? "Conta vinculada ao cadastro correto. Falta o aluno concluir o primeiro acesso."
             : "Conta vinculada com sucesso ao cadastro deste aluno."
-          : student.invited_at
-            ? "Convite em processamento. Aguarde a conclusão antes de tentar novamente."
-            : "Nenhum convite enviado. O vínculo só será concluído depois que o titular do e-mail confirmar o acesso pelo link enviado.";
+          : requestPending
+            ? "Link enviado. Aguarde o titular do e-mail confirmar o acesso."
+            : student.invited_at
+              ? "A solicitação anterior expirou. É possível reenviar a confirmação."
+              : "Nenhum convite enviado. O vínculo só será concluído depois que o titular do e-mail confirmar o acesso pelo link enviado.";
         window.alert("Vínculo da conta do aluno\n\n" + student.nome + "\n" +
           (student.email || "E-mail não informado") + "\n\nSituação: " + situation);
       }
