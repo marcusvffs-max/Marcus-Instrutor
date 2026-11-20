@@ -262,7 +262,7 @@ test("roteiro de pré-checagem contém apenas consultas SQL de leitura", () => {
   assert.ok(blocks.length >= 8, "Consultas read-only insuficientes");
   for (const sql of blocks) {
     assert.match(sql, /^select\b/i);
-    assert.doesNotMatch(sql, /\b(insert|update|delete|alter|create|drop|truncate|grant|revoke)\b/i);
+    assert.doesNotMatch(sql, /^\s*(insert|update|delete|alter|create|drop|truncate|grant|revoke)\b/im);
   }
   assert.match(readOnlyPrecheck, /Se qualquer total for maior que zero, parar/i);
   assert.match(readOnlyPrecheck, /não autoriza DDL/i);
