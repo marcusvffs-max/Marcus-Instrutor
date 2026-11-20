@@ -195,3 +195,16 @@ test("Edge Function reserva gerenciamento de papéis ao admin", () => {
   assert.match(changeRole, /userId === authData\.user\.id/);
   assert.match(changeRole, /update\(\{ role: newRole, instructor_access_until: null \}\)/);
 });
+
+
+test("matriz de autorização cobre aluno, dois instrutores, admin e ataques cruzados", () => {
+  const matrix = read("../docs/TESTE-RLS-ISOLAMENTO-INSTRUTORES.md");
+  for (const id of ["SEC-001","SEC-002","SEC-006","SEC-010","SEC-013","SEC-015","SEC-019","SEC-030","SEC-033","SEC-040","SEC-050","SEC-056"]) {
+    assert.ok(matrix.includes(id), `Caso de segurança ausente: ${id}`);
+  }
+  for (const actor of ["Instrutor A","Instrutor B","Aluno A","Admin","anon"]) {
+    assert.ok(matrix.includes(actor), `Identidade de teste ausente: ${actor}`);
+  }
+  assert.match(matrix, /não aplicar o rascunho SQL no Supabase atual/i);
+  assert.match(matrix, /Se houver custo, parar/i);
+});
