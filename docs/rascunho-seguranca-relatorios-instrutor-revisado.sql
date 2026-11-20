@@ -414,6 +414,59 @@ using (
 -- Produtos e app_settings permanecem exclusivos do admin neste primeiro
 -- desenho. Os itens vendidos ja guardam descricao/valor em sale_items.
 
+
+-- ---------------------------------------------------------------------------
+-- 7. Integridade referencial entre registros do mesmo instrutor.
+-- As FKs simples existentes confirmam apenas que o ID existe. As FKs
+-- compostas abaixo exigem igualdade de owner_id entre pai e filho.
+-- PostgreSQL 17 suporta SET NULL (coluna), preservando owner_id.
+-- Produto e sale_items.product_id ficam fora desta regra: catalogo central.
+-- ---------------------------------------------------------------------------
+
+alter table public.students
+  add constraint students_id_owner_key unique (id, owner_id);
+
+alter table public.vehicles
+  add constraint vehicles_id_owner_key unique (id, owner_id);
+
+alter table public.sales
+  add constraint sales_id_owner_key unique (id, owner_id);
+
+alter table public.lessons
+  add constraint lessons_student_owner_fkey
+  foreign key (student_id, owner_id)
+  references public.students (id, owner_id);
+
+alter table public.lessons
+  add constraint lessons_vehicle_owner_fkey
+  foreign key (vehicle_id, owner_id)
+  references public.vehicles (id, owner_id);
+
+alter table public.sales
+  add constraint sales_student_owner_fkey
+  foreign key (student_id, owner_id)
+  references public.students (id, owner_id)
+  on delete set null (student_id);
+
+alter table public.sale_items
+  add constraint sale_items_sale_owner_fkey
+  foreign key (sale_id, owner_id)
+  references public.sales (id, owner_id)
+  on delete cascade;
+
+alter table public.financial_transactions
+  add constraint financial_student_owner_fkey
+  foreign key (student_id, owner_id)
+  references public.students (id, owner_id)
+  on delete set null (student_id);
+
+alter table public.financial_transactions
+  add constraint financial_sale_owner_fkey
+  foreign key (sale_id, owner_id)
+  references public.sales (id, owner_id)
+  on delete set null (sale_id);
+
+
 commit;
 
 -- ---------------------------------------------------------------------------
