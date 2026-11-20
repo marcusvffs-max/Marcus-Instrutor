@@ -369,9 +369,13 @@ Deno.serve(async (req: Request) => {
       type: studentRecoveryUserId ? "recovery" : "invite",
       email,
       options: {
-        data: isStudentInvite
-          ? { nome, student_id: studentInviteId, instructor_id: authData.user.id, invite_attempt_id: studentInviteAttemptId }
-          : { nome },
+        ...(!studentRecoveryUserId
+          ? {
+              data: isStudentInvite
+                ? { nome, student_id: studentInviteId, instructor_id: authData.user.id, invite_attempt_id: studentInviteAttemptId }
+                : { nome },
+            }
+          : {}),
         redirectTo: APP_URL,
       },
     });
