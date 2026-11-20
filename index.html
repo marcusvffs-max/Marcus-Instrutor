@@ -9,7 +9,7 @@
   <title>Marcus Instrutor</title>
 
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=impressao-campos1">
+  <link rel="stylesheet" href="style.css?v=atendimentos-whatsapp-v2">
   <link rel="icon" href="icon-192.png" type="image/png">
 </head>
 
@@ -415,6 +415,43 @@
 
   </div>
 
+  <section id="telaLogin" class="login-screen" aria-labelledby="loginTitulo">
+    <div class="login-card">
+      <div class="login-brand">MI</div>
+      <span class="login-eyebrow">ÁREA RESTRITA</span>
+      <h1 id="loginTitulo">Marcus Instrutor</h1>
+      <p class="login-description">Entre com sua conta autorizada para acessar o sistema.</p>
+      <form id="formLogin">
+        <label for="loginEmail">E-mail</label>
+        <input id="loginEmail" name="email" type="email" autocomplete="username" placeholder="Seu e-mail" required>
+        <label for="loginSenha">Senha</label>
+        <input id="loginSenha" name="password" type="password" autocomplete="current-password" placeholder="Sua senha" required>
+        <p id="loginMensagem" class="login-message" role="alert" aria-live="polite"></p>
+        <button id="btnEntrar" class="login-button" type="submit">Entrar</button>
+      </form>
+      <button id="btnMostrarRecuperacao" type="button" class="login-recovery-link" style="display:block;margin:14px auto 0;background:none;border:0;color:#2563eb;text-decoration:underline;cursor:pointer;font:inherit;">Esqueci minha senha</button>
+      <form id="formRecuperarSenha" hidden>
+        <p class="login-description">Informe seu e-mail. Enviaremos um link para cadastrar uma nova senha.</p>
+        <label for="recuperarEmail">E-mail</label>
+        <input id="recuperarEmail" name="email" type="email" autocomplete="email" placeholder="Seu e-mail" required>
+        <p id="recuperarMensagem" class="login-message" role="alert" aria-live="polite"></p>
+        <button id="btnEnviarRecuperacao" class="login-button" type="submit">Enviar link de recuperação</button>
+        <button id="btnVoltarLogin" type="button" class="login-recovery-link" style="display:block;margin:14px auto 0;background:none;border:0;color:#2563eb;text-decoration:underline;cursor:pointer;font:inherit;">Voltar ao login</button>
+      </form>
+      <form id="formNovaSenha" hidden>
+        <p class="login-description">Crie uma nova senha para sua conta.</p>
+        <label for="novaSenha">Nova senha</label>
+        <input id="novaSenha" type="password" autocomplete="new-password" minlength="8" placeholder="Mínimo de 8 caracteres" required>
+        <label for="confirmarNovaSenha">Confirmar nova senha</label>
+        <input id="confirmarNovaSenha" type="password" autocomplete="new-password" minlength="8" placeholder="Repita a nova senha" required>
+        <p id="novaSenhaMensagem" class="login-message" role="alert" aria-live="polite"></p>
+        <button id="btnSalvarNovaSenha" class="login-button" type="submit">Salvar nova senha</button>
+      </form>
+      <p class="login-security">Acesso permitido somente à conta de administrador cadastrada.</p>
+    </div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
   <script src="script.js?v=relatorios3"></script>
 
   <script>
@@ -431,5 +468,216 @@
     }
   </script>
   <script src="contratos.js?v=contratos30"></script>
+  <script src="whatsapp-panel.js?v=whatsapp-panel-v2-manual-status"></script>
+
+  <script>
+    (function () {
+      "use strict";
+      const SUPABASE_URL = "https://ydyqagqsuqntuibzgwzd.supabase.co";
+      const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
+      const formularioLogin = document.getElementById("formLogin");
+      const campoEmail = document.getElementById("loginEmail");
+      const campoSenha = document.getElementById("loginSenha");
+      const mensagemLogin = document.getElementById("loginMensagem");
+      const botaoEntrar = document.getElementById("btnEntrar");
+      const formRecuperarSenha = document.getElementById("formRecuperarSenha");
+      const formNovaSenha = document.getElementById("formNovaSenha");
+      const mensagemRecuperacao = document.getElementById("recuperarMensagem");
+      const mensagemNovaSenha = document.getElementById("novaSenhaMensagem");
+      const btnMostrarRecuperacao = document.getElementById("btnMostrarRecuperacao");
+      const parametrosUrl = new URLSearchParams(window.location.search);
+      const parametrosHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      let modoRecuperacao = parametrosUrl.has("code") || parametrosUrl.get("type") === "recovery" || parametrosHash.get("type") === "recovery";
+      function mostrarLogin(mensagem) {
+        document.body.classList.remove("autenticado");
+        if (mensagemLogin) mensagemLogin.textContent = mensagem || "";
+        if (campoSenha) campoSenha.value = "";
+      }
+      function mostrarErro(mensagem) { if (mensagemLogin) mensagemLogin.textContent = mensagem; }
+      function mostrarAplicativo() {
+        document.body.classList.add("autenticado");
+        if (mensagemLogin) mensagemLogin.textContent = "";
+        window.dispatchEvent(new Event("marcus-authenticated"));
+      }
+      if (!window.supabase || typeof window.supabase.createClient !== "function") {
+        mostrarLogin("Não foi possível carregar a autenticação. Verifique sua conexão e atualize a página.");
+        return;
+      }
+      const clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+        auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage }
+      });
+      window.getMarcusSupabase = function () { return clienteSupabase; };
+      async function conferirAdministrador(usuario) {
+        if (modoRecuperacao) {
+          mostrarFormularioRecuperacao();
+          return false;
+        }
+        if (!usuario || !usuario.id) { mostrarLogin("Entre com sua conta para continuar."); return false; }
+        const { data: perfil, error } = await clienteSupabase.from("profiles")
+          .select("id, role").eq("id", usuario.id).maybeSingle();
+        if (error) {
+          await clienteSupabase.auth.signOut({ scope: "local" });
+          mostrarLogin("Não foi possível validar seu acesso. Confira a conexão e tente novamente.");
+          return false;
+        }
+        if (!perfil || perfil.role !== "admin") {
+          await clienteSupabase.auth.signOut({ scope: "local" });
+          mostrarLogin("Esta conta não possui autorização de administrador para acessar o aplicativo.");
+          return false;
+        }
+        mostrarAplicativo();
+        const botaoSair = document.getElementById("btnLogout");
+        if (botaoSair) {
+          botaoSair.onclick = async function () {
+            botaoSair.disabled = true;
+            botaoSair.textContent = "Saindo...";
+            const { error: erroSaida } = await clienteSupabase.auth.signOut({ scope: "local" });
+            if (erroSaida) {
+              botaoSair.disabled = false;
+              botaoSair.textContent = "Sair";
+              mostrarErro("Não foi possível encerrar a sessão. Tente novamente.");
+              return;
+            }
+            mostrarLogin("Sessão encerrada com segurança.");
+          };
+        }
+        return true;
+      }
+      formularioLogin.addEventListener("submit", async function (evento) {
+        evento.preventDefault();
+        const email = campoEmail.value.trim(), password = campoSenha.value;
+        if (!email || !password) { mostrarErro("Informe seu e-mail e sua senha."); return; }
+        botaoEntrar.disabled = true;
+        botaoEntrar.textContent = "Verificando...";
+        mostrarErro("");
+        try {
+          const { data, error } = await clienteSupabase.auth.signInWithPassword({ email, password });
+          if (error) { mostrarErro("Não foi possível entrar. Confira o e-mail e a senha."); return; }
+          const autorizado = await conferirAdministrador(data.user);
+          if (!autorizado) campoSenha.value = "";
+        } catch (erro) {
+          console.error("Erro ao realizar login:", erro);
+          mostrarErro("Ocorreu um erro ao entrar. Verifique sua conexão e tente novamente.");
+        } finally {
+          botaoEntrar.disabled = false;
+          botaoEntrar.textContent = "Entrar";
+        }
+      });
+      function mostrarFormularioRecuperacao() {
+        document.body.classList.remove("autenticado");
+        formLogin.hidden = true;
+        formRecuperarSenha.hidden = true;
+        formNovaSenha.hidden = false;
+        btnMostrarRecuperacao.hidden = true;
+        document.querySelector(".login-security").hidden = true;
+        if (mensagemNovaSenha) mensagemNovaSenha.textContent = "";
+      }
+
+      btnMostrarRecuperacao.addEventListener("click", function () {
+        formLogin.hidden = true;
+        formRecuperarSenha.hidden = false;
+        formNovaSenha.hidden = true;
+        btnMostrarRecuperacao.hidden = true;
+        if (mensagemRecuperacao) mensagemRecuperacao.textContent = "";
+        document.getElementById("recuperarEmail").value = campoEmail.value.trim();
+      });
+
+      document.getElementById("btnVoltarLogin").addEventListener("click", function () {
+        formRecuperarSenha.hidden = true;
+        formNovaSenha.hidden = true;
+        formLogin.hidden = false;
+        btnMostrarRecuperacao.hidden = false;
+      });
+
+      formRecuperarSenha.addEventListener("submit", async function (evento) {
+        evento.preventDefault();
+        const email = document.getElementById("recuperarEmail").value.trim();
+        const botao = document.getElementById("btnEnviarRecuperacao");
+        if (!email) return;
+        botao.disabled = true;
+        botao.textContent = "Enviando...";
+        mensagemRecuperacao.textContent = "";
+        try {
+          const { error } = await clienteSupabase.auth.resetPasswordForEmail(email, {
+            redirectTo: "https://marcusinstrutor-git-feature-atendimentos-df167b-marcusvffs-2839.vercel.app/"
+          });
+          if (error) throw error;
+          mensagemRecuperacao.textContent = "Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha. Verifique também o spam.";
+        } catch (erro) {
+          console.error("Erro ao solicitar recuperação:", erro);
+          mensagemRecuperacao.textContent = "Não foi possível enviar o link. Verifique a conexão e tente novamente.";
+        } finally {
+          botao.disabled = false;
+          botao.textContent = "Enviar link de recuperação";
+        }
+      });
+
+      formNovaSenha.addEventListener("submit", async function (evento) {
+        evento.preventDefault();
+        const senha = document.getElementById("novaSenha").value;
+        const confirmacao = document.getElementById("confirmarNovaSenha").value;
+        const botao = document.getElementById("btnSalvarNovaSenha");
+        if (senha.length < 8) {
+          mensagemNovaSenha.textContent = "A senha precisa ter pelo menos 8 caracteres.";
+          return;
+        }
+        if (senha !== confirmacao) {
+          mensagemNovaSenha.textContent = "As senhas não conferem.";
+          return;
+        }
+        botao.disabled = true;
+        botao.textContent = "Salvando...";
+        mensagemNovaSenha.textContent = "";
+        try {
+          const { error } = await clienteSupabase.auth.updateUser({ password: senha });
+          if (error) throw error;
+          modoRecuperacao = false;
+          window.history.replaceState({}, document.title, window.location.pathname);
+          await clienteSupabase.auth.signOut({ scope: "local" });
+          formNovaSenha.hidden = true;
+          formLogin.hidden = false;
+          btnMostrarRecuperacao.hidden = false;
+          document.querySelector(".login-security").hidden = false;
+          mensagemLogin.textContent = "Senha alterada com sucesso. Entre com sua nova senha.";
+          document.getElementById("novaSenha").value = "";
+          document.getElementById("confirmarNovaSenha").value = "";
+        } catch (erro) {
+          console.error("Erro ao atualizar senha:", erro);
+          mensagemNovaSenha.textContent = "Não foi possível alterar a senha. Solicite um novo link de recuperação.";
+        } finally {
+          botao.disabled = false;
+          botao.textContent = "Salvar nova senha";
+        }
+      });
+
+      clienteSupabase.auth.onAuthStateChange(function (evento, sessao) {
+        if (evento === "PASSWORD_RECOVERY") {
+          modoRecuperacao = true;
+          mostrarFormularioRecuperacao();
+          return;
+        }
+        if (evento === "SIGNED_OUT" || !sessao) {
+          mostrarLogin("Sua sessão foi encerrada. Entre novamente para continuar.");
+          window.dispatchEvent(new Event("marcus-unauthenticated"));
+        }
+      });
+      (async function iniciarAutenticacao() {
+        try {
+          if (modoRecuperacao) {
+            mostrarFormularioRecuperacao();
+            return;
+          }
+          const { data, error } = await clienteSupabase.auth.getSession();
+          if (error) { mostrarLogin("Não foi possível recuperar sua sessão. Entre novamente."); return; }
+          if (data.session && data.session.user) await conferirAdministrador(data.session.user);
+          else mostrarLogin("Entre com sua conta para continuar.");
+        } catch (erro) {
+          console.error("Erro ao verificar sessão:", erro);
+          mostrarLogin("Não foi possível verificar sua sessão. Atualize a página e tente novamente.");
+        }
+      })();
+    })();
+  </script>
+
 </body>
 </html>
