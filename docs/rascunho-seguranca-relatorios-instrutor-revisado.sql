@@ -25,7 +25,7 @@ begin;
 -- ---------------------------------------------------------------------------
 
 create schema if not exists private;
-revoke all on schema private from public, anon;
+revoke all on schema private from public, anon, authenticated;
 grant usage on schema private to authenticated;
 
 create or replace function private.current_app_role()
@@ -48,7 +48,10 @@ grant execute on function private.current_app_role() to authenticated;
 -- ---------------------------------------------------------------------------
 -- 2. Defesa adicional contra alteracao de role pelo cliente autenticado.
 -- O fluxo backend usa a chave secreta service_role, que nao pode estar no
--- navegador. Em chamadas backend com service_role, auth.uid() e NULL.
+-- navegador. Com a chave service_role no cabeçalho Authorization, a chamada
+-- nao representa um usuario final e auth.uid() retorna NULL. O trigger
+-- preserva o papel enviado pelo backend; usuarios autenticados comuns
+-- sempre recebem instrutor no INSERT e nao podem alterar role no UPDATE.
 -- ---------------------------------------------------------------------------
 
 create or replace function private.protect_profile_role()
@@ -86,6 +89,7 @@ execute function private.protect_profile_role();
 drop policy if exists profiles_insert_own on public.profiles;
 drop policy if exists profiles_update_own on public.profiles;
 drop policy if exists profiles_select_own on public.profiles;
+drop policy if exists profiles_admin_select_all on public.profiles;
 
 drop policy if exists students_select_own on public.students;
 drop policy if exists students_insert_own on public.students;
