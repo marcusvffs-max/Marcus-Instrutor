@@ -366,9 +366,9 @@ test("migration de vínculo impede fallback por email e restringe execução da 
 });
 
 test("revisão documenta que a correção de user_id ainda não foi aplicada no banco", () => {
-  assert.match(agendaMigrationReview, /ainda não possui a coluna/);
+  assert.match(agendaMigrationReview, /ainda não existe/);
   assert.match(agendaMigrationReview, /Nenhuma migration foi aplicada/);
-  assert.match(agendaMigrationReview, /não foi executada exploração autenticada/i);
+  assert.match(agendaMigrationReview, /não foi realizado teste de exploração autenticado/i);
   assert.match(rpcAudit, /condição de dados para cruzamento existe/i);
 });
 
