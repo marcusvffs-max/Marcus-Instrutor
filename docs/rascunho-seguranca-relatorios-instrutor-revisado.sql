@@ -19,6 +19,9 @@ begin;
 
 -- ---------------------------------------------------------------------------
 -- 0. Privilegios SQL: RLS nao protege TRUNCATE.
+-- O REVOKE ALL remove tambem TRUNCATE, REFERENCES e TRIGGER; os grants CRUD
+-- abaixo nao reintroduzem esses privilegios. Grants por coluna sao removidos
+-- separadamente porque REVOKE no nivel da tabela nao os elimina.
 -- A auditoria de 20/11/2026 encontrou TRUNCATE concedido a authenticated
 -- em profiles, students, lessons, vehicles e app_settings. Tambem faltavam
 -- grants CRUD para authenticated em sales, sale_items e financial_transactions.
@@ -114,6 +117,9 @@ grant execute on function private.current_app_role() to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 2. Criacao transacional de perfil e protecao de role.
+-- A autorizacao do bypass abaixo usa somente o claim role do JWT validado
+-- (service_role), nunca raw_user_meta_data/user_metadata. A Edge Function
+-- deve validar o solicitante como admin antes de usar a chave service_role.
 --
 -- O trigger em auth.users cria o perfil na mesma transacao do usuario Auth.
 -- Qualquer novo usuario recebe role instrutor, sem confiar em metadata.
