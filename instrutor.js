@@ -12,7 +12,8 @@
     students: [],
     lessons: [],
     vehicles: [],
-    studentEditingId: null
+    studentEditingId: null,
+    vehicleEditingId: null
   };
 
   function escapeHtml(value) {
@@ -48,7 +49,7 @@
   function vehicleName(id) {
     if (!id) return "—";
     const vehicle = state.vehicles.find(item => item.id === id);
-    return vehicle ? vehicle.nome : "—";
+    return vehicle ? vehicleLabel(vehicle) : "—";
   }
 
   function sortLessons(items) {
@@ -93,6 +94,113 @@
       '</tbody></table>';
   }
 
+  function vehicleLabel(vehicle) {
+    const details = [vehicle.nome, vehicle.tipo, vehicle.categoria ? "Categoria " + vehicle.categoria : null, vehicle.placa ? "Placa " + vehicle.placa : null].filter(Boolean);
+    return details.join(" · ") || "Veículo sem identificação";
+  }
+
+  function renderVehicles() {
+    const container = el("listaVeiculos");
+    if (!state.vehicles.length) {
+      container.innerHTML = '<div class="empty-state">Você ainda não cadastrou veículos.</div>';
+      return;
+    }
+
+    container.innerHTML = '<table class="students-table"><thead><tr>' +
+      '<th>Identificação</th><th>Tipo</th><th>Categoria</th><th>Placa</th><th>Ações</th>' +
+      '</tr></thead><tbody>' +
+      state.vehicles.map(vehicle =>
+        '<tr>' +
+          '<td>' + escapeHtml(vehicle.nome || "—") + '</td>' +
+          '<td>' + escapeHtml(vehicle.tipo) + '</td>' +
+          '<td>' + escapeHtml(vehicle.categoria) + '</td>' +
+          '<td>' + escapeHtml(vehicle.placa || "—") + '</td>' +
+          '<td class="student-actions">' +
+            '<button class="button button-outline button-small" type="button" data-vehicle-action="edit" data-vehicle-id="' + escapeHtml(vehicle.id) + '">Editar</button>' +
+            '<button class="button button-danger button-small" type="button" data-vehicle-action="delete" data-vehicle-id="' + escapeHtml(vehicle.id) + '">Excluir</button>' +
+          '</td>' +
+        '</tr>'
+      ).join("") +
+      '</tbody></table>';
+  }
+
+  function resetVehicleForm() {
+    state.vehicleEditingId = null;
+    el("formVeiculo").reset();
+    el("tituloFormVeiculo").textContent = "Cadastrar veículo";
+    el("btnSalvarVeiculo").textContent = "Salvar veículo";
+    el("formVeiculo").hidden = true;
+  }
+
+  function openVehicleForm(vehicle = null) {
+    el("formVeiculo").reset();
+    state.vehicleEditingId = vehicle ? vehicle.id : null;
+    el("tituloFormVeiculo").textContent = vehicle ? "Editar veículo" : "Cadastrar veículo";
+    el("btnSalvarVeiculo").textContent = vehicle ? "Salvar alterações" : "Salvar veículo";
+    if (vehicle) {
+      el("veiculoTipo").value = vehicle.tipo || "";
+      el("veiculoCategoria").value = vehicle.categoria || "";
+      el("veiculoPlaca").value = vehicle.placa || "";
+      el("veiculoNome").value = vehicle.nome || "";
+    }
+    el("formVeiculo").hidden = false;
+    el("veiculoTipo").focus();
+  }
+
+  async function saveVehicle(event) {
+    event.preventDefault();
+    const button = el("btnSalvarVeiculo");
+    const vehicle = {
+      tipo: el("veiculoTipo").value,
+      categoria: el("veiculoCategoria").value,
+      placa: el("veiculoPlaca").value.trim().toUpperCase() || null,
+      nome: el("veiculoNome").value.trim() || null
+    };
+    if (!vehicle.tipo || !vehicle.categoria) {
+      showMessage("Informe o tipo e a categoria do veículo.");
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Salvando...";
+    showMessage("");
+    try {
+      let result;
+      if (state.vehicleEditingId) {
+        result = await state.supabase.from("vehicles")
+          .update(vehicle).eq("id", state.vehicleEditingId);
+      } else {
+        result = await state.supabase.from("vehicles")
+          .insert({ ...vehicle, owner_id: state.user.id });
+      }
+      if (result.error) throw result.error;
+      resetVehicleForm();
+      await loadOwnData();
+      showMessage("Veículo salvo com sucesso.", false);
+    } catch (error) {
+      console.error("Falha ao salvar veículo:", error);
+      showMessage("Não foi possível salvar o veículo. Confira os dados e tente novamente.");
+    } finally {
+      button.disabled = false;
+      button.textContent = state.vehicleEditingId ? "Salvar alterações" : "Salvar veículo";
+    }
+  }
+
+  async function deleteVehicle(id) {
+    const vehicle = state.vehicles.find(item => item.id === id);
+    if (!vehicle) return;
+    if (!window.confirm('Deseja excluir o veículo "' + vehicleLabel(vehicle) + '"?')) return;
+    try {
+      const { error } = await state.supabase.from("vehicles").delete().eq("id", id);
+      if (error) throw error;
+      await loadOwnData();
+      showMessage("Veículo excluído com sucesso.", false);
+    } catch (error) {
+      console.error("Falha ao excluir veículo:", error);
+      showMessage("Não foi possível excluir este veículo. Se ele já estiver vinculado a aulas, mantenha o cadastro e edite seus dados.");
+    }
+  }
+
   function updateStudentSelect() {
     const select = el("filtroAluno");
     const selected = select.value;
@@ -113,8 +221,8 @@
         .order("data_aula", { ascending: true })
         .order("horario", { ascending: true }),
       state.supabase.from("vehicles")
-        .select("id,nome")
-        .order("nome", { ascending: true })
+        .select("id,nome,tipo,categoria,placa")
+        .order("tipo", { ascending: true })
     ]);
 
     const firstError = studentsResult.error || lessonsResult.error || vehiclesResult.error;
@@ -133,6 +241,7 @@
     ).length;
 
     renderStudents();
+    renderVehicles();
     updateStudentSelect();
   }
 
@@ -343,6 +452,18 @@
       const student = state.students.find(item => item.id === id);
       if (button.dataset.studentAction === "edit" && student) openStudentForm(student);
       if (button.dataset.studentAction === "delete") deleteStudent(id);
+    });
+
+    el("btnNovoVeiculo").addEventListener("click", () => openVehicleForm());
+    el("btnCancelarVeiculo").addEventListener("click", resetVehicleForm);
+    el("formVeiculo").addEventListener("submit", saveVehicle);
+    el("listaVeiculos").addEventListener("click", event => {
+      const button = event.target.closest("[data-vehicle-action]");
+      if (!button) return;
+      const id = button.dataset.vehicleId;
+      const vehicle = state.vehicles.find(item => item.id === id);
+      if (button.dataset.vehicleAction === "edit" && vehicle) openVehicleForm(vehicle);
+      if (button.dataset.vehicleAction === "delete") deleteVehicle(id);
     });
 
     el("btnRelatorioAluno").addEventListener("click", reportByStudent);
