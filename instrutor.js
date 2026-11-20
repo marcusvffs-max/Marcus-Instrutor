@@ -881,7 +881,7 @@
       "<h3>2. OBRIGAÇÕES DO CONTRATADO</h3><p>Disponibilizar as aulas práticas contratadas e veículo em condições adequadas de uso, conforme disponibilidade e agendamento entre as partes.</p>",
       "<h3>3. OBRIGAÇÕES DO CONTRATANTE</h3><p>3.1. Arcar com taxas de novos exames e com custos de aluguel do veículo para retestes, quando aplicáveis e previamente informados.</p><p>3.2. Comparecer pontualmente às aulas, portando os documentos exigidos e utilizando vestimenta e calçado adequados.</p><p>3.3. Comunicar impossibilidade de comparecimento com antecedência mínima de 24 horas para solicitar transferência da aula, sujeita à disponibilidade. A ausência sem aviso poderá implicar cobrança de nova aula, conforme condições previamente acordadas.</p><p>3.4. Manter seus dados de contato atualizados e seguir as orientações de segurança durante as aulas.</p>",
       "<h3>4. CONDIÇÕES GERAIS</h3><p>4.1. Datas de exames e disponibilidade de vagas dependem do órgão de trânsito competente, não sendo garantidas pelo CONTRATADO.</p><p>4.2. A duração de cada aula será de 50 minutos, salvo ajuste expresso entre as partes.</p><p>4.3. Cancelamento, reembolso, transferência de aulas e eventuais custos administrativos deverão observar a legislação aplicável e as condições informadas e aceitas pelas partes.</p>",
-      "<p class='contract-place-date'>" + safe(city) + ", ______ de __________________ de __________.</p><div class='contract-signatures'><div><span></span><strong>" + safe(instructor) + "</strong><small>CONTRATADO(A) / INSTRUTOR(A)</small></div><div><span></span><strong>" + safe(nome) + "</strong><small>CONTRATANTE / ALUNO(A) · CPF " + safe(cpf) + "</small></div></div>"
+      "<p class='contract-place-date'>" + safe(city) + ", ______ de __________________ de __________.</p><div class='contract-signature-space' aria-hidden='true'></div><div class='contract-signatures'><div><span></span><strong>" + safe(instructor) + "</strong><small>CONTRATADO(A) / INSTRUTOR(A)</small></div><div><span></span><strong>" + safe(nome) + "</strong><small>CONTRATANTE / ALUNO(A) · CPF " + safe(cpf) + "</small></div></div>"
     ];
     el("contratoPreviewInstrutor").innerHTML =
       '<article class="contract-sheet"><header><h2>' + safe(instructor) + '</h2><p>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</p></header>' +
@@ -1246,6 +1246,9 @@
 
     el("btnGerarContratoInstrutor").addEventListener("click", generateInstructorContract);
     el("btnImprimirContratoInstrutor").addEventListener("click", printInstructorContract);
+    window.addEventListener("afterprint", () => {
+      document.body.classList.remove("printing-contract");
+    });
     el("contratoAlunoInstrutor").addEventListener("change", fillInstructorContractStudent);
     el("btnRelatorioAluno").addEventListener("click", reportByStudent);
     el("btnRelatorioPeriodo").addEventListener("click", reportByPeriod);
