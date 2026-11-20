@@ -47,7 +47,7 @@
   const roleSelect = create("select", { id: "usersRole", name: "role" });
   roleSelect.append(
     create("option", { value: "instrutor" }, "Instrutor"),
-    create("option", { value: "usuario" }, "Usuário"),
+    create("option", { value: "usuario" }, "Aluno"),
     create("option", { value: "admin" }, "Administrador")
   );
   const actions = create("div", { class: "users-actions" });
@@ -96,12 +96,12 @@
         const info = create("div");
         info.append(create("strong", {}, user.nome || "Sem nome"));
         info.append(create("small", {}, user.email || "Sem e-mail"));
-        const role = create("span", { class: "users-role" }, user.role === "admin" ? "Administrador" : user.role === "instrutor" ? "Instrutor" : user.role === "usuario" ? "Usuário" : "Sem perfil");
+        const role = create("span", { class: "users-role" }, user.role === "admin" ? "Administrador" : user.role === "instrutor" ? "Instrutor" : user.role === "usuario" ? "Aluno" : "Sem perfil");
         const controls = create("div", { class: "users-item-actions" });
         const roleEditor = create("select", { "aria-label": "Alterar tipo de acesso de " + (user.nome || user.email) });
         [
           ["instrutor", "Instrutor"],
-          ["usuario", "Usuário"],
+          ["usuario", "Aluno"],
           ["admin", "Administrador"],
         ].forEach(([value, label]) => {
           const option = create("option", { value }, label);
