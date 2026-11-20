@@ -2887,13 +2887,6 @@ if (botaoSalvarConfiguracoes) {
   botaoSalvarConfiguracoes.onclick = salvarConfiguracoes;
 }
 
-const botaoLogout = document.getElementById("btnLogout");
-if (botaoLogout) {
-  botaoLogout.onclick = () => {
-    mostrarAviso("Não há sessão de usuário ativa.");
-  };
-}
-
 const buscaAlunos = document.getElementById("buscaAlunos");
 if (buscaAlunos) {
   buscaAlunos.addEventListener("input", listarAlunos);
