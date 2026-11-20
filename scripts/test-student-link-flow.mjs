@@ -255,3 +255,16 @@ test("revisão das FKs registra versão PostgreSQL e semânticas originais", () 
   ]) assert.match(fkReview, expected);
 });
 
+const readOnlyPrecheck = read("../docs/PRECHECK-READONLY-FKS-COMPOSTAS.md");
+
+test("roteiro de pré-checagem contém apenas consultas SQL de leitura", () => {
+  const blocks = [...readOnlyPrecheck.matchAll(/```sql\\s*([\\s\\S]*?)```/gi)].map(match => match[1].trim());
+  assert.ok(blocks.length >= 8, "Consultas read-only insuficientes");
+  for (const sql of blocks) {
+    assert.match(sql, /^select\\b/i);
+    assert.doesNotMatch(sql, /\\b(insert|update|delete|alter|create|drop|truncate|grant|revoke)\\b/i);
+  }
+  assert.match(readOnlyPrecheck, /Se qualquer total for maior que zero, parar/i);
+  assert.match(readOnlyPrecheck, /não autoriza DDL/i);
+});
+
