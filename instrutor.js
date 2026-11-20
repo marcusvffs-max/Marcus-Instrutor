@@ -697,6 +697,21 @@
     el("btnSair").addEventListener("click", signOut);
     el("dataDiaria").value = localToday();
 
+    function navigateInstructorPage(page) {
+      document.querySelectorAll("[data-view]").forEach(section => {
+        section.classList.toggle("active-view", section.dataset.view === page);
+      });
+      document.querySelectorAll("[data-instructor-page]").forEach(button => {
+        button.classList.toggle("active", button.dataset.instructorPage === page);
+      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    document.querySelectorAll("[data-instructor-page]").forEach(button => {
+      button.addEventListener("click", () => navigateInstructorPage(button.dataset.instructorPage));
+    });
+    navigateInstructorPage("inicio");
+
     state.supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" || !session) window.location.replace("index.html");
     });
