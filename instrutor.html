@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#12345a">
   <meta name="description" content="Área do instrutor - Marcus Instrutor">
   <title>Área do Instrutor | Marcus Instrutor</title>
-  <link rel="stylesheet" href="instrutor.css?v=4">
+  <link rel="stylesheet" href="instrutor.css?v=5">
 </head>
 <body>
   <div class="app-shell">
@@ -32,6 +32,19 @@
         <article class="summary-card"><span>Total de alunos</span><strong id="totalAlunos">—</strong></article>
         <article class="summary-card"><span>Aulas realizadas</span><strong id="totalRealizadas">—</strong></article>
         <article class="summary-card"><span>Aulas agendadas</span><strong id="totalAgendadas">—</strong></article>
+      </section>
+
+      <section class="panel dashboard-lessons" data-view="inicio">
+        <div class="section-heading">
+          <div>
+            <h3>Aulas agendadas</h3>
+            <p>Confirme aqui as aulas realizadas ou cancele quando necessário.</p>
+          </div>
+          <button id="btnAgendarInicio" class="button button-primary" type="button">+ Agendar aula</button>
+        </div>
+        <div id="proximasAulas" class="upcoming-lessons">
+          <div class="empty-state">Carregando aulas agendadas...</div>
+        </div>
       </section>
 
       <section class="panel students-panel" data-view="alunos">
@@ -245,6 +258,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="instrutor.js?v=4"></script>
+  <script src="instrutor.js?v=5"></script>
 </body>
 </html>
