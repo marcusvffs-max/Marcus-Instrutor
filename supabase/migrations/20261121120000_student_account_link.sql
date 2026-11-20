@@ -65,7 +65,7 @@ BEGIN
   SET invited_at = NULL,
       invite_attempt_id = NULL
   WHERE user_id = current_user_id
-    AND invited_at IS NOT NULL;
+    AND (invited_at IS NOT NULL OR invite_attempt_id IS NOT NULL);
 
   RETURN QUERY
   SELECT
