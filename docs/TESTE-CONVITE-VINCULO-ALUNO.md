@@ -14,13 +14,15 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 - [ ] Não reutilizar ou excluir contas reais durante os testes.
 
 ## Testes funcionais
+Antes dos testes em ambiente isolado, a verificação estática local pode ser executada na raiz do repositório com `node --test scripts/test-student-link-flow.mjs`. Ela verifica invariantes no código-fonte; não substitui compilação Deno nem testes reais de Auth, banco, SMTP ou concorrência.
+
 
 | ID | Cenário | Resultado esperado |
 |---|---|---|
 | INV-01 | Instrutor autorizado convida aluno de sua própria lista | Convite enviado; cadastro recebe `user_id` da conta criada e `invited_at` preenchido. |
 | INV-02 | Instrutor tenta convidar cadastro pertencente a outro instrutor | HTTP 404; nenhuma conta criada e nenhum vínculo alterado. |
 | INV-03 | Instrutor solicita novo acesso para cadastro já vinculado | O servidor valida a conta vinculada e envia link de recuperação; não cria outro usuário nem altera o vínculo. |
-| INV-04 | Instrutor tenta reenviar convite enquanto `invited_at` está preenchido | HTTP 409; nenhum convite duplicado. |
+| INV-04 | Instrutor tenta reenviar enquanto existe reserva com menos de 15 minutos | HTTP 409; nenhum link duplicado. Após 15 minutos, pode reservar novamente se o cadastro continuar sem vínculo. |
 | INV-05 | Instrutor sem autorização ou com autorização vencida tenta convidar | HTTP 403; nenhuma alteração. |
 | INV-06 | Instrutor tenta executar ação administrativa diferente de `invite_student` | HTTP 403. |
 | INV-07 | Aluno aceita convite e entra pela primeira vez | Perfil permanece `usuario`; consulta RPC limpa `invited_at` e mantém o `user_id` correto. |
@@ -80,7 +82,7 @@ A associação automática de contas antigas por correspondência de e-mail foi 
 - [ ] **INV-22 — Conta vinculada sem aulas agendadas:** a RPC retorna lista vazia normalmente e a tela mostra “Nenhuma aula agendada”; não deve exibir a mensagem de conta sem vínculo.
 - [ ] O botão “Atualizar” mantém o comportamento e permite repetir a consulta sem sair da tela.
 - [ ] O aluno não recebe botão ou fluxo para criar vínculo por conta própria.
-- [ ] Conta antiga existente, confirmada e com perfil `usuario` deve seguir o fluxo de confirmação segura (INV-23 a INV-29); não criar conta duplicada nem associar apenas pela correspondência de e-mail.
+- [ ] Conta antiga existente, confirmada e com perfil `usuario` deve seguir o fluxo de confirmação segura (INV-23 a INV-31); não criar conta duplicada nem associar apenas pela correspondência de e-mail.
 
 
 ## Critério para concluir
@@ -95,7 +97,7 @@ Não executar migration no Supabase atual, não enviar convites a alunos reais, 
 ## Recuperação de convite interrompido
 
 - [ ] Se a conta Auth foi criada e o cadastro ficou vinculado, o instrutor consegue solicitar **Reenviar acesso** sem criar outra conta.
-- [ ] Contas antigas que ainda não possuem vínculo não recebem acesso automaticamente; devem passar pelo fluxo de convite autorizado para criar vínculo.
+- [ ] Contas antigas que ainda não possuem vínculo não recebem acesso automaticamente; devem passar pelo fluxo de confirmação segura (INV-23 a INV-31).
 - [ ] O servidor confere que o ID da conta vinculada existe e que o e-mail Auth corresponde exatamente ao e-mail do cadastro.
 - [ ] Se o perfil ficou no papel inicial `instrutor`, só é corrigido para `usuario` quando o e-mail ainda não foi confirmado e a reserva de convite original continua registrada.
 - [ ] Para conta já vinculada, o servidor gera link de recuperação; não executa `deleteUser`, não cria outra conta e não altera o vínculo se o envio falhar.
