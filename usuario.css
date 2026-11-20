@@ -9,3 +9,97 @@
   .user-summary { grid-template-columns:1fr; }
   .result-heading { align-items:center; }
 }
+
+
+/* Agenda do usuário: cartões responsivos */
+.user-summary { grid-template-columns:minmax(180px, 280px); }
+.user-summary .summary-card {
+  border:1px solid #dbe5f0;
+  border-radius:16px;
+  box-shadow:0 8px 22px rgba(18,52,90,.06);
+}
+.user-summary .summary-card strong { font-size:2rem; }
+.result-panel { border-radius:18px; }
+#listaAulas { margin-top:12px; }
+.user-lesson-list { display:grid; gap:12px; }
+.user-lesson-card {
+  display:flex;
+  align-items:stretch;
+  gap:15px;
+  padding:15px;
+  background:#fff;
+  border:1px solid #e1e8f0;
+  border-radius:15px;
+  box-shadow:0 5px 16px rgba(15,40,70,.045);
+  transition:transform .18s ease, box-shadow .18s ease;
+}
+.user-lesson-card:hover {
+  transform:translateY(-2px);
+  box-shadow:0 9px 22px rgba(15,40,70,.09);
+}
+.user-lesson-date {
+  width:66px;
+  min-width:66px;
+  min-height:78px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  border-radius:12px;
+  color:#12345a;
+  background:#edf4fb;
+  border:1px solid #d9e7f5;
+}
+.user-lesson-date strong { font-size:1.8rem; line-height:1.1; }
+.user-lesson-date span { font-size:.8rem; font-weight:700; text-transform:uppercase; }
+.user-lesson-date small { margin-top:3px; color:#64748b; text-transform:capitalize; }
+.user-lesson-info { min-width:0; flex:1; }
+.user-lesson-top {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.user-lesson-time { color:#12345a; font-weight:800; font-size:1rem; }
+.user-lesson-status {
+  display:inline-flex;
+  align-items:center;
+  padding:5px 10px;
+  border-radius:30px;
+  font-size:.75rem;
+  font-weight:700;
+  background:#e8f0f8;
+  color:#164b7b;
+}
+.user-lesson-status.status-realizada { background:#e7f6ed; color:#17643a; }
+.user-lesson-status.status-cancelada { background:#fff0f0; color:#a12b2b; }
+.user-lesson-status.status-confirmada { background:#e9f3ff; color:#1555a0; }
+.user-lesson-status.status-pendente { background:#fff6df; color:#8a5a00; }
+.user-lesson-info h4 { margin:9px 0 5px; color:#172b45; font-size:1rem; }
+.user-lesson-vehicle { margin:0; color:#64748b; font-size:.88rem; }
+.user-empty {
+  padding:32px 18px;
+  text-align:center;
+  border:1px dashed #cbd8e6;
+  border-radius:15px;
+  background:#f8fafc;
+  color:#475569;
+}
+.user-empty-icon {
+  width:44px; height:44px; margin:0 auto 10px;
+  display:grid; place-items:center; border-radius:50%;
+  background:#e7f6ed; color:#17643a; font-size:1.3rem; font-weight:800;
+}
+.user-empty strong { display:block; color:#1e293b; }
+.user-empty p { margin:6px 0 0; font-size:.9rem; }
+#btnAtualizar { min-width:104px; }
+#btnAtualizar:disabled { opacity:.6; cursor:wait; }
+@media (max-width:600px) {
+  .user-summary { grid-template-columns:1fr; }
+  .user-lesson-card { gap:11px; padding:12px; }
+  .user-lesson-date { width:58px; min-width:58px; min-height:72px; }
+  .user-lesson-date strong { font-size:1.55rem; }
+  .user-lesson-top { align-items:flex-start; }
+  .user-lesson-info h4 { font-size:.95rem; }
+}
