@@ -656,3 +656,51 @@ footer { padding:20px; text-align:center; color:var(--muted); font-size:12px; }
     page-break-inside: avoid;
   }
 }
+
+
+/* Autorização temporária do instrutor */
+.access-expiry-banner {
+  margin: 0 0 18px;
+  padding: 12px 15px;
+  border: 1px solid #b7e4c7;
+  border-radius: 12px;
+  background: #edf9f1;
+  color: #17663a;
+  font-size: 13px;
+  font-weight: 750;
+}
+.access-expiry-banner.access-expiry-warning {
+  border-color: #f3d28b;
+  background: #fff8e8;
+  color: #8a5b08;
+}
+.access-blocked-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 22px;
+  background: #f3f6fa;
+  font-family: Arial, sans-serif;
+}
+.access-blocked-card {
+  width: min(100%, 460px);
+  padding: 30px 24px;
+  border: 1px solid #dbe3ec;
+  border-radius: 18px;
+  background: #fff;
+  text-align: center;
+  box-shadow: 0 14px 40px rgba(16,36,58,.08);
+}
+.access-blocked-icon { font-size: 38px; }
+.access-blocked-card h1 { margin: 14px 0 10px; color: #12345a; font-size: 22px; }
+.access-blocked-card p { color: #536174; font-size: 14px; line-height: 1.55; }
+.access-blocked-card button {
+  margin-top: 14px;
+  padding: 11px 24px;
+  border: 0;
+  border-radius: 9px;
+  background: #12345a;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+}
