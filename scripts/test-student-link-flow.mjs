@@ -322,8 +322,8 @@ test("pré-checagem RPC/PostgREST contém somente SELECT e verifica ACL/roles", 
   const blocks = rpcCatalogPrecheck.split("```sql").slice(1).map(block => block.split("```")[0].trim());
   assert.ok(blocks.length >= 7, "Consultas SQL read-only insuficientes");
   for (const sql of blocks) {
-    assert.match(sql, /^select\\b/i);
-    assert.doesNotMatch(sql, /^\\s*(insert|update|delete|alter|create|drop|truncate|grant|revoke)\\b/im);
+    assert.match(sql, /^select/i);
+    assert.doesNotMatch(sql, /^(insert|update|delete|alter|create|drop|truncate|grant|revoke)/im);
   }
   for (const item of ["pg_get_functiondef", "aclexplode", "has_function_privilege", "prosecdef", "pgrst.db_schemas", "pg_auth_members"]) {
     assert.ok(rpcCatalogPrecheck.includes(item), `Item ausente: ${item}`);
