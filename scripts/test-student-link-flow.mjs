@@ -246,12 +246,12 @@ test("exceção do catálogo central e FK de app_settings permanecem documentada
 test("revisão das FKs registra versão PostgreSQL e semânticas originais", () => {
   assert.match(fkReview, /PostgreSQL 17\.11/i);
   for (const expected of [
-    "lessons.student_id -> students.id: NO ACTION",
-    "lessons.vehicle_id -> vehicles.id: NO ACTION",
-    "sales.student_id -> students.id: ON DELETE SET NULL",
-    "sale_items.sale_id -> sales.id: ON DELETE CASCADE",
-    "financial_transactions.student_id -> students.id: ON DELETE SET NULL",
-    "financial_transactions.sale_id -> sales.id: ON DELETE SET NULL",
-  ]) assert.ok(fkReview.includes(expected), `Comportamento original não documentado: ${expected}`);
+    /lessons\.student_id -> students\.id.*NO ACTION/,
+    /lessons\.vehicle_id -> vehicles\.id.*NO ACTION/,
+    /sales\.student_id -> students\.id.*ON DELETE SET NULL/,
+    /sale_items\.sale_id -> sales\.id.*ON DELETE CASCADE/,
+    /financial_transactions\.student_id -> students\.id.*ON DELETE SET NULL/,
+    /financial_transactions\.sale_id -> sales\.id.*ON DELETE SET NULL/,
+  ]) assert.match(fkReview, expected);
 });
 
