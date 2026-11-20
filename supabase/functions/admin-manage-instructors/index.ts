@@ -262,6 +262,9 @@ Deno.serve(async (req: Request) => {
     let email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const role = isStudentInvite ? "usuario" : body.role;
 
+    let studentInviteId: string | null = null;
+    let studentInviteReservation: string | null = null;
+
     if (isStudentInvite) {
       const studentId = typeof body.student_id === "string" ? body.student_id.trim() : "";
       if (!/^[0-9a-f-]{36}$/i.test(studentId)) {
@@ -276,7 +279,15 @@ Deno.serve(async (req: Request) => {
       if (studentError) throw studentError;
       if (!student) return response({ error: "Aluno não encontrado na sua lista de cadastros." }, 404);
       if (student.user_id) return response({ error: "Este aluno já possui uma conta vinculada." }, 409);
-      if (student.invited_at) return response({ error: "O convite deste aluno já foi enviado. Aguarde a conclusão do cadastro." }, 409);
+      if (student.invited_at) {
+        const reservationTime = new Date(student.invited_at).getTime();
+        const reservationIsRecent = Number.isFinite(reservationTime)
+          && Date.now() - reservationTime < 15 * 60 * 1000;
+        if (reservationIsRecent) {
+          return response({ error: "Já existe um convite em processamento para este aluno. Aguarde alguns minutos e atualize a lista." }, 409);
+        }
+      }
+      studentInviteId = student.id;
       nome = String(student.nome ?? "").trim();
       email = String(student.email ?? "").trim().toLowerCase();
       if (!email) return response({ error: "Cadastre o e-mail deste aluno antes de enviar o convite." }, 400);
@@ -304,12 +315,49 @@ Deno.serve(async (req: Request) => {
       return response({ error: "O envio de e-mail ainda não está configurado corretamente." }, 500);
     }
 
+    if (isStudentInvite && studentInviteId) {
+      const { error: clearStaleError } = await admin.from("students")
+        .update({ invited_at: null })
+        .eq("id", studentInviteId)
+        .eq("owner_id", authData.user.id)
+        .is("user_id", null)
+        .lt("invited_at", new Date(Date.now() - 15 * 60 * 1000).toISOString());
+      if (clearStaleError) throw clearStaleError;
+
+      studentInviteReservation = new Date().toISOString();
+      const { data: reservedStudent, error: reserveError } = await admin.from("students")
+        .update({ invited_at: studentInviteReservation })
+        .eq("id", studentInviteId)
+        .eq("owner_id", authData.user.id)
+        .is("user_id", null)
+        .is("invited_at", null)
+        .select("id")
+        .maybeSingle();
+      if (reserveError) throw reserveError;
+      if (!reservedStudent) {
+        return response({ error: "Este cadastro já está sendo processado para convite. Atualize a lista e tente novamente." }, 409);
+      }
+    }
+
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: "invite",
       email,
-      options: { data: { nome }, redirectTo: APP_URL },
+      options: {
+        data: isStudentInvite
+          ? { nome, student_id: studentInviteId, instructor_id: authData.user.id }
+          : { nome },
+        redirectTo: APP_URL,
+      },
     });
     if (linkError) {
+      if (studentInviteId && studentInviteReservation) {
+        await admin.from("students")
+          .update({ invited_at: null })
+          .eq("id", studentInviteId)
+          .eq("owner_id", authData.user.id)
+          .is("user_id", null)
+          .eq("invited_at", studentInviteReservation);
+      }
       const message = linkError.message.toLowerCase();
       if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
         return response({ error: "Já existe uma conta cadastrada com esse e-mail." }, 409);
@@ -321,32 +369,53 @@ Deno.serve(async (req: Request) => {
     const invitedUserId = linkData.user?.id;
     const actionLink = linkData.properties?.action_link;
     if (!invitedUserId || !actionLink) {
-      if (invitedUserId) await admin.auth.admin.deleteUser(invitedUserId);
+      let accountRemoved = !invitedUserId;
+      if (invitedUserId) {
+        const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
+        accountRemoved = !deleteError;
+        if (deleteError) console.error("Falha ao remover conta incompleta:", deleteError.message);
+      }
+      if (accountRemoved && studentInviteId && studentInviteReservation) {
+        await admin.from("students").update({ invited_at: null })
+          .eq("id", studentInviteId).eq("owner_id", authData.user.id)
+          .is("user_id", null).eq("invited_at", studentInviteReservation);
+      }
       console.error("O Supabase não retornou os dados necessários do convite.");
       return response({ error: "Não foi possível preparar o convite." }, 500);
     }
 
-    const { error: updateProfileError } = await admin.from("profiles")
-      .update({ nome, role }).eq("id", invitedUserId);
-    if (updateProfileError) {
-      await admin.auth.admin.deleteUser(invitedUserId);
-      console.error("Falha ao definir perfil do novo usuário:", updateProfileError.message);
+    const { data: updatedProfile, error: updateProfileError } = await admin.from("profiles")
+      .update({ nome, role }).eq("id", invitedUserId).select("id").maybeSingle();
+    if (updateProfileError || !updatedProfile) {
+      const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
+      if (!deleteError && studentInviteId && studentInviteReservation) {
+        await admin.from("students").update({ invited_at: null })
+          .eq("id", studentInviteId).eq("owner_id", authData.user.id)
+          .is("user_id", null).eq("invited_at", studentInviteReservation);
+      }
+      console.error("Falha ao definir perfil do novo usuário:", updateProfileError?.message ?? "perfil não encontrado");
       return response({ error: "Não foi possível definir o acesso do novo usuário." }, 500);
     }
 
-    if (isStudentInvite) {
-      const studentId = String(body.student_id).trim();
+    if (isStudentInvite && studentInviteId && studentInviteReservation) {
       const { data: linkedStudent, error: linkStudentError } = await admin
         .from("students")
-        .update({ user_id: invitedUserId, invited_at: new Date().toISOString() })
-        .eq("id", studentId)
+        .update({ user_id: invitedUserId })
+        .eq("id", studentInviteId)
         .eq("owner_id", authData.user.id)
         .is("user_id", null)
-        .is("invited_at", null)
+        .eq("invited_at", studentInviteReservation)
         .select("id")
         .maybeSingle();
       if (linkStudentError || !linkedStudent) {
-        await admin.auth.admin.deleteUser(invitedUserId);
+        const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
+        if (!deleteError) {
+          await admin.from("students").update({ invited_at: null })
+            .eq("id", studentInviteId).eq("owner_id", authData.user.id)
+            .is("user_id", null).eq("invited_at", studentInviteReservation);
+        } else {
+          console.error("Falha ao remover conta após conflito de vínculo:", deleteError.message);
+        }
         console.error("Falha ao vincular conta ao cadastro do aluno:", linkStudentError?.message ?? "cadastro já alterado");
         return response({ error: "Não foi possível concluir o vínculo. Atualize a lista de alunos e tente novamente." }, 409);
       }
@@ -380,13 +449,16 @@ Deno.serve(async (req: Request) => {
         command: err?.command ?? null,
         responseCode: err?.responseCode ?? null,
       });
-      await admin.auth.admin.deleteUser(invitedUserId);
-      if (isStudentInvite) {
+      const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
+      if (!deleteError && studentInviteId && studentInviteReservation) {
         await admin.from("students")
           .update({ invited_at: null })
-          .eq("id", String(body.student_id).trim())
+          .eq("id", studentInviteId)
           .eq("owner_id", authData.user.id)
-          .is("user_id", null);
+          .is("user_id", null)
+          .eq("invited_at", studentInviteReservation);
+      } else if (deleteError) {
+        console.error("Falha ao remover conta após erro SMTP:", deleteError.message);
       }
       return response({ error: "O convite foi preparado, mas o e-mail não pôde ser enviado. Confira o SMTP e tente novamente." }, 502);
     } finally {
