@@ -38,6 +38,32 @@ revoke all privileges on table
   public.financial_transactions
 from public, anon, authenticated;
 
+-- REVOKE no nivel da tabela nao remove grants concedidos diretamente
+-- a colunas. A auditoria de 20/11/2026 encontrou grants por coluna para
+-- authenticated; remover explicitamente esses grants nas tabelas cobertas.
+-- Preservar os privilegios de service_role para o backend.
+do $block$
+declare
+  item record;
+begin
+  for item in
+    select distinct table_schema, table_name, column_name
+    from information_schema.column_privileges
+    where table_schema = 'public'
+      and table_name in (
+        'profiles', 'students', 'lessons', 'vehicles', 'app_settings',
+        'products', 'sales', 'sale_items', 'financial_transactions'
+      )
+      and grantee in ('PUBLIC', 'anon', 'authenticated')
+  loop
+    execute format(
+      'revoke all privileges (%I) on table %I.%I from PUBLIC, anon, authenticated',
+      item.column_name, item.table_schema, item.table_name
+    );
+  end loop;
+end
+$block$;
+
 -- Perfil: somente leitura pelo cliente. INSERT/UPDATE/DELETE ficam no backend.
 grant select on table public.profiles to authenticated;
 
@@ -384,7 +410,9 @@ commit;
 --   - app_settings e products seguem exclusivos do admin;
 --   - politicas de whatsapp/ai_requests nao sao tocadas por este script.
 --
--- IMPORTANTE: os grants foram explicitamente restringidos acima para impedir
--- TRUNCATE e outros privilegios fora do alcance do RLS. Ainda revisar grants
--- herdados de outros roles, executar Supabase Advisors e validar integridade FK
--- em ambiente de teste. RLS nao substitui privilegios SQL nem integridade FK.
+-- IMPORTANTE: grants de tabela e coluna foram restringidos para PUBLIC, anon
+-- e authenticated. A auditoria encontrou default privileges amplos para
+-- supabase_admin/postgres no schema public; eles NAO sao alterados aqui porque
+-- isso pode quebrar RPCs e objetos futuros. Exigem plano separado por owner.
+-- Ainda revisar grants herdados, default privileges, integridade FK e testar
+-- em ambiente isolado. RLS nao substitui privilegios SQL nem integridade FK.
