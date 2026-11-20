@@ -1340,7 +1340,7 @@
             : "Conta vinculada com sucesso ao cadastro deste aluno."
           : student.invited_at
             ? "Convite em processamento. Aguarde a conclusão antes de tentar novamente."
-            : "Nenhum convite enviado. A conta será vinculada automaticamente ao cadastro correto após o convite.";
+            : "Nenhum convite enviado. O vínculo só será concluído depois que o titular do e-mail confirmar o acesso pelo link enviado.";
         window.alert("Vínculo da conta do aluno\n\n" + student.nome + "\n" +
           (student.email || "E-mail não informado") + "\n\nSituação: " + situation);
       }
@@ -1354,8 +1354,9 @@
           return;
         }
         const isRecovery = Boolean(student.user_id);
-        const actionLabel = isRecovery ? "Reenviar link de acesso" : "Enviar convite de acesso";
-        if (!window.confirm(actionLabel + " para " + student.nome + " (" + student.email + ")?")) return;
+        const actionLabel = isRecovery ? "Reenviar link de acesso" : "Enviar convite ou confirmação de acesso";
+        const confirmationText = actionLabel + " para " + student.nome + " (" + student.email + ")?\n\nConfira se este e-mail foi informado pelo próprio aluno. Se já existir uma conta com esse endereço, o titular receberá um link para confirmar o vínculo. O cadastro só será associado depois que ele abrir o link.";
+        if (!window.confirm(confirmationText)) return;
         button.disabled = true;
         button.textContent = isRecovery ? "Reenviando..." : "Enviando...";
         try {
