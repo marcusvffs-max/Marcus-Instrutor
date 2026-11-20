@@ -59,7 +59,7 @@ BEGIN
     LIMIT 1;
 
     IF COALESCE(current_email, '') <> '' THEN
-      SELECT min(s.id)
+      SELECT (array_agg(s.id))[1]
         INTO matched_student_id
       FROM public.students s
       WHERE lower(btrim(COALESCE(s.email, ''))) = current_email
