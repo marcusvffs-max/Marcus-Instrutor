@@ -116,11 +116,15 @@
       const status = String(student.status || "em_aberto").toLowerCase();
       const statusClass = status === "aprovado" ? "student-status-approved" :
         status === "finalizado" ? "student-status-finished" : "student-status-open";
+      const inviteTimestamp = student.invited_at ? new Date(student.invited_at).getTime() : NaN;
+      const inviteAge = Date.now() - inviteTimestamp;
+      const invitePending = Boolean(student.invited_at) && Number.isFinite(inviteTimestamp) && inviteAge >= 0 && inviteAge < 15 * 60 * 1000;
       const accountStatus = !state.studentLinkFieldsAvailable
         ? "Vínculo indisponível durante a atualização"
         : student.user_id ? (student.invited_at ? "Conta vinculada · aguardando primeiro acesso" : "Conta vinculada")
-        : student.invited_at ? "Link enviado · aguardando confirmação do aluno" : "Sem convite";
-      const accountClass = state.studentLinkFieldsAvailable && student.invited_at ? "student-status-open" :
+        : invitePending ? "Link enviado · aguardando confirmação do aluno"
+        : student.invited_at ? "Solicitação expirada · pode reenviar" : "Sem convite";
+      const accountClass = state.studentLinkFieldsAvailable && invitePending ? "student-status-open" :
         state.studentLinkFieldsAvailable && student.user_id ? "student-status-approved" : "";
       const inviteButton = !state.studentLinkFieldsAvailable
         ? ""
@@ -128,10 +132,10 @@
           ? student.email
             ? '<button class="button button-outline button-small" type="button" data-student-action="invite" data-student-id="' + escapeHtml(student.id) + '">Reenviar acesso</button>'
             : ""
-          : student.invited_at
-            ? '<button class="button button-outline button-small" type="button" disabled>Convite enviado</button>'
+          : invitePending
+            ? '<button class="button button-outline button-small" type="button" disabled>Link enviado</button>'
             : student.email
-              ? '<button class="button button-primary button-small" type="button" data-student-action="invite" data-student-id="' + escapeHtml(student.id) + '">Convidar para área do aluno</button>'
+              ? '<button class="button button-primary button-small" type="button" data-student-action="invite" data-student-id="' + escapeHtml(student.id) + '">' + (student.invited_at ? "Reenviar confirmação" : "Convidar para área do aluno") + '</button>'
               : "";
       return '<article class="student-card">' +
         '<div class="student-card-main">' +
