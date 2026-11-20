@@ -85,6 +85,17 @@
       el("atualizadoEm").textContent = "Agenda atualizada.";
       showMessage("Sua lista foi atualizada.", false);
     } catch (error) {
+      if (error && error.code === "P0002") {
+        el("totalAulas").textContent = "—";
+        el("listaAulas").innerHTML =
+          '<div class="user-empty"><div class="user-empty-icon">!</div>' +
+          '<strong>Acesso ainda não vinculado</strong>' +
+          '<p>Sua conta foi autenticada, mas ainda não está associada a um cadastro de aluno. Entre em contato com seu instrutor e peça para conferir seu e-mail e enviar um convite de acesso. Por segurança, não tente criar outra conta.</p></div>';
+        el("atualizadoEm").textContent = "Aguardando regularização do vínculo.";
+        showMessage("Fale com seu instrutor para regularizar o acesso.");
+        return;
+      }
+
       console.error("Falha ao consultar aulas do usuário:", error);
       el("listaAulas").innerHTML = '<div class="empty-state">Não foi possível carregar sua lista de aulas.</div>';
       el("atualizadoEm").textContent = "Falha ao atualizar.";
