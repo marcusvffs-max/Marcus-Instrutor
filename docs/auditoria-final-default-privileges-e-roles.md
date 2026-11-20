@@ -106,7 +106,7 @@ Essa proteção é do endpoint e deve permanecer alinhada ao trigger SQL: a chav
 
 ## Verificação estática desta revisão
 
-Em 20/11/2026, os 19 testes do arquivo `scripts/test-student-link-flow.mjs` foram executados em um harness JavaScript isolado com os arquivos atuais obtidos da branch. Resultado: 19/19 passaram.
+Em 20/11/2026, os 20 testes do arquivo `scripts/test-student-link-flow.mjs` foram executados em um harness JavaScript isolado com os arquivos atuais obtidos da branch. Resultado: 20/20 passaram.
 
 O harness não equivale a executar `node --test`; não foi executado PostgreSQL, não foi compilada a Edge Function Deno e nenhum teste autenticado foi feito contra o Supabase. A validação confirma a presença dos controles no código e no rascunho, não a efetividade das permissões no banco.
 
@@ -116,3 +116,6 @@ O harness não equivale a executar `node --test`; não foi executado PostgreSQL,
 Foi criada a matriz `docs/TESTE-RLS-ISOLAMENTO-INSTRUTORES.md`, com cenários SEC-001 a SEC-057. Ela cobre anon, aluno, dois instrutores independentes e admin; leitura, escrita, alteração de papel, joins, integridade referencial, funções privilegiadas, schema privado, privilégios SQL e caminhos alternativos de exposição.
 
 A matriz é um roteiro de teste em ambiente isolado, não uma declaração de que os testes já passaram. Não usar o banco atual, dados reais ou qualquer ambiente que gere cobrança.
+
+
+A cobertura adicional inclui a existência da matriz SEC-001 a SEC-057 em `docs/TESTE-RLS-ISOLAMENTO-INSTRUTORES.md`. Os casos ainda estão pendentes de execução em banco descartável; os 20 testes estáticos verificam somente a presença e consistência documental da matriz.
