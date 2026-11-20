@@ -13,6 +13,11 @@
     lessons: [],
     vehicles: [],
     transactions: [],
+    products: [],
+    sales: [],
+    productSearch: "",
+    productEditingId: null,
+    saleCart: [],
     financialSearch: "",
     studentEditingId: null,
     studentSearch: "",
@@ -544,6 +549,203 @@
     if (state.students.some(student => student.id === selected)) select.value = selected;
   }
 
+  function productLabel(product) {
+    const type = { produto: "Produto", servico: "Serviço", pacote: "Pacote" }[product.tipo] || product.tipo;
+    return product.nome + " · " + type + " · " + currency(product.preco);
+  }
+
+  function updateProductSelects() {
+    const options = '<option value="">Selecione um item</option>' + state.products
+      .filter(product => product.ativo)
+      .map(product => '<option value="' + escapeHtml(product.id) + '">' + escapeHtml(productLabel(product)) + '</option>').join("");
+    el("vendaProduto").innerHTML = options;
+  }
+
+  function renderProducts() {
+    const term = state.productSearch.trim().toLocaleLowerCase("pt-BR");
+    const filtered = state.products.filter(product => [product.nome, product.tipo, product.descricao]
+      .join(" ").toLocaleLowerCase("pt-BR").includes(term));
+    el("contadorProdutos").textContent = filtered.length + (filtered.length === 1 ? " item" : " itens");
+    const list = el("listaProdutos");
+    if (!filtered.length) {
+      list.innerHTML = '<div class="empty-state">' + (state.products.length ? "Nenhum item encontrado." : "Você ainda não cadastrou produtos ou serviços.") + '</div>';
+      return;
+    }
+    list.innerHTML = filtered.map(product => {
+      const type = { produto: "Produto", servico: "Serviço", pacote: "Pacote" }[product.tipo] || product.tipo;
+      const classes = product.ativo ? "product-active" : "product-inactive";
+      return '<article class="product-card"><div class="product-card-main"><div class="product-card-heading"><h4>' + escapeHtml(product.nome) + '</h4><span class="product-kind">' + type + '</span><span class="product-state ' + classes + '">' + (product.ativo ? "Ativo" : "Inativo") + '</span></div><div class="product-card-details"><span><small>Preço</small><strong>' + currency(product.preco) + '</strong></span><span><small>Aulas adicionadas</small><strong>' + (product.quantidade_aulas ?? (product.tipo === "servico" ? 1 : 0)) + '</strong></span></div>' + (product.descricao ? '<p>' + escapeHtml(product.descricao) + '</p>' : '') + '</div><div class="product-card-actions"><button class="button button-outline button-small" type="button" data-product-action="edit" data-product-id="' + product.id + '">Editar</button><button class="button button-danger button-small" type="button" data-product-action="toggle" data-product-id="' + product.id + '">' + (product.ativo ? "Inativar" : "Ativar") + '</button></div></article>';
+    }).join("");
+  }
+
+  function resetProductForm() {
+    state.productEditingId = null;
+    el("formProduto").reset();
+    el("tituloFormProduto").textContent = "Cadastrar produto ou serviço";
+    el("btnSalvarProduto").textContent = "Salvar item";
+    el("produtoAtivo").value = "true";
+    el("formProduto").hidden = true;
+  }
+
+  function openProductForm(product = null) {
+    el("formProduto").reset();
+    state.productEditingId = product ? product.id : null;
+    el("tituloFormProduto").textContent = product ? "Editar produto ou serviço" : "Cadastrar produto ou serviço";
+    el("btnSalvarProduto").textContent = product ? "Salvar alterações" : "Salvar item";
+    if (product) {
+      el("produtoNome").value = product.nome || "";
+      el("produtoTipo").value = product.tipo || "servico";
+      el("produtoPreco").value = product.preco ?? 0;
+      el("produtoAulas").value = product.quantidade_aulas ?? "";
+      el("produtoDescricao").value = product.descricao || "";
+      el("produtoAtivo").value = String(product.ativo);
+    } else {
+      el("produtoAtivo").value = "true";
+    }
+    el("formProduto").hidden = false;
+    el("produtoNome").focus();
+  }
+
+  async function saveProduct(event) {
+    event.preventDefault();
+    const button = el("btnSalvarProduto");
+    const price = Number(el("produtoPreco").value);
+    const lessonsRaw = el("produtoAulas").value;
+    const lessons = lessonsRaw === "" ? null : Number(lessonsRaw);
+    const product = {
+      nome: el("produtoNome").value.trim(),
+      tipo: el("produtoTipo").value,
+      preco: price,
+      quantidade_aulas: lessons,
+      descricao: el("produtoDescricao").value.trim() || null,
+      ativo: el("produtoAtivo").value === "true"
+    };
+    if (!product.nome || !Number.isFinite(price) || price < 0 ||
+        (lessons !== null && (!Number.isInteger(lessons) || lessons < 0))) {
+      showMessage("Confira o nome, preço e quantidade de aulas.");
+      return;
+    }
+    button.disabled = true;
+    try {
+      const query = state.supabase.from("products");
+      const result = state.productEditingId
+        ? await query.update(product).eq("id", state.productEditingId)
+        : await query.insert({ ...product, owner_id: state.user.id });
+      if (result.error) throw result.error;
+      resetProductForm();
+      await loadProductsAndSales();
+      showMessage("Produto ou serviço salvo com sucesso.", false);
+    } catch (error) {
+      console.error("Falha ao salvar produto:", error);
+      showMessage("Não foi possível salvar o item. Confira os dados e as permissões.");
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function toggleProduct(id) {
+    const product = state.products.find(item => item.id === id);
+    if (!product) return;
+    const action = product.ativo ? "inativar" : "ativar";
+    if (!window.confirm("Deseja " + action + ' "' + product.nome + '"?')) return;
+    const { error } = await state.supabase.from("products").update({ ativo: !product.ativo }).eq("id", id);
+    if (error) { console.error(error); showMessage("Não foi possível atualizar o item."); return; }
+    await loadProductsAndSales();
+    showMessage("Situação atualizada.", false);
+  }
+
+  function renderSaleCart() {
+    const cart = state.saleCart;
+    const total = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    el("totalVenda").textContent = currency(total);
+    el("btnSalvarVenda").disabled = !cart.length || !state.students.length;
+    const container = el("itensCarrinhoVenda");
+    if (!cart.length) {
+      container.innerHTML = '<div class="empty-state">Adicione produtos ou serviços à venda.</div>';
+      return;
+    }
+    container.innerHTML = cart.map((item, index) =>
+      '<article class="sale-cart-row"><div><strong>' + escapeHtml(item.name) + '</strong><span>' + item.quantity + ' × ' + currency(item.unitPrice) + '</span></div><strong>' + currency(item.quantity * item.unitPrice) + '</strong><button type="button" class="button button-danger button-small" data-cart-remove="' + index + '">Remover</button></article>'
+    ).join("");
+  }
+
+  function addSaleCartItem() {
+    const product = state.products.find(item => item.id === el("vendaProduto").value && item.ativo);
+    const quantity = Number(el("vendaQuantidade").value);
+    if (!product || !Number.isInteger(quantity) || quantity <= 0) {
+      showMessage("Selecione um item ativo e informe uma quantidade válida.");
+      return;
+    }
+    const existing = state.saleCart.find(item => item.productId === product.id);
+    if (existing) existing.quantity += quantity;
+    else state.saleCart.push({ productId: product.id, name: product.nome, unitPrice: Number(product.preco), quantity });
+    el("vendaProduto").value = "";
+    el("vendaQuantidade").value = "1";
+    renderSaleCart();
+    showMessage("");
+  }
+
+  async function saveSale(event) {
+    event.preventDefault();
+    if (!state.saleCart.length) { showMessage("Adicione pelo menos um item à venda."); return; }
+    const studentId = el("vendaAluno").value;
+    if (!state.students.some(student => student.id === studentId)) { showMessage("Selecione um aluno válido."); return; }
+    const button = el("btnSalvarVenda");
+    const saleId = crypto.randomUUID();
+    const items = state.saleCart.map(item => ({ product_id: item.productId, quantidade: item.quantity }));
+    button.disabled = true;
+    button.textContent = "Registrando...";
+    try {
+      const { data, error } = await state.supabase.rpc("create_instructor_sale", {
+        p_sale_id: saleId,
+        p_student_id: studentId,
+        p_items: items,
+        p_payment_method: el("vendaPagamento").value || null,
+        p_notes: el("vendaObservacoes").value.trim() || null
+      });
+      if (error) throw error;
+      el("formVenda").reset();
+      el("vendaQuantidade").value = "1";
+      state.saleCart = [];
+      renderSaleCart();
+      await loadOwnData();
+      await loadProductsAndSales();
+      showMessage("Venda confirmada! A entrada financeira e o saldo de aulas foram atualizados.", false);
+    } catch (error) {
+      console.error("Falha ao registrar venda:", error);
+      showMessage(error.message || "Não foi possível registrar a venda. Nenhum lançamento parcial foi salvo.");
+    } finally {
+      button.textContent = "Confirmar venda";
+      button.disabled = !state.saleCart.length;
+    }
+  }
+
+  async function loadProductsAndSales() {
+    const [productsResult, salesResult] = await Promise.all([
+      state.supabase.from("products").select("id,nome,tipo,descricao,preco,quantidade_aulas,ativo").order("nome", { ascending: true }),
+      state.supabase.from("sales").select("id,student_id,data_venda,total,forma_pagamento,status,observacoes,created_at").order("data_venda", { ascending: false }).order("created_at", { ascending: false })
+    ]);
+    if (productsResult.error) throw productsResult.error;
+    if (salesResult.error) throw salesResult.error;
+    state.products = productsResult.data || [];
+    state.sales = salesResult.data || [];
+    renderProducts();
+    updateProductSelects();
+    renderSales();
+  }
+
+  function renderSales() {
+    const list = el("listaVendas");
+    el("contadorVendas").textContent = state.sales.length + (state.sales.length === 1 ? " venda" : " vendas");
+    if (!state.sales.length) {
+      list.innerHTML = '<div class="empty-state">Nenhuma venda registrada ainda.</div>';
+      return;
+    }
+    list.innerHTML = state.sales.map(sale =>
+      '<article class="sale-history-card"><div><strong>' + escapeHtml(studentName(sale.student_id)) + '</strong><span>' + escapeHtml(formatDate(sale.data_venda)) + ' · ' + escapeHtml(sale.forma_pagamento || "Pagamento não informado") + '</span></div><strong>' + currency(sale.total) + '</strong><span class="sale-state ' + (sale.status === "confirmada" ? "product-active" : "product-inactive") + '">' + (sale.status === "confirmada" ? "Confirmada" : "Cancelada") + '</span></article>'
+    ).join("");
+  }
+
   async function loadFinancialData() {
     const { data, error } = await state.supabase.from("financial_transactions")
       .select("id,tipo,descricao,valor,data_movimento,status,student_id,sale_id,created_at")
@@ -644,7 +846,11 @@
     renderLessons();
     renderUpcomingLessons();
     await loadFinancialData();
+    await loadProductsAndSales();
     updateStudentSelect();
+    const saleStudent = el("vendaAluno");
+    saleStudent.innerHTML = '<option value="">Selecione um aluno</option>' + state.students.map(student => '<option value="' + escapeHtml(student.id) + '">' + escapeHtml(student.nome) + '</option>').join("");
+    renderSales();
     updateLessonSelects();
   }
 
@@ -926,6 +1132,26 @@
     });
 
     el("formMovimentacao").addEventListener("submit", saveFinancialTransaction);
+    el("btnNovoProduto").addEventListener("click", () => openProductForm());
+    el("btnCancelarProduto").addEventListener("click", resetProductForm);
+    el("formProduto").addEventListener("submit", saveProduct);
+    el("filtroBuscaProdutos").addEventListener("input", event => { state.productSearch = event.target.value; renderProducts(); });
+    el("listaProdutos").addEventListener("click", event => {
+      const button = event.target.closest("[data-product-action]");
+      if (!button) return;
+      const product = state.products.find(item => item.id === button.dataset.productId);
+      if (button.dataset.productAction === "edit" && product) openProductForm(product);
+      if (button.dataset.productAction === "toggle") toggleProduct(button.dataset.productId);
+    });
+    el("btnAdicionarItemVenda").addEventListener("click", addSaleCartItem);
+    el("itensCarrinhoVenda").addEventListener("click", event => {
+      const button = event.target.closest("[data-cart-remove]");
+      if (!button) return;
+      state.saleCart.splice(Number(button.dataset.cartRemove), 1);
+      renderSaleCart();
+    });
+    el("formVenda").addEventListener("submit", saveSale);
+    renderSaleCart();
     el("filtroBuscaFinanceiro").addEventListener("input", event => { state.financialSearch = event.target.value; renderFinancial(); });
     el("movimentoData").value = localToday();
 
