@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#12345a">
+  <meta name="description" content="Área de relatórios do instrutor - Marcus Instrutor">
+  <title>Relatórios do Instrutor | Marcus Instrutor</title>
+  <link rel="stylesheet" href="instrutor.css?v=1">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">MI</div>
+        <div><h1>Marcus Instrutor</h1><p>Área do instrutor</p></div>
+      </div>
+      <div class="account-area">
+        <span id="nomeInstrutor">Carregando perfil...</span>
+        <button id="btnSair" class="button button-outline" type="button">Sair</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="intro">
+        <span class="eyebrow">CONSULTAS</span>
+        <h2>Meus relatórios</h2>
+        <p>Consulte suas aulas e gere relatórios para impressão.</p>
+      </section>
+
+      <section class="summary-grid" aria-label="Resumo das aulas">
+        <article class="summary-card"><span>Total de alunos</span><strong id="totalAlunos">—</strong></article>
+        <article class="summary-card"><span>Aulas realizadas</span><strong id="totalRealizadas">—</strong></article>
+        <article class="summary-card"><span>Aulas agendadas</span><strong id="totalAgendadas">—</strong></article>
+      </section>
+
+      <section class="report-grid">
+        <article class="panel">
+          <h3>Relatório por aluno</h3>
+          <label for="filtroAluno">Aluno</label>
+          <select id="filtroAluno"><option value="">Selecione um aluno</option></select>
+          <button id="btnRelatorioAluno" class="button button-primary" type="button">Gerar relatório</button>
+        </article>
+
+        <article class="panel">
+          <h3>Relatório por período</h3>
+          <label for="dataInicio">Data inicial</label>
+          <input id="dataInicio" type="date">
+          <label for="dataFim">Data final</label>
+          <input id="dataFim" type="date">
+          <button id="btnRelatorioPeriodo" class="button button-primary" type="button">Gerar relatório</button>
+        </article>
+
+        <article class="panel">
+          <h3>Lista diária de aulas</h3>
+          <label for="dataDiaria">Data</label>
+          <input id="dataDiaria" type="date">
+          <button id="btnRelatorioDiario" class="button button-primary" type="button">Gerar lista diária</button>
+        </article>
+      </section>
+
+      <section id="resultado" class="panel result-panel" aria-live="polite">
+        <div class="empty-state">Escolha um dos relatórios acima para começar.</div>
+      </section>
+      <p id="mensagem" class="message" role="status" aria-live="polite"></p>
+    </main>
+    <footer>Marcus Instrutor · Área restrita</footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
+  <script src="instrutor.js?v=1"></script>
+</body>
+</html>
