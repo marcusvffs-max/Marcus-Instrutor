@@ -1,0 +1,52 @@
+# Plano de testes — convite e vínculo exclusivo do aluno
+
+Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza alterações em produção nem uso de contas reais de alunos.
+
+## Pré-condições
+
+- [ ] Preview Vercel criado a partir do commit mais recente da branch.
+- [ ] Conferir que o preview usa o projeto Supabase de teste, nunca o ambiente de produção.
+- [ ] Revisar e aplicar a migration `20261121120000_student_account_link.sql` somente no banco de teste.
+- [ ] Publicar a Edge Function `admin-manage-instructors` somente no projeto Supabase de teste.
+- [ ] Confirmar o `APP_ORIGIN` da Edge Function e o redirect de autenticação para o domínio exato do preview.
+- [ ] Preparar instrutor autorizado, aluno fictício com e-mail controlado e dados de aula fictícios.
+- [ ] Não reutilizar ou excluir contas reais durante os testes.
+
+## Testes funcionais
+
+| ID | Cenário | Resultado esperado |
+|---|---|---|
+| INV-01 | Instrutor autorizado convida aluno de sua própria lista | Convite enviado; cadastro recebe `user_id` da conta criada e `invited_at` preenchido. |
+| INV-02 | Instrutor tenta convidar cadastro pertencente a outro instrutor | HTTP 404; nenhuma conta criada e nenhum vínculo alterado. |
+| INV-03 | Instrutor tenta convidar cadastro já vinculado | HTTP 409; nenhum segundo usuário criado. |
+| INV-04 | Instrutor tenta reenviar convite enquanto `invited_at` está preenchido | HTTP 409; nenhum convite duplicado. |
+| INV-05 | Instrutor sem autorização ou com autorização vencida tenta convidar | HTTP 403; nenhuma alteração. |
+| INV-06 | Instrutor tenta executar ação administrativa diferente de `invite_student` | HTTP 403. |
+| INV-07 | Aluno aceita convite e entra pela primeira vez | Perfil permanece `usuario`; consulta RPC limpa `invited_at` e mantém o `user_id` correto. |
+| INV-08 | Aluno consulta a área do aluno | Recebe somente aulas agendadas do cadastro associado à sua própria conta. |
+| INV-09 | Conta de aluno A tenta consultar dados do aluno B | Nenhuma aula ou cadastro de B é retornado. |
+| INV-10 | E-mail já cadastrado no Auth tenta receber novo convite | HTTP 409; nenhum vínculo indevido. |
+| INV-11 | Envio SMTP falha depois da criação da conta | Conta criada pelo convite é removida e vínculo/estado pendente são limpos. |
+| INV-12 | Duas solicitações de convite simultâneas para o mesmo cadastro | No máximo uma solicitação conclui o vínculo; a outra falha sem deixar conta órfã. |
+| INV-13 | Conta antiga com e-mail confirmado que corresponde a exatamente um cadastro | Vínculo automático ocorre no primeiro acesso, desde que o cadastro ainda não esteja vinculado. |
+| INV-14 | Conta antiga com e-mail não confirmado ou duplicado entre cadastros | Nenhum vínculo automático é feito. |
+| INV-15 | Conta de aluno de teste é excluída pelo fluxo administrativo | Trigger limpa `user_id` e `invited_at`, permitindo novo convite posterior. |
+
+## Verificações de banco
+
+- [ ] Índice único parcial impede que uma conta fique associada a mais de um cadastro.
+- [ ] Chave estrangeira de `students.user_id` referencia `auth.users(id)`.
+- [ ] RPC exige usuário autenticado e perfil `usuario`.
+- [ ] RPC filtra aulas por `students.user_id = auth.uid()`.
+- [ ] Junção das aulas também confere `owner_id` do cadastro.
+- [ ] Junção do veículo também confere `owner_id`.
+- [ ] Retorno da RPC preserva os sete campos esperados pelo frontend.
+- [ ] Funções e permissões não concedem acesso anônimo aos dados do aluno.
+
+## Critério para concluir
+
+A funcionalidade só será considerada validada depois de todos os testes aplicáveis passarem no ambiente isolado, incluindo isolamento entre dois alunos diferentes e falha SMTP. Registrar os resultados sem expor e-mails, tokens ou dados pessoais.
+
+## Fora do escopo
+
+Não executar migration no Supabase atual, não enviar convites a alunos reais, não alterar contas existentes e não publicar em produção sem autorização explícita.
