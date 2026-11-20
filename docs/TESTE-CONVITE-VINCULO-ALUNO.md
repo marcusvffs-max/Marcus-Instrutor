@@ -34,6 +34,7 @@ Escopo: branch `feature/relatorios-instrutor-app`. Este roteiro não autoriza al
 | INV-16 | A conta Auth é criada e a Edge Function é interrompida antes de vincular o aluno | O trigger vincula o usuário ao cadastro na mesma transação de criação do Auth, desde que token, cadastro, instrutor e e-mail correspondam. |
 | INV-17 | Metadados do usuário são alterados depois da criação da conta | A associação já registrada pelo trigger não muda; metadados editáveis não são usados para reautorizar o vínculo. |
 | INV-18 | Duas tentativas usam o mesmo identificador de reserva | Índice único impede que o mesmo identificador fique reservado em dois cadastros. |
+| INV-19 | O papel do perfil é alterado administrativamente durante uma recuperação de acesso | A recuperação não redefine o papel; a atualização condicional falha sem sobrescrever o papel alterado. A conta e o vínculo são preservados. |
 
 ## Verificações de banco
 
