@@ -49,7 +49,16 @@ BEGIN
   END IF;
 
   -- Não existe fallback por e-mail: somente o trigger de convite validado
-  -- pode criar o vínculo. Contas antigas sem user_id não recebem aulas.
+  -- pode criar o vínculo. Contas antigas sem user_id recebem orientação clara
+  -- no frontend, sem consultar ou revelar dados de qualquer cadastro.
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.students s
+    WHERE s.user_id = current_user_id
+  ) THEN
+    RAISE EXCEPTION 'CONTA_SEM_VINCULO'
+      USING ERRCODE = 'P0002';
+  END IF;
 
   -- A primeira consulta autenticada confirma que o aluno concluiu o acesso.
   UPDATE public.students
