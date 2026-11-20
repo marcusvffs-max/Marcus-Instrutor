@@ -269,12 +269,14 @@ Deno.serve(async (req: Request) => {
       }
       const { data: student, error: studentError } = await admin
         .from("students")
-        .select("id, nome, email")
+        .select("id, nome, email, user_id, invited_at")
         .eq("id", studentId)
         .eq("owner_id", authData.user.id)
         .maybeSingle();
       if (studentError) throw studentError;
       if (!student) return response({ error: "Aluno não encontrado na sua lista de cadastros." }, 404);
+      if (student.user_id) return response({ error: "Este aluno já possui uma conta vinculada." }, 409);
+      if (student.invited_at) return response({ error: "O convite deste aluno já foi enviado. Aguarde a conclusão do cadastro." }, 409);
       nome = String(student.nome ?? "").trim();
       email = String(student.email ?? "").trim().toLowerCase();
       if (!email) return response({ error: "Cadastre o e-mail deste aluno antes de enviar o convite." }, 400);
@@ -332,6 +334,24 @@ Deno.serve(async (req: Request) => {
       return response({ error: "Não foi possível definir o acesso do novo usuário." }, 500);
     }
 
+    if (isStudentInvite) {
+      const studentId = String(body.student_id).trim();
+      const { data: linkedStudent, error: linkStudentError } = await admin
+        .from("students")
+        .update({ user_id: invitedUserId, invited_at: new Date().toISOString() })
+        .eq("id", studentId)
+        .eq("owner_id", authData.user.id)
+        .is("user_id", null)
+        .is("invited_at", null)
+        .select("id")
+        .maybeSingle();
+      if (linkStudentError || !linkedStudent) {
+        await admin.auth.admin.deleteUser(invitedUserId);
+        console.error("Falha ao vincular conta ao cadastro do aluno:", linkStudentError?.message ?? "cadastro já alterado");
+        return response({ error: "Não foi possível concluir o vínculo. Atualize a lista de alunos e tente novamente." }, 409);
+      }
+    }
+
     const safeName = escapeHtml(nome);
     const transporter = nodemailer.createTransport({
       host: smtpHost,
@@ -361,6 +381,13 @@ Deno.serve(async (req: Request) => {
         responseCode: err?.responseCode ?? null,
       });
       await admin.auth.admin.deleteUser(invitedUserId);
+      if (isStudentInvite) {
+        await admin.from("students")
+          .update({ invited_at: null })
+          .eq("id", String(body.student_id).trim())
+          .eq("owner_id", authData.user.id)
+          .is("user_id", null);
+      }
       return response({ error: "O convite foi preparado, mas o e-mail não pôde ser enviado. Confira o SMTP e tente novamente." }, 502);
     } finally {
       transporter.close();
