@@ -42,7 +42,7 @@ input:focus, select:focus { outline:2px solid rgba(18,52,90,.18); border-color:v
 .button-danger { color:#a12b2b; border:1px solid #f0cccc; background:#fff; }
 .button-small { min-height:34px; padding:6px 10px; font-size:12px; }
 .button:disabled { opacity:.6; cursor:wait; }
-.students-panel { margin-bottom:18px; }
+.students-panel, .vehicles-panel { margin-bottom:18px; }
 .section-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:14px; }
 .section-heading h3 { margin:0 0 5px; }
 .section-heading p { margin:0; color:var(--muted); font-size:13px; }
