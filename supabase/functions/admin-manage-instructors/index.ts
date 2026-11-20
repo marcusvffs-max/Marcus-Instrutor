@@ -116,7 +116,7 @@ Deno.serve(async (req: Request) => {
       const reservationTime = pendingStudent.invited_at ? new Date(pendingStudent.invited_at).getTime() : NaN;
       const reservationAge = Date.now() - reservationTime;
       if (!Number.isFinite(reservationTime) || reservationAge < 0 ||
-          reservationAge > 15 * 60 * 1000 ||
+          reservationAge >= 15 * 60 * 1000 ||
           String(pendingStudent.email ?? "").trim().toLowerCase() !== authData.user.email.trim().toLowerCase()) {
         return response({ error: "Este link não corresponde a uma solicitação válida ou expirou. Peça ao instrutor para enviar um novo acesso." }, 409);
       }
