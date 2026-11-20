@@ -96,6 +96,55 @@
         </div>
       </section>
 
+      <section class="panel vehicles-panel">
+        <div class="section-heading">
+          <div>
+            <h3>Meus veículos</h3>
+            <p>Cadastre os veículos que você utiliza nas aulas. Os registros ficam vinculados à sua conta.</p>
+          </div>
+          <button id="btnNovoVeiculo" class="button button-primary" type="button">+ Novo veículo</button>
+        </div>
+
+        <form id="formVeiculo" class="student-form" hidden>
+          <h4 id="tituloFormVeiculo">Cadastrar veículo</h4>
+          <div class="student-form-grid">
+            <div>
+              <label for="veiculoTipo">Tipo de veículo *</label>
+              <select id="veiculoTipo" required>
+                <option value="">Selecione</option>
+                <option value="Carro">Carro</option>
+                <option value="Motocicleta">Motocicleta</option>
+              </select>
+            </div>
+            <div>
+              <label for="veiculoCategoria">Categoria *</label>
+              <select id="veiculoCategoria" required>
+                <option value="">Selecione</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="AB">AB</option>
+              </select>
+            </div>
+            <div>
+              <label for="veiculoPlaca">Placa</label>
+              <input id="veiculoPlaca" type="text" maxlength="10" placeholder="ABC1D23">
+            </div>
+            <div>
+              <label for="veiculoNome">Identificação (opcional)</label>
+              <input id="veiculoNome" type="text" maxlength="120" placeholder="Ex.: Yamaha Factor ou Onix">
+            </div>
+          </div>
+          <div class="student-form-actions">
+            <button id="btnCancelarVeiculo" class="button button-outline" type="button">Cancelar</button>
+            <button id="btnSalvarVeiculo" class="button button-primary" type="submit">Salvar veículo</button>
+          </div>
+        </form>
+
+        <div id="listaVeiculos" class="table-wrap">
+          <div class="empty-state">Carregando seus veículos...</div>
+        </div>
+      </section>
+
       <section class="report-grid">
         <article class="panel">
           <h3>Relatório por aluno</h3>
