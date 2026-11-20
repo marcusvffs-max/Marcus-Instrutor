@@ -258,6 +258,8 @@ Deno.serve(async (req: Request) => {
 
 ## Secrets e configuração
 
+**Configuração obrigatória de deploy:** manter `verify_jwt = true`. O endpoint é chamado somente por usuário autenticado; a checagem da plataforma deve rejeitar JWT ausente/inválido antes do handler. O código ainda chama `auth.getUser(accessToken)` para validar a identidade que será autorizada como admin. Não desativar `verify_jwt` para este endpoint.
+
 A função depende de:
 
 - `SUPABASE_URL`: variável padrão do ambiente Edge Functions.
