@@ -16,6 +16,7 @@
     .users-primary{background:#12345a;color:#fff}.users-secondary{background:#e8edf3;color:#172033}
     .users-message{min-height:22px;margin:8px 0;color:#334155}.users-list{margin-top:22px;border-top:1px solid #e2e8f0;padding-top:16px}
     .users-item{padding:12px 0;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .users-item[hidden]{display:none}
     .users-item small{display:block;color:#64748b;margin-top:3px}.users-role{font-size:.82rem;background:#eef2f7;padding:4px 8px;border-radius:20px;white-space:nowrap}
     .users-item-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
     .users-item-actions button{border:0;border-radius:8px;padding:8px 10px;font:inherit;font-size:.82rem;font-weight:600;cursor:pointer}
