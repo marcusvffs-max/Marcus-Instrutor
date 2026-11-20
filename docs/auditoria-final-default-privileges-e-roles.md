@@ -106,9 +106,9 @@ Essa proteção é do endpoint e deve permanecer alinhada ao trigger SQL: a chav
 
 ## Verificação estática desta revisão
 
-Em 20/11/2026, os 20 testes do arquivo `scripts/test-student-link-flow.mjs` foram executados em um harness JavaScript isolado com os arquivos atuais obtidos da branch. Resultado: 20/20 passaram.
+Em 20/11/2026, os 24 testes do arquivo `scripts/test-student-link-flow.mjs` foram executados em um harness JavaScript isolado com os arquivos atuais obtidos da branch. Resultado: 24/24 passaram.
 
-O harness não equivale a executar `node --test`; não foi executado PostgreSQL, não foi compilada a Edge Function Deno e nenhum teste autenticado foi feito contra o Supabase. A validação confirma a presença dos controles no código e no rascunho, não a efetividade das permissões no banco.
+O harness JavaScript isolado não equivale a executar `node --test`; não foi executado PostgreSQL, não foi compilada a Edge Function Deno e nenhum teste autenticado foi feito contra o Supabase. Os quatro novos casos verificam estaticamente as FKs compostas, ações SET NULL/CASCADE, remoção das FKs simples e exceção do catálogo de produtos. A validação confirma a consistência textual do desenho, não a efetividade das constraints no banco.
 
 
 ## Próxima etapa: matriz de testes de autorização
