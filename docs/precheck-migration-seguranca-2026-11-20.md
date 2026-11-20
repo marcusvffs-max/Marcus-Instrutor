@@ -78,3 +78,7 @@ Ainda assim, a migration NÃO está autorizada nem pronta para aplicação autom
 - Nenhum recurso pago criado.
 - Nenhum usuário ou convite criado.
 - Nenhum deploy ou merge realizado.
+
+### Verificação complementar de configuração PostgREST
+
+Também foi consultado `pg_db_role_setting` para localizar uma configuração persistida `pgrst.db_schemas` associada a roles PostgreSQL. A consulta não retornou configuração. Isso não comprova a lista efetiva de schemas expostos em runtime; a conferência no Dashboard continua obrigatória.
