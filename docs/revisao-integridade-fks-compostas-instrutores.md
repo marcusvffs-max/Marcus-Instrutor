@@ -1,0 +1,125 @@
+# Integridade entre instrutores — revisão das FKs compostas
+
+Data: 20/11/2026  
+Status: desenho técnico; não executar sem autorização e validação final.
+
+## 1. Resultado da nova consulta
+
+A consulta correta ao catálogo confirmou as FKs existentes e seus comportamentos de exclusão. A consulta anterior que filtrava por `regclass::text` retornou vazio por incompatibilidade do filtro; não significava ausência de FKs.
+
+Comportamentos atuais relevantes:
+- `lessons.student_id -> students.id`: NO ACTION.
+- `lessons.vehicle_id -> vehicles.id`: NO ACTION.
+- `sales.student_id -> students.id`: ON DELETE SET NULL.
+- `sale_items.sale_id -> sales.id`: ON DELETE CASCADE.
+- `financial_transactions.student_id -> students.id`: ON DELETE SET NULL.
+- `financial_transactions.sale_id -> sales.id`: ON DELETE SET NULL.
+- `sale_items.product_id -> products.id`: ON DELETE SET NULL.
+- `app_settings.owner_id -> auth.users.id`: FK existente (NO ACTION). A documentação anterior que dizia não haver FK estava incorreta e foi corrigida.
+
+Todas as tabelas relacionadas têm `owner_id NOT NULL`. Não há dados atualmente nas tabelas operacionais auditadas; as seis verificações de relações entre owners retornaram zero inconsistências. Isso não substitui constraints: os dados podem ser inseridos depois.
+
+## 2. Integridade que as FKs simples não garantem
+
+Uma FK simples confirma que o ID relacionado existe, mas não confirma que pertence ao mesmo `owner_id`. O risco é um registro de um instrutor apontar para aluno, veículo ou venda de outro instrutor.
+
+A solução preferida é adicionar chaves únicas compostas nos pais e FKs compostas nos filhos. O PostgreSQL 17.11 do projeto suporta `ON DELETE SET NULL (coluna)`, permitindo preservar `owner_id` quando um vínculo opcional for removido.
+
+## 3. DDL proposto — ainda não executado
+
+Antes de aplicar, revisar os nomes e dependências com a migration final. A proposta é adicionar as constraints compostas sem remover as FKs simples existentes inicialmente; depois de validação e testes, avaliar se as FKs simples redundantes podem ser removidas.
+
+```sql
+-- Chaves candidatas para as relações que precisam validar owner.
+alter table public.students
+  add constraint students_id_owner_key unique (id, owner_id);
+
+alter table public.vehicles
+  add constraint vehicles_id_owner_key unique (id, owner_id);
+
+alter table public.sales
+  add constraint sales_id_owner_key unique (id, owner_id);
+
+-- Aula deve apontar para aluno e veículo do mesmo instrutor.
+alter table public.lessons
+  add constraint lessons_student_owner_fkey
+  foreign key (student_id, owner_id)
+  references public.students (id, owner_id);
+
+alter table public.lessons
+  add constraint lessons_vehicle_owner_fkey
+  foreign key (vehicle_id, owner_id)
+  references public.vehicles (id, owner_id);
+
+-- Venda pode perder o vínculo com aluno sem apagar owner_id.
+alter table public.sales
+  add constraint sales_student_owner_fkey
+  foreign key (student_id, owner_id)
+  references public.students (id, owner_id)
+  on delete set null (student_id);
+
+-- Item deve pertencer ao mesmo owner da venda.
+alter table public.sale_items
+  add constraint sale_items_sale_owner_fkey
+  foreign key (sale_id, owner_id)
+  references public.sales (id, owner_id)
+  on delete cascade;
+
+-- Movimentações preservam owner_id quando aluno ou venda forem removidos.
+alter table public.financial_transactions
+  add constraint financial_student_owner_fkey
+  foreign key (student_id, owner_id)
+  references public.students (id, owner_id)
+  on delete set null (student_id);
+
+alter table public.financial_transactions
+  add constraint financial_sale_owner_fkey
+  foreign key (sale_id, owner_id)
+  references public.sales (id, owner_id)
+  on delete set null (sale_id);
+```
+
+### Observações importantes
+
+- A FK composta de `lessons.vehicle_id` aceita `vehicle_id NULL` porque a FK usa MATCH SIMPLE por padrão; se não houver veículo, não há referência a validar.
+- A exclusão de uma venda continuará apagando seus itens (`sale_items`) como hoje.
+- Ao excluir aluno, vendas e movimentações preservam seus registros e owner, mas ficam sem student_id, como hoje.
+- Ao excluir venda, movimentações preservam o histórico e owner, mas ficam sem sale_id, como hoje.
+- Produto é exceção intencional: `sale_items.product_id` pode apontar ao catálogo central administrado por Marcus. Não criar FK composta exigindo o mesmo owner nessa relação.
+- `app_settings.owner_id` já referencia `auth.users(id)`; manter comportamento atual.
+- `products.owner_id` não participa da regra de ownership de `sale_items`.
+
+## 4. Segurança das policies
+
+O SQL de RLS já proposto complementa as constraints:
+- instrutor só lê linhas próprias;
+- aulas verificam aluno e veículo próprios;
+- vendas verificam aluno próprio quando informado;
+- itens verificam venda própria;
+- movimentações verificam aluno e venda próprios;
+- admin tem acesso global.
+
+As policies não substituem FKs compostas: policy SELECT limita leitura, mas não garante consistência em todos os caminhos de gravação/backend. As FKs compostas são a barreira no banco.
+
+## 5. Pré-condições e testes antes de produção
+
+1. Confirmar constraints com nomes exatos e inexistência de constraints compostas com os mesmos nomes.
+2. Reexecutar as seis consultas de inconsistência antes de DDL.
+3. Criar dois instrutores de teste em ambiente isolado autorizado.
+4. Tentar criar aula do owner A com aluno B e veículo B; ambas devem falhar.
+5. Tentar criar venda de A para aluno B; deve falhar.
+6. Tentar criar item de venda de A apontando para venda B; deve falhar.
+7. Tentar criar movimentação de A ligada a aluno/venda B; deve falhar.
+8. Confirmar exclusões preservando as semânticas listadas.
+9. Confirmar que item de venda de A pode referenciar produto do catálogo central de Marcus.
+10. Verificar consultas e planos de execução para avaliar índices e impacto.
+
+Não criar projeto/branch Supabase pago para teste. Nenhum usuário de teste, dado, constraint, índice ou trigger foi criado.
+
+## 6. Correção de documentação anterior
+
+O documento anterior `rascunho-integridade-referencial-multi-instrutor.md` afirmava que `app_settings.owner_id` não tinha FK. A consulta completa do catálogo mostrou `app_settings_owner_id_fkey -> auth.users(id)`; considerar a informação corrigida neste documento.
+
+## 7. Estado atual
+
+Somente consultas read-only e documentação. Nenhuma alteração foi feita no banco.
