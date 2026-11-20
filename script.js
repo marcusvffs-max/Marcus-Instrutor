@@ -1719,6 +1719,7 @@ function abrirVenda() {
     const subtotalGeral = Math.round((subtotalProdutos + subtotalServicos) * 100) / 100;
     const aulas = itensCarrinho.reduce((s, item) => s + item.aulasContratadas, 0);
     const temServicos = subtotalServicos > 0;
+    if (!temServicos) campoValorDesconto.value = "0";
     campoTipoDesconto.disabled = !temServicos;
     campoValorDesconto.disabled = !temServicos;
     rotuloDesconto.textContent = temServicos
