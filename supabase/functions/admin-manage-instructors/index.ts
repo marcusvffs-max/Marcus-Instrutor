@@ -139,7 +139,7 @@ Deno.serve(async (req: Request) => {
         }
       }
       const { error: updateError } = await admin.from("profiles")
-        .update({ role: newRole }).eq("id", userId);
+        .update({ role: newRole, instructor_access_until: null }).eq("id", userId);
       if (updateError) throw updateError;
       return response({ ok: true, message: "Tipo de acesso alterado com sucesso." });
     }
