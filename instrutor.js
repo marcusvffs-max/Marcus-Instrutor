@@ -13,7 +13,8 @@
     lessons: [],
     vehicles: [],
     studentEditingId: null,
-    vehicleEditingId: null
+    vehicleEditingId: null,
+    lessonEditingId: null
   };
 
   function escapeHtml(value) {
@@ -68,6 +69,11 @@
     return labels[status] || status || "Em aberto";
   }
 
+  function lessonStatusLabel(status) {
+    const labels = { agendada: "Agendada", realizada: "Realizada", cancelada: "Cancelada" };
+    return labels[String(status || "").toLowerCase()] || status || "—";
+  }
+
   function renderStudents() {
     const container = el("listaAlunos");
     if (!state.students.length) {
@@ -76,7 +82,7 @@
     }
 
     container.innerHTML = '<table class="students-table"><thead><tr>' +
-      '<th>Aluno</th><th>E-mail</th><th>Telefone</th><th>Categoria</th><th>Situação</th><th>Ações</th>' +
+      '<th>Aluno</th><th>E-mail</th><th>Telefone</th><th>Categoria</th><th>Situação</th><th>Aulas restantes</th><th>Ações</th>' +
       '</tr></thead><tbody>' +
       state.students.map(student =>
         '<tr>' +
@@ -85,6 +91,7 @@
           '<td>' + escapeHtml(student.telefone || "—") + '</td>' +
           '<td>' + escapeHtml(student.categoria || "—") + '</td>' +
           '<td>' + escapeHtml(studentStatusLabel(student.status)) + '</td>' +
+          '<td>' + escapeHtml(student.aulas_restantes ?? 0) + '</td>' +
           '<td class="student-actions">' +
             '<button class="button button-outline button-small" type="button" data-student-action="edit" data-student-id="' + escapeHtml(student.id) + '">Editar</button>' +
             '<button class="button button-danger button-small" type="button" data-student-action="delete" data-student-id="' + escapeHtml(student.id) + '">Excluir</button>' +
@@ -122,6 +129,191 @@
         '</tr>'
       ).join("") +
       '</tbody></table>';
+  }
+
+  function renderLessons() {
+    const container = el("listaAulas");
+    if (!state.lessons.length) {
+      container.innerHTML = '<div class="empty-state">Você ainda não cadastrou aulas.</div>';
+      return;
+    }
+
+    const rows = sortLessons(state.lessons);
+    container.innerHTML = '<table class="students-table"><thead><tr>' +
+      '<th>Data</th><th>Horário</th><th>Aluno</th><th>Veículo</th><th>Aula</th><th>Situação</th><th>Ações</th>' +
+      '</tr></thead><tbody>' +
+      rows.map(lesson =>
+        '<tr>' +
+          '<td>' + escapeHtml(formatDate(lesson.data_aula)) + '</td>' +
+          '<td>' + escapeHtml(String(lesson.horario || "").slice(0, 5)) + '</td>' +
+          '<td>' + escapeHtml(studentName(lesson.student_id)) + '</td>' +
+          '<td>' + escapeHtml(vehicleName(lesson.vehicle_id)) + '</td>' +
+          '<td>' + escapeHtml(lesson.numero_aula ?? "—") + '</td>' +
+          '<td><span class="status ' + (String(lesson.status).toLowerCase() === "realizada" ? "status-realizada" : "") + '">' +
+            escapeHtml(lessonStatusLabel(lesson.status)) + '</span></td>' +
+          '<td class="student-actions">' +
+            '<button class="button button-outline button-small" type="button" data-lesson-action="edit" data-lesson-id="' + escapeHtml(lesson.id) + '">Editar</button>' +
+            '<button class="button button-danger button-small" type="button" data-lesson-action="delete" data-lesson-id="' + escapeHtml(lesson.id) + '">Excluir</button>' +
+          '</td>' +
+        '</tr>'
+      ).join("") +
+      '</tbody></table>';
+  }
+
+  function updateLessonSelects() {
+    const studentSelect = el("aulaAluno");
+    const selectedStudent = studentSelect.value;
+    studentSelect.innerHTML = '<option value="">Selecione um aluno</option>' +
+      state.students.map(student =>
+        '<option value="' + escapeHtml(student.id) + '">' +
+          escapeHtml(student.nome + " · " + (student.aulas_restantes ?? 0) + " aulas restantes") +
+        '</option>'
+      ).join("");
+    if (state.students.some(student => student.id === selectedStudent)) studentSelect.value = selectedStudent;
+
+    const vehicleSelect = el("aulaVeiculo");
+    const selectedVehicle = vehicleSelect.value;
+    vehicleSelect.innerHTML = '<option value="">Sem veículo definido</option>' +
+      state.vehicles.map(vehicle =>
+        '<option value="' + escapeHtml(vehicle.id) + '">' + escapeHtml(vehicleLabel(vehicle)) + '</option>'
+      ).join("");
+    if (state.vehicles.some(vehicle => vehicle.id === selectedVehicle)) vehicleSelect.value = selectedVehicle;
+  }
+
+  function updateLessonBalanceHint() {
+    const student = state.students.find(item => item.id === el("aulaAluno").value);
+    const target = el("saldoAlunoAula");
+    if (!student) {
+      target.textContent = "Selecione o aluno para consultar o saldo de aulas.";
+      return;
+    }
+    const remaining = Number(student.aulas_restantes || 0);
+    target.textContent = "Saldo atual: " + remaining + " aula(s) restante(s)." +
+      (remaining === 0 ? " Não será possível confirmar uma aula como realizada sem saldo." : "");
+    target.classList.toggle("lesson-balance-empty", remaining === 0);
+  }
+
+  function resetLessonForm() {
+    state.lessonEditingId = null;
+    el("formAula").reset();
+    el("tituloFormAula").textContent = "Agendar aula";
+    el("btnSalvarAula").textContent = "Salvar aula";
+    el("formAula").hidden = true;
+    updateLessonBalanceHint();
+  }
+
+  function openLessonForm(lesson = null) {
+    el("formAula").reset();
+    state.lessonEditingId = lesson ? lesson.id : null;
+    el("tituloFormAula").textContent = lesson ? "Editar aula" : "Agendar aula";
+    el("btnSalvarAula").textContent = lesson ? "Salvar alterações" : "Salvar aula";
+    updateLessonSelects();
+
+    if (lesson) {
+      el("aulaAluno").value = lesson.student_id || "";
+      el("aulaData").value = String(lesson.data_aula || "").slice(0, 10);
+      el("aulaHorario").value = String(lesson.horario || "").slice(0, 5);
+      el("aulaVeiculo").value = lesson.vehicle_id || "";
+      el("aulaStatus").value = String(lesson.status || "agendada").toLowerCase();
+      el("aulaObservacoes").value = lesson.observacoes || "";
+    } else {
+      el("aulaData").value = localToday();
+      el("aulaStatus").value = "agendada";
+    }
+
+    el("formAula").hidden = false;
+    updateLessonBalanceHint();
+    el("aulaAluno").focus();
+  }
+
+  async function saveLesson(event) {
+    event.preventDefault();
+    const button = el("btnSalvarAula");
+    const studentId = el("aulaAluno").value;
+    const date = el("aulaData").value;
+    const time = el("aulaHorario").value;
+    const status = el("aulaStatus").value;
+    const student = state.students.find(item => item.id === studentId);
+    const previous = state.lessons.find(item => item.id === state.lessonEditingId);
+
+    if (!student || !date || !time) {
+      showMessage("Selecione o aluno e informe a data e o horário da aula.");
+      return;
+    }
+
+    const requiresDebit = status === "realizada" && (
+      !previous ||
+      String(previous.status || "").toLowerCase() !== "realizada" ||
+      previous.student_id !== studentId
+    );
+    if (requiresDebit && Number(student.aulas_restantes || 0) <= 0) {
+      showMessage("Não é possível confirmar esta aula como realizada: o aluno não possui aulas restantes. Atualize o pacote de aulas antes de continuar.");
+      return;
+    }
+
+    const occupied = state.lessons.find(item =>
+      item.id !== state.lessonEditingId &&
+      String(item.data_aula).slice(0, 10) === date &&
+      String(item.horario).slice(0, 5) === time &&
+      String(item.status || "").toLowerCase() !== "cancelada"
+    );
+    if (occupied) {
+      showMessage("Já existe uma aula agendada nesse dia e horário. Escolha outro horário.");
+      return;
+    }
+
+    const nextNumber = previous?.numero_aula ??
+      (Math.max(0, ...state.lessons.filter(item => item.student_id === studentId)
+        .map(item => Number(item.numero_aula || 0))) + 1);
+    const lesson = {
+      owner_id: state.user.id,
+      student_id: studentId,
+      vehicle_id: el("aulaVeiculo").value || null,
+      data_aula: date,
+      horario: time,
+      numero_aula: nextNumber,
+      status,
+      observacoes: el("aulaObservacoes").value.trim() || null
+    };
+
+    button.disabled = true;
+    button.textContent = "Salvando...";
+    showMessage("");
+    try {
+      const result = previous
+        ? await state.supabase.from("lessons").update(lesson).eq("id", previous.id)
+        : await state.supabase.from("lessons").insert(lesson);
+      if (result.error) throw result.error;
+      resetLessonForm();
+      await loadOwnData();
+      showMessage("Aula salva com sucesso.", false);
+    } catch (error) {
+      console.error("Falha ao salvar aula:", error);
+      const detail = String(error?.message || "");
+      if (detail.includes("SALDO_AULAS_INSUFICIENTE")) {
+        showMessage("A confirmação foi bloqueada: o aluno não possui aulas restantes.");
+      } else {
+        showMessage("Não foi possível salvar a aula. Confira os dados e tente novamente.");
+      }
+    } finally {
+      button.disabled = false;
+      button.textContent = state.lessonEditingId ? "Salvar alterações" : "Salvar aula";
+    }
+  }
+
+  async function deleteLesson(id) {
+    const lesson = state.lessons.find(item => item.id === id);
+    if (!lesson) return;
+    if (!window.confirm("Deseja excluir esta aula de " + studentName(lesson.student_id) + "?")) return;
+    try {
+      const { error } = await state.supabase.from("lessons").delete().eq("id", id);
+      if (error) throw error;
+      await loadOwnData();
+      showMessage("Aula excluída com sucesso.", false);
+    } catch (error) {
+      console.error("Falha ao excluir aula:", error);
+      showMessage("Não foi possível excluir esta aula. Atualize a página e tente novamente.");
+    }
   }
 
   function resetVehicleForm() {
@@ -217,7 +409,7 @@
         .select("id,nome,email,telefone,cpf,endereco,categoria,status,aulas_compradas,aulas_restantes")
         .order("nome", { ascending: true }),
       state.supabase.from("lessons")
-        .select("id,student_id,data_aula,horario,numero_aula,status,vehicle_id")
+        .select("id,student_id,data_aula,horario,numero_aula,status,vehicle_id,observacoes")
         .order("data_aula", { ascending: true })
         .order("horario", { ascending: true }),
       state.supabase.from("vehicles")
@@ -234,15 +426,17 @@
 
     el("totalAlunos").textContent = state.students.length;
     el("totalRealizadas").textContent = state.lessons.filter(item =>
-      ["Realizada", "realizada", "realizada"].includes(item.status)
+      ["realizada"].includes(String(item.status || "").toLowerCase())
     ).length;
     el("totalAgendadas").textContent = state.lessons.filter(item =>
-      ["Agendada", "agendada"].includes(item.status)
+      ["agendada"].includes(String(item.status || "").toLowerCase())
     ).length;
 
     renderStudents();
     renderVehicles();
+    renderLessons();
     updateStudentSelect();
+    updateLessonSelects();
   }
 
   function resetStudentForm() {
@@ -267,6 +461,7 @@
       el("alunoEndereco").value = student.endereco || "";
       el("alunoCategoria").value = student.categoria || "";
       el("alunoStatus").value = student.status || "em_aberto";
+      el("alunoAulasCompradas").value = student.aulas_compradas ?? 0;
     }
 
     el("formAluno").hidden = false;
@@ -285,6 +480,23 @@
       categoria: el("alunoCategoria").value || null,
       status: el("alunoStatus").value
     };
+    const purchasedLessons = Number(el("alunoAulasCompradas").value);
+    if (!Number.isInteger(purchasedLessons) || purchasedLessons < 0) {
+      showMessage("Informe uma quantidade válida de aulas contratadas.");
+      el("alunoAulasCompradas").focus();
+      return;
+    }
+    const completedLessons = state.lessons.filter(item =>
+      item.student_id === state.studentEditingId &&
+      String(item.status || "").toLowerCase() === "realizada"
+    ).length;
+    if (purchasedLessons < completedLessons) {
+      showMessage("A quantidade contratada não pode ser menor que o total de aulas já realizadas.");
+      el("alunoAulasCompradas").focus();
+      return;
+    }
+    student.aulas_compradas = purchasedLessons;
+    student.aulas_restantes = purchasedLessons - completedLessons;
 
     if (!student.nome) {
       showMessage("Informe o nome do aluno.");
@@ -464,6 +676,19 @@
       const vehicle = state.vehicles.find(item => item.id === id);
       if (button.dataset.vehicleAction === "edit" && vehicle) openVehicleForm(vehicle);
       if (button.dataset.vehicleAction === "delete") deleteVehicle(id);
+    });
+
+    el("btnNovaAula").addEventListener("click", () => openLessonForm());
+    el("btnCancelarAula").addEventListener("click", resetLessonForm);
+    el("formAula").addEventListener("submit", saveLesson);
+    el("aulaAluno").addEventListener("change", updateLessonBalanceHint);
+    el("listaAulas").addEventListener("click", event => {
+      const button = event.target.closest("[data-lesson-action]");
+      if (!button) return;
+      const id = button.dataset.lessonId;
+      const lesson = state.lessons.find(item => item.id === id);
+      if (button.dataset.lessonAction === "edit" && lesson) openLessonForm(lesson);
+      if (button.dataset.lessonAction === "delete") deleteLesson(id);
     });
 
     el("btnRelatorioAluno").addEventListener("click", reportByStudent);
