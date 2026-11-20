@@ -18,6 +18,43 @@
 begin;
 
 -- ---------------------------------------------------------------------------
+-- 0. Privilegios SQL: RLS nao protege TRUNCATE.
+-- A auditoria de 20/11/2026 encontrou TRUNCATE concedido a authenticated
+-- em profiles, students, lessons, vehicles e app_settings. Tambem faltavam
+-- grants CRUD para authenticated em sales, sale_items e financial_transactions.
+-- Remover todos os privilegios diretos de PUBLIC/anon/authenticated e conceder
+-- somente o necessario. RLS continua decidindo quais linhas cada papel acessa.
+-- ---------------------------------------------------------------------------
+
+revoke all privileges on table
+  public.profiles,
+  public.students,
+  public.lessons,
+  public.vehicles,
+  public.app_settings,
+  public.products,
+  public.sales,
+  public.sale_items,
+  public.financial_transactions
+from public, anon, authenticated;
+
+-- Perfil: somente leitura pelo cliente. INSERT/UPDATE/DELETE ficam no backend.
+grant select on table public.profiles to authenticated;
+
+-- CRUD via API para authenticated; as policies abaixo restringem admin/instrutor.
+-- TRUNCATE, REFERENCES e TRIGGER nao sao concedidos.
+grant select, insert, update, delete on table
+  public.students,
+  public.lessons,
+  public.vehicles,
+  public.app_settings,
+  public.products,
+  public.sales,
+  public.sale_items,
+  public.financial_transactions
+to authenticated;
+
+-- ---------------------------------------------------------------------------
 -- 1. Funcao interna para obter o papel sem recursao de RLS em profiles.
 -- O schema private nao deve ser incluido nos schemas expostos pelo PostgREST.
 -- SECURITY DEFINER e restrito: search_path vazio, auth.uid obrigatorio,
@@ -47,11 +84,10 @@ grant execute on function private.current_app_role() to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 2. Defesa adicional contra alteracao de role pelo cliente autenticado.
--- O fluxo backend usa a chave secreta service_role, que nao pode estar no
--- navegador. Com a chave service_role no cabeçalho Authorization, a chamada
--- nao representa um usuario final e auth.uid() retorna NULL. O trigger
--- preserva o papel enviado pelo backend; usuarios autenticados comuns
--- sempre recebem instrutor no INSERT e nao podem alterar role no UPDATE.
+-- O backend usa JWT com claim role=service_role, nunca exposto ao navegador.
+-- O trigger libera somente essa claim explícita. Requisições anonimas,
+-- mesmo com auth.uid() NULL, sao rejeitadas; usuarios autenticados comuns
+-- recebem instrutor no INSERT e nao podem alterar role no UPDATE.
 -- ---------------------------------------------------------------------------
 
 create or replace function private.protect_profile_role()
@@ -61,13 +97,23 @@ security definer
 set search_path = ''
 as $function$
 begin
-  if (select auth.uid()) is not null then
-    if tg_op = 'INSERT' then
-      new.role := 'instrutor';
-    elsif new.role is distinct from old.role then
-      raise exception 'O papel do perfil so pode ser alterado pelo backend administrativo.'
-        using errcode = '42501';
-    end if;
+  -- A única exceção é uma chamada autenticada com JWT service_role,
+  -- usada exclusivamente no backend. Não usar auth.uid() IS NULL como
+  -- bypass: requisições anônimas também podem ter uid NULL.
+  if (select auth.jwt() ->> 'role') = 'service_role' then
+    return new;
+  end if;
+
+  if (select auth.uid()) is null then
+    raise exception 'Operacao de perfil exige autenticacao administrativa.'
+      using errcode = '42501';
+  end if;
+
+  if tg_op = 'INSERT' then
+    new.role := 'instrutor';
+  elsif new.role is distinct from old.role then
+    raise exception 'O papel do perfil so pode ser alterado pelo backend administrativo.'
+      using errcode = '42501';
   end if;
 
   return new;
@@ -332,5 +378,7 @@ commit;
 --   - app_settings e products seguem exclusivos do admin;
 --   - politicas de whatsapp/ai_requests nao sao tocadas por este script.
 --
--- IMPORTANTE: revisar os grants SQL existentes e executar Supabase Advisors
--- no ambiente de teste. RLS nao substitui privilegios SQL nem integridade FK.
+-- IMPORTANTE: os grants foram explicitamente restringidos acima para impedir
+-- TRUNCATE e outros privilegios fora do alcance do RLS. Ainda revisar grants
+-- herdados de outros roles, executar Supabase Advisors e validar integridade FK
+-- em ambiente de teste. RLS nao substitui privilegios SQL nem integridade FK.
