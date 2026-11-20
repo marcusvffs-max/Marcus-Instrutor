@@ -83,6 +83,23 @@ test("página de confirmação exige sessão e chama a ação autenticada", () =
   assert.match(claim, /window\.location\.replace\("usuario\.html"\)/);
 });
 
+test("trigger SQL rejeita reservas vencidas e timestamps futuros", () => {
+  const triggerStart = migration.indexOf("CREATE OR REPLACE FUNCTION private.link_student_account_from_invite()");
+  const triggerEnd = migration.indexOf("$function$;", migration.indexOf("AS $function$", triggerStart));
+  assert.ok(triggerStart >= 0 && triggerEnd > triggerStart);
+  const trigger = migration.slice(triggerStart, triggerEnd);
+  assert.match(trigger, /invited_at > statement_timestamp\(\) - interval '15 minutes'/);
+  assert.match(trigger, /invited_at <= statement_timestamp\(\)/);
+  assert.match(trigger, /invite_attempt_id = attempt_id_text::uuid/);
+  assert.match(trigger, /user_id IS NULL/);
+});
+
+test("janela de validade do trigger corresponde ao limite exclusivo da aplicação", () => {
+  assert.match(rules, /age >= STUDENT_LINK_RESERVATION_TTL_MS/);
+  assert.match(migration, /invited_at > statement_timestamp\(\) - interval '15 minutes'/);
+  assert.match(migration, /invited_at <= statement_timestamp\(\)/);
+});
+
 test("migration não associa conta antiga somente por e-mail", () => {
   assert.doesNotMatch(migration, /matched_student_id|current_email/);
   assert.match(migration, /CONTA_SEM_VINCULO/);
