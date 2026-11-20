@@ -513,6 +513,11 @@
       }
       async function mostrarAplicativo() {
         await carregarPainelAdmin();
+        const botaoSair = document.getElementById("btnLogout");
+        if (botaoSair) {
+          botaoSair.disabled = false;
+          botaoSair.textContent = "Sair";
+        }
         document.body.classList.add("autenticado");
         if (mensagemLogin) mensagemLogin.textContent = "";
         window.dispatchEvent(new Event("marcus-authenticated"));
@@ -562,14 +567,17 @@
           botaoSair.onclick = async function () {
             botaoSair.disabled = true;
             botaoSair.textContent = "Saindo...";
-            const { error: erroSaida } = await clienteSupabase.auth.signOut({ scope: "local" });
-            if (erroSaida) {
+            try {
+              const { error: erroSaida } = await clienteSupabase.auth.signOut({ scope: "local" });
+              if (erroSaida) throw erroSaida;
+              mostrarLogin("Sessão encerrada com segurança.");
+            } catch (erro) {
+              console.error("Erro ao encerrar sessão:", erro);
+              mostrarErro("Não foi possível encerrar a sessão. Tente novamente.");
+            } finally {
               botaoSair.disabled = false;
               botaoSair.textContent = "Sair";
-              mostrarErro("Não foi possível encerrar a sessão. Tente novamente.");
-              return;
             }
-            mostrarLogin("Sessão encerrada com segurança.");
           };
         }
         return true;
