@@ -123,3 +123,26 @@ O documento anterior `rascunho-integridade-referencial-multi-instrutor.md` afirm
 ## 7. Estado atual
 
 Somente consultas read-only e documentação. Nenhuma alteração foi feita no banco.
+
+
+## 8. Ajuste após revisão das ações referenciais e índices
+
+A migration deve criar as FKs compostas e, na mesma transação, remover as FKs simples equivalentes já confirmadas no catálogo:
+- `lessons_student_id_fkey`
+- `lessons_vehicle_id_fkey`
+- `sales_student_id_fkey`
+- `sale_items_sale_id_fkey`
+- `financial_transactions_student_id_fkey`
+- `financial_transactions_sale_id_fkey`
+
+Isso evita manter duas FKs para a mesma relação e disparar ações referenciais redundantes. As FKs de owner_id para Auth e `sale_items.product_id -> products.id` permanecem.
+
+A documentação PostgreSQL 17 confirma que `ON DELETE SET NULL (coluna)` pode limitar a ação a uma coluna específica; `MATCH SIMPLE` permite que uma FK composta opcional seja ignorada quando um componente é NULL. Fonte: https://www.postgresql.org/docs/17/ddl-constraints.html
+
+Auditoria dos índices atuais:
+- já existem índices individuais em lessons(student_id), lessons(vehicle_id), sale_items(sale_id), sales(student_id), além de índices por owner/data;
+- não há índices compostos específicos nas colunas de relacionamento com owner_id;
+- não criar todos automaticamente: avaliar planos de consulta e volume. Índices candidatos para teste: lessons(student_id, owner_id), lessons(vehicle_id, owner_id), sales(student_id, owner_id), sale_items(sale_id, owner_id), financial_transactions(student_id, owner_id), financial_transactions(sale_id, owner_id).
+- as constraints UNIQUE (id, owner_id) criam os índices únicos necessários nos pais.
+
+O SQL revisado foi atualizado para incluir as FKs compostas e remover as FKs simples equivalentes, dentro da mesma transação. Continua sendo apenas rascunho, não executado.
