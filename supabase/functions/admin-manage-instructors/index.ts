@@ -445,7 +445,7 @@ Deno.serve(async (req: Request) => {
           await admin.from("students").update({ invited_at: null, invite_attempt_id: null })
             .eq("id", studentInviteId).eq("owner_id", authData.user.id)
             .is("user_id", null).eq("invited_at", studentInviteReservation);
-        } else {
+        } else if (deleteError) {
           console.error("Falha ao remover conta após conflito de vínculo:", deleteError.message);
         }
         console.error("Falha ao vincular conta ao cadastro do aluno:", linkStudentError?.message ?? "cadastro já alterado");
