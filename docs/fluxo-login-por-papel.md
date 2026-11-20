@@ -14,6 +14,20 @@ Destino de trabalho: `feature/relatorios-instrutor-app`
 6. `script.js` é carregado antes do bloco inline de autenticação. No início do arquivo, ele já executa `let db = carregarDados()`, lendo a chave local `marcus_instrutor_novo_v1`.
 7. O aplicativo tem páginas administrativas e navegação com vários botões; os relatórios atuais usam arrays locais.
 
+## Auditoria adicional da ordem de carregamento (20/11/2026)
+
+Consulta direta aos arquivos atuais da branch `feature/relatorios-instrutor-app` confirmou:
+
+- `index.html` carrega `script.js` na linha 455, antes do bloco inline de autenticação que começa na linha 473.
+- `script.js` executa `let db = carregarDados()` na linha 37; `carregarDados()` lê `localStorage` pela chave `marcus_instrutor_novo_v1`.
+- `script.js` chama `iniciarAplicativo()` incondicionalmente na linha 2951.
+- `contratos.js` e `whatsapp-panel.js` são carregados nas linhas 470–471, também antes da validação do perfil.
+- O `whatsapp-panel.js` cria botão e página do painel assim que o arquivo é executado; portanto, também deverá ficar restrito ao admin.
+- A mensagem de login em `index.html` (linha 450) diz que somente administrador pode acessar.
+- A função `conferirAdministrador()` consulta `profiles` e atualmente só aceita admin; o fluxo ainda não tem roteamento por papel.
+
+**Conclusão:** não é seguro apenas aceitar `role === 'instrutor'` nem ocultar páginas via CSS. A ordem dos scripts precisa ser reorganizada para que a autenticação valide o papel antes de carregar qualquer módulo administrativo ou ler dados locais.
+
 ## Risco importante para a futura liberação
 
 Não basta trocar a condição `role !== 'admin'` por uma aceitação de `instrutor`.
@@ -45,6 +59,16 @@ Por isso, não liberar o papel instrutor até que a autenticação e a inicializ
 ### Papel inexistente ou diferente
 - Negar o acesso e encerrar a sessão local, mantendo mensagem genérica.
 
+## Arquitetura de carregamento obrigatória
+
+1. Manter no HTML inicial somente a estrutura neutra de login/recuperação e os recursos necessários à autenticação.
+2. Inicializar o cliente Supabase e validar a sessão e o perfil.
+3. Se `role === 'admin'`, carregar os módulos administrativos atuais (`script.js`, `contratos.js` e `whatsapp-panel.js`) somente depois da validação. Preservar a inicialização e o `localStorage` existentes para o administrador.
+4. Se `role === 'instrutor'`, não carregar esses módulos. Carregar um módulo separado e mínimo de relatórios, que consulta Supabase usando a sessão existente e não acessa a chave local `marcus_instrutor_novo_v1`.
+5. A tela de instrutor deve conter somente relatórios autorizados e sair. Não basta remover botões: os módulos administrativos não podem ser executados.
+6. No logout, limpar a interface autenticada e encerrar a sessão sem manter dados do usuário anterior na tela.
+7. O service worker/cache deve ser revisado para garantir que versões antigas não reintroduzam scripts ou páginas administrativas no fluxo de instrutor.
+
 ## Ordem de implementação
 
 1. Finalizar e validar as políticas RLS e a proteção de `profiles.role`.
@@ -56,4 +80,4 @@ Por isso, não liberar o papel instrutor até que a autenticação e a inicializ
 
 ## Estado
 
-Este documento é planejamento técnico. Nenhum código de autenticação foi alterado, nenhuma conta foi criada e nenhum usuário instrutor foi liberado.
+Este documento é planejamento técnico. A auditoria adicional confirmou que os módulos administrativos são carregados antes da autenticação. Nenhum código de autenticação foi alterado, nenhuma conta foi criada e nenhum usuário instrutor foi liberado.
