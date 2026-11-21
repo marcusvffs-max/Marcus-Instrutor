@@ -296,6 +296,62 @@
     }).join("");
   }
 
+
+  function renderLinkedStudents() {
+    const container = el("listaAlunosVinculados");
+    const counter = el("contadorAlunosVinculados");
+    if (!container || !counter) return;
+    const linked = state.students.filter(student => Boolean(student.user_id));
+    counter.textContent = linked.length + (linked.length === 1 ? " conta vinculada" : " contas vinculadas");
+    if (!state.studentLinkFieldsAvailable) {
+      container.innerHTML = '<div class="empty-state">A atualização dos vínculos ainda não está disponível. Tente novamente após atualizar o aplicativo.</div>';
+      return;
+    }
+    if (!linked.length) {
+      container.innerHTML = '<div class="empty-state">Nenhum aluno possui acesso vinculado à sua conta de instrutor.</div>';
+      return;
+    }
+    container.innerHTML = linked.map(student => {
+      const waiting = Boolean(student.invited_at);
+      return '<article class="student-card">' +
+        '<div class="student-card-main">' +
+          '<div class="student-card-heading"><h4>' + escapeHtml(student.nome) + '</h4>' +
+            '<span class="student-status student-status-approved">Acesso vinculado</span></div>' +
+          '<div class="student-card-details">' +
+            '<span><small>E-mail</small><strong>' + escapeHtml(student.email || "Não informado") + '</strong></span>' +
+            '<span><small>Telefone</small><strong>' + escapeHtml(student.telefone || "Não informado") + '</strong></span>' +
+            '<span><small>Conta</small><strong>' + (waiting ? "Aguardando primeiro acesso" : "Ativa") + '</strong></span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="student-card-actions">' +
+          '<button class="button button-danger button-small" type="button" data-linked-student-action="remove" data-student-id="' + escapeHtml(student.id) + '">Remover acesso</button>' +
+        '</div>' +
+      '</article>';
+    }).join("");
+  }
+
+  async function removeStudentAppAccess(studentId) {
+    const student = state.students.find(item => item.id === studentId);
+    if (!student || !student.user_id) return;
+    const confirmed = await confirmAction(
+      'Remover o acesso ao aplicativo de "' + student.nome + '"?\n\nA conta do aluno será desativada e ele não poderá mais entrar. O cadastro, as aulas, vendas e todo o histórico permanecerão salvos na sua conta de instrutor.'
+    );
+    if (!confirmed) return;
+    const container = el("listaAlunosVinculados");
+    const button = container?.querySelector('[data-student-id="' + CSS.escape(studentId) + '"]');
+    if (button) { button.disabled = true; button.textContent = "Removendo..."; }
+    try {
+      const { error } = await state.supabase.rpc("remove_student_app_access", { p_student_id: studentId });
+      if (error) throw error;
+      await loadOwnData();
+      showMessage("Acesso do aluno removido. O cadastro e o histórico foram preservados.", false);
+    } catch (error) {
+      console.error("Falha ao remover acesso do aluno:", error);
+      if (button) { button.disabled = false; button.textContent = "Remover acesso"; }
+      showMessage("Não foi possível remover o acesso. Confira se a atualização de segurança do banco já foi aplicada.");
+    }
+  }
+
   function vehicleLabel(vehicle) {
     const details = [vehicle.nome, vehicle.tipo, vehicle.categoria ? "Categoria " + vehicle.categoria : null, vehicle.placa ? "Placa " + vehicle.placa : null].filter(Boolean);
     return details.join(" · ") || "Veículo sem identificação";
@@ -1330,6 +1386,7 @@
     ).length;
 
     renderStudents();
+    renderLinkedStudents();
     renderVehicles();
     renderLessons();
     renderUpcomingLessons();
@@ -1661,6 +1718,13 @@
     });
     el("btnCancelarAluno").addEventListener("click", resetStudentForm);
     el("formAluno").addEventListener("submit", saveStudent);
+    el("listaAlunosVinculados").addEventListener("click", event => {
+      const button = event.target.closest("[data-linked-student-action]");
+      if (!button) return;
+      if (button.dataset.linkedStudentAction === "remove") {
+        removeStudentAppAccess(button.dataset.studentId);
+      }
+    });
     el("listaAlunos").addEventListener("click", async event => {
       const button = event.target.closest("[data-student-action]");
       if (!button) return;
