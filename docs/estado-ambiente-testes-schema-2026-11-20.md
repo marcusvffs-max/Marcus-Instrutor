@@ -915,3 +915,19 @@ Entretanto, não comparava `value.metadata.phone_number_id` do evento com `WHATS
 Casos lógicos verificados estaticamente: ID igual é aceito; ID diferente, ausente ou configuração vazia são rejeitados.
 
 **Limite da validação:** não houve deploy nem chamada HTTP à Meta ou à Edge Function. O Supabase original continua sem alteração. Antes de um futuro deploy, será necessário testar com evento de número correto, número divergente e assinatura inválida no ambiente isolado.
+
+
+## Controles de perfil e proteção do último administrador
+
+No projeto de testes, a tabela `profiles` tem policy de SELECT apenas para o próprio usuário ou admin; não existe policy de UPDATE/DELETE para authenticated. A função `protect_profile_role` também rejeita alterações de papel que não venham de postgres/supabase_admin/service_role.
+
+### Testes executados
+
+- Sob identidade authenticated do instrutor A, tentativa de alterar o próprio role para admin: 0 linhas afetadas.
+- Tentativa de estender diretamente `instructor_access_until` por 100 anos: 0 linhas afetadas.
+- Tentativa de apagar o próprio perfil: 0 linhas afetadas.
+- Em transação isolada e revertida, um perfil sintético existente foi temporariamente promovido a admin pelo contexto postgres; tentativa de rebaixar o único admin foi bloqueada com SQLSTATE 23514.
+- Na mesma transação, tentativa de excluir o único admin também foi bloqueada com SQLSTATE 23514.
+- A transação foi revertida; os dois perfis de teste continuam instrutores, sem perfil admin sintético persistente.
+
+Esses testes confirmam a proteção de último administrador no nível do banco sem criar contas Auth nem manter alterações de role.
