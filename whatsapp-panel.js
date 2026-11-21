@@ -181,23 +181,28 @@
   function renderizarConversaWhatsapp(conversa) {
     const nome = escaparHtml(conversa.nome_contato || "Cliente WhatsApp");
     const telefone = escaparHtml(conversa.telefone || "Telefone não informado");
+    const encerrada = conversa.status === "encerrada";
     const status = {
       aguardando: "Aguardando escolha",
       aguardando_escolha: "Aguardando escolha",
       atendimento_ia: "Assistente Virtual",
       atendimento_humano: "Atendimento humano",
       aberta: "Aberta",
+      encerrada: "Encerrada",
     }[conversa.status] || "Em andamento";
+    const pausa = conversa.ai_paused_until
+      ? ` · Assistente pausada até ${escaparHtml(formatarData(conversa.ai_paused_until))}`
+      : "";
     return `
       <article class="whatsapp-request">
         <div class="whatsapp-request-info">
           <strong>${nome}</strong>
           <span>${telefone}</span>
-          <small>Status: ${escaparHtml(status)} · Última atividade: ${escaparHtml(formatarData(conversa.ultima_mensagem_em || conversa.updated_at))}</small>
+          <small>Status: ${escaparHtml(status)} · Última atividade: ${escaparHtml(formatarData(conversa.ultima_mensagem_em || conversa.updated_at))}${pausa}</small>
         </div>
         <div class="whatsapp-request-actions">
           <button type="button" class="secondary-button" data-ver-mensagens="${escaparHtml(conversa.id)}" aria-expanded="false">Ver mensagens</button>
-          <button type="button" class="secondary-button" data-encerrar-conversa="${escaparHtml(conversa.id)}">Encerrar conversa (pausa 48h)</button>
+          ${encerrada ? "" : `<button type="button" class="secondary-button" data-encerrar-conversa="${escaparHtml(conversa.id)}">Encerrar conversa (pausa 48h)</button>`}
           <a class="whatsapp-open-link" href="https://wa.me/${String(conversa.telefone || "").replace(/\\D/g, "")}" target="_blank" rel="noopener noreferrer">Abrir conversa no WhatsApp</a>
         </div>
         <div class="whatsapp-transcript" id="historico-conversa-${escaparHtml(conversa.id)}" hidden></div>
@@ -232,10 +237,10 @@
     `;
   }
 
-  async function carregarHistoricoConversaWhatsapp(conversationId, botao) {
+  async function carregarHistoricoConversaWhatsapp(conversationId, botao, offset = 0, carregarAnteriores = false) {
     const area = document.getElementById(`historico-conversa-${conversationId}`);
     if (!area) return;
-    if (!area.hidden) {
+    if (!carregarAnteriores && !area.hidden) {
       area.hidden = true;
       botao.setAttribute("aria-expanded", "false");
       botao.textContent = "Ver mensagens";
@@ -244,8 +249,8 @@
 
     area.hidden = false;
     botao.setAttribute("aria-expanded", "true");
-    botao.textContent = "Atualizar mensagens";
-    area.innerHTML = '<div class="empty-state">Carregando mensagens...</div>';
+    botao.textContent = "Ocultar mensagens";
+    if (!carregarAnteriores) area.innerHTML = '<div class="empty-state">Carregando mensagens...</div>';
 
     const supabase = typeof window.getMarcusSupabase === "function"
       ? window.getMarcusSupabase()
@@ -255,23 +260,43 @@
       return;
     }
 
-    botao.disabled = true;
+    const botaoPaginacao = carregarAnteriores ? botao : null;
+    if (botaoPaginacao) botaoPaginacao.disabled = true;
     try {
       const { data, error } = await supabase.functions.invoke("admin-manage-instructors", {
-        body: { action: "list_whatsapp_messages", conversation_id: conversationId },
+        body: { action: "list_whatsapp_messages", conversation_id: conversationId, offset },
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "Não foi possível consultar as mensagens.");
       const mensagens = Array.isArray(data.messages) ? data.messages : [];
-      area.innerHTML = mensagens.length
-        ? `<div class="whatsapp-transcript-heading">Mensagens recentes · ${mensagens.length}${data.has_more ? " (últimas 100)" : ""}</div>${mensagens.map(renderizarMensagemWhatsapp).join("")}`
-        : '<div class="empty-state">Ainda não há mensagens registradas nesta conversa.</div>';
-      area.scrollTop = area.scrollHeight;
+      if (!carregarAnteriores) {
+        area.innerHTML = mensagens.length
+          ? `<div class="whatsapp-transcript-heading">Histórico de mensagens · ${mensagens.length} mais recentes</div>
+             ${data.has_more ? `<button type="button" class="secondary-button whatsapp-load-older" data-carregar-anteriores="${escaparHtml(conversationId)}" data-offset="${Number(data.next_offset) || 0}">Carregar mensagens anteriores</button>` : ""}
+             <div data-lista-mensagens>${mensagens.map(renderizarMensagemWhatsapp).join("")}</div>`
+          : '<div class="empty-state">Ainda não há mensagens registradas nesta conversa.</div>';
+      } else {
+        const listaMensagens = area.querySelector("[data-lista-mensagens]");
+        if (listaMensagens && mensagens.length) {
+          listaMensagens.insertAdjacentHTML("afterbegin", mensagens.map(renderizarMensagemWhatsapp).join(""));
+        }
+        if (botaoPaginacao) {
+          if (data.has_more) {
+            botaoPaginacao.dataset.offset = String(Number(data.next_offset) || 0);
+            botaoPaginacao.disabled = false;
+          } else {
+            botaoPaginacao.remove();
+          }
+        }
+      }
+      area.scrollTop = carregarAnteriores ? area.scrollTop : area.scrollHeight;
     } catch (erro) {
       console.error("Erro ao carregar histórico da conversa:", erro);
-      area.innerHTML = '<div class="empty-state">Não foi possível carregar as mensagens. Tente novamente.</div>';
-    } finally {
-      botao.disabled = false;
+      if (!carregarAnteriores) area.innerHTML = '<div class="empty-state">Não foi possível carregar as mensagens. Tente novamente.</div>';
+      else {
+        if (botaoPaginacao) botaoPaginacao.disabled = false;
+        window.alert("Não foi possível carregar as mensagens anteriores. Tente novamente.");
+      }
     }
   }
 
@@ -415,6 +440,11 @@
   }
   if (historico) historico.addEventListener("change", alterarStatusAtendimento);
   if (conversas) conversas.addEventListener("click", function (evento) {
+    const botaoAntigas = evento.target.closest("[data-carregar-anteriores]");
+    if (botaoAntigas) {
+      carregarHistoricoConversaWhatsapp(botaoAntigas.dataset.carregarAnteriores, botaoAntigas, Number(botaoAntigas.dataset.offset) || 0, true);
+      return;
+    }
     const botaoMensagens = evento.target.closest("[data-ver-mensagens]");
     if (botaoMensagens) {
       carregarHistoricoConversaWhatsapp(botaoMensagens.dataset.verMensagens, botaoMensagens);
