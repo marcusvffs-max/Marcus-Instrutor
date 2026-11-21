@@ -235,3 +235,17 @@ Permanecem três observações:
 - WARN: proteção de senha vazada desabilitada no Auth; configuração não foi alterada.
 
 **Status:** as 13 tabelas, 38 policies, índices, constraints essenciais, triggers e RPCs financeiras estão reconstruídos no projeto de testes. O isolamento de leitura e bloqueio de escrita entre dois instrutores passou nos testes SQL simulados. Ainda faltam testes HTTP/JWT reais, a matriz completa SEC-001 a SEC-070 e revisão específica do wrapper de agenda.
+
+
+### Testes adicionais do vínculo e RPC de agenda
+
+Também foram executados testes SQL simulando a sessão autenticada de um aluno, sempre dentro de transações revertidas:
+
+- Com perfil temporariamente `usuario` e vínculo sintético por `students.user_id`, `public.get_my_scheduled_lessons()` retornou somente a aula agendada do cadastro vinculado.
+- A chamada direta de `private.get_my_scheduled_lessons_internal()` como `authenticated` foi negada com SQLSTATE `42501`.
+- Sem vínculo em `students.user_id`, a RPC pública retornou `CONTA_SEM_VINCULO` com SQLSTATE `P0002`; não houve fallback por e-mail.
+- As alterações temporárias de papel/vínculo foram revertidas. Estado final confirmado: dois perfis de instrutor ativos para os testes, dois alunos/veículos/aulas sintéticos e nenhum vínculo de aluno ativo.
+
+A chamada da RPC foi executada dentro do PostgreSQL com role e claims simuladas; não foi uma requisição HTTP com JWT real ao endpoint PostgREST.
+
+A lista de migrations do projeto original foi consultada novamente e permaneceu inalterada. Toda a reconstrução e os dados sintéticos permanecem exclusivamente no projeto `voyjssflroiwdyaacthh`.
