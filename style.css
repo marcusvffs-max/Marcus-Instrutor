@@ -1733,3 +1733,7 @@ body.autenticado .login-screen {
     align-items: flex-start;
   }
 }
+
+/* Ações lado a lado no cabeçalho das telas */
+.heading-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+@media (max-width: 520px) { .heading-actions { width:100%; } .heading-actions button { flex:1 1 auto; } }
