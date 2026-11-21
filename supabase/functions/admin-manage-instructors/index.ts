@@ -84,6 +84,62 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    if (body.action === "close_whatsapp_conversation") {
+      if (profile.role !== "admin") {
+        return response({ error: "Somente administradores podem encerrar conversas do WhatsApp." }, 403);
+      }
+      const requestId = typeof body.request_id === "string" ? body.request_id.trim() : "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
+        return response({ error: "Atendimento inválido." }, 400);
+      }
+
+      const { data: request, error: requestError } = await admin
+        .from("ai_requests")
+        .select("id,resultado")
+        .eq("id", requestId)
+        .eq("owner_id", authData.user.id)
+        .eq("canal", "whatsapp")
+        .eq("tipo_solicitacao", "atendimento_humano")
+        .maybeSingle();
+      if (requestError) throw requestError;
+      if (!request) return response({ error: "Atendimento não encontrado." }, 404);
+
+      const resultData = request.resultado && typeof request.resultado === "object"
+        ? request.resultado as Record<string, unknown>
+        : {};
+      const conversationId = typeof resultData.conversation_id === "string" ? resultData.conversation_id : "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId)) {
+        return response({ error: "Não foi possível localizar a conversa vinculada a este atendimento." }, 409);
+      }
+
+      const now = new Date();
+      const pauseUntil = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
+      const { data: closedConversation, error: closeError } = await admin
+        .from("whatsapp_conversations")
+        .update({
+          status: "encerrada",
+          ai_paused_until: pauseUntil,
+          ai_pause_reason: "instrutor_encerramento",
+          quote_state: null,
+          updated_at: now.toISOString(),
+        })
+        .eq("id", conversationId)
+        .eq("owner_id", authData.user.id)
+        .select("id")
+        .maybeSingle();
+      if (closeError) throw closeError;
+      if (!closedConversation) return response({ error: "Conversa não encontrada para esta conta." }, 404);
+
+      const { error: requestUpdateError } = await admin
+        .from("ai_requests")
+        .update({ atendimento_status: "concluido" })
+        .eq("id", requestId)
+        .eq("owner_id", authData.user.id);
+      if (requestUpdateError) throw requestUpdateError;
+
+      return response({ ok: true, ai_paused_until: pauseUntil });
+    }
+
     if (body.action === "update_whatsapp_request_status") {
       if (profile.role !== "admin") {
         return response({ error: "Somente administradores podem atualizar o status dos atendimentos." }, 403);
