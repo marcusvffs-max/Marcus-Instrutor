@@ -208,7 +208,7 @@ begin
     'aulas_adicionadas',v_classes
   );
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.admin_delete_sale(p_sale_id uuid)
@@ -267,7 +267,7 @@ begin
     'aulas_removidas', v_net_lessons
   );
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.admin_refund_sale_lessons(p_sale_item_id uuid, p_quantidade integer)
@@ -300,7 +300,7 @@ begin
  values(v_uid,v_sale.student_id,v_sale.id,'saida','Devolução de '||p_quantidade||' aula(s) - '||v_item.descricao,v_refund,current_date,'confirmado');
  return jsonb_build_object('sale_id',v_sale.id,'aulas_devolvidas',p_quantidade,'valor_devolvido',v_refund);
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.admin_refund_sale_product(p_sale_item_id uuid, p_quantidade numeric)
@@ -388,7 +388,7 @@ begin
     'valor_devolvido', v_refund
   );
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.create_instructor_sale(p_sale_id uuid, p_student_id uuid, p_items jsonb, p_payment_method text DEFAULT NULL::text, p_notes text DEFAULT NULL::text)
@@ -514,5 +514,5 @@ begin
 
   return p_sale_id;
 end;
-$function$
+$function$;
 
