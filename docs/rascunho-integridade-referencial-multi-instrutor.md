@@ -34,7 +34,7 @@ As FKs atuais não garantem igualdade de owner entre pai e filho. O desenho prec
 - sale_items: venda pertence ao owner do item;
 - financial_transactions: aluno e venda (quando informados) pertencem ao owner da movimentação.
 
-Exceção intencional: `sale_items.product_id` pode referenciar produto do catálogo central administrado por Marcus, portanto não deve ser exigido que `products.owner_id = sale_items.owner_id`. O snapshot de descrição e valores do item preserva o histórico.
+`sale_items.product_id` também deve referenciar produto do mesmo owner do item. As policies de `sale_items` e as RPCs de venda exigem produto com `owner_id` igual ao usuário autenticado. O catálogo que o webhook WhatsApp consulta diretamente no owner admin é uma leitura separada e não é gravado em `sale_items`; se um produto for disponibilizado a um instrutor, a venda usa o registro de produto pertencente àquele instrutor.
 
 ## 3. Estratégia técnica recomendada
 
@@ -85,6 +85,6 @@ A mesma revisão confirmou os comportamentos atuais de exclusão:
 
 As seis consultas de inconsistência entre owner_id dos registros relacionados retornaram zero linhas inconsistentes na auditoria de 20/11/2026. As tabelas estavam vazias naquele momento; isso não elimina a necessidade de constraints para os novos dados.
 
-A solução proposta agora é adicionar chaves únicas compostas `(id, owner_id)` e FKs compostas entre aulas/alunos/veículos, vendas/alunos, itens/vendas e movimentações/alunos/vendas. Para relações opcionais com exclusão SET NULL, o desenho usa `ON DELETE SET NULL (coluna)`, preservando `owner_id`. A relação de produto permanece como exceção do catálogo central.
+A solução proposta agora é adicionar chaves únicas compostas `(id, owner_id)` e FKs compostas entre aulas/alunos/veículos, vendas/alunos, itens/vendas/produtos e movimentações/alunos/vendas. Para relações opcionais com exclusão SET NULL, o desenho usa `ON DELETE SET NULL (coluna)`, preservando `owner_id`. A relação de produto em `sale_items` também exige o mesmo owner.
 
 Nenhuma constraint foi executada.
