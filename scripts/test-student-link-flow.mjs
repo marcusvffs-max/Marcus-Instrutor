@@ -501,7 +501,7 @@ test("webhook WhatsApp valida o phone_number_id antes de processar mensagens", (
 
 test("webhook externo dispensa JWT Supabase, mas mantém validação HMAC no handler", () => {
   assert.match(supabaseConfig, /\[functions\.whatsapp-webhook\][\s\S]*verify_jwt = false/);
-  assert.match(whatsappWebhook, /X-Hub-Signature-256/);
+  assert.match(whatsappWebhook, /x-hub-signature-256/i);
   assert.match(whatsappWebhook, /verifyMetaSignature/);
   assert.match(whatsappWebhook, /crypto\.subtle/);
 });
