@@ -186,10 +186,10 @@ async function sendInteractiveServiceMenu(
       type: "list",
       body: {
         text: isMain
-          ? "📘 Menu do Instrutor\n\nEscolha uma opção para continuar:"
-          : "🚦 Menu do Detran\n\nEscolha uma opção para continuar:",
+          ? "📘 Menu do Instrutor\n\nEscolha uma opção para continuar.\n\nPara encerrar e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la antes, digite Olá."
+          : "🚦 Menu do Detran\n\nEscolha uma opção para continuar.\n\nPara encerrar e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la antes, digite Olá.",
       },
-      footer: { text: "Para encerrar, digite Encerrar. A assistente ficará pausada por 48 horas; para chamá-la antes, digite Olá." },
+      footer: { text: "Digite Encerrar para pausar por 48 horas." },
       action: {
         button: "Ver opções",
         sections: [{ title: isMain ? "Menu do Instrutor" : "Menu do Detran", rows }],
