@@ -2095,34 +2095,73 @@ Deno.serve(async (req: Request) => {
                   continue;
                 }
 
-                const packagesPayload = {
-                  type: "interactive",
-                  interactive: {
-                    type: "button",
-                    body: { text: packagesReply },
-                    action: {
-                      buttons: [{
-                        type: "reply",
-                        reply: {
-                          id: "menu_talk_marcus",
-                          title: "Falar com Instrutor",
-                        },
-                      }],
-                    },
-                  },
-                };
-                const sent = await sendWhatsAppPayload(
+                // Envia o conteúdo como mensagem de texto comum para preservar a aparência compacta do WhatsApp.
+                const textSent = await sendWhatsAppText(
                   supabase,
                   conversation.id,
                   phone,
-                  packagesPayload,
                   packagesReply,
                   true,
                 );
+
+                let buttonSent = false;
+                if (textSent) {
+                  // O botão segue em uma mensagem interativa separada, logo abaixo do texto.
+                  const handoffPayload = {
+                    type: "interactive",
+                    interactive: {
+                      type: "button",
+                      body: { text: "Para falar diretamente com o Instrutor Marcus:" },
+                      action: {
+                        buttons: [{
+                          type: "reply",
+                          reply: {
+                            id: "menu_talk_marcus",
+                            title: "Falar com Instrutor",
+                          },
+                        }],
+                      },
+                    },
+                  };
+                  buttonSent = await sendWhatsAppPayload(
+                    supabase,
+                    conversation.id,
+                    phone,
+                    handoffPayload,
+                    "Para falar diretamente com o Instrutor Marcus: [Falar com Instrutor]",
+                    true,
+                  );
+                } else {
+                  // Se o texto comum falhar, mantém o envio interativo completo como alternativa.
+                  const fallbackPayload = {
+                    type: "interactive",
+                    interactive: {
+                      type: "button",
+                      body: { text: packagesReply },
+                      action: {
+                        buttons: [{
+                          type: "reply",
+                          reply: {
+                            id: "menu_talk_marcus",
+                            title: "Falar com Instrutor",
+                          },
+                        }],
+                      },
+                    },
+                  };
+                  buttonSent = await sendWhatsAppPayload(
+                    supabase,
+                    conversation.id,
+                    phone,
+                    fallbackPayload,
+                    packagesReply,
+                    true,
+                  );
+                }
                 await updateMessageMetadata(supabase, providerId, {
-                  ai_status: sent ? "static_service_reply_sent" : "static_service_reply_failed",
+                  ai_status: textSent && buttonSent ? "static_service_reply_sent" : textSent ? "static_service_reply_text_sent_button_failed" : buttonSent ? "static_service_reply_fallback_sent" : "static_service_reply_failed",
                   reply_type: "packages_and_values_information",
-                  reply_sent: sent,
+                  reply_sent: textSent || buttonSent,
                   handoff_button: "menu_talk_marcus",
                 });
                 if (!sent) {
