@@ -593,6 +593,56 @@ function isPackagePurchaseIntent(message: string): boolean {
   return /\b(comprar|contratar|fechar pacote|quero fechar|quero contratar|quero comprar|adquirir pacote|reservar pacote)\b/i.test(message);
 }
 
+function detectStandaloneAdditionalPurchase(message: string): OptionalItemChoice {
+  const text = normalizeChoiceText(message);
+  const choice = detectOptionalItemChoice(text);
+  if (choice === "ambiguous" || choice === "none") return "ambiguous";
+
+  const explicitlyRejectsLessons =
+    /\b(nao quero (?:comprar )?(?:as )?aulas|nao vou comprar (?:as )?aulas|sem (?:as )?aulas|nao quero (?:o )?pacote)\b/.test(text);
+  const asksToBuyAdditional =
+    /\b(quero|comprar|contratar|adquirir|preciso)\b/.test(text);
+  const mentionsLessonsOrPackage = /\b(aulas?|pacotes?)\b/.test(text);
+
+  if (explicitlyRejectsLessons || (asksToBuyAdditional && !mentionsLessonsOrPackage)) {
+    return choice;
+  }
+  return "ambiguous";
+}
+
+function formatStandaloneAdditionalReply(
+  catalog: CatalogProduct[],
+  choice: OptionalItemChoice,
+): string {
+  const rental = catalog.find((item) => normalizeChoiceText(item.nome).includes("aluguel"));
+  const card = catalog.find((item) => normalizeChoiceText(item.nome).includes("cartao moto pista"));
+  const selected: CatalogProduct[] = [];
+  if (choice === "both" || choice === "rental") {
+    if (rental) selected.push(rental);
+  }
+  if (choice === "both" || choice === "card") {
+    if (card) selected.push(card);
+  }
+  if (!selected.length) {
+    return "Não localizei esse item no catálogo ativo do Instrutor Marcus. Para confirmar, envie “Olá” e escolha “Falar com Instrutor”. 😊";
+  }
+
+  const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const total = selected.reduce((sum, item) => sum + item.preco, 0);
+  const lines = selected.map((item) => {
+    const billing = item.forma_cobranca === "por_exame"
+      ? " — cobrança única por exame"
+      : item.forma_cobranca === "por_periodo_30_dias"
+        ? " — válido por 30 dias"
+        : "";
+    return "• " + item.nome + ": " + money(item.preco) + billing;
+  });
+  return "Claro! 😊 Você pode solicitar os adicionais sem contratar aulas.\n\n" +
+    "ITENS ESCOLHIDOS (sem pacote de aulas):\n" + lines.join("\n") +
+    "\n\nTOTAL DOS ITENS: " + money(total) +
+    "\n\nDeseja que eu registre essa intenção de contratação para análise do Instrutor Marcus? Responda SIM ou NÃO.";
+}
+
 function findPackageForQuantity(catalog: CatalogProduct[], quantity: number): CatalogProduct | undefined {
   return catalog.find((item) =>
     item.quantidade_aulas_min !== null &&
@@ -859,11 +909,15 @@ async function processIncomingMessage(
     const pendingCreatedAt = typeof storedQuoteState?.created_at === "string"
       ? Date.parse(storedQuoteState.created_at)
       : NaN;
+    const hasValidPendingLessonQuantity =
+      Number.isInteger(pendingQuantity) && pendingQuantity > 0 && pendingQuantity <= 999;
+    const hasStandaloneAdditionalState =
+      storedQuoteState?.standalone_addons_only === true && pendingQuantity === 0;
     const hasPendingQuote = (
-      storedQuoteState?.awaiting_optional_items === true ||
-      storedQuoteState?.awaiting_purchase_confirmation === true
+      (storedQuoteState?.awaiting_optional_items === true && hasValidPendingLessonQuantity) ||
+      (storedQuoteState?.awaiting_purchase_confirmation === true &&
+        (hasValidPendingLessonQuantity || hasStandaloneAdditionalState))
     ) &&
-      Number.isInteger(pendingQuantity) && pendingQuantity > 0 && pendingQuantity <= 999 &&
       Number.isFinite(pendingCreatedAt) && Date.now() - pendingCreatedAt <= 48 * 60 * 60 * 1000;
 
     if (storedQuoteState && !hasPendingQuote) {
@@ -877,6 +931,209 @@ async function processIncomingMessage(
     const requestedLessonCount = extractRequestedLessonCount(privacy.text);
     const packageQuery = isPackageInfoQuery(privacy.text, selectedService) || requestedLessonCount !== null;
     const catalog = await getActiveServiceCatalog(supabase);
+
+    const standaloneChoice = detectStandaloneAdditionalPurchase(privacy.text);
+    const explicitlyRejectsLessons = /\\b(nao quero (?:comprar )?(?:as )?aulas|nao vou comprar (?:as )?aulas|sem (?:as )?aulas|nao quero (?:o )?pacote)\\b/.test(normalizeChoiceText(privacy.text));
+    const shouldStartStandalonePurchase =
+      standaloneChoice !== "ambiguous" &&
+      requestedLessonCount === null &&
+      (!hasPendingQuote ||
+        storedQuoteState?.awaiting_purchase_confirmation === true ||
+        explicitlyRejectsLessons);
+
+    if (shouldStartStandalonePurchase) {
+      const standaloneState = {
+        pending_quote_quantity: 0,
+        awaiting_optional_items: false,
+        awaiting_purchase_confirmation: true,
+        standalone_addons_only: true,
+        optional_item_choice: standaloneChoice,
+        created_at: new Date().toISOString(),
+      };
+      const { error: saveStandaloneStateError } = await supabase
+        .from("whatsapp_conversations")
+        .update({ quote_state: standaloneState, updated_at: new Date().toISOString() })
+        .eq("id", conversationId);
+      if (saveStandaloneStateError) throw new Error("Standalone additional quote state save failed: " + saveStandaloneStateError.message);
+
+      const standaloneReply = formatStandaloneAdditionalReply(catalog, standaloneChoice);
+      const sent = await sendWhatsAppText(supabase, conversationId, phone, standaloneReply);
+      if (!sent) {
+        const { error: clearStandaloneStateError } = await supabase
+          .from("whatsapp_conversations")
+          .update({ quote_state: null, updated_at: new Date().toISOString() })
+          .eq("id", conversationId);
+        if (clearStandaloneStateError) console.error("Failed standalone additional state cleanup:", clearStandaloneStateError.message);
+      }
+      await updateMessageMetadata(supabase, providerId, {
+        ai_status: sent ? "awaiting_standalone_additional_confirmation" : "reply_send_failed",
+        reply_sent: sent,
+        reply_type: "standalone_additional_quote",
+        optional_item_choice: standaloneChoice,
+      });
+      return sent ? "awaiting_standalone_additional_confirmation" : "reply_send_failed";
+    }
+
+    if (hasPendingQuote && storedQuoteState?.standalone_addons_only === true &&
+        storedQuoteState?.awaiting_purchase_confirmation === true) {
+      const confirmation = detectPurchaseConfirmation(privacy.text);
+      const revisedChoice = detectOptionalItemChoice(privacy.text);
+
+      if (revisedChoice !== "ambiguous" && confirmation !== "yes") {
+        if (revisedChoice === "none") {
+          const { error: clearStandaloneStateError } = await supabase
+            .from("whatsapp_conversations")
+            .update({ quote_state: null, updated_at: new Date().toISOString() })
+            .eq("id", conversationId);
+          if (clearStandaloneStateError) throw new Error("Standalone additional cancellation failed: " + clearStandaloneStateError.message);
+          const sent = await sendWhatsAppText(supabase, conversationId, phone,
+            "Tudo bem! 😊 Não registrei nenhuma intenção de contratação. Se precisar, posso consultar os itens novamente.");
+          await updateMessageMetadata(supabase, providerId, {
+            ai_status: sent ? "standalone_additional_not_confirmed" : "reply_send_failed",
+            reply_sent: sent,
+            reply_type: "standalone_additional_not_confirmed",
+          });
+          return sent ? "standalone_additional_not_confirmed" : "reply_send_failed";
+        }
+
+        const revisedStandaloneState = {
+          ...storedQuoteState,
+          optional_item_choice: revisedChoice,
+          created_at: new Date().toISOString(),
+        };
+        const { error: updateStandaloneStateError } = await supabase
+          .from("whatsapp_conversations")
+          .update({ quote_state: revisedStandaloneState, updated_at: new Date().toISOString() })
+          .eq("id", conversationId);
+        if (updateStandaloneStateError) throw new Error("Standalone additional choice update failed: " + updateStandaloneStateError.message);
+        const sent = await sendWhatsAppText(supabase, conversationId, phone,
+          formatStandaloneAdditionalReply(catalog, revisedChoice));
+        await updateMessageMetadata(supabase, providerId, {
+          ai_status: sent ? "standalone_additional_choice_updated" : "reply_send_failed",
+          reply_sent: sent,
+          reply_type: "standalone_additional_choice_updated",
+          optional_item_choice: revisedChoice,
+        });
+        return sent ? "standalone_additional_choice_updated" : "reply_send_failed";
+      }
+
+      if (confirmation === "ambiguous") {
+        const sent = await sendWhatsAppText(supabase, conversationId, phone,
+          "Só para confirmar: deseja que eu registre essa intenção de contratação somente dos adicionais para análise do Instrutor Marcus? Responda SIM ou NÃO. 😊");
+        await updateMessageMetadata(supabase, providerId, {
+          ai_status: sent ? "awaiting_standalone_additional_confirmation" : "reply_send_failed",
+          reply_sent: sent,
+          reply_type: "standalone_additional_confirmation",
+        });
+        return sent ? "awaiting_standalone_additional_confirmation" : "reply_send_failed";
+      }
+
+      if (confirmation === "no") {
+        const { error: clearStandaloneStateError } = await supabase
+          .from("whatsapp_conversations")
+          .update({ quote_state: null, updated_at: new Date().toISOString() })
+          .eq("id", conversationId);
+        if (clearStandaloneStateError) throw new Error("Standalone additional cancellation failed: " + clearStandaloneStateError.message);
+        const sent = await sendWhatsAppText(supabase, conversationId, phone,
+          "Tudo bem! 😊 Não registrei nenhuma intenção de contratação.");
+        await updateMessageMetadata(supabase, providerId, {
+          ai_status: sent ? "standalone_additional_not_confirmed" : "reply_send_failed",
+          reply_sent: sent,
+          reply_type: "standalone_additional_not_confirmed",
+        });
+        return sent ? "standalone_additional_not_confirmed" : "reply_send_failed";
+      }
+
+      const savedChoice = String(storedQuoteState?.optional_item_choice ?? "ambiguous") as OptionalItemChoice;
+      const finalChoice: OptionalItemChoice =
+        revisedChoice !== "ambiguous" && ["both", "rental", "card"].includes(revisedChoice)
+          ? revisedChoice
+          : ["both", "rental", "card"].includes(savedChoice)
+            ? savedChoice
+            : "ambiguous";
+      if (finalChoice === "ambiguous") throw new Error("Standalone additional confirmation has no valid selected item.");
+
+      const rental = catalog.find((item) => normalizeChoiceText(item.nome).includes("aluguel"));
+      const card = catalog.find((item) => normalizeChoiceText(item.nome).includes("cartao moto pista"));
+      const selectedItems: CatalogProduct[] = [];
+      if (finalChoice === "both" || finalChoice === "rental") {
+        if (rental) selectedItems.push(rental);
+      }
+      if (finalChoice === "both" || finalChoice === "card") {
+        if (card) selectedItems.push(card);
+      }
+      if (!selectedItems.length) throw new Error("Standalone additional items could not be found in the active catalog.");
+
+      const extrasTotal = selectedItems.reduce((sum, item) => sum + item.preco, 0);
+      const proposedData = {
+        tipo_contratacao: "somente_adicionais",
+        pacote: null,
+        quantidade_aulas: 0,
+        valor_total_aulas: 0,
+        adicionais_selecionados: selectedItems.map((item) => ({
+          nome: item.nome,
+          valor: item.preco,
+          forma_cobranca: item.forma_cobranca,
+        })),
+        valor_total_adicionais_selecionados: extrasTotal,
+        valor_total_com_adicionais: extrasTotal,
+        confirmado_pelo_cliente: true,
+        origem: "whatsapp_catalogo_adicionais",
+      };
+
+      const { data: request, error: requestError } = await supabase
+        .from("ai_requests")
+        .insert({
+          owner_id: OWNER_ID,
+          canal: "whatsapp",
+          telefone_solicitante: phone,
+          nome_solicitante: null,
+          tipo_solicitacao: "intencao_compra_adicionais",
+          dados_propostos: proposedData,
+          status: "pendente",
+          resultado: {
+            intencao: "Cliente confirmou a intenção de contratar somente os adicionais, sem pacote de aulas. Aguardando análise do Instrutor Marcus.",
+            conversation_id: conversationId,
+            whatsapp_message_id: messageRowId,
+            origem: "whatsapp_catalogo_adicionais",
+          },
+        })
+        .select("id")
+        .single();
+
+      if (requestError || !request) {
+        console.error("Standalone additional intent registration failed:", requestError?.message ?? "No request returned.");
+        const sent = await sendWhatsAppText(supabase, conversationId, phone,
+          "Não consegui registrar sua solicitação agora. Sua confirmação continua pendente; por favor, envie SIM novamente em instantes. 😊");
+        await updateMessageMetadata(supabase, providerId, {
+          ai_status: "standalone_additional_registration_failed",
+          reply_sent: sent,
+          reply_type: "standalone_additional_registration_error",
+        });
+        return "standalone_additional_registration_failed";
+      }
+
+      const { error: clearStandaloneStateError } = await supabase
+        .from("whatsapp_conversations")
+        .update({ quote_state: null, updated_at: new Date().toISOString() })
+        .eq("id", conversationId);
+      if (clearStandaloneStateError) throw new Error("Confirmed standalone additional state cleanup failed: " + clearStandaloneStateError.message);
+
+      const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      const sent = await sendWhatsAppText(supabase, conversationId, phone,
+        "Pronto! 😊 Registrei sua intenção de contratar somente " +
+          selectedItems.map((item) => item.nome).join(" e ") +
+          ", sem pacote de aulas, totalizando " + money(extrasTotal) +
+          ". O pedido foi encaminhado para análise do Instrutor Marcus. Nenhuma contratação ou pagamento será realizado sem a aprovação dele.");
+      await updateMessageMetadata(supabase, providerId, {
+        ai_status: sent ? "standalone_additional_intent_registered" : "reply_send_failed",
+        reply_sent: sent,
+        reply_type: "standalone_additional_intent_registered",
+        request_id: request.id,
+        optional_item_choice: finalChoice,
+      });
+      return sent ? "standalone_additional_intent_registered" : "reply_send_failed";
+    }
 
     if (hasPendingQuote && storedQuoteState?.awaiting_purchase_confirmation === true) {
       const confirmation = detectPurchaseConfirmation(privacy.text);
