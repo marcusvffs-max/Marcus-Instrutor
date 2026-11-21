@@ -412,3 +412,18 @@ A migration foi aplicada exclusivamente ao projeto de testes `voyjssflroiwdyaact
 Todos os testes foram feitos com identidades e dados sintéticos no banco de testes, em transações revertidas. Não foram criadas contas Auth nem enviados convites. O fluxo real de e-mail/convite não foi executado.
 
 **Status:** o caminho de adulteração do vínculo foi reproduzido, diagnosticado e bloqueado no ambiente isolado. A migration está versionada na branch de testes e aplicada somente no projeto de testes. Antes de qualquer aplicação no banco original, ainda são necessários testes HTTP com JWT real, revisão independente da migration e autorização explícita do usuário. Produção e o banco original permanecem inalterados.
+
+
+### Testes complementares de INSERT e preservação do banco original
+
+Após a correção do vínculo, foram executadas tentativas adicionais de INSERT sob identidade simulada do instrutor A:
+
+- Inserir venda com `student_id` pertencente ao instrutor B: bloqueado (`42501`).
+- Inserir lançamento financeiro ligado ao aluno B: bloqueado (`42501`).
+- Inserir item de venda associado a uma venda do instrutor B: bloqueado (`42501`).
+- Inserir produto com `owner_id` do instrutor B: bloqueado (`42501`).
+- Inserir configuração com `owner_id` do instrutor B: bloqueado (`42501`).
+
+A tentativa de item de venda foi repetida com o UUID da venda estrangeira obtido antes da troca para `authenticated`; a policy rejeitou o INSERT. Todos os testes foram revertidos.
+
+Foi feita também uma consulta somente de leitura no Supabase original `ydyqagqsuqntuibzgwzd`: a função `private.guard_student_account_link_fields()` e o trigger correspondente não existem no projeto original. Isso confirma que a correção está somente no ambiente de testes; nenhuma migration foi aplicada ao banco original.
