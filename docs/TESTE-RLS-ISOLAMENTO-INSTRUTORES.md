@@ -322,3 +322,31 @@ Resultado: **39 verificações de fluxo financeiro aprovadas após a correção*
 - Chamada direta de `delete_my_sale` por Instrutor A usando ID de venda de Instrutor B foi bloqueada com `P0002`, sem apagar a venda de B.
 
 Esses quatro casos completam o total de **39 verificações aprovadas** após a correção.
+
+
+## Agenda do aluno e vínculo Auth — 21/11/2026
+
+Projeto isolado `voyjssflroiwdyaacthh`. Foram criadas três identidades Auth sintéticas e revertidas ao final: dois perfis `usuario` vinculados a cadastros de alunos de owners diferentes e um perfil `usuario` sem vínculo. As chamadas usaram claims simuladas; não houve login real nem emissão de JWT pelo Auth.
+
+### RPC de agenda — aprovado
+
+- Aluno A recebeu somente sua aula agendada, com nome do aluno e veículo da própria conta.
+- Aluno A não recebeu a aula do aluno B.
+- Aluno B recebeu somente sua aula agendada, com nome e veículo corretos.
+- Aluno B não recebeu a aula do aluno A.
+- Usuário sem cadastro de aluno vinculado recebeu `P0002 / CONTA_SEM_VINCULO`.
+- Instrutor tentando chamar a RPC exclusiva de aluno recebeu `42501`.
+- A chamada da RPC limpou `invited_at` e `invite_attempt_id` da reserva de convite pendente; essa confirmação foi feita como proprietário do banco após a chamada, pois o aluno não tem SELECT direto na tabela.
+- Leitura direta das tabelas `students` e `lessons` pelo perfil de aluno retornou zero linhas; a agenda é disponibilizada pela RPC controlada.
+
+### Proteção do vínculo — aprovado
+
+- Instrutor tentou alterar `students.user_id` diretamente: trigger bloqueou com `42501`.
+- Instrutor tentou inserir cadastro já vinculado a uma conta Auth: trigger bloqueou com `42501`.
+- A Edge Function de convite também verifica se a conta Auth já está vinculada a outro cadastro antes de enviar convite; existe índice único parcial `students_user_id_unique` como segunda proteção.
+
+Resultado: **14 verificações/asserções aprovadas** no escopo de agenda, visibilidade e proteção de vínculo. Todas as linhas Auth, perfis, alunos, veículos e aulas foram revertidas.
+
+### Limitações
+
+Não foi feito login real, fluxo de e-mail, convite via Edge Function em ambiente implantado, teste HTTP com JWT real ou validação visual da tela do aluno. O resultado confirma a lógica SQL com claims simuladas e revisão estática do código, não uma homologação ponta a ponta.
