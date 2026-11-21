@@ -657,7 +657,8 @@ test("histórico de mensagens exige administrador e valida propriedade da conver
   assert.match(historyHandler, /\.eq\("id", conversationId\)/);
   assert.match(historyHandler, /\.eq\("owner_id", authData\.user\.id\)/);
   assert.match(historyHandler, /\.from\("whatsapp_messages"\)/);
-  assert.match(historyHandler, /\.limit\(100\)/);
+  assert.match(historyHandler, /\.range\(offset, offset \+ 99\)/);
+  assert.match(historyHandler, /next_offset: offset \+ \(messages \?\? \[\]\)\.length/);
   assert.match(historyHandler, /\.reverse\(\)/);
   assert.doesNotMatch(historyHandler, /provider_message_id|metadados/);
 });
