@@ -54,7 +54,7 @@ test("contrato do instrutor usa a identificação persistida na emissão", () =>
 });
 
 test("service worker atualiza versão e não armazena o helper no cache compartilhado", () => {
-  assert.match(serviceWorker, /marcus-instrutor-v20-perfil-contratante/);
+  assert.match(serviceWorker, /marcus-instrutor-v21-perfil-contratante/);
   assert.match(serviceWorker, /\.\/instrutor\.js\?v=26/);
   assert.match(serviceWorker, /"\/contratante-perfil\.js"/);
 });
