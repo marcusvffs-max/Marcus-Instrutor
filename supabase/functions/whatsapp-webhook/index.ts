@@ -227,7 +227,7 @@ async function sendInitialMenuSelection(
     interactive: {
       type: "list",
       body: {
-        text: "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\\n\\nEscolha uma opção para começar. Toque em “Ver opções” para abrir o menu.\\n\\nA qualquer momento, digite Encerrar para finalizar e pausar a assistente por 48 horas. Para chamá-la novamente antes desse prazo, digite Olá.",
+        text: "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma opção para começar. Toque em “Ver opções” para abrir o menu.\n\nA qualquer momento, digite Encerrar para finalizar e pausar a assistente por 48 horas. Para chamá-la novamente antes desse prazo, digite Olá.",
       },
       footer: { text: "Atendimento do Instrutor Marcus." },
       action: {
@@ -245,12 +245,12 @@ async function sendInitialMenuSelection(
     "Saudação com menu de atendimento e serviços",
   );
   if (!sent) {
-    const fallback = rows.map((row, index) => `${index + 1}️⃣ ${row.title}`).join("\\n");
+    const fallback = rows.map((row, index) => `${index + 1}️⃣ ${row.title}`).join("\n");
     await sendWhatsAppText(
       supabase,
       conversationId,
       recipient,
-      `Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\\n\\nEscolha uma opção:\\n${fallback}\\n\\nResponda com o número da opção desejada.\\n\\nPara encerrar e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la novamente antes desse prazo, digite Olá.`,
+      `Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma opção:\n${fallback}\n\nResponda com o número da opção desejada.\n\nPara encerrar e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la novamente antes desse prazo, digite Olá.`,
     );
   }
 }
