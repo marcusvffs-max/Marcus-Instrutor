@@ -37,13 +37,20 @@
             <span class="card-label">Atendimentos em aberto</span>
             <strong id="totalAtendimentosWhatsapp">0</strong>
           </div>
-          <p>Altere o status manualmente. Abrir o WhatsApp ou trocar mensagens não muda a situação do atendimento.</p>
+          <p>Atualize o status dos pedidos e encerre conversas pelo painel. Encerrar uma conversa pausa a Assistente Virtual por 48 horas.</p>
         </div>
 
         <div class="panel">
           <h3>Pendentes e em atendimento</h3>
           <div id="listaAtendimentosWhatsapp" class="list-container">
             <div class="empty-state">Aguardando autenticação para consultar os atendimentos.</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Conversas recentes</h3>
+          <div id="listaConversasWhatsapp" class="list-container">
+            <div class="empty-state">Aguardando autenticação para consultar as conversas.</div>
           </div>
         </div>
 
@@ -118,9 +125,6 @@
         </div>
         <div class="whatsapp-request-actions">
           <span class="whatsapp-pending-label">${escaparHtml(STATUS[pedido.atendimento_status] || "Pendente")}</span>
-          ${pedido.atendimento_status !== "concluido" && pedido.atendimento_status !== "cancelado"
-            ? `<button type="button" class="secondary-button" data-encerrar-conversa="${escaparHtml(pedido.id)}">Encerrar conversa (pausa 48h)</button>`
-            : ""}
           ${linkWhatsApp}
         </div>
       </article>
@@ -167,11 +171,36 @@
     }
   }
 
+  function renderizarConversaWhatsapp(conversa) {
+    const nome = escaparHtml(conversa.nome_contato || "Cliente WhatsApp");
+    const telefone = escaparHtml(conversa.telefone || "Telefone não informado");
+    const status = {
+      aguardando: "Aguardando escolha",
+      aguardando_escolha: "Aguardando escolha",
+      atendimento_ia: "Assistente Virtual",
+      atendimento_humano: "Atendimento humano",
+      aberta: "Aberta",
+    }[conversa.status] || "Em andamento";
+    return `
+      <article class="whatsapp-request">
+        <div class="whatsapp-request-info">
+          <strong>${nome}</strong>
+          <span>${telefone}</span>
+          <small>Status: ${escaparHtml(status)} · Última atividade: ${escaparHtml(formatarData(conversa.ultima_mensagem_em || conversa.updated_at))}</small>
+        </div>
+        <div class="whatsapp-request-actions">
+          <button type="button" class="secondary-button" data-encerrar-conversa="${escaparHtml(conversa.id)}">Encerrar conversa (pausa 48h)</button>
+          <a class="whatsapp-open-link" href="https://wa.me/${String(conversa.telefone || "").replace(/\\D/g, "")}" target="_blank" rel="noopener noreferrer">Abrir conversa no WhatsApp</a>
+        </div>
+      </article>
+    `;
+  }
+
   async function encerrarConversaWhatsapp(evento) {
     const botao = evento.target.closest("[data-encerrar-conversa]");
     if (!botao) return;
-    const requestId = botao.dataset.encerrarConversa;
-    if (!requestId) return;
+    const conversationId = botao.dataset.encerrarConversa;
+    if (!conversationId) return;
     if (!window.confirm("Encerrar esta conversa? A Assistente Virtual ficará pausada por 48 horas. O cliente poderá reativá-la enviando “Olá”.")) return;
 
     const supabase = typeof window.getMarcusSupabase === "function"
@@ -185,7 +214,7 @@
     botao.disabled = true;
     try {
       const { data, error } = await supabase.functions.invoke("admin-manage-instructors", {
-        body: { action: "close_whatsapp_conversation", request_id: requestId },
+        body: { action: "close_whatsapp_conversation", conversation_id: conversationId },
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "Não foi possível encerrar a conversa.");
@@ -200,6 +229,7 @@
   async function carregarAtendimentosWhatsapp() {
     const lista = document.getElementById("listaAtendimentosWhatsapp");
     const historico = document.getElementById("historicoAtendimentosWhatsapp");
+    const conversas = document.getElementById("listaConversasWhatsapp");
     const supabase = typeof window.getMarcusSupabase === "function"
       ? window.getMarcusSupabase()
       : null;
@@ -208,11 +238,13 @@
       atualizarContador(0);
       if (lista) lista.innerHTML = '<div class="empty-state">Não foi possível conectar ao painel. Entre novamente no aplicativo.</div>';
       if (historico) historico.innerHTML = '<div class="empty-state">Entre no aplicativo para consultar o histórico.</div>';
+      if (conversas) conversas.innerHTML = '<div class="empty-state">Entre no aplicativo para consultar as conversas.</div>';
       return;
     }
 
     lista.innerHTML = '<div class="empty-state">Carregando atendimentos...</div>';
     if (historico) historico.innerHTML = '<div class="empty-state">Carregando histórico...</div>';
+    if (conversas) conversas.innerHTML = '<div class="empty-state">Carregando conversas...</div>';
 
     try {
       const { data: sessao, error: erroUsuario } = await supabase.auth.getUser();
@@ -242,6 +274,12 @@
 
       const pedidosAbertos = Array.isArray(abertos.data) ? abertos.data : [];
       const pedidosEncerrados = Array.isArray(encerrados.data) ? encerrados.data : [];
+      const { data: conversasData, error: conversasError } = await supabase.functions.invoke("admin-manage-instructors", {
+        body: { action: "list_whatsapp_conversations" },
+      });
+      if (conversasError) throw conversasError;
+      if (!conversasData?.ok) throw new Error(conversasData?.error || "Não foi possível carregar as conversas.");
+      const listaConversas = Array.isArray(conversasData.conversations) ? conversasData.conversations : [];
 
       atualizarContador(pedidosAbertos.length);
       lista.innerHTML = pedidosAbertos.length
@@ -253,11 +291,17 @@
           ? pedidosEncerrados.map(renderizarPedido).join("")
           : '<div class="empty-state">Nenhum atendimento concluído ou cancelado.</div>';
       }
+      if (conversas) {
+        conversas.innerHTML = listaConversas.length
+          ? listaConversas.map(renderizarConversaWhatsapp).join("")
+          : '<div class="empty-state">Nenhuma conversa ativa no momento.</div>';
+      }
     } catch (erro) {
       console.error("Erro ao carregar atendimentos do WhatsApp:", erro);
       atualizarContador(0);
       lista.innerHTML = '<div class="empty-state">Não foi possível carregar os atendimentos. Verifique sua conexão e tente novamente.</div>';
       if (historico) historico.innerHTML = '<div class="empty-state">Não foi possível carregar o histórico.</div>';
+      if (conversas) conversas.innerHTML = '<div class="empty-state">Não foi possível carregar as conversas.</div>';
     }
   }
 
@@ -277,20 +321,20 @@
 
   const lista = document.getElementById("listaAtendimentosWhatsapp");
   const historico = document.getElementById("historicoAtendimentosWhatsapp");
+  const conversas = document.getElementById("listaConversasWhatsapp");
   if (lista) {
     lista.addEventListener("change", alterarStatusAtendimento);
     lista.addEventListener("click", encerrarConversaWhatsapp);
   }
-  if (historico) {
-    historico.addEventListener("change", alterarStatusAtendimento);
-    historico.addEventListener("click", encerrarConversaWhatsapp);
-  }
+  if (historico) historico.addEventListener("change", alterarStatusAtendimento);
+  if (conversas) conversas.addEventListener("click", encerrarConversaWhatsapp);
 
   window.addEventListener("marcus-authenticated", carregarAtendimentosWhatsapp);
   window.addEventListener("marcus-unauthenticated", function () {
     atualizarContador(0);
     if (lista) lista.innerHTML = '<div class="empty-state">Entre no aplicativo para consultar os atendimentos.</div>';
     if (historico) historico.innerHTML = '<div class="empty-state">Entre no aplicativo para consultar o histórico.</div>';
+    if (conversas) conversas.innerHTML = '<div class="empty-state">Entre no aplicativo para consultar as conversas.</div>';
   });
 
   window.carregarAtendimentosWhatsapp = carregarAtendimentosWhatsapp;
