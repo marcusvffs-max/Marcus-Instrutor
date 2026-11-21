@@ -153,29 +153,54 @@ function confirmar(mensagem) {
       return;
     }
 
-    container.innerHTML = `
-      <div class="modal-overlay">
-        <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="tituloConfirmacao">
-          <h2 id="tituloConfirmacao">Confirmação</h2>
-          <p style="white-space:pre-line">${escapar(mensagem)}</p>
-          <div class="modal-actions">
-            <button type="button" class="secondary-button" data-confirm-cancel>Cancelar</button>
-            <button type="button" class="primary-button" data-confirm-ok>Confirmar</button>
-          </div>
-        </div>
-      </div>
-    `;
+    const overlay = document.createElement("div");
+    overlay.className = "modal-overlay";
+    const dialog = document.createElement("div");
+    dialog.className = "modal-box";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    dialog.setAttribute("aria-labelledby", "tituloConfirmacao");
 
+    const titulo = document.createElement("h2");
+    titulo.id = "tituloConfirmacao";
+    titulo.textContent = "Confirmação";
+    const texto = document.createElement("p");
+    texto.style.whiteSpace = "pre-line";
+    texto.textContent = String(mensagem ?? "");
+
+    const acoes = document.createElement("div");
+    acoes.className = "modal-actions";
+    const cancelar = document.createElement("button");
+    cancelar.type = "button";
+    cancelar.className = "secondary-button";
+    cancelar.textContent = "Cancelar";
+    const confirmarBotao = document.createElement("button");
+    confirmarBotao.type = "button";
+    confirmarBotao.className = "primary-button";
+    confirmarBotao.textContent = "Confirmar";
+    acoes.append(cancelar, confirmarBotao);
+    dialog.append(titulo, texto, acoes);
+    overlay.append(dialog);
+    container.replaceChildren(overlay);
+
+    const overflowAnterior = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
+    let finalizado = false;
     const finalizar = resultado => {
-      container.innerHTML = "";
-      document.body.style.overflow = "";
+      if (finalizado) return;
+      finalizado = true;
+      document.removeEventListener("keydown", aoTeclar);
+      container.replaceChildren();
+      document.body.style.overflow = overflowAnterior;
       resolve(resultado);
     };
-
-    container.querySelector("[data-confirm-cancel]").onclick = () => finalizar(false);
-    container.querySelector("[data-confirm-ok]").onclick = () => finalizar(true);
+    const aoTeclar = evento => {
+      if (evento.key === "Escape") finalizar(false);
+    };
+    document.addEventListener("keydown", aoTeclar);
+    cancelar.addEventListener("click", () => finalizar(false));
+    confirmarBotao.addEventListener("click", () => finalizar(true));
+    cancelar.focus();
   });
 }
 
