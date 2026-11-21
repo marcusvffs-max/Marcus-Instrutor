@@ -234,3 +234,15 @@ Todas interromperam no guard de papel com a mensagem `Acesso administrativo obri
 A matriz inicial deste documento indicava que instrutores não deveriam ler produtos/configurações. A inspeção das policies atuais mostra, porém, que `products` e `app_settings` permitem acesso de instrutor somente aos registros cujo `owner_id = auth.uid()`; produtos também têm policies próprias para admin. Isso parece compatível com a separação de catálogo/configuração por conta e não foi alterado nesta etapa.
 
 O projeto isolado não contém linhas de fixture em `products` nem `app_settings`, então ainda não houve teste positivo/negativo com registros nessas duas tabelas. A expectativa funcional da matriz deve ser alinhada a essa regra por owner antes de marcar SEC-017 como aprovado; não se deve interpretar a policy por owner como acesso global entre instrutores.
+
+
+### Produtos e configurações por conta — teste positivo/negativo — 21/11/2026
+
+Como as policies atuais permitem que o instrutor gerencie somente os próprios produtos e configurações, foram criadas linhas sintéticas temporárias para cada um dos dois instrutores dentro de uma única transação:
+
+- uma linha em `products` por owner;
+- uma linha em `app_settings` por owner.
+
+Sob `SET LOCAL ROLE authenticated` e claims simuladas, cada conta viu exatamente uma linha própria em cada tabela e zero linhas do outro owner.
+
+Resultado: **4 verificações aprovadas** (duas tabelas × duas contas). As linhas de fixture foram revertidas com `ROLLBACK`; nenhuma configuração ou produto persistiu no banco.
