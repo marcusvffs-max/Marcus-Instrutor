@@ -163,7 +163,7 @@ async function sendInteractiveServiceMenu(
     { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
     { id: "service_registration_fee", title: "Taxa de inscrição", description: "Informações para emitir a taxa da primeira habilitação." },
     { id: "service_medical", title: "Exame médico", description: "Informações sobre o exame médico da habilitação." },
-    { id: "service_free_theory_course", title: "Curso Gratuito de Legislação", description: "Saiba como acessar o curso gratuito de legislação." },
+    { id: "service_free_theory_course", title: "Curso Gratuito", description: "de Legislação — saiba como acessar." },
     { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
     { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
     { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
@@ -308,6 +308,7 @@ function readMenuChoice(message: any, content: unknown): string | null {
   if (/^(consultar aulas e saldos|aulas e saldos)$/i.test(text)) return "service_balance";
   if (/^(reagendar ou cancelar aulas|reagendar\/cancelar)$/i.test(text)) return "service_reschedule";
   if (/^(consultar documentos e etapas da habilitação|documentos e etapas)$/i.test(text)) return "service_documents";
+  if (/^(curso gratuito de legislação|curso gratuito|curso de legislação)$/i.test(text)) return "service_free_theory_course";
   if (/^(emitir taxa de inscrição( \\(detran-mg\\))?|taxa de inscrição)$/i.test(text)) return "service_registration_fee";
   if (/^exame médico$/i.test(text)) return "service_medical";
   if (/^(emitir taxa exame legislação( \\(detran-mg\\))?|taxa exame legislação)$/i.test(text)) return "service_theory_fee";
