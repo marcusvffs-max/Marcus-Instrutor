@@ -581,3 +581,21 @@ test("migration registra prazo e origem da pausa sem expor tabelas WhatsApp", ()
   assert.match(whatsappPauseMigration, /instrutor_mensagem_manual/);
   assert.doesNotMatch(whatsappPauseMigration, /GRANT .*anon|GRANT .*authenticated/i);
 });
+
+test("menus WhatsApp usam saudação aprovada, Falar com Instrutor e Menu único com oito opções", () => {
+  assert.match(whatsappWebhook, /Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus\\./);
+  assert.match(whatsappWebhook, /A qualquer momento, digite Encerrar para finalizar e pausar a assistente por 48 horas\\. Para chamá-la novamente antes desse prazo, digite Olá\\./);
+  assert.match(whatsappWebhook, /title: "Falar com Instrutor"/);
+  assert.match(whatsappWebhook, /title: "Menu"/);
+  assert.match(whatsappWebhook, /title: "Pacotes e valores"/);
+  assert.match(whatsappWebhook, /title: "Documentos e etapas"/);
+  assert.match(whatsappWebhook, /title: "Taxa de inscrição"/);
+  assert.match(whatsappWebhook, /title: "Exame médico"/);
+  assert.match(whatsappWebhook, /title: "Curso Gratuito", description: "de Legislação — saiba como acessar\\."/);
+  assert.match(whatsappWebhook, /title: "Taxa exame legislação"/);
+  assert.match(whatsappWebhook, /title: "Taxa exame direção"/);
+  assert.match(whatsappWebhook, /title: "Outros assuntos"/);
+  assert.match(whatsappWebhook, /service_free_theory_course/);
+  assert.match(whatsappWebhook, /reply_type: "free_theory_course_information"/);
+  assert.doesNotMatch(whatsappWebhook, /title: "Menu do Instrutor"|title: "Menu do Detran"/);
+});
