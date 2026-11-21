@@ -1605,7 +1605,7 @@ Deno.serve(async (req: Request) => {
                 const drivingFeeReply =
                   "Para realizar o exame prático de direção veicular em Minas Gerais, siga estas orientações do Detran-MG. 😊\n\n" +
                   "QUANDO EMITIR A TAXA:\n" +
-                  "Depois de concluir as etapas anteriores e cumprir as aulas práticas exigidas. Para a primeira habilitação, o Portal MG informa o mínimo de 2 horas/aula. O cumprimento das aulas precisa estar lançado no Renach para liberar o agendamento.\n\n" +
+                  "Depois de concluir as etapas anteriores e cumprir as aulas práticas exigidas. Para obter a CNH, o Portal MG informa o mínimo de 2 horas/aula. Para obter a ACC, não há carga horária mínima. O cumprimento das aulas exigidas para a CNH precisa estar lançado no Renach para liberar o agendamento.\n\n" +
                   "COMO EMITIR E PAGAR:\n" +
                   "1. Acesse o formulário oficial para emitir o Documento de Arrecadação Estadual (DAE): https://detran.mg.gov.br/habilitacao/taxas-1/emitir-taxa-de-servico-de-habilitacao/preencher-dados-da-habilitacao/19\n" +
                   "2. Preencha os dados diretamente no site oficial e gere o DAE.\n" +
