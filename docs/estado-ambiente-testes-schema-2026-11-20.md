@@ -967,3 +967,14 @@ O arquivo `whatsapp-panel.js` atualizava diretamente `ai_requests.atendimento_st
 - No projeto de testes, uma transação sintética com service_role simulou os filtros do UPDATE: 1 pedido do proprietário autenticado foi atualizado e 1 pedido de outro proprietário permaneceu `pendente`.
 - Nenhum pedido sintético persistiu (ROLLBACK).
 - Não houve deploy nem chamada HTTP da Edge Function; a validação dinâmica com JWT real continua pendente.
+
+
+## Revisão dos triggers de ciclo de vida do Supabase Auth
+
+Foram lidas as três funções de trigger do projeto de testes:
+
+- `handle_new_auth_user_profile()`: cria perfil com role fixa `instrutor`; usa metadados do usuário somente para nome e nunca aceita role de `raw_user_meta_data`. Instrutores novos ficam sem autorização até liberação administrativa, pois a validade de acesso não é definida pelo cadastro público.
+- `link_student_account_from_invite()`: só tenta vincular quando os metadados contêm os três UUIDs esperados (attempt_id, student_id e instructor_id), e o cadastro reservado corresponde ao owner, ao attempt_id, à janela de 15 minutos, ao e-mail normalizado e continua sem user_id. É SECURITY DEFINER com search_path vazio e sem EXECUTE concedido diretamente aos papéis de cliente.
+- `clear_student_account_link_on_user_delete()`: trigger BEFORE DELETE em auth.users, SECURITY DEFINER owner postgres, limpa user_id e campos de reserva antes da ação da FK ON DELETE SET NULL; assim, a proteção de campos internos é executada no contexto privilegiado esperado.
+
+As três funções não concedem EXECUTE direto a anon/authenticated/service_role; são chamadas pelos triggers. Nenhuma conta Auth foi criada ou excluída durante a revisão. O comportamento real de criação/exclusão de conta não foi exercitado por HTTP; foi revisado estaticamente e por catálogo.
