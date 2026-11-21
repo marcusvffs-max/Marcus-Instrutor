@@ -610,3 +610,15 @@ test("atendimento humano só pode ser reativado pelo cliente com Olá", () => {
   assert.match(whatsappWebhook.slice(humanMenuGuard, menuDispatch), /ai_status: "paused_for_human"/);
   assert.match(whatsappWebhook.slice(olaHandler, humanStatusHandler), /ai_paused_until: null, ai_pause_reason: null/);
 });
+test("concluir ou cancelar atendimento humano encerra a conversa e inicia pausa de 48 horas", () => {
+  const statusHandler = edge.slice(edge.indexOf('if (body.action === "update_whatsapp_request_status")'));
+  assert.match(statusHandler, /\.select\("id, resultado"\)/);
+  assert.match(statusHandler, /\["concluido", "cancelado"\]\.includes\(nextStatus\)/);
+  assert.match(statusHandler, /requestToUpdate\.resultado\?\.conversation_id/);
+  assert.match(statusHandler, /status: "encerrada"/);
+  assert.match(statusHandler, /ai_pause_reason: "instrutor_encerramento"/);
+  assert.match(statusHandler, /48 \* 60 \* 60 \* 1000/);
+  assert.match(statusHandler, /\.eq\("status", "atendimento_humano"\)/);
+  assert.match(statusHandler, /if \(!closedHumanConversation\) conversationPauseUntil = null/);
+  assert.match(statusHandler, /\.update\(\{ atendimento_status: nextStatus \}\)/);
+});
