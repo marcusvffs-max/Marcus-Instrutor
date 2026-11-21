@@ -539,3 +539,43 @@ test("webhook rejeita phone_number_id ausente ou divergente antes de acessar o b
   assert.match(whatsappWebhook, /Array\.isArray\(payload\.entry\)/);
   assert.match(whatsappWebhook, /configuredPhoneNumberIdPresent: Boolean\(configuredPhoneNumberId\)/);
 });
+
+
+const whatsappPauseMigration = read("../supabase/migrations/20261121180000_add_whatsapp_conversation_ai_pause.sql");
+
+test("cliente pode encerrar e reativar a assistente com pausa de 48 horas", () => {
+  assert.match(whatsappWebhook, /normalizedCustomerCommand === "encerrar"/);
+  assert.match(whatsappWebhook, /ai_pause_reason: "cliente_encerramento"/);
+  assert.match(whatsappWebhook, /48 \* 60 \* 60 \* 1000/);
+  assert.match(whatsappWebhook, /conversationStatus === "encerrada"/);
+  assert.match(whatsappWebhook, /ai_status: "paused_after_conversation_closure"/);
+  assert.match(whatsappWebhook, /customer_reopened_assistant/);
+  assert.match(whatsappWebhook, /digite Encerrar para finalizar e pausar a assistente por 48 horas/i);
+});
+
+test("mensagens manuais do WhatsApp Business pausam a assistente via coexistência", () => {
+  assert.match(whatsappWebhook, /change\.field === "smb_message_echoes"/);
+  assert.match(whatsappWebhook, /value\.message_echoes/);
+  assert.match(whatsappWebhook, /source: "whatsapp_business_app_echo"/);
+  assert.match(whatsappWebhook, /ai_pause_reason: "instrutor_mensagem_manual"/);
+  assert.match(whatsappWebhook, /status: "encerrada"/);
+});
+
+test("painel lista conversas ativas e encerra somente como administrador", () => {
+  assert.match(edge, /body\.action === "list_whatsapp_conversations"/);
+  assert.match(edge, /body\.action === "close_whatsapp_conversation"/);
+  assert.match(edge, /profile\.role !== "admin"/);
+  assert.match(edge, /ai_pause_reason: "instrutor_encerramento"/);
+  assert.match(whatsappPanel, /action: "list_whatsapp_conversations"/);
+  assert.match(whatsappPanel, /action: "close_whatsapp_conversation"/);
+  assert.match(whatsappPanel, /data-encerrar-conversa/);
+});
+
+test("migration registra prazo e origem da pausa sem expor tabelas WhatsApp", () => {
+  assert.match(whatsappPauseMigration, /ADD COLUMN IF NOT EXISTS ai_paused_until timestamptz/);
+  assert.match(whatsappPauseMigration, /ADD COLUMN IF NOT EXISTS ai_pause_reason text/);
+  assert.match(whatsappPauseMigration, /cliente_encerramento/);
+  assert.match(whatsappPauseMigration, /instrutor_encerramento/);
+  assert.match(whatsappPauseMigration, /instrutor_mensagem_manual/);
+  assert.doesNotMatch(whatsappPauseMigration, /GRANT .*anon|GRANT .*authenticated/i);
+});
