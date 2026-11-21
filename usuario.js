@@ -73,6 +73,17 @@
     el("listaAulas").innerHTML = '<div class="user-lesson-list">' + cards + '</div>';
   }
 
+  async function loadInstructorName() {
+    try {
+      const { data, error } = await state.supabase.rpc("get_my_instructor_name");
+      if (error) throw error;
+      el("nomeInstrutorResponsavel").textContent = data || "Aguardando vínculo do instrutor";
+    } catch (error) {
+      console.warn("Não foi possível consultar o instrutor responsável:", error);
+      el("nomeInstrutorResponsavel").textContent = "Não disponível no momento";
+    }
+  }
+
   async function loadLessons() {
     el("btnAtualizar").disabled = true;
     el("atualizadoEm").textContent = "Atualizando sua agenda...";
@@ -165,6 +176,7 @@
     state.supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" || !session) window.location.replace("index.html");
     });
+    await loadInstructorName();
     await loadLessons();
     await configureWhatsAppAssistantButton();
   }
