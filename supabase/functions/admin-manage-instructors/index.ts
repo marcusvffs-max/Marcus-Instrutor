@@ -92,7 +92,6 @@ Deno.serve(async (req: Request) => {
         .from("whatsapp_conversations")
         .select("id,telefone,nome_contato,status,ultima_mensagem_em,updated_at,ai_paused_until")
         .eq("owner_id", authData.user.id)
-        .neq("status", "encerrada")
         .order("updated_at", { ascending: false })
         .limit(50);
       if (conversationsError) throw conversationsError;
@@ -117,19 +116,23 @@ Deno.serve(async (req: Request) => {
       if (conversationError) throw conversationError;
       if (!conversation) return response({ error: "Conversa não encontrada para esta conta." }, 404);
 
+      const requestedOffset = Number.isInteger(body.offset) ? body.offset : 0;
+      const offset = Math.max(0, Math.min(requestedOffset, 100000));
       const { data: messages, error: messagesError } = await admin
         .from("whatsapp_messages")
         .select("id,direcao,tipo_mensagem,conteudo,status_provedor,created_at")
         .eq("conversation_id", conversationId)
         .eq("owner_id", authData.user.id)
         .order("created_at", { ascending: false })
-        .limit(100);
+        .range(offset, offset + 99);
       if (messagesError) throw messagesError;
 
+      const chronologicalMessages = (messages ?? []).reverse();
       return response({
         ok: true,
-        messages: (messages ?? []).reverse(),
+        messages: chronologicalMessages,
         has_more: (messages ?? []).length === 100,
+        next_offset: offset + (messages ?? []).length,
       });
     }
 
