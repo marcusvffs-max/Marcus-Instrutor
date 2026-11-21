@@ -172,7 +172,10 @@
             <h3>Agendamento e gerenciamento de aulas</h3>
             <p>Agende aulas vinculadas aos seus alunos e veículos. A confirmação de aula realizada desconta o saldo automaticamente.</p>
           </div>
-          <button id="btnNovaAula" class="button button-primary" type="button">+ Agendar aula</button>
+          <div class="heading-actions">
+            <button id="btnNovaAula" class="button button-primary" type="button">+ Agendar aula</button>
+            <button id="btnAgendarLote" class="button button-outline" type="button">Agendar várias aulas</button>
+          </div>
         </div>
 
         <form id="formAula" class="student-form" hidden>
@@ -212,6 +215,25 @@
           <div class="student-form-actions">
             <button id="btnCancelarAula" class="button button-outline" type="button">Cancelar</button>
             <button id="btnSalvarAula" class="button button-primary" type="submit">Salvar aula</button>
+          </div>
+        </form>
+
+        <form id="formAulasLote" class="student-form batch-lesson-form" hidden>
+          <h4>Agendar várias aulas de uma vez</h4>
+          <p class="form-help">Escolha a primeira data, o horário e o intervalo. As datas serão preenchidas automaticamente e você poderá ajustar cada aula antes de salvar.</p>
+          <div class="student-form-grid">
+            <div><label for="loteAluno">Aluno *</label><select id="loteAluno" required><option value="">Selecione um aluno</option></select></div>
+            <div><label for="loteVeiculo">Veículo</label><select id="loteVeiculo"><option value="">Sem veículo definido</option></select></div>
+            <div><label for="loteDataInicial">Data da primeira aula *</label><input id="loteDataInicial" type="date" required></div>
+            <div><label for="loteHorarioInicial">Horário inicial *</label><input id="loteHorarioInicial" type="time" value="08:00" required></div>
+            <div><label for="loteQuantidade">Quantidade de aulas</label><input id="loteQuantidade" type="number" min="2" max="20" value="4" required></div>
+            <div><label for="loteIntervaloDias">Intervalo entre aulas (dias)</label><input id="loteIntervaloDias" type="number" min="1" max="90" value="7" required></div>
+          </div>
+          <button id="btnGerarDatasLote" class="button button-outline" type="button">Gerar / atualizar datas</button>
+          <div id="listaDatasAulasLote" class="batch-lesson-list"></div>
+          <div class="student-form-actions">
+            <button id="btnCancelarAulasLote" class="button button-outline" type="button">Cancelar</button>
+            <button id="btnSalvarAulasLote" class="button button-primary" type="submit">Agendar todas as aulas</button>
           </div>
         </form>
 
@@ -301,6 +323,25 @@
         <div id="listaMovimentacoes" class="finance-list"><div class="empty-state">Carregando movimentações...</div></div>
       </section>
 
+      <section class="panel settings-panel" data-view="configuracoes">
+        <div class="section-heading">
+          <div><h3>Meu perfil e aparência</h3><p>Altere seu nome e personalize as cores da sua própria área de instrutor.</p></div>
+        </div>
+        <div class="student-form">
+          <div class="student-form-grid">
+            <div class="form-full">
+              <label for="nomePerfilInstrutor">Seu nome / nome do instrutor</label>
+              <input id="nomePerfilInstrutor" type="text" maxlength="120" autocomplete="name" required>
+            </div>
+            <div><label for="corPrincipalInstrutor">Cor principal</label><input id="corPrincipalInstrutor" type="color" value="#12345a"></div>
+            <div><label for="corSecundariaInstrutor">Cor de fundo</label><input id="corSecundariaInstrutor" type="color" value="#f3f6fa"></div>
+          </div>
+          <div class="student-form-actions">
+            <button id="btnSalvarConfiguracoesInstrutor" class="button button-primary" type="button">Salvar alterações</button>
+          </div>
+        </div>
+      </section>
+
       <section class="report-grid" data-view="relatorios">
         <article class="panel">
           <h3>Relatório por aluno</h3>
@@ -387,12 +428,13 @@
       <button type="button" data-instructor-page="financeiro" class="menu-item"><span class="menu-icon">＄</span><span>Financeiro</span></button>
       <button type="button" data-instructor-page="relatorios" class="menu-item"><span class="menu-icon">▤</span><span>Relatórios</span></button>
       <button type="button" data-instructor-page="contratos" class="menu-item"><span class="menu-icon">▧</span><span>Contratos</span></button>
+      <button type="button" data-instructor-page="configuracoes" class="menu-item"><span class="menu-icon">⚙</span><span>Ajustes</span></button>
     </nav>
     <footer>Marcus Instrutor · Área restrita</footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
   <script src="contratante-perfil.js?v=1"></script>
-  <script src="instrutor.js?v=26"></script>
+  <script src="instrutor.js?v=27-profile-batch-finance"></script>
 </body>
 </html>
