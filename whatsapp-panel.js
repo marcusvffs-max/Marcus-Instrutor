@@ -119,12 +119,14 @@
       : "";
     const tipoSolicitacao = pedido.tipo_solicitacao === "duvida_outros_detran"
       ? "Dúvida — Outros assuntos"
-      : pedido.tipo_solicitacao === "intencao_compra_pacote"
-        ? "Intenção de contratação de pacote"
-        : "Pedido de atendimento humano";
+      : pedido.tipo_solicitacao === "intencao_compra_adicionais"
+        ? "Intenção de contratação de adicionais"
+        : pedido.tipo_solicitacao === "intencao_compra_pacote"
+          ? "Intenção de contratação de pacote"
+          : "Pedido de atendimento humano";
 
     let detalhesPacote = "";
-    if (pedido.tipo_solicitacao === "intencao_compra_pacote") {
+    if (pedido.tipo_solicitacao === "intencao_compra_pacote" || pedido.tipo_solicitacao === "intencao_compra_adicionais") {
       const adicionais = Array.isArray(dados.adicionais_selecionados) ? dados.adicionais_selecionados : [];
       const adicionaisPendentes = Array.isArray(dados.adicionais_obrigatorios_nao_selecionados)
         ? dados.adicionais_obrigatorios_nao_selecionados
@@ -139,17 +141,27 @@
             `${escaparHtml(item?.nome || "Adicional")}: ${formatarMoeda(item?.valor)}`
           ).join("<br>")}</p>`
         : "";
-      detalhesPacote = `
-        <div style="margin:8px 0;padding:10px;border:1px solid var(--border);border-radius:10px;">
-          <p><strong>Pacote:</strong> ${escaparHtml(dados.pacote || "Não informado")}</p>
-          <p><strong>Quantidade:</strong> ${escaparHtml(dados.quantidade_aulas ?? "Não informada")} aulas</p>
-          <p><strong>Valor por aula:</strong> ${formatarMoeda(dados.valor_por_aula)}</p>
-          <p><strong>Valor total das aulas:</strong> ${formatarMoeda(dados.valor_total_aulas)}</p>
-          ${adicionaisHtml}
-          ${pendentesHtml}
-          <small>Os adicionais são cobrados separadamente do valor das aulas.</small>
-        </div>
-      `;
+      const somenteAdicionais = pedido.tipo_solicitacao === "intencao_compra_adicionais" ||
+        dados.tipo_contratacao === "somente_adicionais";
+      detalhesPacote = somenteAdicionais
+        ? `
+          <div style="margin:8px 0;padding:10px;border:1px solid var(--border);border-radius:10px;">
+            <p><strong>Contratação:</strong> Somente adicionais, sem pacote de aulas</p>
+            ${adicionaisHtml}
+            <p><strong>Total dos adicionais:</strong> ${formatarMoeda(dados.valor_total_adicionais_selecionados ?? dados.valor_total_com_adicionais)}</p>
+          </div>
+        `
+        : `
+          <div style="margin:8px 0;padding:10px;border:1px solid var(--border);border-radius:10px;">
+            <p><strong>Pacote:</strong> ${escaparHtml(dados.pacote || "Não informado")}</p>
+            <p><strong>Quantidade:</strong> ${escaparHtml(dados.quantidade_aulas ?? "Não informada")} aulas</p>
+            <p><strong>Valor por aula:</strong> ${formatarMoeda(dados.valor_por_aula)}</p>
+            <p><strong>Valor total das aulas:</strong> ${formatarMoeda(dados.valor_total_aulas)}</p>
+            ${adicionaisHtml}
+            ${pendentesHtml}
+            <small>Os adicionais são cobrados separadamente do valor das aulas.</small>
+          </div>
+        `;
     }
 
     const opcoesStatus = Object.entries(STATUS).map(([valor, rotulo]) =>
@@ -401,7 +413,7 @@
         .select("id, nome_solicitante, telefone_solicitante, created_at, atendimento_status, tipo_solicitacao, dados_propostos")
         .eq("owner_id", sessao.user.id)
         .eq("canal", "whatsapp")
-        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran", "intencao_compra_pacote"]);
+        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran", "intencao_compra_pacote", "intencao_compra_adicionais"]);
 
       const [abertos, encerrados] = await Promise.all([
         base.in("atendimento_status", ["pendente", "em_atendimento"]).order("created_at", { ascending: false }),
