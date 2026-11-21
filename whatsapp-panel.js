@@ -190,7 +190,7 @@
         </div>
         <div class="whatsapp-request-actions">
           <button type="button" class="secondary-button" data-encerrar-conversa="${escaparHtml(conversa.id)}">Encerrar conversa (pausa 48h)</button>
-          <a class="whatsapp-open-link" href="https://wa.me/${String(conversa.telefone || "").replace(/\\D/g, "")}" target="_blank" rel="noopener noreferrer">Abrir conversa no WhatsApp</a>
+          <a class="whatsapp-open-link" href="https://wa.me/${String(conversa.telefone || "").replace(/\D/g, "")}" target="_blank" rel="noopener noreferrer">Abrir conversa no WhatsApp</a>
         </div>
       </article>
     `;
