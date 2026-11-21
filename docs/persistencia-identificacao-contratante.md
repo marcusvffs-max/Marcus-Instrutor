@@ -29,9 +29,10 @@ A tabela `app_settings` já tinha RLS e policies para SELECT, INSERT e UPDATE li
 No projeto de testes, a verificação com dois instrutores sintéticos confirmou:
 - a conta A enxerga sua própria linha;
 - a conta B não enxerga a linha da conta A;
-- uma tentativa de UPDATE por B não altera a linha de A.
+- uma tentativa de UPDATE por B não altera a linha de A;
+- uma conta temporariamente promovida a admin consegue inserir e ler sua própria linha.
 
-As linhas sintéticas foram removidas ao final dos testes. Nenhum dado pessoal real foi usado.
+As linhas sintéticas foram removidas ou revertidas por rollback ao final dos testes; o perfil temporariamente promovido voltou ao papel instrutor. Nenhum dado pessoal real foi usado.
 
 ## Limites da validação
 
