@@ -650,3 +650,22 @@ test("webhook não processa duas vezes a mesma mensagem recebida ou eco enviado"
 test("cada telefone possui uma única conversa por proprietário", () => {
   assert.match(whatsappSchema, /CONSTRAINT whatsapp_conversations_owner_id_telefone_key UNIQUE\(owner_id,telefone\)/);
 });
+
+test("histórico de mensagens exige administrador e valida propriedade da conversa", () => {
+  const historyHandler = edge.slice(edge.indexOf('if (body.action === "list_whatsapp_messages")'), edge.indexOf('if (body.action === "close_whatsapp_conversation")'));
+  assert.match(historyHandler, /profile\.role !== "admin"/);
+  assert.match(historyHandler, /\.eq\("id", conversationId\)/);
+  assert.match(historyHandler, /\.eq\("owner_id", authData\.user\.id\)/);
+  assert.match(historyHandler, /\.from\("whatsapp_messages"\)/);
+  assert.match(historyHandler, /\.limit\(100\)/);
+  assert.match(historyHandler, /\.reverse\(\)/);
+  assert.doesNotMatch(historyHandler, /provider_message_id|metadados/);
+});
+
+test("painel permite abrir e atualizar a transcrição sem inserir conteúdo como HTML", () => {
+  assert.match(whatsappPanel, /data-ver-mensagens=/);
+  assert.match(whatsappPanel, /action: "list_whatsapp_messages"/);
+  assert.match(whatsappPanel, /mensagens\.map\(renderizarMensagemWhatsapp\)/);
+  assert.match(whatsappPanel, /escaparHtml\(mensagem\.conteudo\)/);
+  assert.match(whatsappPanel, /whatsapp-transcript/);
+});
