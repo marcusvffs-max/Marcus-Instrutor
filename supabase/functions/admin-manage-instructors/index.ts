@@ -140,6 +140,9 @@ Deno.serve(async (req: Request) => {
         .is("user_id", null)
         .select("id")
         .maybeSingle();
+      if (completeError?.code === "23505") {
+        return response({ error: "Esta conta já está vinculada a outro cadastro de aluno. Solicite uma verificação administrativa." }, 409);
+      }
       if (completeError) throw completeError;
       if (!completedLink) {
         // Outra requisição pode ter confirmado entre a leitura e o UPDATE.
@@ -427,6 +430,16 @@ Deno.serve(async (req: Request) => {
           if (legacyProfileError) throw legacyProfileError;
           if (!legacyProfile || legacyProfile.role !== "usuario") {
             return response({ error: "Já existe uma conta com este e-mail, mas ela não está configurada como aluno. Solicite uma verificação administrativa." }, 409);
+          }
+          // A conta Auth só pode estar vinculada a um cadastro de aluno.
+          // Verifique antes de enviar qualquer link para evitar convite que falharia no índice UNIQUE.
+          const { data: existingStudentLink, error: existingStudentLinkError } = await admin
+            .from("students").select("id")
+            .eq("user_id", matchingAuthUser.id)
+            .maybeSingle();
+          if (existingStudentLinkError) throw existingStudentLinkError;
+          if (existingStudentLink) {
+            return response({ error: "Esta conta já está vinculada a outro cadastro de aluno. Solicite uma verificação administrativa antes de enviar novo acesso." }, 409);
           }
           studentLegacyLinkUserId = matchingAuthUser.id;
         }
