@@ -353,7 +353,8 @@ function prepareTextForGemini(input: string): { safe: boolean; text: string; rea
     /\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/i, // email
     /(?:\+?55\s*)?(?:\(?\d{2}\)?\s*)?9?\d{4}[-.\s]?\d{4}/, // Brazilian phone
     /\b(?:rua|avenida|av\.?|travessa|rodovia|estrada|alameda|logradouro)\s+[A-ZÀ-Ý0-9][\wÀ-ÿ.'-]*(?:\s+[A-ZÀ-Ý0-9][\wÀ-ÿ.'-]*){0,5}\s*,?\s*(?:n[º°.]?\s*)?\d{1,6}\b/i,
-    /\b(?:pix|chave pix|cartão|cartao|conta bancária|conta bancaria|agência|agencia|senha|código de segurança|codigo de seguranca)\b/i,
+    /\b(?:chave\s+pix|conta\s+banc[aá]ria|ag[eê]ncia|senha|c[oó]digo\s+de\s+seguran[cç]a)\b/i, // Credenciais e dados financeiros
+    /\b(?:n[uú]mero|final|cvv|cvc|validade|c[oó]digo\s+de\s+seguran[cç]a)\s+(?:do\s+)?cart[aã]o\b|\bcart[aã]o\s+(?:n[uú]mero|final|cvv|cvc|validade)\b|\bcart[aã]o\s+de\s+(?:cr[eé]dito|d[eé]bito)\s*[:#-]?\s*\d{4,}/i, // Dados do cartão, não o nome de um produto
     /\b(?:meu cpf|meu cnpj|meu telefone|meu celular)\b/i,
     /\b(?:meu filho|minha filha|meu marido|minha esposa|meu pai|minha mãe|meu irmão|minha irmã)\s+[A-ZÀ-Ý][a-zà-ÿ]+/i,
     /\b(?:aluno|aluna|cliente|responsável)\s+[A-ZÀ-Ý][a-zà-ÿ]+/i,
