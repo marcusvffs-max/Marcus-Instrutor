@@ -1226,3 +1226,19 @@ Complemento da validação financeira:
 - pacote com faixa mínima/máxima e serviço de múltiplas aulas: 12 aulas adicionadas e persistidas corretamente;
 - quantidade abaixo do mínimo do pacote: bloqueada;
 - chamada de `delete_my_sale` para venda de outro owner: bloqueada com `P0002`.
+
+
+## Atualização: agenda do aluno e proteção do vínculo — 21/11/2026
+
+No projeto isolado `voyjssflroiwdyaacthh`, foram criadas identidades Auth sintéticas e dois cadastros de aluno, cada um ligado a um instrutor diferente. Com claims simuladas:
+
+- cada aluno recebeu somente sua própria aula agendada, nome e veículo corretos;
+- nenhum dos dois viu a aula do outro;
+- usuário sem vínculo recebeu `P0002 / CONTA_SEM_VINCULO`;
+- instrutor foi bloqueado ao chamar a RPC exclusiva do aluno;
+- aluno não obteve linhas por SELECT direto em `students` ou `lessons`, mas recebeu a agenda pela RPC;
+- a RPC limpou a reserva `invited_at`/`invite_attempt_id`;
+- trigger bloqueou alteração ou inserção direta de vínculo Auth por instrutor (`42501`);
+- Edge Function verifica se a conta Auth já está ligada a outro cadastro, com índice único parcial `students_user_id_unique` como proteção adicional.
+
+Foram registradas 14 verificações/asserções aprovadas em transações revertidas. Isso não substitui login real, JWT emitido pelo Auth, e-mail/convite implantado ou teste HTTP. Os detalhes estão em `docs/TESTE-RLS-ISOLAMENTO-INSTRUTORES.md`.
