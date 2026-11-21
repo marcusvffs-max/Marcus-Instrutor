@@ -132,6 +132,7 @@ Deno.serve(async (req: Request) => {
         .eq("owner_id", authData.user.id)
         .eq("canal", "whatsapp")
         .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"])
+        .in("atendimento_status", ["pendente", "em_atendimento"])
         .filter("resultado->>conversation_id", "eq", conversationId);
       if (requestsError) throw requestsError;
 
