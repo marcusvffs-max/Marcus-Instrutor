@@ -246,3 +246,14 @@ Como as policies atuais permitem que o instrutor gerencie somente os próprios p
 Sob `SET LOCAL ROLE authenticated` e claims simuladas, cada conta viu exatamente uma linha própria em cada tabela e zero linhas do outro owner.
 
 Resultado: **4 verificações aprovadas** (duas tabelas × duas contas). As linhas de fixture foram revertidas com `ROLLBACK`; nenhuma configuração ou produto persistiu no banco.
+
+
+### Privilégios SQL de alto impacto — verificação de catálogo — 21/11/2026
+
+Para as nove tabelas públicas operacionais e de configuração examinadas (`profiles`, `students`, `lessons`, `vehicles`, `sales`, `sale_items`, `financial_transactions`, `products`, `app_settings)), o catálogo confirmou:
+
+- `anon` sem SELECT efetivo;
+- `authenticated` sem `TRUNCATE`, `REFERENCES` ou `TRIGGER` em todas as nove tabelas;
+- nenhuma membership de `anon` ou `authenticated` para papéis privilegiados na consulta de `pg_auth_members`.
+
+Resultado: **36 verificações de privilégios aprovadas** (quatro verificações × nove tabelas), além da inspeção de memberships. Isso é evidência de catálogo do projeto isolado, não um teste HTTP.
