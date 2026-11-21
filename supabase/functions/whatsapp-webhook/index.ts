@@ -1460,12 +1460,12 @@ Deno.serve(async (req: Request) => {
                   "Faça o agendamento pelo site oficial. O Portal MG informa que o agendamento ocorre no período das 13h às 18h. Você escolhe a data e o local, mas não o horário.\n\n" +
                   "7. PROVA DE LEGISLAÇÃO\n" +
                   "Compareça com documento oficial de identificação com foto. A prova tem 30 questões e é necessário alcançar pelo menos 20 acertos para aprovação.\n\n" +
-                  "8. AULAS PRÁTICAS DE DIREÇÃO\n" +
-                  "Após cumprir as etapas anteriores e estar liberado para a aprendizagem, faça as aulas com um CFC ou instrutor autônomo autorizado. Para CNH, o mínimo informado é de 2 horas/aula. Para ACC, não há carga horária mínima.\n\n" +
+                  "8. LADV E AULAS PRÁTICAS DE DIREÇÃO\n" +
+                  "Antes de iniciar as aulas, confira a emissão da Licença para Aprendizagem de Direção Veicular (LADV) no aplicativo CNH do Brasil. Com a LADV emitida, você poderá fazer as aulas com um CFC ou instrutor autônomo autorizado. Para CNH, o mínimo informado é de 2 horas/aula. Para ACC, não há carga horária mínima.\n\n" +
                   "9. TAXA E EXAME PRÁTICO DE DIREÇÃO\n" +
                   "Emita e pague a taxa do exame prático, informada em R$ 115,80. O agendamento pode ser feito pelo CFC, pelo candidato ou pelo instrutor autônomo. Na categoria A, a prova é realizada em motopista. Para categoria AB, são necessárias duas taxas para a prova prática: uma da categoria A e outra da B. Consulte a opção 'Taxa exame direção' no Menu.\n\n" +
                   "10. EXAME TOXICOLÓGICO\n" +
-                  "O Portal MG também lista a etapa de exame toxicológico e orienta consultar os laboratórios credenciados pela Senatran. Confira no serviço oficial as instruções e exigências aplicáveis ao seu processo.\n\n" +
+                  "Para processos de primeira habilitação nas categorias A, B ou AB iniciados a partir de 20/06/2026, é exigido resultado negativo no exame toxicológico para a emissão da PPD. Segundo orientação do Detran-MG, o exame deve ser realizado após a aprovação na prova prática, em laboratório credenciado pela Senatran. Processos iniciados antes de 20/06/2026 não são alcançados por essa exigência. Se tiver dúvida sobre a data de abertura do seu processo ou sobre a aplicação da regra, confirme diretamente com o Detran-MG.\n\n" +
                   "11. EMISSÃO E ENTREGA DA PERMISSÃO PARA DIRIGIR (PPD)\n" +
                   "Depois da aprovação nas provas e da conclusão dos registros, a PPD é enviada pelos Correios. O Portal MG informa prazo de até 10 dias úteis para entrega. A PPD vale por 12 meses; para obter a CNH definitiva, é necessário cumprir as regras de trânsito durante esse período.\n\n" +
                   "PRAZO DO PROCESSO:\n" +
