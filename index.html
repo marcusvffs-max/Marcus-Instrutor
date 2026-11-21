@@ -511,7 +511,19 @@
         await carregarScript("admin-users.js?v=admin-users-v2");
         painelAdminCarregado = true;
       }
-      async function mostrarAplicativo() {
+      async function mostrarAplicativo(usuario) {
+        if (!usuario || !usuario.id) {
+          mostrarLogin("Não foi possível identificar a conta administrativa.");
+          return;
+        }
+        const chaveUsuarioAtual = "marcus_admin_user_id";
+        const usuarioAnterior = window.sessionStorage.getItem(chaveUsuarioAtual);
+        if (usuarioAnterior && usuarioAnterior !== usuario.id) {
+          window.sessionStorage.setItem(chaveUsuarioAtual, usuario.id);
+          window.location.reload();
+          return;
+        }
+        window.sessionStorage.setItem(chaveUsuarioAtual, usuario.id);
         await carregarPainelAdmin();
         const botaoSair = document.getElementById("btnLogout");
         if (botaoSair) {
@@ -561,7 +573,7 @@
           mostrarLogin("Esta conta não possui um perfil autorizado para acessar o aplicativo.");
           return false;
         }
-        await mostrarAplicativo();
+        await mostrarAplicativo(usuario);
         const botaoSair = document.getElementById("btnLogout");
         if (botaoSair) {
           botaoSair.onclick = async function () {
@@ -695,7 +707,13 @@
           mostrarFormularioRecuperacao();
           return;
         }
-        if (evento === "SIGNED_OUT" || !sessao) {
+        if (evento === "SIGNED_OUT") {
+          window.sessionStorage.removeItem("marcus_admin_user_id");
+          window.dispatchEvent(new Event("marcus-unauthenticated"));
+          window.location.reload();
+          return;
+        }
+        if (!sessao) {
           mostrarLogin("Sua sessão foi encerrada. Entre novamente para continuar.");
           window.dispatchEvent(new Event("marcus-unauthenticated"));
         }
