@@ -1148,3 +1148,49 @@ As sete migrations de reconstrução do banco isolado foram movidas integralment
 Objetivo: impedir que `supabase db push` trate scripts de reconstrução do ambiente descartável como migrations implantáveis. As migrations reais de evolução do produto permanecem em `supabase/migrations/`.
 
 A separação é uma proteção de organização do repositório, não uma autorização para executar `db push`. Antes de qualquer implantação, ainda será necessário revisar a cadeia completa de migrations contra o histórico real do projeto de destino e validar o diff em ambiente isolado.
+
+
+## Atualização: isolamento autenticado parcial e hardening de perfis — 21/11/2026
+
+Projeto de testes isolado: `voyjssflroiwdyaacthh`. Nenhuma alteração foi feita no projeto original.
+
+### Testes transacionais com duas contas de instrutor
+
+Com duas identidades sintéticas, `SET LOCAL ROLE authenticated` e claims simuladas:
+
+- RLS de leitura aprovado em `students`, `vehicles`, `lessons`, `sales`, `sale_items` e `financial_transactions`: cada conta visualizou somente linhas do próprio owner. As três tabelas financeiras/comerciais estavam vazias, portanto não houve teste positivo com registros reais de venda.
+- Tentativas de UPDATE/DELETE de aluno, veículo e aula de outro owner não afetaram linhas.
+- INSERT de aluno/veículo com owner alheio e INSERT de aula ligada a aluno/veículo de outro owner foram bloqueados com SQLSTATE `42501`.
+- Fixtures temporárias de `products` e `app_settings` provaram que cada instrutor vê uma linha própria e zero linhas do outro owner.
+- Um instrutor temporariamente expirado não visualizou registros operacionais em nenhuma das seis tabelas consultadas.
+
+Todas as operações foram feitas em transações com `ROLLBACK`. Claims simuladas não equivalem a autenticação HTTP/PostgREST com JWT real.
+
+### RPCs
+
+- `remove_student_app_access(uuid)` e `delete_my_sale(uuid)`: instrutor expirado bloqueado com `42501`; instrutor ativo passou pelo guard de papel/validade e chegou à validação do registro inexistente (`P0002`).
+- `admin_create_sale`, `admin_delete_sale`, `admin_refund_sale_lessons` e `admin_refund_sale_product`: chamadas diretas por instrutor foram bloqueadas pelo guard administrativo com a mensagem `Acesso administrativo obrigatório.`.
+
+### Privilégios de profiles
+
+A migration `20261121260000_restrict_profile_insert_delete.sql` foi aplicada no projeto de testes. `authenticated` agora mantém SELECT e UPDATE somente de `profiles.nome`; INSERT e DELETE foram revogados em nível de tabela/coluna. Teste transacional confirmou atualização do próprio nome e bloqueio de INSERT/DELETE.
+
+### Estado versionado
+
+Na branch `feature/acessos-alunos-instrutor`:
+
+- 20 migrations implantáveis em `supabase/migrations`;
+- sete fixtures SQL mantidas em `test-fixtures/supabase-migrations`;
+- nenhum arquivo `restore_*` ou `reconcile_financial_rpc_definitions` permanece em `supabase/migrations`;
+- PR #5 continua aberta, draft e sem merge.
+
+### Pendências que continuam explícitas
+
+- JWT real via HTTP/PostgREST, fluxo completo de aluno e RPC de agenda;
+- teste com registros sintéticos de venda/itens/transações para cenários positivos, cruzamento e estorno;
+- testes reais de Admin/Edge Functions;
+- confirmação da lista de schemas expostos pela Data API (em especial `private`);
+- habilitar proteção contra senhas vazadas após validação administrativa;
+- revisar warnings intencionais de RPCs SECURITY DEFINER públicas, sem remover os guards necessários.
+
+Não houve deploy, merge, operação paga, envio de convite ou alteração no Supabase original.
