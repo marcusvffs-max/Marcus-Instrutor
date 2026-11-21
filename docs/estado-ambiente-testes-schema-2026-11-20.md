@@ -853,3 +853,39 @@ O desenho é diferente e intencional:
 - a função também faz joins com student_id + owner_id e vehicle_id + owner_id.
 
 A diferença de SECURITY DEFINER do wrapper apontada pelo Advisor refere-se ao projeto de testes. No original, o wrapper é SECURITY INVOKER; o SECURITY DEFINER vulnerável é a função interna privada, executável por authenticated. Esta distinção substitui qualquer interpretação anterior que confundisse os dois objetos.
+
+
+## Integridade referencial entre proprietários: FKs compostas
+
+### Achado
+
+As políticas RLS já bloqueavam as sete tentativas de INSERT cross-owner testadas (SQLSTATE 42501). Porém, as chaves estrangeiras originais de lessons, sales, sale_items e financial_transactions referenciavam apenas o ID do registro, sem incluir owner_id. A segurança dependia, portanto, exclusivamente das policies e da lógica das RPCs para impedir relacionamentos entre proprietários.
+
+### Correção no ambiente de testes
+
+Migration:
+`20261121160000_enforce_same_owner_foreign_keys.sql`
+
+Adiciona chaves únicas compostas (id, owner_id) às tabelas-pai students, vehicles, sales e products, e sete FKs compostas:
+- lessons(student_id, owner_id) → students(id, owner_id), ON DELETE CASCADE;
+- lessons(vehicle_id, owner_id) → vehicles(id, owner_id), ON DELETE SET NULL somente em vehicle_id;
+- sales(student_id, owner_id) → students(id, owner_id), ON DELETE SET NULL somente em student_id;
+- sale_items(sale_id, owner_id) → sales(id, owner_id), ON DELETE CASCADE;
+- sale_items(product_id, owner_id) → products(id, owner_id), ON DELETE SET NULL somente em product_id;
+- financial_transactions(student_id, owner_id) → students(id, owner_id), ON DELETE SET NULL somente em student_id;
+- financial_transactions(sale_id, owner_id) → sales(id, owner_id), ON DELETE SET NULL somente em sale_id.
+
+As FKs simples existentes foram mantidas para preservar as regras anteriores; as novas FKs adicionam a verificação de proprietário na própria integridade referencial do PostgreSQL. O uso de SET NULL com lista de colunas preserva owner_id, que é obrigatório, conforme a sintaxe documentada para PostgreSQL 17.
+
+### Testes realizados após a migration
+
+- Antes da migration, as sete tentativas de INSERT cross-owner foram bloqueadas pelo RLS (42501).
+- Depois da migration, as mesmas sete tentativas, executadas em contexto privilegiado para isolar o teste das policies, foram bloqueadas diretamente pelas FKs compostas (23503).
+- Verificação prévia dos dados existentes: zero relações cross-owner nas sete combinações.
+- Teste positivo de exclusão: vehicle_id e product_id foram definidos como NULL; itens foram excluídos em cascata com a venda; sale_id e student_id dos lançamentos financeiros foram definidos como NULL; aulas foram excluídas em cascata com o aluno.
+- Teste de regressão: create_instructor_sale continuou funcionando com 1 venda, 1 item, 1 lançamento financeiro e acréscimo de 2 aulas. A transação foi revertida; consulta posterior confirmou zero registros persistidos e saldo restaurado para 5 aulas.
+- Todos os testes foram feitos no projeto isolado e revertidos. Nenhuma migration foi aplicada ao Supabase original.
+
+### Observação sobre privilégios padrão
+
+A consulta de pg_default_acl confirmou que os privilégios padrão restritivos para objetos criados pelo owner postgres estão ativos em public: novas funções, tabelas e sequences não recebem permissões de anon/authenticated por padrão. ACLs de papéis internos do Supabase, como supabase_admin e supabase_auth_admin, foram apenas inspecionadas e não foram alteradas.
