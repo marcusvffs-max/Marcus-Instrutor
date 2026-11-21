@@ -501,36 +501,64 @@ function formatCatalogReply(catalog: CatalogProduct[]): string {
   if (!catalog.length) {
     return "No momento, não há pacotes e valores cadastrados para consulta automática. Para receber essa informação, envie “Olá” e escolha “Falar com Instrutor”. 😊";
   }
+
   const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  const packages = catalog.filter((item) => item.quantidade_aulas_min !== null).sort((a, b) => (a.quantidade_aulas_min ?? 0) - (b.quantidade_aulas_min ?? 0));
-  const mandatory = catalog.filter((item) => item.obrigatorio_conclusao);
-  const others = catalog.filter((item) => item.quantidade_aulas_min === null && !item.obrigatorio_conclusao);
-  const packageLines = packages.map((item) => {
-    const faixa = item.quantidade_aulas_max !== null
-      ? " — de " + item.quantidade_aulas_min + " a " + item.quantidade_aulas_max + " aulas"
-      : " — a partir de " + item.quantidade_aulas_min + " aulas";
-    return "• " + item.nome + faixa + ": " + money(item.preco) + " por aula";
-  });
-  const necessaryLines = mandatory.map((item) => {
-    const normalizedName = normalizeChoiceText(item.nome);
-    if (normalizedName.includes("aluguel")) {
-      return "• " + item.nome + ": " + money(item.preco) + " — necessário para concluir o processo com o Instrutor.";
-    }
-    if (normalizedName.includes("cartao moto pista")) {
-      return "• " + item.nome + ": " + money(item.preco) + " — necessário para utilizar a motopista.";
-    }
-    return "• " + item.nome + ": " + money(item.preco) + (item.descricao ? " — " + item.descricao : "");
-  });
-  const otherLines = others.map((item) => "• " + item.nome + ": " + money(item.preco) + (item.descricao ? " — " + item.descricao : ""));
-  const sections = [
-    packageLines.length ? "PACOTES (valor por aula):\n" + packageLines.join("\n") : "",
-    necessaryLines.length || packages.length ? "O QUE É NECESSÁRIO PARA O PROCESSO:\n" + [
-      "• Aulas: mínimo de 2 aulas.",
-      ...necessaryLines,
-    ].join("\n") : "",
-    otherLines.length ? "OUTROS ITENS:\n" + otherLines.join("\n") : "",
-  ].filter(Boolean);
-  return "Confira os valores cadastrados: 😊\n\n" + sections.join("\n\n") +
+  const packages = catalog
+    .filter((item) => item.quantidade_aulas_min !== null)
+    .sort((a, b) => (a.quantidade_aulas_min ?? 0) - (b.quantidade_aulas_min ?? 0));
+  const nonPackages = catalog
+    .filter((item) => item.quantidade_aulas_min === null)
+    .sort((a, b) => {
+      const rank = (item: CatalogProduct) => {
+        const name = normalizeChoiceText(item.nome);
+        if (name.includes("aluguel")) return 0;
+        if (name.includes("cartao moto pista")) return 1;
+        return 2;
+      };
+      return rank(a) - rank(b) || a.nome.localeCompare(b.nome, "pt-BR");
+    });
+
+  const valueLines = [
+    ...packages.map((item) => {
+      const faixa = item.quantidade_aulas_max !== null
+        ? " — de " + item.quantidade_aulas_min + " a " + item.quantidade_aulas_max + " aulas"
+        : " — a partir de " + item.quantidade_aulas_min + " aulas";
+      return "• " + item.nome + faixa + ": " + money(item.preco) + " por aula";
+    }),
+    ...nonPackages.map((item) => {
+      const billing = item.forma_cobranca === "por_exame"
+        ? " (por exame)"
+        : item.forma_cobranca === "por_periodo_30_dias" && !normalizeChoiceText(item.nome).includes("30 dias")
+          ? " (30 dias)"
+          : "";
+      return "• " + item.nome + ": " + money(item.preco) + billing;
+    }),
+  ];
+
+  const mandatory = catalog
+    .filter((item) => item.obrigatorio_conclusao)
+    .sort((a, b) => {
+      const rank = (item: CatalogProduct) => {
+        const name = normalizeChoiceText(item.nome);
+        if (name.includes("aluguel")) return 0;
+        if (name.includes("cartao moto pista")) return 1;
+        return 2;
+      };
+      return rank(a) - rank(b) || a.nome.localeCompare(b.nome, "pt-BR");
+    });
+  const mandatoryLines = [
+    "• Mínimo de 2 aulas.",
+    ...mandatory.map((item) => {
+      const name = normalizeChoiceText(item.nome);
+      if (name.includes("aluguel")) return "• Aluguel do veículo.";
+      if (name.includes("cartao moto pista")) return "• Cartão Moto Pista.";
+      return "• " + item.nome + ".";
+    }),
+  ];
+
+  return "Confira os valores cadastrados: 😊\n\n" +
+    "VALORES:\n" + valueLines.join("\n") +
+    "\n\nITENS OBRIGATÓRIOS PARA O PROCESSO:\n" + mandatoryLines.join("\n") +
     "\n\nOs valores dos pacotes são por aula, não pelo pacote completo. O aluguel e o cartão são cobrados separadamente." +
     "\n\nSe quiser, informe quantas aulas deseja e faço o cálculo para você. 😊";
 }
