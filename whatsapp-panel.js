@@ -105,6 +105,12 @@
       ? `<a class="whatsapp-open-link" href="https://wa.me/${numeroWhatsApp}" target="_blank" rel="noopener noreferrer">Abrir conversa no WhatsApp</a>`
       : "";
 
+    const mensagem = typeof pedido.dados_propostos?.mensagem === "string"
+      ? escaparHtml(pedido.dados_propostos.mensagem)
+      : "";
+    const tipoSolicitacao = pedido.tipo_solicitacao === "duvida_outros_detran"
+      ? "Dúvida — Outros assuntos"
+      : "Pedido de atendimento humano";
     const opcoesStatus = Object.entries(STATUS).map(([valor, rotulo]) =>
       `<option value="${valor}" ${pedido.atendimento_status === valor ? "selected" : ""}>${rotulo}</option>`
     ).join("");
@@ -114,7 +120,8 @@
         <div class="whatsapp-request-info">
           <strong>${nome}</strong>
           <span>${telefoneSeguro || "Telefone não informado"}</span>
-          <small>Pedido recebido em ${escaparHtml(formatarData(pedido.created_at))}</small>
+          <small>${escaparHtml(tipoSolicitacao)} · Recebido em ${escaparHtml(formatarData(pedido.created_at))}</small>
+          ${mensagem ? `<p style="margin:8px 0;white-space:pre-wrap;overflow-wrap:anywhere;">${mensagem}</p>` : ""}
           <label style="display:block;margin-top:8px;font-size:12px;font-weight:700;" for="status-atendimento-${escaparHtml(pedido.id)}">Status do atendimento</label>
           <select
             id="status-atendimento-${escaparHtml(pedido.id)}"
@@ -252,19 +259,19 @@
 
       const base = supabase
         .from("ai_requests")
-        .select("id, nome_solicitante, telefone_solicitante, created_at, atendimento_status")
+        .select("id, nome_solicitante, telefone_solicitante, created_at, atendimento_status, tipo_solicitacao, dados_propostos")
         .eq("owner_id", sessao.user.id)
         .eq("canal", "whatsapp")
-        .eq("tipo_solicitacao", "atendimento_humano");
+        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"]);
 
       const [abertos, encerrados] = await Promise.all([
         base.in("atendimento_status", ["pendente", "em_atendimento"]).order("created_at", { ascending: false }),
         supabase
           .from("ai_requests")
-          .select("id, nome_solicitante, telefone_solicitante, created_at, atendimento_status")
+          .select("id, nome_solicitante, telefone_solicitante, created_at, atendimento_status, tipo_solicitacao, dados_propostos")
           .eq("owner_id", sessao.user.id)
           .eq("canal", "whatsapp")
-          .eq("tipo_solicitacao", "atendimento_humano")
+          .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"])
           .in("atendimento_status", ["concluido", "cancelado"])
           .order("created_at", { ascending: false })
       ]);
