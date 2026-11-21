@@ -420,7 +420,8 @@
     }
   }
 
-  async function carregarAtendimentosWhatsapp(opcoes = {}) {\n    const silencioso = opcoes.silent === true;
+  async function carregarAtendimentosWhatsapp(opcoes = {}) {
+    const silencioso = opcoes.silent === true;
     const lista = document.getElementById("listaAtendimentosWhatsapp");
     const historico = document.getElementById("historicoAtendimentosWhatsapp");
     const conversas = document.getElementById("listaConversasWhatsapp");
