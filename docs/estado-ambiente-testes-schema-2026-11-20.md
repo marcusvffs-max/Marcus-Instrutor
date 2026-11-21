@@ -657,3 +657,41 @@ Nova verificação efetiva de privilégios no projeto de testes:
 - 0 funções com EXECUTE herdado de PUBLIC.
 
 A contagem anterior de 14 funções e 7 triggers estava subestimada porque não contabilizava separadamente a função/trigger de proteção dos campos `user_id`, `invited_at` e `invite_attempt_id`. Esta seção passa a ser a contagem de referência.
+
+
+## Achado de configuração: permissões padrão de novas funções
+
+A inspeção dos `pg_default_acl` identificou que funções criadas pelo proprietário `postgres` recebiam EXECUTE por padrão de PUBLIC. Como `anon` e `authenticated` têm USAGE nos schemas expostos relevantes, uma nova função criada sem ACL explícita poderia ficar chamável por clientes:
+
+- Em `public`, a permissão padrão PUBLIC pode tornar uma nova função chamável por anon e authenticated.
+- Em `private`, authenticated tem USAGE; portanto, uma nova função privada sem revogação explícita também pode ficar chamável por authenticated.
+- Isso não representa exposição de todas as funções atuais: a varredura das 15 funções de aplicação confirmou zero EXECUTE para anon, zero EXECUTE herdado de PUBLIC e somente `private.current_app_role()` executável por authenticated no schema privado.
+
+O catálogo do projeto original também apresenta o default global PostgreSQL de EXECUTE para PUBLIC e USAGE de authenticated em `private` e de anon/authenticated em `public`. Não foi feito teste DDL no original por restrição de somente leitura. Portanto, o risco descrito para novas funções é uma configuração preventiva a tratar antes de criar futuras funções no projeto original; não é uma exploração nem prova de que alguma função atual esteja exposta.
+
+### Correção testada e aplicada somente no projeto isolado
+
+Migration criada na branch de testes e aplicada somente ao projeto `voyjssflroiwdyaacthh`:
+
+`20261121150000_harden_default_function_privileges.sql`
+
+Ela:
+- revoga EXECUTE padrão de PUBLIC para funções futuras criadas por `postgres`;
+- revoga EXECUTE padrão de `anon`, `authenticated` e `service_role` para novas funções no schema `public`;
+- exige que cada nova RPC receba GRANT EXECUTE explícito aos papéis necessários;
+- deixa novas funções em `private` sem EXECUTE para papéis de aplicação, salvo concessão explícita.
+
+### Verificação da migration
+
+Antes de aplicar, foi feita uma prova transacional criando funções temporárias em `public` e `private`; a configuração antiga concedia EXECUTE a PUBLIC, anon e authenticated. A transação foi revertida.
+
+Depois da migration, uma segunda prova transacional confirmou que funções novas temporárias nos dois schemas não concedem EXECUTE a PUBLIC, anon, authenticated ou service_role. A transação foi revertida.
+
+Também foi confirmado que as seis RPCs públicas já existentes mantiveram seus grants explícitos:
+- anon: sem EXECUTE;
+- PUBLIC: sem EXECUTE;
+- authenticated e service_role: EXECUTE preservado onde necessário.
+
+Os Security Advisors permaneceram com os mesmos três apontamentos anteriores; a migration não introduziu novos avisos. A alteração não afeta permissões de funções já existentes.
+
+**Importante:** a migration de default privileges está somente na branch de testes e aplicada somente no Supabase de testes. O Supabase original continua sem alterações. A correção equivalente no original exige revisão e autorização explícita antes de qualquer aplicação.
