@@ -3379,15 +3379,37 @@ async function carregarDadosAdminSupabase() {
   return { carregado: true, motivo: "sucesso" };
 }
 
+function avisarDadosLegadosNaoVinculados() {
+  const chaveAviso = "marcus_legacy_storage_notice";
+  if (!STORAGE_KEY_ATUAL || window.sessionStorage.getItem(chaveAviso)) return;
+
+  const dadosBrutos = localStorage.getItem(STORAGE_KEY);
+  if (!dadosBrutos) return;
+
+  let temDadosLegados = false;
+  try {
+    const dadosLegados = JSON.parse(dadosBrutos);
+    temDadosLegados = ["alunos", "veiculos", "aulas", "vendas", "movimentacoes"]
+      .some(chave => Array.isArray(dadosLegados?.[chave]) && dadosLegados[chave].length > 0);
+  } catch {
+    temDadosLegados = true;
+  }
+
+  if (!temDadosLegados) return;
+  window.sessionStorage.setItem(chaveAviso, "1");
+  mostrarAviso("Encontramos dados locais antigos sem vínculo com uma conta. Eles foram preservados no navegador, mas não foram carregados para evitar misturar dados entre administradores. A importação precisa ser conferida separadamente.");
+}
+
 async function prepararDadosAdmin() {
+  avisarDadosLegadosNaoVinculados();
   try {
     const resultado = await carregarDadosAdminSupabase();
     if (resultado.motivo === "conflito_local_nuvem") {
-      mostrarAviso("Há dados locais e na nuvem. Mantivemos os dados locais para evitar mistura. A migração será feita com conferência.");
+      mostrarAviso("Há dados locais e na nuvem. Mantivemos os dados locais desta conta para evitar mistura. A migração será feita com conferência.");
     }
   } catch (erro) {
     console.error("Não foi possível carregar os dados administrativos do Supabase:", erro);
-    mostrarAviso("Não foi possível consultar a nuvem. Os dados locais foram mantidos.");
+    mostrarAviso("Não foi possível consultar a nuvem. Os dados locais vinculados a esta conta foram mantidos.");
   }
 }
 
