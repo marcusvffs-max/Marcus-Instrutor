@@ -170,7 +170,7 @@ Deno.serve(async (req: Request) => {
       if (["concluido", "cancelado"].includes(nextStatus) && conversationId) {
         const now = new Date();
         conversationPauseUntil = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
-        const { error: closeHumanConversationError } = await admin
+        const { data: closedHumanConversation, error: closeHumanConversationError } = await admin
           .from("whatsapp_conversations")
           .update({
             status: "encerrada",
@@ -181,8 +181,11 @@ Deno.serve(async (req: Request) => {
           })
           .eq("id", conversationId)
           .eq("owner_id", authData.user.id)
-          .eq("status", "atendimento_humano");
+          .eq("status", "atendimento_humano")
+          .select("id")
+          .maybeSingle();
         if (closeHumanConversationError) throw closeHumanConversationError;
+        if (!closedHumanConversation) conversationPauseUntil = null;
       }
 
       const { error: updateRequestError } = await admin
