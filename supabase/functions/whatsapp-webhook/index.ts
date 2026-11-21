@@ -639,7 +639,7 @@ function formatStandaloneAdditionalReply(
   });
   return "Claro! 😊 Você pode solicitar os adicionais sem contratar aulas.\n\n" +
     "ITENS ESCOLHIDOS (sem pacote de aulas):\n" + lines.join("\n") +
-    "\n\nTOTAL DOS ITENS: " + money(total) +
+    "\n\n*TOTAL DO PEDIDO: " + money(total) + "*" +
     "\n\nDeseja que eu registre essa intenção de contratação para análise do Instrutor Marcus? Responda SIM ou NÃO.";
 }
 
@@ -699,10 +699,10 @@ function formatOptionalItemsReply(
       ? "\n\nOUTROS ITENS OBRIGATÓRIOS (ainda não incluídos no total):\n" + notSelected.map(itemLine).join("\n")
       : "") +
     "\n\nTotal dos adicionais escolhidos: " + money(selectedTotal) + "." +
-    "\nTOTAL GERAL (aulas + adicionais escolhidos): " + money(grandTotal) + "." +
+    "\n\n*TOTAL DO PEDIDO: " + money(grandTotal) + "*" +
     (notSelected.length
-      ? "\nOs itens obrigatórios não escolhidos ainda não estão incluídos nesse total."
-      : "\nTodos os itens obrigatórios cadastrados foram considerados nesse total.");
+      ? "\n\nOs itens obrigatórios não escolhidos ainda não estão incluídos nesse total."
+      : "\n\nTodos os itens obrigatórios cadastrados foram considerados nesse total.");
 }
 
 function formatQuantityQuote(catalog: CatalogProduct[], quantity: number): string {
