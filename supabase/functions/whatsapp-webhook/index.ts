@@ -635,7 +635,8 @@ function detectStandaloneAdditionalPurchase(message: string): OptionalItemChoice
     /\b(nao quero (?:comprar )?(?:as )?aulas|nao vou comprar (?:as )?aulas|sem (?:as )?aulas|nao quero (?:o )?pacote)\b/.test(text);
   const asksToBuyAdditional =
     /\b(comprar|contratar|adquirir|reservar|solicitar)\b/.test(text) ||
-    /\b(quero|vou querer|pode incluir|inclua|adiciona|adicionar|pode colocar|coloca)\s+(?:o\s+)?(?:cartao|moto pista|pista|aluguel|veiculo|carro)\b/.test(text);
+    /\b(quero|vou querer|pode incluir|inclua|adiciona|adicionar|pode colocar|coloca)\s+(?:o\s+)?(?:cartao|moto pista|pista|aluguel|veiculo|carro)\b/.test(text) ||
+    /^(?:o\s+)?(?:cartao|moto pista|cartao moto pista|pista|aluguel|veiculo|carro)(?:\s+30 dias)?$/.test(text);
   const mentionsLessonsOrPackage = /\b(aulas?|pacotes?)\b/.test(text);
 
   if (explicitlyRejectsLessons || (asksToBuyAdditional && !mentionsLessonsOrPackage)) {
