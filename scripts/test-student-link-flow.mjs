@@ -212,7 +212,7 @@ test("matriz de autorização cobre aluno, dois instrutores, admin e ataques cru
 const integrityDraft = read("../docs/rascunho-integridade-referencial-multi-instrutor.md");
 const fkReview = read("../docs/revisao-integridade-fks-compostas-instrutores.md");
 
-test("FKs compostas exigem que aluno e veículo pertençam ao mesmo instrutor", () => {
+test("FKs compostas exigem que aluno, veículo e produto pertençam ao mesmo instrutor", () => {
   for (const expected of [
     "unique (id, owner_id)",
     "foreign key (student_id, owner_id)",
@@ -221,7 +221,6 @@ test("FKs compostas exigem que aluno e veículo pertençam ao mesmo instrutor", 
     "references public.vehicles (id, owner_id)",
     "foreign key (sale_id, owner_id)",
     "references public.sales (id, owner_id)",
-    "unique (id, owner_id)",
     "foreign key (product_id, owner_id)",
     "references public.products (id, owner_id)",
   ]) assert.ok(securityDraft.toLowerCase().includes(expected), `FK composta ausente: ${expected}`);
