@@ -569,9 +569,22 @@ function detectOptionalItemChoice(message: string): OptionalItemChoice {
   if (/\b(nenhum|nenhuma|nao quero nenhum|nao quero nenhum dos dois|nao quero nenhum deles|nenhum dos dois|nenhuma das duas|sem os dois|somente o pacote|so o pacote|apenas as aulas)\b/.test(text)) return "none";
   if (/\b(os dois|ambos|ambas|as duas|aluguel e (o )?cartao|cartao e (o )?aluguel)\b/.test(text) ||
       (text.includes("aluguel") && text.includes("cartao"))) return "both";
-  if (/\b(aluguel|veiculo|carro|moto)\b/.test(text)) return "rental";
   if (/\b(cartao|moto pista|pista)\b/.test(text)) return "card";
+  if (/\b(aluguel|veiculo|carro)\b/.test(text)) return "rental";
   return "ambiguous";
+}
+
+type PurchaseConfirmation = "yes" | "no" | "ambiguous";
+
+function detectPurchaseConfirmation(message: string): PurchaseConfirmation {
+  const text = normalizeChoiceText(message);
+  if (/\b(nao|negativo|cancela|cancelar|desisti|deixa pra la|deixa para la)\b/.test(text)) return "no";
+  if (/\b(sim|confirmo|confirmar|pode registrar|pode seguir|quero contratar|quero fechar|pode fechar|isso mesmo|correto)\b/.test(text)) return "yes";
+  return "ambiguous";
+}
+
+function isPackagePurchaseIntent(message: string): boolean {
+  return /\b(comprar|contratar|fechar pacote|quero fechar|quero contratar|quero comprar|adquirir pacote|reservar pacote)\b/i.test(message);
 }
 
 function findPackageForQuantity(catalog: CatalogProduct[], quantity: number): CatalogProduct | undefined {
@@ -602,26 +615,28 @@ function formatOptionalItemsReply(
   if (choice === "both" || choice === "card") {
     if (card) selected.push(card);
   }
-  const additionalTotal = selected.reduce((sum, item) => sum + item.preco, 0);
-  const total = lessonTotal + additionalTotal;
-  const lines = selected.map((item) => {
+  const mandatory = catalog.filter((item) => item.obrigatorio_conclusao);
+  const mandatoryLines = mandatory.map((item) => {
     const billing = item.forma_cobranca === "por_exame"
-      ? " — uma vez por exame"
+      ? " — cobrança única por exame"
       : item.forma_cobranca === "por_periodo_30_dias"
         ? " — válido por 30 dias"
         : "";
     return "• " + item.nome + ": " + money(item.preco) + billing;
   });
+  const selectedNames = selected.length
+    ? selected.map((item) => item.nome).join(" e ")
+    : "somente o pacote de aulas";
   const choiceText = choice === "none"
-    ? "Certo! 😊 Vou considerar somente o pacote de aulas."
-    : "Prontinho! 😊 Veja o cálculo com os itens que você escolheu:";
+    ? "Certo! 😊 Você optou por considerar somente o pacote de aulas neste cálculo."
+    : "Prontinho! 😊 Você escolheu considerar também: " + selectedNames + ".";
   return choiceText + "\n\n" +
     "• " + packageItem.nome + " — " + quantity + " aulas: " + money(lessonTotal) +
-    (lines.length ? "\n" + lines.join("\n") : "") +
-    "\n\n**Total calculado: " + money(total) + "**" +
-    (choice === "none"
-      ? "\n\nOs itens obrigatórios do processo, se aplicáveis, continuam sendo cobrados separadamente."
-      : "\n\nAtenção: o aluguel é cobrado por exame e o cartão é válido por 30 dias. Esses itens têm critérios de cobrança diferentes.");
+    " (" + money(packageItem.preco) + " por aula)." +
+    (mandatoryLines.length
+      ? "\n\nADICIONAIS OBRIGATÓRIOS, COBRADOS SEPARADAMENTE:\n" + mandatoryLines.join("\n")
+      : "") +
+    "\n\nO valor total informado para as aulas não inclui os adicionais. Eles são cobrados separadamente, conforme a forma indicada.";
 }
 
 function formatQuantityQuote(catalog: CatalogProduct[], quantity: number): string {
@@ -642,7 +657,7 @@ function formatQuantityQuote(catalog: CatalogProduct[], quantity: number): strin
     "Quantidade: " + quantity + " aulas.\n" +
     "Valor total das aulas: " + money(total) + "." + mandatoryText +
     "\n\nO valor do pacote é por aula; os itens obrigatórios são cobrados separadamente." +
-    "\n\nQuer que eu some o aluguel do veículo, o Cartão Moto Pista ou os dois ao cálculo?";
+    "\n\nQuer que eu destaque também o aluguel do veículo, o Cartão Moto Pista ou os dois? Os valores dos adicionais serão sempre apresentados separadamente do valor das aulas?";
 }
 
 function removeFuturePromises(reply: string, packageQuery: boolean, catalog: CatalogProduct[]): string {
@@ -828,7 +843,10 @@ async function processIncomingMessage(
     const pendingCreatedAt = typeof storedQuoteState?.created_at === "string"
       ? Date.parse(storedQuoteState.created_at)
       : NaN;
-    const hasPendingQuote = storedQuoteState?.awaiting_optional_items === true &&
+    const hasPendingQuote = (
+      storedQuoteState?.awaiting_optional_items === true ||
+      storedQuoteState?.awaiting_purchase_confirmation === true
+    ) &&
       Number.isInteger(pendingQuantity) && pendingQuantity > 0 && pendingQuantity <= 999 &&
       Number.isFinite(pendingCreatedAt) && Date.now() - pendingCreatedAt <= 48 * 60 * 60 * 1000;
 
@@ -844,7 +862,150 @@ async function processIncomingMessage(
     const packageQuery = isPackageInfoQuery(privacy.text, selectedService) || requestedLessonCount !== null;
     const catalog = await getActiveServiceCatalog(supabase);
 
-    if (hasPendingQuote) {
+    if (hasPendingQuote && storedQuoteState?.awaiting_purchase_confirmation === true) {
+      const confirmation = detectPurchaseConfirmation(privacy.text);
+      if (confirmation === "ambiguous") {
+        const sent = await sendWhatsAppText(
+          supabase,
+          conversationId,
+          phone,
+          "Só para confirmar: deseja que eu registre essa intenção de contratação para análise do Instrutor Marcus? Responda SIM ou NÃO. 😊",
+        );
+        await updateMessageMetadata(supabase, providerId, {
+          ai_status: sent ? "awaiting_package_purchase_confirmation" : "reply_send_failed",
+          reply_sent: sent,
+          reply_type: "package_purchase_confirmation",
+          pending_quote_quantity: pendingQuantity,
+        });
+        return sent ? "awaiting_package_purchase_confirmation" : "reply_send_failed";
+      }
+
+      if (confirmation === "no") {
+        const { error: clearQuoteError } = await supabase
+          .from("whatsapp_conversations")
+          .update({ quote_state: null, updated_at: new Date().toISOString() })
+          .eq("id", conversationId);
+        if (clearQuoteError) throw new Error("Quote state cleanup failed: " + clearQuoteError.message);
+        const sent = await sendWhatsAppText(
+          supabase,
+          conversationId,
+          phone,
+          "Tudo bem! 😊 Não registrei nenhuma intenção de contratação. Se quiser, podemos consultar outro pacote ou fazer um novo cálculo.",
+        );
+        await updateMessageMetadata(supabase, providerId, {
+          ai_status: sent ? "package_purchase_not_confirmed" : "reply_send_failed",
+          reply_sent: sent,
+          reply_type: "package_purchase_not_confirmed",
+          pending_quote_quantity: pendingQuantity,
+        });
+        return sent ? "package_purchase_not_confirmed" : "reply_send_failed";
+      }
+
+      const choiceValue = String(storedQuoteState?.optional_item_choice ?? "none") as OptionalItemChoice;
+      const validChoice: OptionalItemChoice = ["both", "rental", "card", "none"].includes(choiceValue)
+        ? choiceValue
+        : "none";
+      const packageItem = findPackageForQuantity(catalog, pendingQuantity);
+      if (!packageItem) throw new Error("Confirmed package could not be found in the active catalog.");
+
+      const rental = catalog.find((item) => item.nome.toLocaleLowerCase("pt-BR").includes("aluguel"));
+      const card = catalog.find((item) => item.nome.toLocaleLowerCase("pt-BR").includes("cartao moto pista"));
+      const selectedItems: CatalogProduct[] = [];
+      if (validChoice === "both" || validChoice === "rental") {
+        if (rental) selectedItems.push(rental);
+      }
+      if (validChoice === "both" || validChoice === "card") {
+        if (card) selectedItems.push(card);
+      }
+      const lessonSubtotal = packageItem.preco * pendingQuantity;
+      const extrasTotal = selectedItems.reduce((sum, item) => sum + item.preco, 0);
+      const mandatoryNotSelected = catalog.filter((item) =>
+        item.obrigatorio_conclusao && !selectedItems.some((selected) => selected.nome === item.nome)
+      );
+      const proposedData = {
+        pacote: packageItem.nome,
+        quantidade_aulas: pendingQuantity,
+        valor_por_aula: packageItem.preco,
+        valor_total_aulas: lessonSubtotal,
+        adicionais_selecionados: selectedItems.map((item) => ({
+          nome: item.nome,
+          valor: item.preco,
+          forma_cobranca: item.forma_cobranca,
+        })),
+        valor_total_adicionais_selecionados: extrasTotal,
+        adicionais_obrigatorios_nao_selecionados: mandatoryNotSelected.map((item) => ({
+          nome: item.nome,
+          valor: item.preco,
+          forma_cobranca: item.forma_cobranca,
+        })),
+        confirmado_pelo_cliente: true,
+        origem: "whatsapp_catalogo_pacotes",
+      };
+
+      const { data: request, error: requestError } = await supabase
+        .from("ai_requests")
+        .insert({
+          owner_id: OWNER_ID,
+          canal: "whatsapp",
+          telefone_solicitante: phone,
+          nome_solicitante: null,
+          tipo_solicitacao: "intencao_compra_pacote",
+          dados_propostos: proposedData,
+          status: "pendente",
+          resultado: {
+            intencao: "Cliente confirmou a intenção de contratar um pacote de aulas. Aguardando análise do Instrutor Marcus.",
+            conversation_id: conversationId,
+            whatsapp_message_id: messageRowId,
+            origem: "whatsapp_catalogo_pacotes",
+          },
+        })
+        .select("id")
+        .single();
+
+      if (requestError || !request) {
+        console.error("Package purchase intent registration failed:", requestError?.message ?? "No request returned.");
+        const sent = await sendWhatsAppText(
+          supabase,
+          conversationId,
+          phone,
+          "Não consegui registrar sua solicitação agora. Sua confirmação continua pendente; por favor, envie SIM novamente em instantes. 😊",
+        );
+        await updateMessageMetadata(supabase, providerId, {
+          ai_status: "package_purchase_registration_failed",
+          reply_sent: sent,
+          reply_type: "package_purchase_registration_error",
+          pending_quote_quantity: pendingQuantity,
+        });
+        return "package_purchase_registration_failed";
+      }
+
+      const { error: clearQuoteError } = await supabase
+        .from("whatsapp_conversations")
+        .update({ quote_state: null, updated_at: new Date().toISOString() })
+        .eq("id", conversationId);
+      if (clearQuoteError) throw new Error("Confirmed quote state cleanup failed: " + clearQuoteError.message);
+
+      const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      const sent = await sendWhatsAppText(
+        supabase,
+        conversationId,
+        phone,
+        "Pronto! 😊 Registrei sua intenção de contratação do " + packageItem.nome +
+          " para " + pendingQuantity + " aulas, com valor total das aulas de " + money(lessonSubtotal) +
+          ". Os adicionais foram registrados separadamente. O pedido foi encaminhado para análise do Instrutor Marcus. Nenhuma contratação ou pagamento será realizado sem a aprovação dele.",
+      );
+      await updateMessageMetadata(supabase, providerId, {
+        ai_status: sent ? "package_purchase_intent_registered" : "reply_send_failed",
+        reply_sent: sent,
+        reply_type: "package_purchase_intent_registered",
+        request_id: request.id,
+        pending_quote_quantity: pendingQuantity,
+        optional_item_choice: validChoice,
+      });
+      return sent ? "package_purchase_intent_registered" : "reply_send_failed";
+    }
+
+    if (hasPendingQuote && storedQuoteState?.awaiting_optional_items === true) {
       const choice = detectOptionalItemChoice(privacy.text);
       if (choice === "ambiguous") {
         const clarification = "Claro! 😊 Você prefere incluir somente o aluguel do veículo, somente o Cartão Moto Pista ou os dois no cálculo?";
@@ -858,23 +1019,36 @@ async function processIncomingMessage(
         return sent ? "awaiting_optional_quote_choice" : "reply_send_failed";
       }
 
-      const selectedReply = formatOptionalItemsReply(catalog, pendingQuantity, choice);
+      const selectedReply = formatOptionalItemsReply(catalog, pendingQuantity, choice) +
+        "\n\nDeseja que eu registre essa intenção de contratação para análise do Instrutor Marcus? Responda SIM ou NÃO.";
+      const nextQuoteState = {
+        pending_quote_quantity: pendingQuantity,
+        awaiting_purchase_confirmation: true,
+        optional_item_choice: choice,
+        created_at: new Date().toISOString(),
+      };
+      const { error: saveConfirmationStateError } = await supabase
+        .from("whatsapp_conversations")
+        .update({ quote_state: nextQuoteState, updated_at: new Date().toISOString() })
+        .eq("id", conversationId);
+      if (saveConfirmationStateError) throw new Error("Package purchase confirmation state save failed: " + saveConfirmationStateError.message);
+
       const sent = await sendWhatsAppText(supabase, conversationId, phone, selectedReply);
-      if (sent) {
-        const { error: clearQuoteError } = await supabase
+      if (!sent) {
+        const { error: clearFailedConfirmationError } = await supabase
           .from("whatsapp_conversations")
           .update({ quote_state: null, updated_at: new Date().toISOString() })
           .eq("id", conversationId);
-        if (clearQuoteError) throw new Error("Quote state cleanup failed: " + clearQuoteError.message);
+        if (clearFailedConfirmationError) console.error("Failed purchase confirmation state cleanup:", clearFailedConfirmationError.message);
       }
       await updateMessageMetadata(supabase, providerId, {
-        ai_status: sent ? "optional_quote_completed" : "reply_send_failed",
+        ai_status: sent ? "awaiting_package_purchase_confirmation" : "reply_send_failed",
         reply_sent: sent,
-        reply_type: "optional_quote_total",
+        reply_type: "optional_quote_total_and_confirmation",
         pending_quote_quantity: pendingQuantity,
         optional_item_choice: choice,
       });
-      return sent ? "optional_quote_completed" : "reply_send_failed";
+      return sent ? "awaiting_package_purchase_confirmation" : "reply_send_failed";
     }
 
     if (packageQuery && catalog.length === 0) {
@@ -892,6 +1066,21 @@ async function processIncomingMessage(
         selected_service: selectedService || null,
       });
       return sent ? "catalog_unavailable_notice_sent" : "reply_send_failed";
+    }
+
+    if (packageQuery && requestedLessonCount === null) {
+      const purchaseIntent = isPackagePurchaseIntent(privacy.text);
+      const catalogReply = purchaseIntent
+        ? "Claro! 😊 Quantas aulas você deseja contratar? Informe a quantidade para eu calcular o pacote e os valores dos adicionais separadamente."
+        : formatCatalogReply(catalog);
+      const sent = await sendWhatsAppText(supabase, conversationId, phone, catalogReply);
+      await updateMessageMetadata(supabase, providerId, {
+        ai_status: sent ? (purchaseIntent ? "awaiting_package_quantity" : "catalog_reply_sent") : "reply_send_failed",
+        reply_sent: sent,
+        reply_type: purchaseIntent ? "package_quantity_question" : "catalog_full_list",
+        selected_service: selectedService || null,
+      });
+      return sent ? "catalog_reply_sent" : "reply_send_failed";
     }
 
     if (packageQuery && requestedLessonCount !== null) {
