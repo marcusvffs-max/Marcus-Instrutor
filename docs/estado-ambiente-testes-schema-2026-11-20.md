@@ -346,3 +346,29 @@ Foram repetidas consultas sob `SET ROLE authenticated` para os dois instrutores 
 | ai_runtime_settings | 0 | 0 |
 
 **Resultado:** nenhuma linha do outro proprietário foi visível nas 11 tabelas consultadas em qualquer direção. Essa verificação cobre leitura sob o papel PostgreSQL `authenticated` com claims simuladas; não substitui chamadas HTTP com JWT real, testes de INSERT/UPDATE/DELETE em todas as tabelas, nem a matriz SEC-001 a SEC-070 completa.
+
+
+### Testes de escrita cruzada e adulteração do proprietário
+
+Em nova rodada, sob `SET ROLE authenticated` e identidade simulada do instrutor A, foram testadas operações contra os registros do instrutor B nas dez tabelas que possuem `owner_id` e grants de aplicação relevantes.
+
+| Tabela | UPDATE em registros de B | DELETE em registros de B |
+|---|---:|---:|
+| students | 0 linhas | 0 linhas |
+| vehicles | 0 linhas | 0 linhas |
+| lessons | 0 linhas | 0 linhas |
+| app_settings | 0 linhas | 0 linhas |
+| products | 0 linhas | 0 linhas |
+| sales | 0 linhas | 0 linhas |
+| sale_items | 0 linhas | 0 linhas |
+| financial_transactions | 0 linhas | 0 linhas |
+| ai_requests | bloqueado por privilégio (42501) | bloqueado por privilégio (42501) |
+| ai_runtime_settings | 0 linhas | 0 linhas |
+
+Os comandos para `ai_requests` não são concedidos a authenticated e foram bloqueados. Nas outras tabelas, as policies filtraram os registros alheios e nenhuma linha foi afetada.
+
+Também foram tentadas alterações do `owner_id` dos registros próprios do instrutor A para o UUID do instrutor B em `students`, `vehicles` e `lessons`. As três operações foram rejeitadas com SQLSTATE `42501` pelas condições de `WITH CHECK` das policies; nenhuma linha foi alterada.
+
+Todas as tentativas foram executadas em transações revertidas. Nenhum registro foi excluído, transferido ou persistido.
+
+**Limitação:** os testes de escrita cruzada cobrem as tabelas e fixtures existentes nesta rodada; não substituem tentativas de INSERT com todos os formatos de payload, chamadas HTTP com JWT real ou a execução integral da matriz SEC-001 a SEC-070.
