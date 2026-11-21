@@ -991,3 +991,27 @@ Também foram testadas as mesmas sete relações por UPDATE, além de uma tentat
 - as sete alterações de referências para registros de outro proprietário foram bloqueadas com SQLSTATE 23503;
 - a tentativa de alterar o owner_id do aluno que já possui aulas foi bloqueada pela FK composta `lessons_student_owner_fkey`;
 - todas as fixtures e alterações estavam dentro de uma transação revertida.
+
+
+## Estado consolidado ao final desta rodada
+
+Projeto de testes `voyjssflroiwdyaacthh`:
+- ACTIVE_HEALTHY, PostgreSQL 17.12, região São Paulo.
+- 18 migrations registradas no histórico do projeto de testes, incluindo FKs compostas e verificações null-safe.
+- 13 tabelas públicas, RLS habilitado em todas, 38 policies nas 11 tabelas com policies.
+- 2 perfis Auth sintéticos, ambos instrutores; zero perfis admin persistentes.
+- 3 alunos, 3 veículos e 3 aulas, todos com nomes/identificadores sintéticos.
+- zero vínculos user_id persistentes, zero vendas, itens, lançamentos financeiros, produtos ou registros de IA/WhatsApp.
+- nenhum usuário Auth criado ou excluído nesta rodada.
+- nenhuma Edge Function implantada no projeto de testes; os testes HTTP/JWT real permanecem pendentes.
+
+Supabase original `ydyqagqsuqntuibzgwzd`:
+- apenas consultas de leitura nesta rodada;
+- pré-checagem de FKs compostas encontrou zero relações cross-owner nas sete combinações;
+- permanece sem colunas de vínculo de aluno, sem trigger de proteção de vínculo e sem as FKs compostas;
+- nenhum deploy, migration, DDL/DML, grant ou alteração de configuração foi executado.
+
+Branch de testes:
+- migrations, Edge Functions e painel WhatsApp atualizados e documentados;
+- validações de código foram estáticas; nenhuma alteração foi implantada;
+- a branch continua separada da produção.
