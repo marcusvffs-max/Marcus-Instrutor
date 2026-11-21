@@ -150,18 +150,50 @@ Deno.serve(async (req: Request) => {
       if (!["pendente", "em_atendimento", "concluido", "cancelado"].includes(nextStatus)) {
         return response({ error: "Status de atendimento inválido." }, 400);
       }
-      const { data: updatedRequest, error: updateRequestError } = await admin
+      const { data: requestToUpdate, error: requestLookupError } = await admin
+        .from("ai_requests")
+        .select("id, resultado")
+        .eq("id", requestId)
+        .eq("owner_id", authData.user.id)
+        .eq("canal", "whatsapp")
+        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"])
+        .maybeSingle();
+      if (requestLookupError) throw requestLookupError;
+      if (!requestToUpdate) return response({ error: "Atendimento não encontrado." }, 404);
+
+      // Concluir ou cancelar o pedido também encerra o atendimento humano ativo.
+      // Se o cliente já reativou a assistente com "Olá", não interrompe a nova conversa.
+      let conversationPauseUntil: string | null = null;
+      const conversationId = typeof requestToUpdate.resultado?.conversation_id === "string"
+        ? requestToUpdate.resultado.conversation_id
+        : "";
+      if (["concluido", "cancelado"].includes(nextStatus) && conversationId) {
+        const now = new Date();
+        conversationPauseUntil = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
+        const { error: closeHumanConversationError } = await admin
+          .from("whatsapp_conversations")
+          .update({
+            status: "encerrada",
+            ai_paused_until: conversationPauseUntil,
+            ai_pause_reason: "instrutor_encerramento",
+            quote_state: null,
+            updated_at: now.toISOString(),
+          })
+          .eq("id", conversationId)
+          .eq("owner_id", authData.user.id)
+          .eq("status", "atendimento_humano");
+        if (closeHumanConversationError) throw closeHumanConversationError;
+      }
+
+      const { error: updateRequestError } = await admin
         .from("ai_requests")
         .update({ atendimento_status: nextStatus })
         .eq("id", requestId)
         .eq("owner_id", authData.user.id)
         .eq("canal", "whatsapp")
-        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"])
-        .select("id")
-        .maybeSingle();
+        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"]);
       if (updateRequestError) throw updateRequestError;
-      if (!updatedRequest) return response({ error: "Atendimento não encontrado." }, 404);
-      return response({ ok: true });
+      return response({ ok: true, ai_paused_until: conversationPauseUntil });
     }
 
     if (isStudentLinkCompletion) {
