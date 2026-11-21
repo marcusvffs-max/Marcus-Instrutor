@@ -11,14 +11,14 @@ SET search_path TO ''
 AS $function$
 DECLARE
   current_user_id uuid := auth.uid();
-  current_role text := private.current_app_role();
+  v_app_role text := private.current_app_role();
   linked_user_id uuid;
 BEGIN
   IF current_user_id IS NULL THEN
     RAISE EXCEPTION 'Autenticação necessária.' USING ERRCODE = '42501';
   END IF;
 
-  IF current_role IS DISTINCT FROM 'instrutor' THEN
+  IF v_app_role IS DISTINCT FROM 'instrutor' THEN
     RAISE EXCEPTION 'Ação permitida somente ao instrutor com autorização ativa.'
       USING ERRCODE = '42501';
   END IF;
