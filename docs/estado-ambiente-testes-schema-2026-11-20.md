@@ -466,3 +466,29 @@ A consulta posterior aos Security Advisors retornou:
 Nenhum novo alerta foi introduzido pela migration de permissões. Nenhuma alteração foi aplicada ao Supabase original ou à produção. Não houve deploy, criação de contas, envio de convites ou ação paga.
 
 Status desta rodada: permissões da função de trigger endurecidas no projeto isolado; UPDATE cruzado do vínculo bloqueado; rotina de limpeza do vínculo em exclusão de Auth exercitada em teste transacional revertido. A matriz SEC-001 a SEC-070 e os testes HTTP com JWT real continuam pendentes.
+
+
+### Revisão estática do fluxo de convite e conclusão de vínculo
+
+Foi revisada a Edge Function admin-manage-instructors da branch de testes e a definição da função de trigger private.link_student_account_from_invite().
+
+A revisão estática confirmou os seguintes controles no fluxo:
+- A Edge Function valida o token com auth.getUser() e consulta o perfil do usuário por service_role.
+- Instrutores precisam ter acesso temporário válido e só podem executar invite_student; o cadastro do aluno é buscado com id e owner_id iguais ao aluno e ao instrutor autenticado.
+- O fluxo reserva o cadastro com invite_attempt_id e invited_at, com prazo de 15 minutos.
+- O trigger de Auth só liga automaticamente quando os metadados incluem UUIDs válidos para tentativa, aluno e instrutor; o cadastro precisa pertencer ao instrutor indicado, ter a mesma tentativa ativa, ainda não ter user_id e possuir e-mail correspondente ao novo usuário.
+- A Edge Function verifica que o trigger concluiu o vínculo esperado; não usa fallback para forçar o vínculo quando o trigger não o fez.
+- Para conta legada já existente, o fluxo usa confirmação explícita do titular, exige e-mail confirmado, perfil role=usuario e revalida a reserva antes de gravar o user_id.
+- A ação complete_student_link só é permitida a perfil usuario; ações de instrutor e admin não podem usar esse caminho.
+- Não foi executado o envio de e-mail, geração de convite real ou criação de conta nesta revisão.
+
+Foi testado adicionalmente um INSERT de ai_runtime_settings com owner_id do instrutor B sob a identidade simulada do instrutor A; a policy administrativa bloqueou a tentativa. Nenhum registro foi persistido.
+
+### Confirmação de isolamento entre projetos após a migration de ACL
+
+Consulta somente de leitura no projeto original confirmou que private.protect_profile_role() continua com EXECUTE herdado por anon e authenticated, enquanto no projeto de testes ambos estão sem EXECUTE. Isso confirma que a migration de endurecimento foi aplicada somente no projeto isolado.
+
+Commit da migration: 96f0a2526488e326fdbce5486913e7f080bbcce4
+Commit da atualização desta documentação: be62f2d7bc55f95d48127816432da935c74b0fe4
+
+A migration não foi aplicada ao projeto original. Nenhuma publicação ou deploy foi executado.
