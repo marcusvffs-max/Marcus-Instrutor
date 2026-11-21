@@ -494,7 +494,7 @@ test("dados locais antigos sem proprietário são preservados, mas não carregad
 
 const whatsappWebhook = read("../supabase/functions/whatsapp-webhook/index.ts");
 const whatsappPanel = read("../whatsapp-panel.js");
-const whatsappSchema = read("../supabase/migrations/20261121001451_restore_backend_only_whatsapp_tables.sql");
+const whatsappSchema = read("../test-fixtures/supabase-migrations/20261121001451_restore_backend_only_whatsapp_tables.sql");
 const supabaseConfig = read("../supabase/config.toml");
 
 test("webhook WhatsApp valida o phone_number_id antes de processar mensagens", () => {
