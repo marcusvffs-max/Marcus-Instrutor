@@ -187,7 +187,7 @@ Deno.serve(async (req: Request) => {
         .update({ atendimento_status: "concluido" })
         .eq("owner_id", authData.user.id)
         .eq("canal", "whatsapp")
-        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"])
+        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran", "intencao_compra_pacote"])
         .in("atendimento_status", ["pendente", "em_atendimento"])
         .filter("resultado->>conversation_id", "eq", conversationId);
       if (requestsError) throw requestsError;
@@ -213,7 +213,7 @@ Deno.serve(async (req: Request) => {
         .eq("id", requestId)
         .eq("owner_id", authData.user.id)
         .eq("canal", "whatsapp")
-        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"])
+        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran", "intencao_compra_pacote"])
         .maybeSingle();
       if (requestLookupError) throw requestLookupError;
       if (!requestToUpdate) return response({ error: "Atendimento não encontrado." }, 404);
@@ -271,7 +271,7 @@ Deno.serve(async (req: Request) => {
         .eq("id", requestId)
         .eq("owner_id", authData.user.id)
         .eq("canal", "whatsapp")
-        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"]);
+        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran", "intencao_compra_pacote"]);
       if (updateRequestError) throw updateRequestError;
       return response({ ok: true, ai_paused_until: conversationPauseUntil, conversation_human_reopened: conversationHumanReopened });
     }
