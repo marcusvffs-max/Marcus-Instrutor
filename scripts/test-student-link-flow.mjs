@@ -638,3 +638,15 @@ test("encerrar conversa não altera pedidos já concluídos ou cancelados", () =
   assert.match(closeHandler, /\.in\("atendimento_status", \["pendente", "em_atendimento"\]\)/);
   assert.match(closeHandler, /\.filter\("resultado->>conversation_id", "eq", conversationId\)/);
 });
+test("webhook não processa duas vezes a mesma mensagem recebida ou eco enviado", () => {
+  assert.match(whatsappSchema, /provider_message_id text UNIQUE/);
+  assert.match(whatsappWebhook, /provider_message_id: providerId/);
+  assert.match(whatsappWebhook, /if \(messageError\?\.code === "23505"\)/);
+  assert.match(whatsappWebhook, /duplicates\+\+/);
+  assert.match(whatsappWebhook, /provider_message_id: echoId/);
+  assert.match(whatsappWebhook, /if \(echoInsertError\?\.code === "23505"\) continue/);
+});
+
+test("cada telefone possui uma única conversa por proprietário", () => {
+  assert.match(whatsappSchema, /CONSTRAINT whatsapp_conversations_owner_id_telefone_key UNIQUE\(owner_id,telefone\)/);
+});
