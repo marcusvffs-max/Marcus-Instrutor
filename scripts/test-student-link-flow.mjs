@@ -441,3 +441,44 @@ test("consulta de agenda limpa apenas metadados temporários e mantém o víncul
   assert.doesNotMatch(internal, /SET user_id = NULL/);
   assert.match(internal, /WHERE s\.user_id = current_user_id/);
 });
+
+
+const adminIndex = read("../index.html");
+
+test("cache administrativo é carregado e gravado somente na chave do usuário autenticado", () => {
+  assert.match(adminFrontend, /sessionStorage\?\.getItem\("marcus_admin_user_id"\)/);
+  assert.match(adminFrontend, /\$\{STORAGE_KEY\}:user:\$\{usuarioId\}/);
+  assert.match(adminFrontend, /let db = carregarDados\(STORAGE_KEY_ATUAL\)/);
+  assert.match(adminFrontend, /localStorage\.getItem\(chave\)/);
+  assert.match(adminFrontend, /localStorage\.setItem\(STORAGE_KEY_ATUAL, JSON\.stringify\(db\)\)/);
+  assert.doesNotMatch(adminFrontend, /localStorage\.setItem\(STORAGE_KEY, JSON\.stringify\(db\)\)/);
+  assert.match(adminFrontend, /STORAGE_KEY_ATUAL !== chaveEsperada/);
+});
+
+test("troca de administrador recarrega o painel antes de exibir dados da nova conta", () => {
+  const start = adminIndex.indexOf("async function mostrarAplicativo(usuario)");
+  const end = adminIndex.indexOf("if (!window.supabase", start);
+  assert.ok(start >= 0 && end > start);
+  const flow = adminIndex.slice(start, end);
+  assert.match(flow, /sessionStorage\.getItem\(chaveUsuarioAtual\)/);
+  assert.match(flow, /usuarioAnterior !== usuario\.id/);
+  assert.match(flow, /sessionStorage\.setItem\(chaveUsuarioAtual, usuario\.id\)/);
+  assert.match(flow, /window\.location\.reload\(\)/);
+  assert.ok(flow.indexOf("sessionStorage.setItem") < flow.indexOf("await carregarPainelAdmin()"));
+});
+
+test("logout remove o ID do administrador antes de reinicializar o navegador", () => {
+  const start = adminIndex.indexOf('if (evento === "SIGNED_OUT")');
+  const end = adminIndex.indexOf("if (!sessao)", start);
+  assert.ok(start >= 0 && end > start);
+  const handler = adminIndex.slice(start, end);
+  assert.match(handler, /sessionStorage\.removeItem\("marcus_admin_user_id"\)/);
+  assert.match(handler, /window\.location\.reload\(\)/);
+});
+
+test("dados locais antigos sem proprietário são preservados, mas não carregados automaticamente", () => {
+  assert.match(adminFrontend, /function avisarDadosLegadosNaoVinculados\(\)/);
+  assert.match(adminFrontend, /localStorage\.getItem\(STORAGE_KEY\)/);
+  assert.match(adminFrontend, /dados locais antigos sem vínculo com uma conta/);
+  assert.doesNotMatch(adminFrontend, /localStorage\.removeItem\(STORAGE_KEY\)/);
+});
