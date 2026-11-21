@@ -249,3 +249,19 @@ Também foram executados testes SQL simulando a sessão autenticada de um aluno,
 A chamada da RPC foi executada dentro do PostgreSQL com role e claims simuladas; não foi uma requisição HTTP com JWT real ao endpoint PostgREST.
 
 A lista de migrations do projeto original foi consultada novamente e permaneceu inalterada. Toda a reconstrução e os dados sintéticos permanecem exclusivamente no projeto `voyjssflroiwdyaacthh`.
+
+
+### Teste transacional da RPC de venda do instrutor
+
+Foi executada uma chamada SQL autenticada simulada à RPC `create_instructor_sale()` dentro de transação revertida:
+
+- Venda de teste para aluno próprio: concluída.
+- Registro de venda e lançamento financeiro visíveis ao instrutor durante a transação.
+- Saldo do aluno aumentou de 5 para 7 aulas, conforme produto sintético de 2 aulas.
+- A transação foi revertida ao final; nenhum registro de venda/financeiro foi mantido.
+
+Teste negativo:
+- O mesmo instrutor tentou registrar venda para o aluno sintético do outro instrutor.
+- A RPC rejeitou a operação com SQLSTATE `42501`: aluno não encontrado ou não pertence ao instrutor.
+
+As RPCs administrativas de venda/devolução/exclusão foram restauradas e comparadas com o original, mas ainda não foram executadas com um perfil admin autenticado no ambiente de testes.
