@@ -619,3 +619,14 @@ Classificação: **achado condicional de escopo de origem**, não exploração c
 Correção recomendada para uma futura versão de testes: antes de processar mensagens, exigir que `value.metadata.phone_number_id` exista e corresponda exatamente a `WHATSAPP_PHONE_NUMBER_ID`; rejeitar/ignorar eventos de números diferentes. Se houver mais de uma conta empresarial, validar também o identificador WABA esperado. Adicionar teste negativo com outro `phone_number_id`.
 
 O arquivo da função webhook não está presente no caminho convencional da branch consultada, e o projeto de testes não tem Edge Functions implantadas. Por isso, não foi criada uma cópia parcial nem aplicado patch sem o arquivo-fonte correto. A produção permanece inalterada.
+
+
+### Revisão do trigger de criação de perfil Auth
+
+A definição de `private.handle_new_auth_user_profile()` no ambiente de testes foi revisada. Ela cria o perfil com papel fixo `instrutor` e não lê `role` de `raw_user_meta_data`; o nome pode vir dos metadados, mas o papel não. O trigger é SECURITY DEFINER, `search_path=''`, e não tem EXECUTE para os papéis de aplicação.
+
+O papel inicial `instrutor` não libera acesso automaticamente: `private.current_app_role()` retorna NULL quando `instructor_access_until` está ausente ou expirado. O teste transacional de acesso expirado confirmou zero linhas visíveis em `students`, `vehicles` e `lessons`. A função de proteção do papel também impede alteração direta do role por authenticated, e o UPDATE de autoelevação testado afetou zero linhas.
+
+No fluxo de convite de aluno da branch, a Edge Function atribui explicitamente o papel `usuario` via service_role depois da criação da conta e antes de concluir o envio; o titular precisa confirmar o e-mail para concluir o vínculo legado. Esse fluxo ainda não foi executado por HTTP e não está implantado na versão 7 de produção.
+
+**Resultado da revisão estática:** não foi encontrado caminho de autoatribuição de `admin` por metadados de signup na função de criação de perfil. A criação real de contas e o fluxo HTTP permanecem fora dos testes por decisão de não criar usuários nem disparar e-mails.
