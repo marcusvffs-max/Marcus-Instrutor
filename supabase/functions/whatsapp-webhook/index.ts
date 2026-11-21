@@ -2077,7 +2077,7 @@ Deno.serve(async (req: Request) => {
                   "• Mínimo de 2 aulas.\\n" +
                   "• Aluguel do veículo.\\n" +
                   "• Cartão Moto Pista.\\n\\n" +
-                  "Os valores dos pacotes são por aula, não pelo pacote completo. O aluguel e o cartão são cobrados separadamente.\\n\\n" +
+                  "Os valores dos pacotes são referentes às aulas. O aluguel e o cartão são cobrados separadamente.\\n\\n" +
                   "Se quiser, posso te encaminhar para o Instrutor Marcus pra darmos sequência no atendimento. 😊";
 
                 // Esta opção é apenas informativa: não inicia cotação nem mantém pedido pendente.
