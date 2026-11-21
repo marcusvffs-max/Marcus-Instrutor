@@ -83,7 +83,7 @@ A mesma revisão confirmou os comportamentos atuais de exclusão:
 - financial_transactions -> students/sales: SET NULL;
 - sale_items -> products: SET NULL.
 
-As seis consultas de inconsistência entre owner_id dos registros relacionados retornaram zero linhas inconsistentes na auditoria de 20/11/2026. As tabelas estavam vazias naquele momento; isso não elimina a necessidade de constraints para os novos dados.
+As sete consultas de inconsistência entre owner_id dos registros relacionados retornaram zero linhas inconsistentes na auditoria de 20/11/2026, incluindo sale_items.product_id. As tabelas estavam vazias naquele momento; isso não elimina a necessidade de constraints para os novos dados.
 
 A solução proposta agora é adicionar chaves únicas compostas `(id, owner_id)` e FKs compostas entre aulas/alunos/veículos, vendas/alunos, itens/vendas/produtos e movimentações/alunos/vendas. Para relações opcionais com exclusão SET NULL, o desenho usa `ON DELETE SET NULL (coluna)`, preservando `owner_id`. A relação de produto em `sale_items` também exige o mesmo owner.
 
