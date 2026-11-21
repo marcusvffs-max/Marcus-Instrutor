@@ -90,3 +90,43 @@ O ambiente de testes ainda não é equivalente ao schema do aplicativo. Não con
 A reconstrução deve excluir dados de produção, segredos, tokens, usuários reais e conteúdo de conversas. As tabelas WhatsApp/IA precisam de revisão específica antes de qualquer reprodução.
 
 **Status:** inventário documentado; equivalência do schema e testes reais de isolamento ainda pendentes.
+
+
+## Atualização após reconstrução parcial
+
+Em 21/11/2026, exclusivamente no projeto isolado de testes, foram restauradas as tabelas operacionais e financeiras:
+
+- `app_settings`
+- `products`
+- `sales`
+- `sale_items`
+- `financial_transactions`
+
+Também foram adicionadas colunas ausentes em `profiles`, `students`, `vehicles` e `lessons`, sem copiar registros do banco original.
+
+Foram restauradas as policies das nove tabelas operacionais. Verificação no catálogo confirmou:
+
+- 9 tabelas públicas;
+- 9 tabelas com RLS habilitado;
+- 34 policies em 9 tabelas;
+- grants diretos efetivos: `authenticated` somente com SELECT/INSERT/UPDATE/DELETE;
+- nenhuma linha de grant para `anon` nas tabelas verificadas.
+
+A auditoria de advisors, após essa etapa, deixou de apontar RLS habilitado sem policy nas nove tabelas. Permanecem:
+- aviso de função `public.get_my_scheduled_lessons()` SECURITY DEFINER executável por authenticated;
+- proteção de senha vazada desabilitada no Auth.
+
+As duas migrations desta etapa foram registradas no histórico do projeto de testes e versionadas na branch de testes:
+
+- `20261121001300_restore_core_application_schema.sql`
+- `20261121001307_restore_operational_rls_policies.sql`
+
+## Diferenças ainda abertas
+
+A reconstrução ainda é parcial. Permanecem fora do ambiente de testes as tabelas `ai_requests`, `ai_runtime_settings`, `whatsapp_conversations` e `whatsapp_messages`. As duas tabelas de WhatsApp e as tabelas de IA serão tratadas em etapa separada, sem conteúdo real.
+
+As colunas adicionadas às quatro tabelas preexistentes foram inicialmente criadas sem impor todas as restrições NOT NULL do banco original, para não alterar ou invalidar fixtures já existentes no projeto de testes. Portanto, a equivalência de nulabilidade e constraints dessas quatro tabelas ainda precisa ser finalizada.
+
+Os 34 policies restaurados reproduzem as regras atuais do banco original para as tabelas operacionais/financeiras, não representam a correção final do problema de vínculo da agenda. O teste de isolamento autenticado entre dois instrutores ainda não foi executado.
+
+**Status atualizado:** schema operacional/financeiro reconstruído parcialmente e versionado; AI/WhatsApp, equivalência integral de constraints e testes autenticados SEC-001 a SEC-070 continuam pendentes.
