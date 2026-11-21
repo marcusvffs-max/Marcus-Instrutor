@@ -1020,12 +1020,12 @@ Também foram testadas as mesmas sete relações por UPDATE, além de uma tentat
 
 Projeto de testes `voyjssflroiwdyaacthh`:
 - ACTIVE_HEALTHY, PostgreSQL 17.12, região São Paulo.
-- 18 migrations registradas no histórico do projeto de testes, incluindo FKs compostas e verificações null-safe.
-- 13 tabelas públicas, RLS habilitado em todas, 38 policies nas 11 tabelas com policies.
+- 19 migrations registradas no histórico do projeto de testes, incluindo FKs compostas e alinhamento das ações referenciais.
+- 13 tabelas públicas, RLS habilitado em todas, 38 policies nas 11 tabelas com policies, 35 índices e 67 constraints públicas.
 - 2 perfis Auth sintéticos, ambos instrutores; zero perfis admin persistentes.
 - 3 alunos, 3 veículos e 3 aulas, todos com nomes/identificadores sintéticos.
 - zero vínculos user_id persistentes, zero vendas, itens, lançamentos financeiros, produtos ou registros de IA/WhatsApp.
-- nenhum usuário Auth criado ou excluído nesta rodada.
+- 15 funções public/private e 8 triggers não internos; nenhum usuário Auth foi criado ou excluído nesta rodada.
 - nenhuma Edge Function implantada no projeto de testes; os testes HTTP/JWT real permanecem pendentes.
 
 Supabase original `ydyqagqsuqntuibzgwzd`:
