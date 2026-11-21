@@ -47,6 +47,78 @@
     return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
   }
 
+
+  function applyInstructorTheme(primary, secondary) {
+    const mainColor = /^#[0-9a-f]{6}$/i.test(primary || "") ? primary : "#12345a";
+    const backgroundColor = /^#[0-9a-f]{6}$/i.test(secondary || "") ? secondary : "#f3f6fa";
+    document.documentElement.style.setProperty("--primary", mainColor);
+    document.documentElement.style.setProperty("--primary-hover", mainColor);
+    document.documentElement.style.setProperty("--background", backgroundColor);
+  }
+
+  async function loadInstructorSettings() {
+    const { data, error } = await state.supabase
+      .from("app_settings")
+      .select("nome_empresa,cor_principal,cor_secundaria")
+      .eq("owner_id", state.user.id)
+      .maybeSingle();
+    if (error) throw error;
+
+    const name = state.profile?.nome || state.user.email || "Instrutor";
+    const primary = data?.cor_principal || "#12345a";
+    const secondary = data?.cor_secundaria || "#f3f6fa";
+    el("nomePerfilInstrutor").value = name;
+    el("corPrincipalInstrutor").value = primary;
+    el("corSecundariaInstrutor").value = secondary;
+    el("nomeInstrutor").textContent = name;
+    applyInstructorTheme(primary, secondary);
+  }
+
+  async function saveInstructorSettings() {
+    const button = el("btnSalvarConfiguracoesInstrutor");
+    const name = el("nomePerfilInstrutor").value.trim();
+    const primary = el("corPrincipalInstrutor").value;
+    const secondary = el("corSecundariaInstrutor").value;
+    if (!name) {
+      showMessage("Informe seu nome para salvar as configurações.");
+      el("nomePerfilInstrutor").focus();
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Salvando...";
+    showMessage("");
+    try {
+      const { error: profileError } = await state.supabase
+        .from("profiles")
+        .update({ nome: name })
+        .eq("id", state.user.id);
+      if (profileError) throw profileError;
+
+      const { error: settingsError } = await state.supabase
+        .from("app_settings")
+        .upsert({
+          owner_id: state.user.id,
+          nome_empresa: name,
+          cor_principal: primary,
+          cor_secundaria: secondary
+        }, { onConflict: "owner_id" });
+      if (settingsError) throw settingsError;
+
+      state.profile.nome = name;
+      el("nomeInstrutor").textContent = name;
+      applyInstructorTheme(primary, secondary);
+      showMessage("Seu nome e as cores do aplicativo foram salvos.", false);
+    } catch (error) {
+      console.error("Falha ao salvar perfil e aparência do instrutor:", error);
+      showMessage("Não foi possível salvar as configurações. Confira sua conexão e tente novamente.");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Salvar alterações";
+    }
+  }
+
+
   function formatDate(value) {
     if (!value) return "";
     const date = String(value).slice(0, 10);
@@ -349,6 +421,23 @@
         '<option value="' + escapeHtml(vehicle.id) + '">' + escapeHtml(vehicleLabel(vehicle)) + '</option>'
       ).join("");
     if (state.vehicles.some(vehicle => vehicle.id === selectedVehicle)) vehicleSelect.value = selectedVehicle;
+
+    const batchStudent = el("loteAluno");
+    if (batchStudent) {
+      const selected = batchStudent.value;
+      batchStudent.innerHTML = '<option value="">Selecione um aluno</option>' + state.students.map(student =>
+        '<option value="' + escapeHtml(student.id) + '">' + escapeHtml(student.nome + " · " + (student.aulas_restantes ?? 0) + " aulas restantes") + '</option>'
+      ).join("");
+      if (state.students.some(student => student.id === selected)) batchStudent.value = selected;
+    }
+    const batchVehicle = el("loteVeiculo");
+    if (batchVehicle) {
+      const selected = batchVehicle.value;
+      batchVehicle.innerHTML = '<option value="">Sem veículo definido</option>' + state.vehicles.map(vehicle =>
+        '<option value="' + escapeHtml(vehicle.id) + '">' + escapeHtml(vehicleLabel(vehicle)) + '</option>'
+      ).join("");
+      if (state.vehicles.some(vehicle => vehicle.id === selected)) batchVehicle.value = selected;
+    }
   }
 
   function updateLessonBalanceHint() {
@@ -397,6 +486,123 @@
     el("aulaAluno").focus();
   }
 
+
+  function openBatchLessonForm() {
+    resetLessonForm();
+    updateLessonSelects();
+    el("formAulasLote").reset();
+    el("loteDataInicial").value = localToday();
+    el("loteHorarioInicial").value = "08:00";
+    el("loteQuantidade").value = "4";
+    el("loteIntervaloDias").value = "7";
+    el("formAulasLote").hidden = false;
+    generateBatchLessonRows();
+    el("loteAluno").focus();
+  }
+
+  function resetBatchLessonForm() {
+    el("formAulasLote").reset();
+    el("formAulasLote").hidden = true;
+    el("listaDatasAulasLote").innerHTML = "";
+  }
+
+  function generateBatchLessonRows() {
+    const count = Math.max(2, Math.min(20, Number(el("loteQuantidade").value) || 2));
+    const interval = Math.max(1, Math.min(90, Number(el("loteIntervaloDias").value) || 7));
+    const startDate = el("loteDataInicial").value;
+    const startTime = el("loteHorarioInicial").value || "08:00";
+    if (!startDate) {
+      showMessage("Escolha a data da primeira aula.");
+      return;
+    }
+
+    const date = new Date(startDate + "T12:00:00");
+    const rows = [];
+    for (let index = 0; index < count; index++) {
+      if (index > 0) date.setDate(date.getDate() + interval);
+      const dateValue = [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, "0"),
+        String(date.getDate()).padStart(2, "0")
+      ].join("-");
+      rows.push(
+        '<div class="batch-lesson-row" data-lote-row="' + index + '">' +
+          '<strong>Aula ' + (index + 1) + '</strong>' +
+          '<label>Data<input type="date" data-lote-data required value="' + dateValue + '"></label>' +
+          '<label>Horário<input type="time" data-lote-horario required value="' + escapeHtml(startTime) + '"></label>' +
+        '</div>'
+      );
+    }
+    el("listaDatasAulasLote").innerHTML = rows.join("");
+    showMessage("");
+  }
+
+  async function saveBatchLessons(event) {
+    event.preventDefault();
+    const studentId = el("loteAluno").value;
+    const vehicleId = el("loteVeiculo").value || null;
+    const student = state.students.find(item => item.id === studentId);
+    const rows = [...el("listaDatasAulasLote").querySelectorAll("[data-lote-row]")].map(row => ({
+      date: row.querySelector("[data-lote-data]").value,
+      time: row.querySelector("[data-lote-horario]").value
+    }));
+    if (!student || rows.length < 2 || rows.some(row => !row.date || !row.time)) {
+      showMessage("Selecione o aluno e confira as datas e os horários de todas as aulas.");
+      return;
+    }
+
+    const keys = new Set();
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
+      const key = row.date + "|" + row.time;
+      if (keys.has(key)) {
+        showMessage("Aula " + (index + 1) + ": existe outra aula deste lote no mesmo dia e horário.");
+        return;
+      }
+      keys.add(key);
+      const occupied = state.lessons.some(item =>
+        String(item.data_aula || "").slice(0, 10) === row.date &&
+        String(item.horario || "").slice(0, 5) === row.time &&
+        String(item.status || "").toLowerCase() !== "cancelada"
+      );
+      if (occupied) {
+        showMessage("Aula " + (index + 1) + ": já existe uma aula agendada nesse dia e horário.");
+        return;
+      }
+    }
+
+    const nextNumber = Math.max(0, ...state.lessons
+      .filter(item => item.student_id === studentId)
+      .map(item => Number(item.numero_aula || 0))) + 1;
+    const lessons = rows.map((row, index) => ({
+      owner_id: state.user.id,
+      student_id: studentId,
+      vehicle_id: vehicleId,
+      data_aula: row.date,
+      horario: row.time,
+      numero_aula: nextNumber + index,
+      status: "agendada",
+      observacoes: null
+    }));
+
+    const button = el("btnSalvarAulasLote");
+    button.disabled = true;
+    button.textContent = "Agendando...";
+    showMessage("");
+    try {
+      const { error } = await state.supabase.from("lessons").insert(lessons);
+      if (error) throw error;
+      resetBatchLessonForm();
+      await loadOwnData();
+      showMessage(lessons.length + " aulas agendadas com sucesso.", false);
+    } catch (error) {
+      console.error("Falha ao agendar várias aulas:", error);
+      showMessage("Não foi possível agendar o lote. Nenhuma aula foi confirmada; confira os horários e tente novamente.");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Agendar todas as aulas";
+    }
+  }
   async function saveLesson(event) {
     event.preventDefault();
     const button = el("btnSalvarAula");
@@ -774,8 +980,23 @@
       return;
     }
     list.innerHTML = state.sales.map(sale =>
-      '<article class="sale-history-card"><div><strong>' + escapeHtml(studentName(sale.student_id)) + '</strong><span>' + escapeHtml(formatDate(sale.data_venda)) + ' · ' + escapeHtml(sale.forma_pagamento || "Pagamento não informado") + '</span></div><strong>' + currency(sale.total) + '</strong><span class="sale-state ' + (sale.status === "confirmada" ? "product-active" : "product-inactive") + '">' + (sale.status === "confirmada" ? "Confirmada" : "Cancelada") + '</span></article>'
+      '<article class="sale-history-card"><div><strong>' + escapeHtml(studentName(sale.student_id)) + '</strong><span>' + escapeHtml(formatDate(sale.data_venda)) + ' · ' + escapeHtml(sale.forma_pagamento || "Pagamento não informado") + '</span></div><strong>' + currency(sale.total) + '</strong><span class="sale-state ' + (sale.status === "confirmada" ? "product-active" : "product-inactive") + '">' + (sale.status === "confirmada" ? "Confirmada" : "Cancelada") + '</span><button class="button button-danger button-small" type="button" data-sale-delete="' + escapeHtml(sale.id) + '">Excluir venda</button></article>'
     ).join("");
+  }
+
+  async function deleteInstructorSale(id) {
+    const sale = state.sales.find(item => item.id === id);
+    if (!sale) return;
+    if (!window.confirm("Deseja excluir esta venda? O saldo de aulas será ajustado. Se alguma aula deste pacote já tiver sido utilizada, a exclusão será bloqueada.")) return;
+    try {
+      const { error } = await state.supabase.rpc("delete_my_sale", { p_sale_id: id });
+      if (error) throw error;
+      await loadOwnData();
+      showMessage("Venda excluída e saldo de aulas atualizado.", false);
+    } catch (error) {
+      console.error("Falha ao excluir venda do instrutor:", error);
+      showMessage(error.message || "Não foi possível excluir esta venda.");
+    }
   }
 
   async function loadFinancialData() {
@@ -807,7 +1028,10 @@
     }
     list.innerHTML = filtered.map(item => {
       const isIncome = item.tipo === "entrada";
-      return '<article class="finance-row"><div class="finance-row-icon ' + (isIncome ? "finance-income" : "finance-expense") + '">' + (isIncome ? "↗" : "↙") + '</div><div class="finance-row-main"><strong>' + escapeHtml(item.descricao) + '</strong><span>' + escapeHtml(formatDate(item.data_movimento)) + ' · ' + (isIncome ? "Entrada" : "Despesa") + '</span></div><strong class="finance-row-value ' + (isIncome ? "finance-income-text" : "finance-expense-text") + '">' + (isIncome ? "+" : "−") + currency(item.valor) + '</strong></article>';
+      const deleteButton = !isIncome && !item.sale_id
+        ? '<button class="button button-danger button-small" type="button" data-expense-delete="' + escapeHtml(item.id) + '">Excluir despesa</button>'
+        : "";
+      return '<article class="finance-row"><div class="finance-row-icon ' + (isIncome ? "finance-income" : "finance-expense") + '">' + (isIncome ? "↗" : "↙") + '</div><div class="finance-row-main"><strong>' + escapeHtml(item.descricao) + '</strong><span>' + escapeHtml(formatDate(item.data_movimento)) + ' · ' + (isIncome ? "Entrada" : "Despesa") + '</span></div><strong class="finance-row-value ' + (isIncome ? "finance-income-text" : "finance-expense-text") + '">' + (isIncome ? "+" : "−") + currency(item.valor) + '</strong>' + deleteButton + '</article>';
     }).join("");
   }
 
@@ -844,6 +1068,28 @@
     }
   }
 
+
+  async function deleteInstructorExpense(id) {
+    const transaction = state.transactions.find(item =>
+      item.id === id && item.tipo === "saida" && !item.sale_id
+    );
+    if (!transaction) return;
+    if (!window.confirm("Deseja excluir esta despesa?")) return;
+    try {
+      const { error } = await state.supabase.from("financial_transactions")
+        .delete()
+        .eq("id", id)
+        .eq("owner_id", state.user.id)
+        .eq("tipo", "saida")
+        .is("sale_id", null);
+      if (error) throw error;
+      await loadFinancialData();
+      showMessage("Despesa excluída com sucesso.", false);
+    } catch (error) {
+      console.error("Falha ao excluir despesa do instrutor:", error);
+      showMessage("Não foi possível excluir esta despesa. Confira suas permissões e tente novamente.");
+    }
+  }
 
   function updateInstructorContractStudentSelect() {
     const select = el("contratoAlunoInstrutor");
@@ -1328,6 +1574,7 @@
     state.profile = profile;
     el("nomeInstrutor").textContent = profile.nome || state.user.email || "Instrutor";
     renderAccessCountdown(profile.instructor_access_until);
+    await loadInstructorSettings();
     if (window.MarcusContractorProfile) {
       const obterCliente = () => state.supabase;
       const obterUsuario = () => state.user?.id || null;
@@ -1430,6 +1677,11 @@
     });
 
     el("btnNovaAula").addEventListener("click", () => openLessonForm());
+    el("btnAgendarLote").addEventListener("click", openBatchLessonForm);
+    el("btnGerarDatasLote").addEventListener("click", generateBatchLessonRows);
+    el("btnCancelarAulasLote").addEventListener("click", resetBatchLessonForm);
+    el("formAulasLote").addEventListener("submit", saveBatchLessons);
+    el("btnSalvarConfiguracoesInstrutor").addEventListener("click", saveInstructorSettings);
     el("btnAgendarInicio").addEventListener("click", () => {
       navigateInstructorPage("aulas");
       openLessonForm();
@@ -1460,6 +1712,14 @@
     });
 
     el("formMovimentacao").addEventListener("submit", saveFinancialTransaction);
+    el("listaVendas").addEventListener("click", event => {
+      const button = event.target.closest("[data-sale-delete]");
+      if (button) deleteInstructorSale(button.dataset.saleDelete);
+    });
+    el("listaMovimentacoes").addEventListener("click", event => {
+      const button = event.target.closest("[data-expense-delete]");
+      if (button) deleteInstructorExpense(button.dataset.expenseDelete);
+    });
     el("btnNovoProduto").addEventListener("click", () => openProductForm());
     el("btnCancelarProduto").addEventListener("click", resetProductForm);
     el("formProduto").addEventListener("submit", saveProduct);
