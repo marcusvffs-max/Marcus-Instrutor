@@ -2036,7 +2036,12 @@ Deno.serve(async (req: Request) => {
               const selectedService = serviceChoiceLabel(menuChoice);
               const { error: serviceStateError } = await supabase
                 .from("whatsapp_conversations")
-                .update({ status: "atendimento_ia", updated_at: new Date().toISOString() })
+                .update({
+                  // Respostas informativas mantêm a saudação original disponível para nova escolha.
+                  // "Outros" continua em atendimento_ia porque aguarda a descrição do cliente.
+                  status: menuChoice === "service_other" ? "atendimento_ia" : "aguardando_escolha",
+                  updated_at: new Date().toISOString(),
+                })
                 .eq("id", conversation.id);
               if (serviceStateError) {
                 console.error("Service selection state update failed:", serviceStateError.message);
@@ -2121,13 +2126,6 @@ Deno.serve(async (req: Request) => {
                               title: "Falar com Instrutor",
                             },
                           },
-                          {
-                            type: "reply",
-                            reply: {
-                              id: "menu_main",
-                              title: "Ver outras opções",
-                            },
-                          },
                         ],
                       },
                     },
@@ -2154,13 +2152,6 @@ Deno.serve(async (req: Request) => {
                             reply: {
                               id: "menu_talk_marcus",
                               title: "Falar com Instrutor",
-                            },
-                          },
-                          {
-                            type: "reply",
-                            reply: {
-                              id: "menu_main",
-                              title: "Ver outras opções",
                             },
                           },
                         ],
