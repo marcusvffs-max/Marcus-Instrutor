@@ -945,3 +945,25 @@ Resultados:
 - Todas as operações e fixtures foram revertidas.
 
 As definições das cinco RPCs financeiras no banco de testes foram comparadas com o original. Após normalizar somente a comparação de papel para o operador null-safe aplicado na branch, os corpos são equivalentes; não foram identificadas outras diferenças funcionais.
+
+
+## Correção de status no painel de atendimento WhatsApp
+
+### Incompatibilidade identificada
+
+O arquivo `whatsapp-panel.js` atualizava diretamente `ai_requests.atendimento_status` pelo cliente. No banco original, `authenticated` tem somente SELECT em `ai_requests`; não tem UPDATE. Assim, o seletor de status do painel não podia salvar a alteração diretamente, mesmo com a policy de leitura permitindo exibir os pedidos.
+
+### Correção preparada na branch de testes
+
+- A Edge Function `admin-manage-instructors` ganhou a ação `update_whatsapp_request_status`.
+- A ação exige perfil `admin`, valida UUID e aceita apenas `pendente`, `em_atendimento`, `concluido` ou `cancelado`.
+- O UPDATE com service_role filtra simultaneamente por ID, owner_id da conta autenticada, canal WhatsApp e tipo de solicitação de atendimento humano.
+- Retorna 404 se não houver pedido pertencente ao administrador autenticado.
+- O painel agora chama a Edge Function em vez de tentar UPDATE direto via cliente.
+
+### Verificação
+
+- Revisão estática confirmou que instrutores expirados, instrutores ativos e alunos não conseguem usar a ação: os bloqueios gerais de papel na Edge Function acontecem antes do bloco, e a ação exige admin.
+- No projeto de testes, uma transação sintética com service_role simulou os filtros do UPDATE: 1 pedido do proprietário autenticado foi atualizado e 1 pedido de outro proprietário permaneceu `pendente`.
+- Nenhum pedido sintético persistiu (ROLLBACK).
+- Não houve deploy nem chamada HTTP da Edge Function; a validação dinâmica com JWT real continua pendente.
