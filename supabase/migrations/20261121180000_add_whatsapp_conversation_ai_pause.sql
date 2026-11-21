@@ -16,9 +16,6 @@ ALTER TABLE public.whatsapp_conversations
       'instrutor_mensagem_manual'
     ])
   );
-CREATE INDEX IF NOT EXISTS whatsapp_conversations_ai_paused_until_idx
-  ON public.whatsapp_conversations (ai_paused_until)
-  WHERE ai_paused_until IS NOT NULL;
 COMMENT ON COLUMN public.whatsapp_conversations.ai_paused_until IS
   'Fim da pausa da Assistente Virtual; a conversa só volta a aceitar IA após este instante, salvo reativação explícita do cliente.';
 COMMENT ON COLUMN public.whatsapp_conversations.ai_pause_reason IS
