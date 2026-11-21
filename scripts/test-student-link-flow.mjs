@@ -599,3 +599,14 @@ test("menus WhatsApp usam saudação aprovada, Falar com Instrutor e Menu único
   assert.match(whatsappWebhook, /reply_type: "free_theory_course_information"/);
   assert.doesNotMatch(whatsappWebhook, /title: "Menu do Instrutor"|title: "Menu do Detran"/);
 });
+test("atendimento humano só pode ser reativado pelo cliente com Olá", () => {
+  const olaHandler = whatsappWebhook.indexOf('if (typeof content === "string" && /^(olá|ola)$/i.test(content.normalize');
+  const humanStatusHandler = whatsappWebhook.indexOf('if (conversationStatus === "atendimento_humano")');
+  const humanMenuGuard = whatsappWebhook.indexOf('Durante atendimento humano, somente "Olá" pode reativar a Assistente Virtual.');
+  const menuDispatch = whatsappWebhook.indexOf("// Open the selected top-level menu.", humanMenuGuard);
+  assert.ok(olaHandler >= 0 && olaHandler < humanStatusHandler, "Comando Olá deve ser processado antes do bloqueio de atendimento humano");
+  assert.ok(humanMenuGuard >= 0 && humanMenuGuard < menuDispatch, "Bloqueio de Menu deve ocorrer antes do despacho dos menus");
+  assert.match(whatsappWebhook.slice(humanMenuGuard, menuDispatch), /menuChoice === "menu_main" \|\| menuChoice === "menu_second"/);
+  assert.match(whatsappWebhook.slice(humanMenuGuard, menuDispatch), /ai_status: "paused_for_human"/);
+  assert.match(whatsappWebhook.slice(olaHandler, humanStatusHandler), /ai_paused_until: null, ai_pause_reason: null/);
+});
