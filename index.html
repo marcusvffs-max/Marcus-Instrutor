@@ -468,7 +468,7 @@
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("./service-worker.js?v=perfil-contratante1", { updateViaCache: "none" })
+        navigator.serviceWorker.register("./service-worker.js?v=perfil-contratante2", { updateViaCache: "none" })
           .then(function (registro) {
             return registro.update();
           })
