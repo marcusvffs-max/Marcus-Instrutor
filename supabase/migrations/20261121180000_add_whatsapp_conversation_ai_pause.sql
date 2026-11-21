@@ -13,7 +13,8 @@ ALTER TABLE public.whatsapp_conversations
     ai_pause_reason = ANY (ARRAY[
       'cliente_encerramento',
       'instrutor_encerramento',
-      'instrutor_mensagem_manual'
+      'instrutor_mensagem_manual',
+      'instrutor_assumiu_atendimento'
     ])
   );
 COMMENT ON COLUMN public.whatsapp_conversations.ai_paused_until IS
