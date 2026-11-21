@@ -158,10 +158,10 @@ order by a.query_start;
 - [ ] Projeto/banco e ambiente de teste confirmados.
 - [ ] Versão PostgreSQL compatível.
 - [ ] Tipos, nulidade e defaults conferidos.
-- [ ] Seis FKs antigas e respectivas ações confirmadas.
+- [ ] Sete FKs antigas e respectivas ações confirmadas.
 - [ ] FKs de owner, produto e app_settings preservadas.
 - [ ] Nove nomes novos livres ou equivalências analisadas.
-- [ ] Seis consultas de divergência retornam zero.
+- [ ] Sete consultas de divergência retornam zero.
 - [ ] owner_id sem NULL e NOT NULL no catálogo.
 - [ ] Índices, volume, sessões e janela operacional avaliados.
 
