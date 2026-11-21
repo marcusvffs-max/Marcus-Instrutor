@@ -859,37 +859,60 @@ A diferença de SECURITY DEFINER do wrapper apontada pelo Advisor refere-se ao p
 
 ### Achado
 
-As políticas RLS já bloqueavam as sete tentativas de INSERT cross-owner testadas (SQLSTATE 42501). Porém, as chaves estrangeiras originais de lessons, sales, sale_items e financial_transactions referenciavam apenas o ID do registro, sem incluir owner_id. A segurança dependia, portanto, exclusivamente das policies e da lógica das RPCs para impedir relacionamentos entre proprietários.
+As policies RLS já bloqueavam tentativas de INSERT cross-owner. Porém, as chaves estrangeiras originais de lessons, sales, sale_items e financial_transactions referenciavam apenas o ID do registro, sem incluir owner_id. A segurança dependia também das policies e da lógica das RPCs para impedir relacionamentos entre proprietários.
+
+### Desenho confirmado na implementação
+
+A revisão das policies e RPCs ativas confirmou que produtos usados em vendas também são owner-scoped:
+- as policies de sale_items exigem que products.owner_id seja igual a auth.uid();
+- create_instructor_sale e admin_create_sale selecionam produtos somente com owner_id do usuário autenticado;
+- o catálogo que o webhook WhatsApp consulta no owner admin é uma leitura separada e não é uma referência direta de sale_items.
+
+Portanto, sale_items.product_id também precisa usar FK composta com owner_id. A antiga documentação que tratava esse campo como exceção de catálogo central estava desatualizada.
 
 ### Correção no ambiente de testes
 
-Migration:
-`20261121160000_enforce_same_owner_foreign_keys.sql`
+Migrations:
+- `20261121160000_enforce_same_owner_foreign_keys.sql`
+- `20261121162000_align_composite_fk_delete_actions.sql`
 
-Adiciona chaves únicas compostas (id, owner_id) às tabelas-pai students, vehicles, sales e products, e sete FKs compostas:
-- lessons(student_id, owner_id) → students(id, owner_id), ON DELETE CASCADE;
-- lessons(vehicle_id, owner_id) → vehicles(id, owner_id), ON DELETE SET NULL somente em vehicle_id;
+Adicionam chaves únicas compostas (id, owner_id) em students, vehicles, sales e products, e sete FKs compostas:
+- lessons(student_id, owner_id) → students(id, owner_id), ON DELETE NO ACTION;
+- lessons(vehicle_id, owner_id) → vehicles(id, owner_id), ON DELETE NO ACTION;
 - sales(student_id, owner_id) → students(id, owner_id), ON DELETE SET NULL somente em student_id;
 - sale_items(sale_id, owner_id) → sales(id, owner_id), ON DELETE CASCADE;
 - sale_items(product_id, owner_id) → products(id, owner_id), ON DELETE SET NULL somente em product_id;
 - financial_transactions(student_id, owner_id) → students(id, owner_id), ON DELETE SET NULL somente em student_id;
 - financial_transactions(sale_id, owner_id) → sales(id, owner_id), ON DELETE SET NULL somente em sale_id.
 
-As FKs simples existentes foram mantidas para preservar as regras anteriores; as novas FKs adicionam a verificação de proprietário na própria integridade referencial do PostgreSQL. O uso de SET NULL com lista de colunas preserva owner_id, que é obrigatório, conforme a sintaxe documentada para PostgreSQL 17.
+As sete FKs simples equivalentes foram removidas depois que as compostas foram validadas, evitando duplicar triggers de ações referenciais. As FKs owner_id para Auth e app_settings.owner_id → auth.users(id) permanecem.
 
-### Testes realizados após a migration
+### Semânticas de exclusão preservadas
 
-- Antes da migration, as sete tentativas de INSERT cross-owner foram bloqueadas pelo RLS (42501).
-- Depois da migration, as mesmas sete tentativas, executadas em contexto privilegiado para isolar o teste das policies, foram bloqueadas diretamente pelas FKs compostas (23503).
-- Verificação prévia dos dados existentes: zero relações cross-owner nas sete combinações.
-- Teste positivo de exclusão: vehicle_id e product_id foram definidos como NULL; itens foram excluídos em cascata com a venda; sale_id e student_id dos lançamentos financeiros foram definidos como NULL; aulas foram excluídas em cascata com o aluno.
-- Teste de regressão: create_instructor_sale continuou funcionando com 1 venda, 1 item, 1 lançamento financeiro e acréscimo de 2 aulas. A transação foi revertida; consulta posterior confirmou zero registros persistidos e saldo restaurado para 5 aulas.
+A consulta read-only do original confirmou:
+- lessons.student_id e lessons.vehicle_id: NO ACTION;
+- sales.student_id: SET NULL;
+- sale_items.sale_id: CASCADE;
+- sale_items.product_id: SET NULL;
+- financial_transactions.student_id e sale_id: SET NULL.
+
+As FKs compostas agora preservam exatamente essas ações, incluindo NO ACTION nas duas relações de lessons.
+
+### Testes realizados após as migrations
+
+- As sete tentativas de INSERT cross-owner e as sete tentativas de UPDATE cross-owner foram bloqueadas diretamente pelas FKs compostas (SQLSTATE 23503), em contexto privilegiado para isolar as constraints das policies.
+- Tentativa de alterar owner_id do aluno referenciado por uma aula foi bloqueada.
+- Exclusão de aluno ou veículo ainda referenciado por aula foi bloqueada (23503), preservando o NO ACTION original.
+- Exclusão de produto definiu sale_items.product_id como NULL.
+- Exclusão de venda apagou sale_items em cascata e definiu financial_transactions.sale_id como NULL.
+- Após remover a aula, exclusão de aluno foi permitida e definiu financial_transactions.student_id como NULL.
+- create_instructor_sale continuou funcionando com 1 venda, 1 item, 1 lançamento financeiro e acréscimo de 2 aulas. A transação foi revertida e o saldo voltou a 5.
+- A consulta de pré-verificação no original encontrou zero divergências de owner nas sete relações, incluindo sale_items.product_id.
 - Todos os testes foram feitos no projeto isolado e revertidos. Nenhuma migration foi aplicada ao Supabase original.
 
 ### Observação sobre privilégios padrão
 
 A consulta de pg_default_acl confirmou que os privilégios padrão restritivos para objetos criados pelo owner postgres estão ativos em public: novas funções, tabelas e sequences não recebem permissões de anon/authenticated por padrão. ACLs de papéis internos do Supabase, como supabase_admin e supabase_auth_admin, foram apenas inspecionadas e não foram alteradas.
-
 
 ## Webhook WhatsApp: validação do número de destino
 
