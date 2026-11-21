@@ -985,3 +985,9 @@ As três funções não concedem EXECUTE direto a anon/authenticated/service_rol
 Foi executada a mesma consulta agregada somente de leitura no Supabase original. Resultado: zero relacionamentos cross-owner nas sete combinações que receberiam FKs compostas (lessons/student, lessons/vehicle, sales/student, sale_items/sale, sale_items/product, financial_transactions/student e financial_transactions/sale).
 
 Isso indica que, no estado observado, os dados existentes não impediriam a validação dessas FKs no original. A migration permanece apenas na branch e no projeto de testes; a pré-verificação não é autorização para aplicá-la no original.
+
+
+Também foram testadas as mesmas sete relações por UPDATE, além de uma tentativa de trocar o owner_id do cadastro-pai:
+- as sete alterações de referências para registros de outro proprietário foram bloqueadas com SQLSTATE 23503;
+- a tentativa de alterar o owner_id do aluno que já possui aulas foi bloqueada pela FK composta `lessons_student_owner_fkey`;
+- todas as fixtures e alterações estavam dentro de uma transação revertida.
