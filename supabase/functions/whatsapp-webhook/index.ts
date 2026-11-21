@@ -2113,13 +2113,22 @@ Deno.serve(async (req: Request) => {
                       type: "button",
                       body: { text: "Para falar diretamente com o Instrutor Marcus:" },
                       action: {
-                        buttons: [{
-                          type: "reply",
-                          reply: {
-                            id: "menu_talk_marcus",
-                            title: "Falar com Instrutor",
+                        buttons: [
+                          {
+                            type: "reply",
+                            reply: {
+                              id: "menu_talk_marcus",
+                              title: "Falar com Instrutor",
+                            },
                           },
-                        }],
+                          {
+                            type: "reply",
+                            reply: {
+                              id: "menu_main",
+                              title: "Ver outras opções",
+                            },
+                          },
+                        ],
                       },
                     },
                   };
@@ -2139,13 +2148,22 @@ Deno.serve(async (req: Request) => {
                       type: "button",
                       body: { text: packagesReply },
                       action: {
-                        buttons: [{
-                          type: "reply",
-                          reply: {
-                            id: "menu_talk_marcus",
-                            title: "Falar com Instrutor",
+                        buttons: [
+                          {
+                            type: "reply",
+                            reply: {
+                              id: "menu_talk_marcus",
+                              title: "Falar com Instrutor",
+                            },
                           },
-                        }],
+                          {
+                            type: "reply",
+                            reply: {
+                              id: "menu_main",
+                              title: "Ver outras opções",
+                            },
+                          },
+                        ],
                       },
                     },
                   };
