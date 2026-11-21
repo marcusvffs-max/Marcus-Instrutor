@@ -499,3 +499,67 @@ A migration não foi aplicada ao projeto original. Nenhuma publicação ou deplo
 Para confirmar que a revogação de EXECUTE não interrompe o uso legítimo do trigger, foi executado UPDATE transacional de um perfil sintético sob SET ROLE service_role. A operação atingiu uma linha e passou pelo trigger protect_profile_role_trigger com sucesso. A transação foi revertida.
 
 Resultado: chamadas diretas continuam sem EXECUTE para anon/authenticated/service_role, mas a execução interna do trigger continua funcionando para a operação legítima de service_role. O teste não alterou permanentemente o perfil.
+
+
+## Atualização da auditoria: rodada adicional de autorização e superfície de funções
+
+Em 21/11/2026, foram executados novos testes exclusivamente no projeto isolado `voyjssflroiwdyaacthh`. Todos os testes que alteraram estado foram executados em transações revertidas.
+
+### RPCs administrativas e alteração de papel
+
+- As quatro RPCs `admin_create_sale`, `admin_delete_sale`, `admin_refund_sale_lessons` e `admin_refund_sale_product` foram chamadas sob a identidade sintética de um instrutor. Todas rejeitaram a chamada com a mensagem de acesso administrativo obrigatório, antes de processar a operação.
+- UPDATE do próprio perfil para `role='admin'` sob `authenticated`: 0 linhas alteradas.
+- Consulta ao perfil do outro instrutor: 0 linhas visíveis.
+- A função `private.current_app_role()` calcula o papel a partir de `profiles.id = auth.uid()`; não recebe papel como parâmetro do cliente.
+
+### INSERT cross-owner adicional
+
+Sob identidade simulada do instrutor A, foram tentados INSERTs com proprietário B ou com referência a aluno B. Todos foram bloqueados por autorização (SQLSTATE `42501`):
+
+- `students` com `owner_id` B;
+- `vehicles` com `owner_id` B;
+- `lessons` com `student_id` B;
+- `app_settings` com `owner_id` B;
+- `products` com `owner_id` B;
+- `sales` com `owner_id` B;
+- `financial_transactions` do instrutor A apontando para aluno B;
+- `ai_runtime_settings` por um instrutor (policy reservada a admin);
+- `ai_requests` (authenticated não tem INSERT);
+- `whatsapp_conversations` (authenticated não tem grants).
+
+O INSERT de `sale_items` apontando para venda de outro proprietário já havia sido testado anteriormente e bloqueado com `42501`. Todos os testes foram revertidos.
+
+### Validade do acesso de instrutor
+
+O prazo de acesso do instrutor A foi temporariamente definido como expirado. Sob `authenticated`, `private.current_app_role()` retornou NULL e as consultas a `students`, `vehicles` e `lessons` retornaram zero linhas. A alteração de validade foi revertida.
+
+### Inventário das funções SECURITY DEFINER
+
+Foi feita varredura das funções SECURITY DEFINER nos schemas de aplicação e nos schemas de plataforma:
+
+- Todas as funções SECURITY DEFINER de aplicação em `public/private` usam `search_path=''`.
+- Nenhuma dessas funções concede EXECUTE a PUBLIC ou anon.
+- `private.current_app_role()` é executável por authenticated e retorna somente o papel do próprio `auth.uid()`.
+- `public.get_my_scheduled_lessons()` é a única função SECURITY DEFINER no schema public executável por authenticated; permanece como wrapper de agenda sob revisão e mantém validação na função interna privada.
+- Funções de trigger em private têm EXECUTE revogado para papéis de aplicação e continuam ligadas aos respectivos triggers.
+- Funções SECURITY DEFINER de storage/vault/pgbouncer observadas pertencem aos schemas de plataforma e não concedem execução a anon/authenticated.
+
+### Storage e funções HTTP no ambiente de teste
+
+- Não há buckets nem policies em `storage` no projeto original nem no projeto de testes; portanto, não há regra de Storage a reproduzir nesta auditoria.
+- O projeto de testes não tem Edge Functions implantadas. A revisão estática do código versionado não substitui testes HTTP/JWT; essa etapa permanece pendente.
+- Não foram criadas contas ou enviados convites para viabilizar esses testes.
+
+### Estado atual das fixtures
+
+Consulta final confirmou no projeto de testes:
+- 2 perfis sintéticos;
+- 3 alunos, 3 veículos e 3 aulas sintéticos;
+- 0 alunos com `user_id` preenchido;
+- 0 usuários Auth com e-mail fora do domínio de teste `.invalid`.
+
+Há um conjunto adicional de registros sintéticos sob o instrutor A além da fixture original `RLS_TEST_*` (rótulos identificados como `Aluno Sintético`, `Veículo Sintético` e uma aula agendada). Eles não foram apagados: não foi necessária limpeza destrutiva para a auditoria, e todos os testes continuam filtrando por proprietário e UUIDs conhecidos.
+
+### Status desta rodada
+
+A rodada adicional de RPCs administrativas, escalada de papel, INSERT cross-owner, validade expirada, superfície SECURITY DEFINER e inventário de Storage foi concluída no banco de testes. A matriz SEC-001 a SEC-070 ainda não está integralmente concluída; também faltam chamadas HTTP/PostgREST com JWT real e validação de Edge Functions em ambiente de testes. Não houve alteração no Supabase original, produção, deploy, envio de convites ou ação paga.
