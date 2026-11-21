@@ -695,3 +695,51 @@ Também foi confirmado que as seis RPCs públicas já existentes mantiveram seus
 Os Security Advisors permaneceram com os mesmos três apontamentos anteriores; a migration não introduziu novos avisos. A alteração não afeta permissões de funções já existentes.
 
 **Importante:** a migration de default privileges está somente na branch de testes e aplicada somente no Supabase de testes. O Supabase original continua sem alterações. A correção equivalente no original exige revisão e autorização explícita antes de qualquer aplicação.
+
+## Testes adicionais de referências cruzadas, owner_id e perfil
+
+Nova rodada SQL no projeto de testes, sempre com transações revertidas:
+
+### Referências cruzadas entre entidades
+
+- INSERT de aula do instrutor A com veículo pertencente ao instrutor B: bloqueado (42501).
+- INSERT de item de venda do instrutor A com produto pertencente ao instrutor B, embora a venda fosse própria: bloqueado (42501).
+- INSERT de lançamento financeiro do instrutor A com aluno próprio, mas venda pertencente ao instrutor B: bloqueado (42501).
+
+Esses casos complementam os testes anteriores de aluno estrangeiro em aula/venda/lançamento e venda estrangeira em item de venda.
+
+### Impedir transferência de owner_id
+
+Sob identidade autenticada do instrutor A, foram tentadas alterações de owner_id dos registros próprios para o UUID do instrutor B:
+
+- products: bloqueado (42501);
+- sales: bloqueado (42501);
+- sale_items: bloqueado (42501);
+- financial_transactions: bloqueado (42501);
+- app_settings: bloqueado (42501).
+
+As tentativas anteriores de students, vehicles e lessons também foram bloqueadas. Nenhuma transferência persistiu.
+
+### Campos administrativos do perfil
+
+Sob a identidade autenticada do próprio instrutor:
+- UPDATE de profiles.role para admin: 0 linhas alteradas;
+- UPDATE de profiles.instructor_access_until para estender a validade: 0 linhas alteradas.
+
+A liberação e a troca de papel continuam dependendo do fluxo administrativo de backend.
+
+### Unicidade do vínculo e da tentativa
+
+A inspeção dos índices de students confirmou:
+- students_user_id_unique: índice UNIQUE parcial em user_id IS NOT NULL, garantindo no máximo um cadastro de aluno por conta Auth;
+- students_invite_attempt_id_unique: índice UNIQUE parcial em invite_attempt_id IS NOT NULL, impedindo reutilização de um mesmo identificador de tentativa em mais de um cadastro.
+
+Foi tentado, em transação revertida, vincular a mesma identidade sintética a dois cadastros de instrutores diferentes. O segundo vínculo foi bloqueado pela unicidade (23505). A transação foi revertida e a consulta final confirmou 0 alunos vinculados e o papel original do perfil preservado.
+
+### Estado final após esta rodada
+
+- 2 perfis sintéticos, ambos preservados;
+- 3 alunos, 3 veículos e 3 aulas sintéticos;
+- 0 alunos com user_id preenchido;
+- nenhuma venda, item ou transação financeira de teste persistida;
+- nenhuma alteração de owner_id persistida.
