@@ -165,4 +165,4 @@ order by a.query_start;
 - [ ] owner_id sem NULL e NOT NULL no catálogo.
 - [ ] Índices, volume, sessões e janela operacional avaliados.
 
-Se consulta falhar por coluna/tabela inexistente, não adaptar por suposição: consultar o schema real e atualizar o roteiro. Este arquivo não autoriza DDL. Nenhuma consulta foi executada no banco nesta etapa; nenhum dado, usuário, convite, índice ou recurso foi criado.
+Se consulta falhar por coluna/tabela inexistente, não adaptar por suposição: consultar o schema real e atualizar o roteiro. Este arquivo não autoriza DDL. O roteiro SQL deste documento permanece sem execução direta no SQL Editor; consultas equivalentes de catálogo e divergência foram executadas read-only pela integração e os resultados estão registrados no relatório atualizado. Nenhum dado, usuário ou convite foi criado por este roteiro.
