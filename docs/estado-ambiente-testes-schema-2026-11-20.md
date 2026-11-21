@@ -1015,3 +1015,34 @@ Branch de testes:
 - migrations, Edge Functions e painel WhatsApp atualizados e documentados;
 - validações de código foram estáticas; nenhuma alteração foi implantada;
 - a branch continua separada da produção.
+
+
+## Isolamento do cache local administrativo entre contas
+
+### Achado no frontend
+
+O painel administrativo usava uma única chave `localStorage` (`marcus_instrutor_novo_v1`) para todos os administradores do mesmo navegador. Além disso, o painel era carregado uma única vez por página. Depois de sair e entrar com outra conta administrativa sem recarregar a página, o objeto `db` em memória poderia continuar contendo dados do administrador anterior. Se a consulta à nuvem falhasse ou a conta nova ainda não tivesse registros, os dados locais antigos poderiam aparecer.
+
+Isso era uma exposição local de dados entre contas no mesmo navegador, não uma quebra das policies RLS do banco.
+
+### Correção preparada na branch
+
+- O cache local passa a usar uma chave por usuário: `marcus_instrutor_novo_v1:user:<auth.uid>`.
+- O script só lê e grava a chave correspondente ao ID da sessão autenticada.
+- A identidade da chave é comparada com o ID retornado pelo Supabase antes de carregar os dados operacionais.
+- A página guarda o ID do admin na sessionStorage antes de carregar os scripts administrativos.
+- Se uma conta diferente entrar sem logout, a página recarrega para inicializar o painel com a nova identidade.
+- Ao receber `SIGNED_OUT`, remove o ID do contexto e recarrega a página.
+- A antiga chave global não é lida para exibição nem sobrescrita. Se houver dados antigos nela, são preservados no navegador e o admin recebe um aviso de que precisam ser conferidos antes de qualquer importação.
+
+### Verificação estática
+
+Foram confirmados:
+- nenhuma leitura automática da chave global antiga;
+- nenhuma gravação na chave global antiga;
+- todas as gravações locais usam a chave por usuário;
+- troca de conta força recarga;
+- logout remove o identificador da conta;
+- os dados antigos não são apagados.
+
+**Limite:** não foi executado teste de navegador com duas sessões reais. A correção está apenas na branch de testes e não foi implantada. Dados antigos sem proprietário identificado permanecem preservados e não foram migrados automaticamente.
