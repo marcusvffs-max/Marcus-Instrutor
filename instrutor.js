@@ -884,20 +884,30 @@
   }
 
   function generateInstructorContract() {
+    const contratanteNome = el("contratanteNome").value.trim();
+    const contratanteDocumento = el("contratanteDocumento").value.trim();
+    const contratanteNacionalidade = el("contratanteNacionalidade").value.trim();
+    const contratanteCivil = el("contratanteCivil").value.trim();
+    const contratanteProfissao = el("contratanteProfissao").value.trim();
+    const contratanteEndereco = el("contratanteEndereco").value.trim();
     const nome = el("contratoNomeAluno").value.trim();
     const cpf = el("contratoCpfAluno").value.trim();
     const categoria = el("contratoCategoriaAluno").value;
     const aulas = Number(el("contratoQuantidadeAulas").value);
     const valor = Number(el("contratoValor").value);
     const pagamento = el("contratoPagamento").value.trim();
+    if (!contratanteNome || !contratanteDocumento) {
+      showMessage("Preencha e salve seu nome e CPF/CNPJ na identificação do instrutor antes de gerar o contrato.");
+      return;
+    }
     if (!nome || !cpf || !categoria || !Number.isInteger(aulas) || aulas < 1 ||
         !Number.isFinite(valor) || valor <= 0 || !pagamento) {
-      showMessage("Preencha nome, CPF, categoria, quantidade de aulas, valor e forma de pagamento.");
+      showMessage("Preencha nome, CPF, categoria, quantidade de aulas, valor e forma de pagamento do aluno.");
       return;
     }
 
     const city = el("contratoCidade").value.trim() || "Governador Valadares";
-    const instructor = state.profile?.nome || "Instrutor";
+    const instructor = contratanteNome;
     const cartao = el("contratoCartaoMoto").checked ? "CARTÃO MOTO PISTA" : "";
     const aluguel = el("contratoAluguelVeiculo").checked ? "ALUGUEL DO VEÍCULO PARA EXAME PRÁTICO" : "";
     const services = ["Pacote de aulas adquirido", cartao, aluguel].filter(Boolean).join(", ");
@@ -937,11 +947,13 @@
 
     el("contratoPreviewInstrutor").innerHTML =
       '<article class="contract-sheet"><header><h2>' + safe(instructor) + '</h2><p>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</p></header>' +
-      '<main><p><strong>CONTRATANTE:</strong> ' + safe(nome) + '</p><p><strong>CPF:</strong> ' + safe(cpf) + '</p>' +
+      '<main><p><strong>CONTRATADO(A) / INSTRUTOR(A):</strong> ' + safe(instructor) + '</p><p><strong>CPF/CNPJ:</strong> ' + safe(contratanteDocumento) + '</p>' +
+      (contratanteNacionalidade || contratanteCivil || contratanteProfissao || contratanteEndereco ? '<p><strong>Identificação:</strong> ' + safe([contratanteNacionalidade, contratanteCivil, contratanteProfissao, contratanteEndereco].filter(Boolean).join(", ")) + '</p>' : "") +
+      '<p><strong>CONTRATANTE / ALUNO(A):</strong> ' + safe(nome) + '</p><p><strong>CPF:</strong> ' + safe(cpf) + '</p>' +
       clauses.join("") +
       '<p class="contract-place-date">' + safe(city) + ' - ______/______/________</p>' +
       '<div class="contract-signature-space" aria-hidden="true"></div>' +
-      '<div class="contract-signatures"><div><span></span><strong>' + safe(instructor) + '</strong><small>CONTRATADO(A) / INSTRUTOR(A)</small></div>' +
+      '<div class="contract-signatures"><div><span></span><strong>' + safe(instructor) + '</strong><small>CONTRATADO(A) / INSTRUTOR(A) · CPF/CNPJ ' + safe(contratanteDocumento) + '</small></div>' +
       '<div><span></span><strong>' + safe(nome) + '</strong><small>CONTRATANTE / ALUNO(A) · CPF ' + safe(cpf) + '</small></div></div></main></article>';
     showMessage("Contrato completo gerado. Confira todos os dados e as cláusulas antes de imprimir.", false);
   }
