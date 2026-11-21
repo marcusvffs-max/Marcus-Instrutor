@@ -563,3 +563,43 @@ Há um conjunto adicional de registros sintéticos sob o instrutor A além da fi
 ### Status desta rodada
 
 A rodada adicional de RPCs administrativas, escalada de papel, INSERT cross-owner, validade expirada, superfície SECURITY DEFINER e inventário de Storage foi concluída no banco de testes. A matriz SEC-001 a SEC-070 ainda não está integralmente concluída; também faltam chamadas HTTP/PostgREST com JWT real e validação de Edge Functions em ambiente de testes. Não houve alteração no Supabase original, produção, deploy, envio de convites ou ação paga.
+
+
+## Revisão estática das Edge Functions implantadas no Supabase original
+
+Foi feita somente leitura das definições das Edge Functions ativas no projeto original. Nenhuma função foi chamada por HTTP, atualizada ou implantada.
+
+### Inventário no momento da inspeção
+
+| Edge Function | Versão ativa | verify_jwt |
+|---|---:|---|
+| gemini-assistant-preview | 45 | true |
+| openai-connection-check | 11 | true |
+| whatsapp-webhook | 64 | false |
+| whatsapp-connection-check | 15 | true |
+| whatsapp-webhook-subscription-check | 12 | true |
+| gemini-connection-check | 12 | true |
+| whatsapp-list-phone-numbers | 13 | true |
+| admin-manage-instructors | 7 | true |
+
+### Controles observados
+
+- As sete funções com `verify_jwt=true` também validam o token com `auth.getUser(token)`; as rotas administrativas verificam `profiles.role='admin'` usando cliente de backend.
+- A única função com `verify_jwt=false` é `whatsapp-webhook`, que precisa receber callbacks do provedor. O GET de verificação compara o verify token; o POST exige `WHATSAPP_APP_SECRET`, valida o cabeçalho `x-hub-signature-256` com HMAC-SHA256 e responde 503 quando o segredo não está configurado. Não foi identificada condição de fail-open na verificação de assinatura durante a revisão estática.
+- As credenciais externas e chaves Supabase são lidas de variáveis de ambiente; não foram encontrados valores de chaves secretas embutidos nos trechos inspecionados.
+- `gemini-assistant-preview` e `whatsapp-webhook` usam um `OWNER_ID` fixo. Isso corresponde a uma arquitetura de atendimento de proprietário único; não deve ser interpretado como isolamento multi-tenant. Se o atendimento WhatsApp passar a ser compartilhado por vários instrutores, essa premissa precisará ser redesenhada.
+- Há cabeçalhos CORS amplos em algumas rotas de diagnóstico/preview, mas essas funções mantêm autenticação JWT e validação de administrador; CORS não substitui autenticação.
+
+### Diferença entre produção e branch de testes
+
+A função implantada `admin-manage-instructors` está na versão 7 e tem 325 linhas no arquivo retornado pelo Supabase. O arquivo correspondente na branch `feature/relatorios-instrutor-app` tem 674 linhas e não é idêntico.
+
+A versão implantada contém o gerenciamento administrativo tradicional (listar usuários, liberar acesso, alterar papel, excluir, reenviar acesso e convidar usuários). A branch de testes acrescenta ações específicas de vínculo de aluno, incluindo `invite_student` e `complete_student_link`, validação de prazo de acesso do instrutor, confirmação do e-mail pelo próprio aluno e reserva por `invite_attempt_id`.
+
+**Consequência:** os testes SQL e a revisão estática do novo fluxo de vínculo descrevem o código versionado na branch e o schema isolado; não provam que esse fluxo esteja implantado ou ativo no Supabase original. A versão 7 em produção não foi substituída. Não foi realizado deploy.
+
+### Limitação de validação dinâmica
+
+O projeto de testes não tem Edge Functions implantadas e não há identidade JWT sintética disponível para chamadas HTTP reais. Não foram enviados POSTs ao webhook de produção, não foram disparados convites, e-mails ou mensagens, nem foram chamadas rotas que pudessem alterar dados ou gerar custos.
+
+**Status:** revisão estática das oito funções ativas concluída; controles de JWT/admin e assinatura do webhook identificados. A validação HTTP/JWT das funções continua pendente e exige ambiente de testes com funções implantadas e contas sintéticas criadas de modo controlado. Nenhuma alteração foi feita no projeto original ou na produção.
