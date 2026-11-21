@@ -613,7 +613,7 @@ function formatOptionalItemsReply(
   const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const lessonTotal = packageItem.preco * quantity;
   const rental = catalog.find((item) => item.nome.toLocaleLowerCase("pt-BR").includes("aluguel"));
-  const card = catalog.find((item) => item.nome.toLocaleLowerCase("pt-BR").includes("cartao moto pista"));
+  const card = catalog.find((item) => normalizeChoiceText(item.nome).includes("cartao moto pista"));
   const selected: CatalogProduct[] = [];
   if (choice === "both" || choice === "rental") {
     if (rental) selected.push(rental);
@@ -970,7 +970,7 @@ async function processIncomingMessage(
       if (!packageItem) throw new Error("Confirmed package could not be found in the active catalog.");
 
       const rental = catalog.find((item) => item.nome.toLocaleLowerCase("pt-BR").includes("aluguel"));
-      const card = catalog.find((item) => item.nome.toLocaleLowerCase("pt-BR").includes("cartao moto pista"));
+      const card = catalog.find((item) => normalizeChoiceText(item.nome).includes("cartao moto pista"));
       const selectedItems: CatalogProduct[] = [];
       if (validChoice === "both" || validChoice === "rental") {
         if (rental) selectedItems.push(rental);
