@@ -304,7 +304,7 @@ Para as tabelas `sales`, `sale_items` e `financial_transactions`, sob instrutor 
 - INSERT de item associado à venda/produto do instrutor B: bloqueado por RLS (`42501`).
 - INSERT de transação associada a venda/aluno do instrutor B: bloqueado por RLS (`42501`).
 
-Resultado: **35 verificações de fluxo financeiro aprovadas após a correção**, somando os cenários de venda, idempotência, exclusão, consumo de aula, devoluções, limites e isolamento cruzado descritos acima. Todos os dados e mudanças de papel foram revertidos.
+Resultado: **39 verificações de fluxo financeiro aprovadas após a correção**, somando os cenários de venda, idempotência, exclusão, consumo de aula, devoluções, limites e isolamento cruzado descritos acima. Todos os dados e mudanças de papel foram revertidos.
 
 ### Limitações
 
@@ -312,3 +312,13 @@ Resultado: **35 verificações de fluxo financeiro aprovadas após a correção*
 - Não foram testados concorrência real entre transações independentes, pagamentos externos, conciliação bancária ou notificações.
 - Não houve validação de UI no navegador/app após a migration.
 - Não houve operação no Supabase original, deploy ou merge.
+
+
+### Regras de pacotes e RPC de exclusão cruzada — aprovado
+
+- Pacote com faixa mínima/máxima: venda de seis unidades dentro da faixa e serviço de duas aulas × três unidades adicionaram 12 aulas no total.
+- Os itens persistiram as 12 aulas contratadas.
+- Quantidade abaixo do mínimo do pacote foi bloqueada com SQLSTATE `22023`.
+- Chamada direta de `delete_my_sale` por Instrutor A usando ID de venda de Instrutor B foi bloqueada com `P0002`, sem apagar a venda de B.
+
+Esses quatro casos completam o total de **39 verificações aprovadas** após a correção.
