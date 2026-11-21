@@ -600,12 +600,60 @@ function listarAlunos() {
             <p>Aulas restantes: <strong>${Number(a.saldo || 0)}</strong></p>
           </div>
           <div class="record-actions">
+            ${a.email ? `<button type="button" data-invite-aluno="${a.id}">${a.user_id ? "Reenviar acesso" : a.invited_at ? "Reenviar convite" : "Enviar convite"}</button>` : ""}
             <button type="button" data-edit-aluno="${a.id}">Editar</button>
             <button type="button" data-delete-aluno="${a.id}">Excluir</button>
           </div>
+          ${a.email ? `<p class="student-invite-status">Acesso: ${a.user_id ? "Conta vinculada" : a.invited_at ? "Convite enviado ou aguardando confirmação" : "Ainda não convidado"}</p>` : ""}
         </div>
       `).join("")
     : '<div class="empty-state">Nenhum aluno encontrado.</div>';
+}
+
+async function enviarConviteAluno(id, botao) {
+  const aluno = db.alunos.find(item => String(item.id) === String(id));
+  if (!aluno) {
+    mostrarAviso("Não foi possível localizar o aluno.");
+    return;
+  }
+  if (!aluno.email) {
+    mostrarAviso("Cadastre o e-mail do aluno antes de enviar o convite.");
+    return;
+  }
+  const reenviarAcesso = Boolean(aluno.user_id);
+  const acao = reenviarAcesso ? "Reenviar link de acesso" : "Enviar convite";
+  if (!confirm(acao + " para " + aluno.nome + " (" + aluno.email + ")?\n\nConfira se este e-mail foi informado pelo próprio aluno. O cadastro só será vinculado depois que o titular confirmar o acesso pelo link enviado.")) return;
+
+  const textoOriginal = botao?.textContent || "Enviar convite";
+  if (botao) {
+    botao.disabled = true;
+    botao.textContent = reenviarAcesso ? "Reenviando..." : "Enviando...";
+  }
+  try {
+    const cliente = window.getMarcusSupabase?.();
+    if (!cliente || !adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
+      throw new Error("Conexão administrativa com o Supabase indisponível.");
+    }
+    const { data, error } = await cliente.functions.invoke("admin-manage-instructors", {
+      body: { action: "invite_student", student_id: aluno.id }
+    });
+    if (error) {
+      let detalhe = "";
+      try { detalhe = (await error.context.json()).error || ""; } catch (_) {}
+      throw new Error(detalhe || "Não foi possível enviar o convite.");
+    }
+    if (!data?.ok) throw new Error(data?.error || "Não foi possível enviar o convite.");
+    if (!aluno.user_id) aluno.invited_at = new Date().toISOString();
+    listarAlunos();
+    mostrarAviso(data.message || "Convite enviado com sucesso.");
+  } catch (erro) {
+    console.error("Erro ao enviar convite de aluno:", erro);
+    mostrarAviso(erro.message || "Não foi possível enviar o convite.");
+    if (botao) {
+      botao.disabled = false;
+      botao.textContent = textoOriginal;
+    }
+  }
 }
 
 async function excluirAluno(id) {
@@ -2916,6 +2964,12 @@ document.addEventListener("click", evento => {
     return;
   }
 
+  const convidarAluno = evento.target.closest("[data-invite-aluno]");
+  if (convidarAluno) {
+    enviarConviteAluno(convidarAluno.dataset.inviteAluno, convidarAluno);
+    return;
+  }
+
   const editarAluno = evento.target.closest("[data-edit-aluno]");
   if (editarAluno) {
     abrirFormularioAluno(editarAluno.dataset.editAluno);
@@ -3231,7 +3285,9 @@ async function carregarDadosAdminSupabase() {
     categoria: a.categoria || "B",
     situacao: statusAlunoParaTela(a.status),
     contratadas: Number(a.aulas_compradas || 0),
-    saldo: Number(a.aulas_restantes || 0)
+    saldo: Number(a.aulas_restantes || 0),
+    user_id: a.user_id || null,
+    invited_at: a.invited_at || null
   }));
 
   const temDadosNuvem = tabelas.some(tabela => dados[tabela].length > 0);
