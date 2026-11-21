@@ -632,3 +632,9 @@ test("reabrir atendimento restaura somente conversas encerradas pelo instrutor",
   assert.match(statusHandler, /\.eq\("ai_pause_reason", "instrutor_encerramento"\)/);
   assert.match(statusHandler, /conversation_human_reopened: conversationHumanReopened/);
 });
+test("encerrar conversa não altera pedidos já concluídos ou cancelados", () => {
+  const closeHandler = edge.slice(edge.indexOf('if (body.action === "close_whatsapp_conversation")'), edge.indexOf('if (body.action === "update_whatsapp_request_status")'));
+  assert.match(closeHandler, /\.update\(\{ atendimento_status: "concluido" \}\)/);
+  assert.match(closeHandler, /\.in\("atendimento_status", \["pendente", "em_atendimento"\]\)/);
+  assert.match(closeHandler, /\.filter\("resultado->>conversation_id", "eq", conversationId\)/);
+});
