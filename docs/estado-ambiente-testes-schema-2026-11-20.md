@@ -154,3 +154,84 @@ Migration registrada no projeto de testes e versionada:
 Ainda falta reconstruir `whatsapp_conversations` e `whatsapp_messages`. Elas têm RLS habilitado, mas não possuem policies nem grants para anon/authenticated no banco original. A etapa de WhatsApp será feita separadamente, após revisar índices, constraints, funções/Edge Functions que usam essas tabelas e confirmar que nenhum conteúdo de conversa será copiado.
 
 A equivalência integral das colunas, nulabilidade e constraints das quatro tabelas iniciais também permanece pendente. O número de tabelas/policies coincidir não significa que o schema esteja integralmente equivalente nem que os testes de isolamento estejam aprovados.
+
+
+## Atualização: WhatsApp, triggers, índices e RPCs financeiras
+
+Em 21/11/2026, o projeto de testes passou a conter as 13 tabelas públicas encontradas no banco original.
+
+### WhatsApp em modo backend-only
+
+Foram reconstruídas `whatsapp_conversations` e `whatsapp_messages`, com colunas, constraints e índices conferidos por catálogo.
+
+- RLS habilitado nas duas.
+- Nenhuma policy, igual ao banco original.
+- Nenhum grant para `PUBLIC`, `anon` ou `authenticated`.
+- `service_role` preservado como único papel de aplicação com acesso.
+- Nenhum telefone, conteúdo de mensagem, metadado ou conversa real copiado.
+- Não foram encontrados triggers nem funções SQL do schema `public/private` que referenciem diretamente essas duas tabelas.
+
+Migration: `20261121001451_restore_backend_only_whatsapp_tables.sql`.
+
+### Triggers e constraints
+
+Foram adicionados os índices ausentes em `lessons` e `vehicles`, a constraint de papel em `profiles`, e os triggers/funções de criação de perfil, proteção de papel, último administrador e atualização de saldo de aulas.
+
+Migration: `20261121001551_restore_core_triggers_and_constraints.sql`.
+
+O projeto de testes possui ainda dois triggers/funções adicionais de vínculo de aluno, oriundos da migration nova de vínculo por `user_id`; esses objetos não existem no banco original atual e são intencionais para testar a correção planejada.
+
+### RPCs financeiras
+
+As cinco RPCs financeiras foram copiadas para o ambiente de testes:
+- `create_instructor_sale`
+- `admin_create_sale`
+- `admin_refund_sale_product`
+- `admin_refund_sale_lessons`
+- `admin_delete_sale`
+
+As cinco foram comparadas com as definições do banco original por hash do texto normalizado e os hashes coincidiram. Também foram verificados owner `postgres`, `SECURITY INVOKER`, `search_path='' ` e EXECUTE apenas para `authenticated` e `service_role`.
+
+Migrations versionadas:
+- `20261121001658_restore_financial_rpc_functions.sql`
+- `20261121001803_reconcile_financial_rpc_definitions.sql` (reconciliação para igualar exatamente as definições de produção).
+
+### Comparação estrutural atual
+
+O catálogo dos dois projetos confirma:
+- 13 tabelas públicas;
+- RLS habilitado nas 13;
+- 38 policies nas mesmas 11 tabelas;
+- 31 índices;
+- 62 constraints de produção e 63 no teste. A constraint adicional é a FK de `students.user_id`, introduzida pela migration de vínculo por conta do aluno;
+- as três colunas adicionais em `students` (`user_id`, `invited_at`, `invite_attempt_id`) também são intencionais para testar a nova vinculação;
+- 14 funções no teste contra 12 no original e 7 triggers no teste contra 5 no original, pelas duas funções e dois triggers extras de vínculo de aluno.
+
+### Testes RLS simulados executados
+
+Foram preparados dois perfis sintéticos de instrutor com acesso temporário ativo e registros sintéticos próprios para cada um. Nenhum dado de produção foi copiado.
+
+Com `SET ROLE authenticated` e claims de sessão configurados no banco, os resultados foram:
+
+| Verificação | Instrutor A | Instrutor B |
+|---|---:|---:|
+| Alunos sintéticos próprios visíveis | 1 | 1 |
+| Veículos sintéticos próprios visíveis | 1 | 1 |
+| Aulas sintéticas próprias visíveis | 1 | 1 |
+| Registro sintético do outro instrutor visível | 0 | 0 |
+
+Testes negativos adicionais:
+- INSERT de aluno atribuído ao outro instrutor: bloqueado por RLS (`42501`).
+- UPDATE de aluno do outro instrutor: 0 linhas alteradas.
+- DELETE de aluno do outro instrutor: 0 linhas removidas.
+
+Esses são testes reais de políticas PostgreSQL sob `SET ROLE authenticated` e claims simuladas no banco, não chamadas HTTP autenticadas com JWT real via PostgREST. A matriz SEC-001 a SEC-070 ainda não foi integralmente executada; não considerar todos os testes de segurança concluídos.
+
+### Advisors após reconstrução
+
+Permanecem três observações:
+- INFO: as duas tabelas WhatsApp têm RLS sem policies; isso é intencional no desenho backend-only, pois não há grants para `anon/authenticated`.
+- WARN: `public.get_my_scheduled_lessons()` é SECURITY DEFINER e executável por authenticated. É o wrapper de agenda da migration de vínculo; deve continuar sob revisão específica e não foi alterado nesta etapa.
+- WARN: proteção de senha vazada desabilitada no Auth; configuração não foi alterada.
+
+**Status:** as 13 tabelas, 38 policies, índices, constraints essenciais, triggers e RPCs financeiras estão reconstruídos no projeto de testes. O isolamento de leitura e bloqueio de escrita entre dois instrutores passou nos testes SQL simulados. Ainda faltam testes HTTP/JWT reais, a matriz completa SEC-001 a SEC-070 e revisão específica do wrapper de agenda.
