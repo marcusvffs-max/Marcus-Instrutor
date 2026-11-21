@@ -105,6 +105,26 @@
     }
   }
 
+  async function configureWhatsAppAssistantButton() {
+    const button = el("btnWhatsAppAssistente");
+    if (!button) return;
+
+    try {
+      const { data, error } = await state.supabase.rpc("can_show_marcus_whatsapp_assistant");
+      if (error) throw error;
+
+      if (data === true) {
+        const message = encodeURIComponent("Olá");
+        button.href = "https://wa.me/5533997092835?text=" + message;
+        button.hidden = false;
+      }
+    } catch (error) {
+      // Em caso de falha na validação, o botão permanece oculto por segurança.
+      console.warn("Não foi possível validar o acesso ao WhatsApp da assistente.", error);
+      button.hidden = true;
+    }
+  }
+
   async function signOut() {
     await state.supabase.auth.signOut({ scope: "local" });
     window.location.replace("index.html");
@@ -146,6 +166,7 @@
       if (event === "SIGNED_OUT" || !session) window.location.replace("index.html");
     });
     await loadLessons();
+    await configureWhatsAppAssistantButton();
   }
 
   initialize().catch(error => {
