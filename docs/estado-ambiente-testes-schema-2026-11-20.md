@@ -427,3 +427,42 @@ Após a correção do vínculo, foram executadas tentativas adicionais de INSERT
 A tentativa de item de venda foi repetida com o UUID da venda estrangeira obtido antes da troca para `authenticated`; a policy rejeitou o INSERT. Todos os testes foram revertidos.
 
 Foi feita também uma consulta somente de leitura no Supabase original `ydyqagqsuqntuibzgwzd`: a função `private.guard_student_account_link_fields()` e o trigger correspondente não existem no projeto original. Isso confirma que a correção está somente no ambiente de testes; nenhuma migration foi aplicada ao banco original.
+
+
+### Endurecimento adicional de permissões de função de trigger
+
+Na etapa seguinte, foi identificada uma função de trigger em private cujo ACL ainda herdava EXECUTE de PUBLIC:
+
+- private.protect_profile_role(), ligada exclusivamente ao trigger protect_profile_role_trigger de public.profiles.
+- A função retorna trigger; uma chamada direta foi recusada pelo PostgreSQL com 0A000: trigger functions can only be called as triggers.
+- Mesmo sem ser invocável como RPC, o EXECUTE padrão foi removido para reduzir a superfície de permissões.
+
+Migration criada e aplicada somente no projeto de testes:
+
+20261121143000_restrict_profile_role_trigger_function.sql
+
+A migration revoga EXECUTE de PUBLIC, anon, authenticated e service_role. Verificação posterior confirmou:
+- anon: sem EXECUTE;
+- authenticated: sem EXECUTE;
+- service_role: sem EXECUTE;
+- trigger protect_profile_role_trigger: continua anexado à tabela profiles.
+
+Um teste de UPDATE do papel do perfil sob identidade simulada não foi considerado conclusivo: a instrução não demonstrou que uma linha elegível foi efetivamente atingida pela policy RLS. Portanto, não se registra esse caso como regressão aprovada. O bloqueio da função como chamada direta e a remoção de EXECUTE foram confirmados.
+
+### Testes adicionais de vínculo e exclusão de usuário Auth
+
+- Sob identidade simulada do instrutor A, UPDATE no campo students.user_id do cadastro pertencente ao instrutor B afetou 0 linhas.
+- O ambiente contém duas identidades Auth sintéticas com e-mails .invalid, usadas exclusivamente nas fixtures de teste; não são contas reais e não foram criadas nesta etapa.
+- Foi executado um teste transacional do trigger BEFORE DELETE ON auth.users: vinculou temporariamente a identidade sintética do aluno ao cadastro sintético correspondente, tentou excluir a identidade e verificou a limpeza do vínculo pelo trigger private.clear_student_account_link_on_user_delete(). O teste foi revertido; a identidade Auth permaneceu existente e o cadastro voltou a ficar sem vínculo.
+- Estado final conferido: duas identidades Auth sintéticas preservadas, dois alunos sintéticos, nenhum aluno com user_id preenchido.
+
+### Advisors após endurecimento
+
+A consulta posterior aos Security Advisors retornou:
+- INFO rls_enabled_no_policy: as duas tabelas WhatsApp backend-only, sem grants para clientes.
+- WARN authenticated_security_definer_function_executable: wrapper público get_my_scheduled_lessons(), mantido intencionalmente e ainda sob revisão.
+- WARN auth_leaked_password_protection: proteção contra senhas vazadas desabilitada; não foi alterada.
+
+Nenhum novo alerta foi introduzido pela migration de permissões. Nenhuma alteração foi aplicada ao Supabase original ou à produção. Não houve deploy, criação de contas, envio de convites ou ação paga.
+
+Status desta rodada: permissões da função de trigger endurecidas no projeto isolado; UPDATE cruzado do vínculo bloqueado; rotina de limpeza do vínculo em exclusão de Auth exercitada em teste transacional revertido. A matriz SEC-001 a SEC-070 e os testes HTTP com JWT real continuam pendentes.
