@@ -818,3 +818,13 @@ A branch de testes foi ajustada em supabase/functions/admin-manage-instructors/i
 - se ocorrer uma corrida entre a pré-consulta e a conclusão, o SQLSTATE 23505 do índice UNIQUE também é convertido em HTTP 409.
 
 A mudança não afrouxa a unicidade nem permite múltiplos vínculos. Ela alinha a resposta da Edge Function à regra já imposta pelo banco. Foi feita revisão estática do arquivo após a edição. Não houve deploy e não foram criadas contas, enviados e-mails ou chamadas rotas HTTP; a validação dinâmica permanece pendente porque o projeto de testes não tem Edge Functions implantadas.
+
+
+## Verificações complementares de superfície PostgreSQL
+
+- As 38 policies RLS das 11 tabelas com policies foram revisadas: nenhuma usa expressão incondicional `true`, e todas incluem predicado de identidade (`auth.uid()`) ou papel calculado (`private.current_app_role()`).
+- Nenhuma das 15 funções de aplicação usa SQL dinâmico (`EXECUTE`), `format()` para montar SQL ou `quote_ident/quote_literal`.
+- anon e authenticated não são membros de service_role; nenhum deles tem BYPASSRLS, CREATE ROLE ou CREATE DATABASE.
+- anon e authenticated não têm CREATE nos schemas public/private; service_role também não tem CREATE em public.
+- Nenhuma tabela está publicada em `supabase_realtime` no projeto original ou no projeto de testes.
+- Não há buckets nem policies de Storage em nenhum dos dois projetos.
