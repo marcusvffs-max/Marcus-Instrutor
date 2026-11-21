@@ -36,6 +36,39 @@
     return el;
   }
 
+  function confirmAction(message) {
+    return new Promise(resolve => {
+      const overlayConfirm = create("div", { class: "users-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "usersConfirmTitle" });
+      const dialogConfirm = create("div", { class: "users-dialog" });
+      const titleConfirm = create("h2", { id: "usersConfirmTitle" }, "Confirmação");
+      const textConfirm = create("p", {}, String(message ?? ""));
+      textConfirm.style.whiteSpace = "pre-line";
+      textConfirm.style.overflowWrap = "anywhere";
+      const actionsConfirm = create("div", { class: "users-actions" });
+      actionsConfirm.style.justifyContent = "flex-end";
+      const cancelConfirm = create("button", { class: "users-secondary", type: "button" }, "Cancelar");
+      const acceptConfirm = create("button", { class: "users-primary", type: "button" }, "Confirmar");
+      actionsConfirm.append(cancelConfirm, acceptConfirm);
+      dialogConfirm.append(titleConfirm, textConfirm, actionsConfirm);
+      overlayConfirm.append(dialogConfirm);
+      document.body.append(overlayConfirm);
+
+      let finished = false;
+      const finish = value => {
+        if (finished) return;
+        finished = true;
+        document.removeEventListener("keydown", onKey);
+        overlayConfirm.remove();
+        resolve(value);
+      };
+      const onKey = event => { if (event.key === "Escape") finish(false); };
+      document.addEventListener("keydown", onKey);
+      cancelConfirm.addEventListener("click", () => finish(false));
+      acceptConfirm.addEventListener("click", () => finish(true));
+      cancelConfirm.focus();
+    });
+  }
+
   const overlay = create("div", { class: "users-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "usersTitle" });
   overlay.hidden = true;
   const dialog = create("div", { class: "users-dialog" });
@@ -209,7 +242,7 @@
           activate.addEventListener("click", async () => {
             const currentDays = accessDays(activate.dataset.activateUntil || null);
             const verb = currentDays > 0 ? "renovar" : "liberar";
-            if (!window.confirm("Deseja " + verb + " o acesso de " + (user.nome || user.email) + " por mais 31 dias?")) return;
+            if (!await confirmAction("Deseja " + verb + " o acesso de " + (user.nome || user.email) + " por mais 31 dias?")) return;
             activate.disabled = true;
             activate.textContent = "Ativando...";
             try {
@@ -230,7 +263,7 @@
             return;
           }
           const selectedLabel = roleEditor.options[roleEditor.selectedIndex].textContent;
-          if (!window.confirm(`Alterar o acesso de ${user.nome || user.email} para ${selectedLabel}?`)) return;
+          if (!await confirmAction(`Alterar o acesso de ${user.nome || user.email} para ${selectedLabel}?`)) return;
           saveRole.disabled = true;
           saveRole.textContent = "Salvando...";
           try {
@@ -244,7 +277,7 @@
           }
         });
         resend.addEventListener("click", async () => {
-          if (!window.confirm(`Enviar um novo link de acesso para ${user.email}?`)) return;
+          if (!await confirmAction(`Enviar um novo link de acesso para ${user.email}?`)) return;
           resend.disabled = true;
           resend.textContent = "Enviando...";
           try {
@@ -258,7 +291,7 @@
           }
         });
         remove.addEventListener("click", async () => {
-          if (!window.confirm(`Tem certeza de que deseja excluir o usuário ${user.nome || user.email}? Essa ação não pode ser desfeita.`)) return;
+          if (!await confirmAction(`Tem certeza de que deseja excluir o usuário ${user.nome || user.email}? Essa ação não pode ser desfeita.`)) return;
           remove.disabled = true;
           remove.textContent = "Excluindo...";
           try {
