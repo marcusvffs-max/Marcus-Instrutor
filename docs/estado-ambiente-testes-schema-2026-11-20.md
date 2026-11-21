@@ -931,3 +931,17 @@ No projeto de testes, a tabela `profiles` tem policy de SELECT apenas para o pr�
 - A transação foi revertida; os dois perfis de teste continuam instrutores, sem perfil admin sintético persistente.
 
 Esses testes confirmam a proteção de último administrador no nível do banco sem criar contas Auth nem manter alterações de role.
+
+
+## Testes positivos das RPCs administrativas financeiras
+
+Para validar as quatro RPCs administrativas sem criar uma conta Auth, um dos dois perfis sintéticos existentes foi temporariamente promovido a admin dentro de uma transação no projeto de testes. O papel foi revertido automaticamente com ROLLBACK; nenhum perfil admin ficou persistido.
+
+Resultados:
+- `admin_create_sale`: criou 1 venda, 1 item, 1 lançamento financeiro; produto físico foi classificado como `produto`; resultado JSON trouxe total de 20 e zero aulas adicionadas.
+- `admin_refund_sale_product`: devolveu 1 unidade, valor 10, e registrou 1 lançamento financeiro de saída.
+- `admin_refund_sale_lessons`: devolveu 2 aulas, valor 20, reduziu o saldo de 7 para 5 aulas compradas e de 7 para 5 restantes (as 2 aulas haviam sido adicionadas pela venda administrativa anterior na mesma transação).
+- `admin_delete_sale`: excluiu a venda criada, seu item e o lançamento financeiro associado.
+- Todas as operações e fixtures foram revertidas.
+
+As definições das cinco RPCs financeiras no banco de testes foram comparadas com o original. Após normalizar somente a comparação de papel para o operador null-safe aplicado na branch, os corpos são equivalentes; não foram identificadas outras diferenças funcionais.
