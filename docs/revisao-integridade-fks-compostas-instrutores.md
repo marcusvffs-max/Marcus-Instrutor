@@ -96,7 +96,7 @@ alter table public.financial_transactions
 - Ao excluir venda, movimentações preservam o histórico e owner, mas ficam sem sale_id, como hoje.
 - `sale_items.product_id` também deve pertencer ao mesmo owner do item vendido. As policies de `sale_items` exigem `products.owner_id = auth.uid()`, e `create_instructor_sale`/`admin_create_sale` só selecionam produtos do próprio owner. O catálogo consultado pelo webhook WhatsApp é uma leitura separada de produtos do admin; ele não é uma referência direta de `sale_items`.
 - `app_settings.owner_id` já referencia `auth.users(id)`; manter comportamento atual.
-- `products.owner_id` não participa da regra de ownership de `sale_items`.
+- ``products.owner_id` participa da regra de ownership de `sale_items`; o vínculo do catálogo AI usado pelo webhook é separado.
 
 ## 4. Segurança das policies
 
@@ -113,7 +113,7 @@ As policies não substituem FKs compostas: policy SELECT limita leitura, mas nã
 ## 5. Pré-condições e testes antes de produção
 
 1. Confirmar constraints com nomes exatos e inexistência de constraints compostas com os mesmos nomes.
-2. Reexecutar as seis consultas de inconsistência antes de DDL.
+2. Reexecutar as sete consultas de inconsistência antes de DDL.
 3. Criar dois instrutores de teste em ambiente isolado autorizado.
 4. Tentar criar aula do owner A com aluno B e veículo B; ambas devem falhar.
 5. Tentar criar venda de A para aluno B; deve falhar.
@@ -161,11 +161,11 @@ O SQL revisado foi atualizado para incluir as FKs compostas e remover as FKs sim
 
 O arquivo `scripts/test-student-link-flow.mjs` recebeu quatro testes para a integridade referencial. O harness JavaScript isolado executado com os arquivos atuais da branch terminou com **24/24 testes aprovados**.
 
-Os quatro casos novos verificam:
+Os casos estáticos verificam:
 - existência das chaves únicas compostas `(id, owner_id)` nos pais;
-- FKs compostas entre aulas/alunos/veículos, vendas/alunos, itens/vendas e movimentações;
+- FKs compostas entre aulas/alunos/veículos, vendas/alunos, itens/vendas/produtos e movimentações;
 - `ON DELETE SET NULL` limitado à coluna opcional e `ON DELETE CASCADE` dos itens;
-- remoção das seis FKs simples antigas na mesma transação;
+- remoção das sete FKs simples antigas na mesma transação;
 - validação de owner em `sale_items.product_id` e preservação da FK de `app_settings.owner_id`.
 
 **Limite do resultado:** trata-se de verificação estática de texto/código em harness JavaScript. Não foi executado `node --test`, PostgreSQL, Deno nem teste contra o Supabase. Não comprova que o DDL será aceito ou que as constraints estejam ativas no banco.
