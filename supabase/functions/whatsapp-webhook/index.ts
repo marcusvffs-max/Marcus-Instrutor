@@ -1774,7 +1774,7 @@ Deno.serve(async (req: Request) => {
           }
 
           if (conversationStatus === "atendimento_ia") {
-            if (!aiAutoReplyEnabled) {
+            {
               const { data: pendingOtherMessage, error: pendingOtherError } = await supabase
                 .from("whatsapp_messages")
                 .select("provider_message_id")
@@ -1860,11 +1860,13 @@ Deno.serve(async (req: Request) => {
                 continue;
               }
 
-              await updateMessageMetadata(supabase, providerId, {
-                ai_status: "paused_by_instructor",
-                ai_paused_at: new Date().toISOString(),
-              });
-              continue;
+              if (!aiAutoReplyEnabled) {
+                await updateMessageMetadata(supabase, providerId, {
+                  ai_status: "paused_by_instructor",
+                  ai_paused_at: new Date().toISOString(),
+                });
+                continue;
+              }
             }
             if (typeof content === "string" && content.trim()) {
               console.log("Processing incoming customer message with Gemini.", {
