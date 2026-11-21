@@ -482,3 +482,41 @@ test("dados locais antigos sem proprietário são preservados, mas não carregad
   assert.match(adminFrontend, /dados locais antigos sem vínculo com uma conta/);
   assert.doesNotMatch(adminFrontend, /localStorage\.removeItem\(STORAGE_KEY\)/);
 });
+
+
+const whatsappWebhook = read("../supabase/functions/whatsapp-webhook/index.ts");
+const whatsappPanel = read("../whatsapp-panel.js");
+const supabaseConfig = read("../supabase/config.toml");
+
+test("webhook WhatsApp valida o phone_number_id antes de processar mensagens", () => {
+  assert.match(whatsappWebhook, /WHATSAPP_PHONE_NUMBER_ID\.trim\(\)/);
+  assert.match(whatsappWebhook, /value\.metadata\?\.phone_number_id/);
+  assert.match(whatsappWebhook, /eventPhoneNumberId !== expectedPhoneNumberId/);
+  assert.match(whatsappWebhook, /Ignoring WhatsApp webhook event for an unconfigured phone number/);
+  assert.ok(
+    whatsappWebhook.indexOf("eventPhoneNumberId !== expectedPhoneNumberId") <
+    whatsappWebhook.indexOf("for (const message of messages)")
+  );
+});
+
+test("webhook externo dispensa JWT Supabase, mas mantém validação HMAC no handler", () => {
+  assert.match(supabaseConfig, /\[functions\.whatsapp-webhook\][\s\S]*verify_jwt = false/);
+  assert.match(whatsappWebhook, /X-Hub-Signature-256/);
+  assert.match(whatsappWebhook, /verifyMetaSignature/);
+  assert.match(whatsappWebhook, /crypto\.subtle/);
+});
+
+test("status de atendimento WhatsApp é alterado por ação exclusiva do admin", () => {
+  assert.match(edge, /body\.action === "update_whatsapp_request_status"/);
+  assert.match(edge, /profile\.role !== "admin"/);
+  assert.match(edge, /\["pendente", "em_atendimento", "concluido", "cancelado"\]/);
+  for (const expected of [
+    '.eq("id", requestId)',
+    '.eq("owner_id", authData.user.id)',
+    '.eq("canal", "whatsapp")',
+    '.eq("tipo_solicitacao", "atendimento_humano")',
+  ]) assert.ok(edge.includes(expected), "Filtro ausente na atualização do atendimento: " + expected);
+  assert.match(whatsappPanel, /functions\.invoke\("admin-manage-instructors"/);
+  assert.match(whatsappPanel, /action: "update_whatsapp_request_status"/);
+  assert.doesNotMatch(whatsappPanel, /\.from\("ai_requests"\)[\s\S]{0,120}\.update\(/);
+});
