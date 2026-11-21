@@ -5,6 +5,10 @@
 ========================================= */
 
 const STORAGE_KEY = "marcus_instrutor_novo_v1";
+const STORAGE_KEY_ATUAL = (() => {
+  const usuarioId = window.sessionStorage?.getItem("marcus_admin_user_id");
+  return usuarioId ? `${STORAGE_KEY}:user:${usuarioId}` : null;
+})();
 
 const HORARIOS = [
   "07:00 - 07:50", "08:00 - 08:50",
@@ -34,7 +38,7 @@ const estadoInicial = {
   }
 };
 
-let db = carregarDados();
+let db = carregarDados(STORAGE_KEY_ATUAL);
 let alunoEditando = null;
 let veiculoEditando = null;
 let aulaEditando = null;
@@ -47,9 +51,10 @@ let idProdutoEditando = null;
    FUNÇÕES BÁSICAS
 ========================================= */
 
-function carregarDados() {
+function carregarDados(chave) {
+  if (!chave) return structuredClone(estadoInicial);
   try {
-    const dados = localStorage.getItem(STORAGE_KEY);
+    const dados = localStorage.getItem(chave);
 
     if (!dados) return structuredClone(estadoInicial);
 
@@ -74,8 +79,17 @@ function carregarDados() {
   }
 }
 
+function persistirDadosLocais() {
+  if (!STORAGE_KEY_ATUAL) {
+    console.warn("Armazenamento local não vinculado a uma conta autenticada; gravação ignorada.");
+    return false;
+  }
+  localStorage.setItem(STORAGE_KEY_ATUAL, JSON.stringify(db));
+  return true;
+}
+
 function salvarDados() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  persistirDadosLocais();
   atualizarPainel();
 }
 
@@ -541,7 +555,7 @@ async function salvarAluno(evento) {
       db.alunos.push(aluno);
     }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    persistirDadosLocais();
     alunoEditando = null;
     fecharModal();
     listarAlunos();
@@ -623,7 +637,7 @@ async function excluirAluno(id) {
     if (error) throw error;
 
     db.alunos = db.alunos.filter(a => String(a.id) !== String(id));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    persistirDadosLocais();
     listarAlunos();
     atualizarSeletoresAlunos();
     atualizarPainel();
@@ -3181,6 +3195,13 @@ async function carregarDadosAdminSupabase() {
   if (perfil?.role !== "admin") {
     throw new Error("A conta atual não possui permissão administrativa.");
   }
+
+  const chaveEsperada = `${STORAGE_KEY}:user:${usuario.id}`;
+  if (STORAGE_KEY_ATUAL !== chaveEsperada) {
+    throw new Error("O armazenamento local não corresponde à conta autenticada. Atualize a página e entre novamente.");
+  }
+
+  db = carregarDados(STORAGE_KEY_ATUAL);
 
   const tabelas = [
     "students", "vehicles", "lessons", "products",
