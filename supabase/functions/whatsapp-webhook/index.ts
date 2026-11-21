@@ -220,6 +220,7 @@ async function sendInitialMenuSelection(
     { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
     { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
     { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
+    { id: "menu_close_assistant", title: "Encerrar assistente", description: "Finalize e pause a assistente por 48 horas." },
   ];
 
   const selection = {
@@ -251,6 +252,55 @@ async function sendInitialMenuSelection(
       conversationId,
       recipient,
       `Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma opção:\n${fallback}\n\nResponda com o número da opção desejada.\n\nPara encerrar e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la novamente antes desse prazo, digite Olá.`,
+    );
+  }
+}
+
+async function sendServiceContinuationMenu(
+  supabase: ReturnType<typeof getAdminClient>,
+  conversationId: string,
+  recipient: string,
+) {
+  const rows = [
+    { id: "menu_talk_marcus", title: "Falar com Instrutor", description: "Solicite atendimento direto com Marcus." },
+    { id: "service_packages", title: "Pacotes e valores", description: "Consulte os pacotes disponíveis e seus preços." },
+    { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
+    { id: "service_registration_fee", title: "Taxa de inscrição", description: "Informações para emitir a taxa da primeira habilitação." },
+    { id: "service_medical", title: "Exame médico", description: "Informações sobre o exame médico da habilitação." },
+    { id: "service_free_theory_course", title: "Curso Gratuito", description: "de Legislação — saiba como acessar." },
+    { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
+    { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
+    { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
+    { id: "menu_close_assistant", title: "Encerrar assistente", description: "Finalize e pause a assistente por 48 horas." },
+  ];
+
+  const menu = {
+    type: "interactive",
+    interactive: {
+      type: "list",
+      body: { text: "O que mais você gostaria de consultar? 😊" },
+      footer: { text: "Atendimento do Instrutor Marcus." },
+      action: {
+        button: "Ver opções",
+        sections: [{ title: "Atendimento e serviços", rows }],
+      },
+    },
+  };
+
+  const sent = await sendWhatsAppPayload(
+    supabase,
+    conversationId,
+    recipient,
+    menu,
+    "Menu de continuidade do atendimento",
+  );
+  if (!sent) {
+    const fallback = rows.map((row, index) => `${index + 1}️⃣ ${row.title}`).join("\n");
+    await sendWhatsAppText(
+      supabase,
+      conversationId,
+      recipient,
+      `O que mais você gostaria de consultar? 😊\n\n${fallback}\n\nResponda com o número da opção desejada. Para encerrar, escolha "Encerrar assistente" ou digite Encerrar.`,
     );
   }
 }
@@ -293,9 +343,13 @@ function readMenuChoice(message: any, content: unknown): string | null {
     "service_packages", "service_contract", "service_schedule",
     "service_balance", "service_reschedule", "service_documents",
     "service_registration_fee", "service_medical", "service_free_theory_course", "service_theory_fee",
-    "service_driving_fee", "service_other",
+    "service_driving_fee", "service_other", "menu_close_assistant",
   ]);
-  if (validChoices.has(choiceId)) return choiceId === "menu_talk_marcus" ? "humano" : choiceId;
+  if (validChoices.has(choiceId)) {
+    if (choiceId === "menu_talk_marcus") return "humano";
+    if (choiceId === "menu_close_assistant") return "encerrar";
+    return choiceId;
+  }
 
   const text = typeof content === "string"
     ? content.trim().toLowerCase().replace(/[️⃣︎]/g, "").replace(/^\d+\s*/, "").trim()
@@ -1891,7 +1945,7 @@ Deno.serve(async (req: Request) => {
             ? content.normalize("NFKC").trim().toLocaleLowerCase("pt-BR")
             : "";
 
-          if (normalizedCustomerCommand === "encerrar") {
+          if (normalizedCustomerCommand === "encerrar" || menuChoice === "encerrar") {
             const pauseUntil = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
             const { error: closeError } = await supabase
               .from("whatsapp_conversations")
@@ -2109,69 +2163,16 @@ Deno.serve(async (req: Request) => {
                   true,
                 );
 
-                let buttonSent = false;
+                // Após a resposta informativa, apresenta o menu completo de continuidade.
                 if (textSent) {
-                  // O botão segue em uma mensagem interativa separada, logo abaixo do texto.
-                  const handoffPayload = {
-                    type: "interactive",
-                    interactive: {
-                      type: "button",
-                      body: { text: "Para falar diretamente com o Instrutor Marcus:" },
-                      action: {
-                        buttons: [
-                          {
-                            type: "reply",
-                            reply: {
-                              id: "menu_talk_marcus",
-                              title: "Falar com Instrutor",
-                            },
-                          },
-                        ],
-                      },
-                    },
-                  };
-                  buttonSent = await sendWhatsAppPayload(
-                    supabase,
-                    conversation.id,
-                    phone,
-                    handoffPayload,
-                    "Para falar diretamente com o Instrutor Marcus: [Falar com Instrutor]",
-                    true,
-                  );
-                } else {
-                  // Se o texto comum falhar, mantém o envio interativo completo como alternativa.
-                  const fallbackPayload = {
-                    type: "interactive",
-                    interactive: {
-                      type: "button",
-                      body: { text: packagesReply },
-                      action: {
-                        buttons: [
-                          {
-                            type: "reply",
-                            reply: {
-                              id: "menu_talk_marcus",
-                              title: "Falar com Instrutor",
-                            },
-                          },
-                        ],
-                      },
-                    },
-                  };
-                  buttonSent = await sendWhatsAppPayload(
-                    supabase,
-                    conversation.id,
-                    phone,
-                    fallbackPayload,
-                    packagesReply,
-                    true,
-                  );
+                  await sendServiceContinuationMenu(supabase, conversation.id, phone);
                 }
+                const buttonSent = textSent;
                 await updateMessageMetadata(supabase, providerId, {
-                  ai_status: textSent && buttonSent ? "static_service_reply_sent" : textSent ? "static_service_reply_text_sent_button_failed" : buttonSent ? "static_service_reply_fallback_sent" : "static_service_reply_failed",
+                  ai_status: textSent && buttonSent ? "static_service_reply_sent" : "static_service_reply_failed",
                   reply_type: "packages_and_values_information",
                   reply_sent: textSent || buttonSent,
-                  handoff_button: "menu_talk_marcus",
+                  continuation_menu: textSent,
                 });
                 continue;
               }
@@ -2224,6 +2225,7 @@ Deno.serve(async (req: Request) => {
                   reply_type: "first_license_documents_and_steps",
                   reply_sent: sent,
                 });
+                if (sent) await sendServiceContinuationMenu(supabase, conversation.id, phone);
                 continue;
               }
 
@@ -2249,6 +2251,7 @@ Deno.serve(async (req: Request) => {
                   reply_type: "free_theory_course_information",
                   reply_sent: sent,
                 });
+                if (sent) await sendServiceContinuationMenu(supabase, conversation.id, phone);
                 continue;
               }
 
@@ -2274,6 +2277,7 @@ Deno.serve(async (req: Request) => {
                   reply_type: "registration_fee_instructions",
                   reply_sent: sent,
                 });
+                if (sent) await sendServiceContinuationMenu(supabase, conversation.id, phone);
                 continue;
               }
 
@@ -2303,6 +2307,7 @@ Deno.serve(async (req: Request) => {
                   reply_type: "medical_exam_information",
                   reply_sent: sent,
                 });
+                if (sent) await sendServiceContinuationMenu(supabase, conversation.id, phone);
                 continue;
               }
 
@@ -2336,6 +2341,7 @@ Deno.serve(async (req: Request) => {
                   reply_type: "theory_exam_fee_instructions",
                   reply_sent: sent,
                 });
+                if (sent) await sendServiceContinuationMenu(supabase, conversation.id, phone);
                 continue;
               }
 
@@ -2370,6 +2376,7 @@ Deno.serve(async (req: Request) => {
                   reply_type: "driving_exam_fee_instructions",
                   reply_sent: sent,
                 });
+                if (sent) await sendServiceContinuationMenu(supabase, conversation.id, phone);
                 continue;
               }
 
