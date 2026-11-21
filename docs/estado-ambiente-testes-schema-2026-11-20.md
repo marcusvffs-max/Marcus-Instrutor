@@ -806,3 +806,15 @@ Substitui comparações de papel por `IS DISTINCT FROM`, que considera NULL dife
 - As cinco funções continuam SECURITY INVOKER, owner postgres, search_path vazio, sem EXECUTE para anon/PUBLIC e com EXECUTE preservado para authenticated/service_role.
 
 **Importante:** a correção foi aplicada somente ao banco de testes e versionada na branch de testes. O mesmo ajuste precisa ser avaliado para as cinco RPCs do projeto original, mas não foi aplicado sem autorização explícita.
+
+
+## Ajuste estático no fluxo de convite de aluno: conta já vinculada
+
+A unicidade de students.user_id garante que uma conta Auth só pode pertencer a um cadastro de aluno. A revisão da Edge Function na branch identificou que o fluxo de convite legado verificava se a conta existente tinha role usuario, mas não consultava se ela já estava vinculada a outro cadastro. Isso poderia enviar um link desnecessário; a conclusão falharia depois no índice UNIQUE e retornaria erro genérico.
+
+A branch de testes foi ajustada em supabase/functions/admin-manage-instructors/index.ts:
+- antes de reservar e enviar link para uma conta Auth existente, consulta students por user_id;
+- se já houver vínculo, retorna HTTP 409 sem reservar o cadastro e sem enviar e-mail;
+- se ocorrer uma corrida entre a pré-consulta e a conclusão, o SQLSTATE 23505 do índice UNIQUE também é convertido em HTTP 409.
+
+A mudança não afrouxa a unicidade nem permite múltiplos vínculos. Ela alinha a resposta da Edge Function à regra já imposta pelo banco. Foi feita revisão estática do arquivo após a edição. Não houve deploy e não foram criadas contas, enviados e-mails ou chamadas rotas HTTP; a validação dinâmica permanece pendente porque o projeto de testes não tem Edge Functions implantadas.
