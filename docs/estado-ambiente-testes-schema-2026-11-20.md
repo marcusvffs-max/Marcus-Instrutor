@@ -265,3 +265,63 @@ Teste negativo:
 - A RPC rejeitou a operação com SQLSTATE `42501`: aluno não encontrado ou não pertence ao instrutor.
 
 As RPCs administrativas de venda/devolução/exclusão foram restauradas e comparadas com o original, mas ainda não foram executadas com um perfil admin autenticado no ambiente de testes.
+
+
+## Atualização: testes adicionais de autorização e revisão da RPC de agenda
+
+Em 21/11/2026, foram executadas novas verificações somente no projeto isolado `voyjssflroiwdyaacthh`. Os testes com alterações temporárias foram executados dentro de transações revertidas.
+
+### Resultado de acesso por papel
+
+| Verificação | Resultado |
+|---|---|
+| `authenticated` executa a RPC pública de agenda com perfil instrutor | Bloqueado com SQLSTATE `42501` (somente perfil Usuário) |
+| `anon` executa a RPC pública de agenda | Bloqueado por falta de EXECUTE (`42501`) |
+| `authenticated` executa a função interna em `private` | EXECUTE negado |
+| Perfil `usuario` consulta diretamente `students` | 0 linhas |
+| Perfil `usuario` consulta diretamente `lessons` | 0 linhas |
+| Perfil `usuario` consulta diretamente `vehicles` | 0 linhas |
+| Perfil `usuario` usa a RPC pública com vínculo próprio por `students.user_id` | 1 aula agendada sintética retornada |
+
+No teste do perfil `usuario`, o perfil de instrutor sintético foi temporariamente convertido para `usuario` e um aluno sintético foi vinculado ao mesmo UUID em `students.user_id`. A RPC retornou a aula do cadastro vinculado; as consultas diretas às três tabelas operacionais retornaram zero linhas. A transação foi revertida integralmente.
+
+### Grants e RLS das 13 tabelas
+
+Nova consulta ao catálogo confirmou:
+
+- RLS habilitado nas 13 tabelas públicas.
+- As 11 tabelas operacionais/administrativas com policies possuem entre 1 e 8 policies cada, totalizando 38.
+- Nenhuma das 13 tabelas concede DML a `PUBLIC` ou `anon`.
+- `whatsapp_conversations` e `whatsapp_messages` não concedem DML a `authenticated`; `service_role` mantém acesso.
+- As outras 11 tabelas concedem DML a `authenticated`, sempre sujeito às policies RLS.
+- `relforcerowsecurity=false` nas tabelas. Isso significa que o owner PostgreSQL continua sujeito à regra padrão de bypass do proprietário; os testes de aplicação foram realizados com `SET ROLE authenticated`, não como owner.
+
+### Revisão específica do wrapper SECURITY DEFINER
+
+Definições e permissões verificadas novamente:
+
+- `public.get_my_scheduled_lessons()`: owner `postgres`, `SECURITY DEFINER`, `search_path=''`; EXECUTE para `authenticated` e `service_role`, sem EXECUTE para `anon`.
+- `private.get_my_scheduled_lessons_internal()`: owner `postgres`, `SECURITY DEFINER`, `search_path=''`; sem EXECUTE para `PUBLIC`, `anon`, `authenticated` ou `service_role`.
+- A função interna valida `auth.uid()`, exige perfil `usuario`, exige vínculo em `students.user_id`, não usa fallback por e-mail e combina os relacionamentos de aulas/veículos com `owner_id`.
+- A única função exposta na API é o wrapper público, cuja chamada encaminha para a função interna protegida. A validação de identidade e papel ocorre na função interna antes de consultar/atualizar os registros vinculados.
+- A função interna também limpa `invited_at` e `invite_attempt_id` somente do cadastro cujo `user_id` corresponde ao usuário autenticado.
+
+**Conclusão da revisão:** o alerta Advisor `authenticated_security_definer_function_executable` permanece porque o wrapper público precisa ser executável pelo cliente autenticado. No desenho atual, a função interna inacessível diretamente aplica as verificações de identidade, papel e vínculo. O alerta deve permanecer documentado e monitorado; não foi removido artificialmente nem alterado o desenho nesta etapa. Uma confirmação adicional via chamada HTTP/PostgREST com JWT real continua pendente.
+
+### Advisors atuais
+
+A consulta aos Security Advisors retornou:
+
+1. INFO `rls_enabled_no_policy`: duas tabelas WhatsApp sem policies — esperado, pois não há grants para `anon/authenticated`.
+2. WARN `authenticated_security_definer_function_executable`: wrapper público de agenda — esperado pelo desenho atual, com as ressalvas acima.
+3. WARN `auth_leaked_password_protection`: proteção contra senhas vazadas desabilitada; não alterada.
+
+### Limitações remanescentes
+
+- A matriz SEC-001 a SEC-070 ainda não foi executada integralmente.
+- Não houve chamadas HTTP com JWT real via PostgREST.
+- As RPCs administrativas ainda não foram testadas com uma identidade admin autenticada.
+- Nenhuma alteração foi feita no projeto original, em produção ou nas configurações de Auth.
+- Nenhuma ação paga foi executada.
+
+**Status:** testes adicionais de autorização por papel e grants concluídos no banco de testes; a revisão estática e SQL do wrapper foi concluída, mas a validação HTTP/JWT real e os casos restantes da matriz continuam pendentes.
