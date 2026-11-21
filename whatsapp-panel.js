@@ -145,14 +145,16 @@
       const { data: sessao, error: erroUsuario } = await supabase.auth.getUser();
       if (erroUsuario || !sessao.user) throw new Error("Sessão administrativa não encontrada.");
 
-      const { error } = await supabase
-        .from("ai_requests")
-        .update({ atendimento_status: novoStatus })
-        .eq("id", id)
-        .eq("owner_id", sessao.user.id)
-        .eq("tipo_solicitacao", "atendimento_humano");
+      const { data, error } = await supabase.functions.invoke("admin-manage-instructors", {
+        body: {
+          action: "update_whatsapp_request_status",
+          request_id: id,
+          status: novoStatus,
+        },
+      });
 
       if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Não foi possível atualizar o status.");
 
       await carregarAtendimentosWhatsapp();
     } catch (erro) {
