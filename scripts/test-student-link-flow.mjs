@@ -503,7 +503,7 @@ test("webhook WhatsApp valida o phone_number_id antes de processar mensagens", (
   assert.match(whatsappWebhook, /Ignoring WhatsApp webhook event for an unconfigured phone number/);
   assert.ok(
     whatsappWebhook.indexOf("eventPhoneNumberId !== expectedPhoneNumberId") <
-    whatsappWebhook.indexOf("for (const message of messages)")
+    whatsappWebhook.indexOf("for (const message of value.messages")
   );
 });
 
