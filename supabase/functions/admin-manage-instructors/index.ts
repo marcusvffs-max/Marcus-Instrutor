@@ -164,6 +164,7 @@ Deno.serve(async (req: Request) => {
       // Concluir ou cancelar o pedido também encerra o atendimento humano ativo.
       // Se o cliente já reativou a assistente com "Olá", não interrompe a nova conversa.
       let conversationPauseUntil: string | null = null;
+      let conversationHumanReopened = false;
       const conversationId = typeof requestToUpdate.resultado?.conversation_id === "string"
         ? requestToUpdate.resultado.conversation_id
         : "";
@@ -186,6 +187,26 @@ Deno.serve(async (req: Request) => {
           .maybeSingle();
         if (closeHumanConversationError) throw closeHumanConversationError;
         if (!closedHumanConversation) conversationPauseUntil = null;
+      } else if (["pendente", "em_atendimento"].includes(nextStatus) && conversationId) {
+        // Reabrir um pedido reabre somente conversas encerradas pelo próprio instrutor.
+        // Pausas feitas pelo cliente ou por mensagem manual no WhatsApp são preservadas.
+        const { data: reopenedHumanConversation, error: reopenHumanConversationError } = await admin
+          .from("whatsapp_conversations")
+          .update({
+            status: "atendimento_humano",
+            ai_paused_until: null,
+            ai_pause_reason: null,
+            quote_state: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", conversationId)
+          .eq("owner_id", authData.user.id)
+          .eq("status", "encerrada")
+          .eq("ai_pause_reason", "instrutor_encerramento")
+          .select("id")
+          .maybeSingle();
+        if (reopenHumanConversationError) throw reopenHumanConversationError;
+        conversationHumanReopened = Boolean(reopenedHumanConversation);
       }
 
       const { error: updateRequestError } = await admin
@@ -196,7 +217,7 @@ Deno.serve(async (req: Request) => {
         .eq("canal", "whatsapp")
         .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"]);
       if (updateRequestError) throw updateRequestError;
-      return response({ ok: true, ai_paused_until: conversationPauseUntil });
+      return response({ ok: true, ai_paused_until: conversationPauseUntil, conversation_human_reopened: conversationHumanReopened });
     }
 
     if (isStudentLinkCompletion) {
