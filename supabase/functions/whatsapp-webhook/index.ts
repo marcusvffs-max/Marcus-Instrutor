@@ -501,7 +501,7 @@ function formatCatalogReply(catalog: CatalogProduct[]): string {
     return "No momento, não há pacotes e valores cadastrados para consulta automática. Para receber essa informação, envie “Olá” e escolha “Falar com Instrutor”. 😊";
   }
   const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  const packages = catalog.filter((item) => item.quantidade_aulas_min !== null);
+  const packages = catalog.filter((item) => item.quantidade_aulas_min !== null).sort((a, b) => (a.quantidade_aulas_min ?? 0) - (b.quantidade_aulas_min ?? 0));
   const mandatory = catalog.filter((item) => item.obrigatorio_conclusao);
   const others = catalog.filter((item) => item.quantidade_aulas_min === null && !item.obrigatorio_conclusao);
   const packageLines = packages.map((item) => {
@@ -526,7 +526,7 @@ function formatCatalogReply(catalog: CatalogProduct[]): string {
   ].filter(Boolean);
   return "Confira os valores cadastrados: 😊\n\n" + sections.join("\n\n") +
     (mandatoryLines.length ? "\n\nAtenção: os itens acima identificados como obrigatórios são necessários para a conclusão do processo de habilitação. Eles são cobrados separadamente dos pacotes de aulas." : "") +
-    "\n\nOs valores dos pacotes são por aula, não pelo pacote completo.";
+    "\n\nOs valores dos pacotes são por aula, não pelo pacote completo.\n\nSe quiser, informe quantas aulas deseja e faço o cálculo para você.";
 }
 
 function appendMandatoryItemsToPackageReply(
@@ -657,7 +657,7 @@ function formatQuantityQuote(catalog: CatalogProduct[], quantity: number): strin
     "Quantidade: " + quantity + " aulas.\n" +
     "Valor total das aulas: " + money(total) + "." + mandatoryText +
     "\n\nO valor do pacote é por aula; os itens obrigatórios são cobrados separadamente." +
-    "\n\nQuer que eu destaque também o aluguel do veículo, o Cartão Moto Pista ou os dois? Os valores dos adicionais serão sempre apresentados separadamente do valor das aulas?";
+    "\n\nQuer que eu destaque também o aluguel do veículo, o Cartão Moto Pista ou os dois? Os valores dos adicionais serão sempre apresentados separadamente do valor das aulas.";
 }
 
 function removeFuturePromises(reply: string, packageQuery: boolean, catalog: CatalogProduct[]): string {
