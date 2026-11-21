@@ -200,6 +200,9 @@ function mostrarPagina(nome) {
   if (pagina) pagina.classList.add("active");
 
   atualizarTela(nome);
+  if (nome === "alunos" && adminAlunosSupabaseAtivo) {
+    atualizarStatusConvitesAlunos(false);
+  }
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -573,6 +576,38 @@ async function salvarAluno(evento) {
   }
 }
 
+
+
+async function atualizarStatusConvitesAlunos(mostrarMensagem = true) {
+  const cliente = window.getMarcusSupabase?.();
+  if (!cliente || !adminSupabaseUserId || !adminAlunosSupabaseAtivo) return;
+  const botao = document.getElementById("btnAtualizarConvites");
+  if (botao) {
+    botao.disabled = true;
+    botao.textContent = "Atualizando...";
+  }
+  try {
+    const { data, error } = await cliente.from("students")
+      .select("id,user_id,invited_at")
+      .eq("owner_id", adminSupabaseUserId);
+    if (error) throw error;
+    const statusPorId = new Map((data || []).map(item => [String(item.id), item]));
+    db.alunos = db.alunos.map(aluno => {
+      const status = statusPorId.get(String(aluno.id));
+      return status ? { ...aluno, user_id: status.user_id || null, invited_at: status.invited_at || null } : aluno;
+    });
+    listarAlunos();
+    if (mostrarMensagem) mostrarAviso("Situação dos convites atualizada.");
+  } catch (erro) {
+    console.error("Erro ao atualizar situação dos convites:", erro);
+    if (mostrarMensagem) mostrarAviso("Não foi possível atualizar os convites. Tente novamente.");
+  } finally {
+    if (botao) {
+      botao.disabled = false;
+      botao.textContent = "Atualizar convites";
+    }
+  }
+}
 
 function listarAlunos() {
   const lista = document.getElementById("listaAlunos");
@@ -3044,6 +3079,10 @@ const botaoNovoAluno = document.getElementById("btnNovoAluno");
 if (botaoNovoAluno) {
   botaoNovoAluno.onclick = () => abrirFormularioAluno();
 }
+const botaoAtualizarConvites = document.getElementById("btnAtualizarConvites");
+if (botaoAtualizarConvites) {
+  botaoAtualizarConvites.onclick = () => atualizarStatusConvitesAlunos(true);
+}
 
 const botaoNovoVeiculo = document.getElementById("btnNovoVeiculo");
 if (botaoNovoVeiculo) {
@@ -3310,7 +3349,9 @@ async function carregarDadosAdminSupabase() {
     categoria: a.categoria || "B",
     situacao: statusAlunoParaTela(a.status),
     contratadas: Number(a.aulas_compradas || 0),
-    saldo: Number(a.aulas_restantes || 0)
+    saldo: Number(a.aulas_restantes || 0),
+    user_id: a.user_id || null,
+    invited_at: a.invited_at || null
   }));
 
   const veiculos = dados.vehicles.map(v => ({
