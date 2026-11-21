@@ -897,6 +897,51 @@ async function processIncomingMessage(
       }
 
       if (confirmation === "no") {
+        // Se o cliente responder NÃO e também mencionar um adicional, trata como
+        // atualização da escolha, não como cancelamento da intenção.
+        const revisedChoice = detectOptionalItemChoice(privacy.text);
+        if (revisedChoice !== "ambiguous") {
+          const previousChoice = String(storedQuoteState?.optional_item_choice ?? "none") as OptionalItemChoice;
+          const previousValid: OptionalItemChoice = ["both", "rental", "card", "none"].includes(previousChoice)
+            ? previousChoice
+            : "none";
+          const selectedRental = revisedChoice === "both" || revisedChoice === "rental" ||
+            (previousValid === "rental" || previousValid === "both");
+          const selectedCard = revisedChoice === "both" || revisedChoice === "card" ||
+            (previousValid === "card" || previousValid === "both");
+          const mergedChoice: OptionalItemChoice = selectedRental && selectedCard
+            ? "both"
+            : selectedRental
+              ? "rental"
+              : selectedCard
+                ? "card"
+                : "none";
+          const revisedQuoteState = {
+            ...storedQuoteState,
+            pending_quote_quantity: pendingQuantity,
+            awaiting_purchase_confirmation: true,
+            awaiting_optional_items: false,
+            optional_item_choice: mergedChoice,
+            created_at: new Date().toISOString(),
+          };
+          const { error: saveRevisedChoiceError } = await supabase
+            .from("whatsapp_conversations")
+            .update({ quote_state: revisedQuoteState, updated_at: new Date().toISOString() })
+            .eq("id", conversationId);
+          if (saveRevisedChoiceError) throw new Error("Revised optional choice save failed: " + saveRevisedChoiceError.message);
+          const revisedReply = formatOptionalItemsReply(catalog, pendingQuantity, mergedChoice) +
+            "\\n\\nAgora deseja que eu registre essa intenção de contratação para análise do Instrutor Marcus? Responda SIM ou NÃO.";
+          const sent = await sendWhatsAppText(supabase, conversationId, phone, revisedReply);
+          await updateMessageMetadata(supabase, providerId, {
+            ai_status: sent ? "package_optional_choice_updated" : "reply_send_failed",
+            reply_sent: sent,
+            reply_type: "package_optional_choice_updated",
+            pending_quote_quantity: pendingQuantity,
+            optional_item_choice: mergedChoice,
+          });
+          return sent ? "package_optional_choice_updated" : "reply_send_failed";
+        }
+
         const { error: clearQuoteError } = await supabase
           .from("whatsapp_conversations")
           .update({ quote_state: null, updated_at: new Date().toISOString() })
