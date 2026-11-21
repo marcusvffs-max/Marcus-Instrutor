@@ -130,3 +130,27 @@ As colunas adicionadas às quatro tabelas preexistentes foram inicialmente criad
 Os 34 policies restaurados reproduzem as regras atuais do banco original para as tabelas operacionais/financeiras, não representam a correção final do problema de vínculo da agenda. O teste de isolamento autenticado entre dois instrutores ainda não foi executado.
 
 **Status atualizado:** schema operacional/financeiro reconstruído parcialmente e versionado; AI/WhatsApp, equivalência integral de constraints e testes autenticados SEC-001 a SEC-070 continuam pendentes.
+
+
+## Atualização: tabelas administrativas de IA
+
+Em 21/11/2026, as tabelas `ai_requests` e `ai_runtime_settings` também foram reconstruídas no projeto isolado, com suas quatro policies administrativas e os grants verificados conforme o banco original:
+
+- `ai_requests`: authenticated tem somente SELECT; atualizações de rotina ficam restritas ao backend com service_role.
+- `ai_runtime_settings`: authenticated tem CRUD, mas as policies permitem leitura/alteração somente ao admin e somente no próprio owner_id.
+- RLS habilitado em ambas.
+- Nenhum dado real foi copiado.
+
+Migration registrada no projeto de testes e versionada:
+`20261121001402_restore_ai_admin_tables.sql`.
+
+### Estado atualizado após a etapa de IA
+
+- 11 tabelas públicas reconstruídas.
+- 11 tabelas com RLS habilitado.
+- 38 policies em 11 tabelas.
+- A contagem de policies e tabelas com RLS agora coincide com o inventário do banco original.
+
+Ainda falta reconstruir `whatsapp_conversations` e `whatsapp_messages`. Elas têm RLS habilitado, mas não possuem policies nem grants para anon/authenticated no banco original. A etapa de WhatsApp será feita separadamente, após revisar índices, constraints, funções/Edge Functions que usam essas tabelas e confirmar que nenhum conteúdo de conversa será copiado.
+
+A equivalência integral das colunas, nulabilidade e constraints das quatro tabelas iniciais também permanece pendente. O número de tabelas/policies coincidir não significa que o schema esteja integralmente equivalente nem que os testes de isolamento estejam aprovados.
