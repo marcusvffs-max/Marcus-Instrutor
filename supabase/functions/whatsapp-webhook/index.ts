@@ -1469,17 +1469,32 @@ async function processIncomingMessage(
     }
 
     if (packageQuery && requestedLessonCount !== null) {
-      const quoteReply = formatQuantityQuote(catalog, requestedLessonCount);
       const matchedPackage = findPackageForQuantity(catalog, requestedLessonCount);
+      // Preserve lesson quantity and any add-on explicitly selected in the same message.
+      const initialOptionalChoice = detectOptionalItemChoice(privacy.text);
+      const hasInitialOptionalChoice = ["both", "rental", "card"].includes(initialOptionalChoice);
+      const quoteReply = hasInitialOptionalChoice
+        ? formatOptionalItemsReply(catalog, requestedLessonCount, initialOptionalChoice) +
+          "\n\nDeseja que eu registre essa intenção de contratação para análise do Instrutor Marcus? Responda SIM ou NÃO."
+        : formatQuantityQuote(catalog, requestedLessonCount);
+
       if (matchedPackage) {
-        const { error: saveQuoteStateError } = await supabase
-          .from("whatsapp_conversations")
-          .update({
-            quote_state: {
+        const nextQuoteState = hasInitialOptionalChoice
+          ? {
+              pending_quote_quantity: requestedLessonCount,
+              awaiting_purchase_confirmation: true,
+              optional_item_choice: initialOptionalChoice,
+              created_at: new Date().toISOString(),
+            }
+          : {
               pending_quote_quantity: requestedLessonCount,
               awaiting_optional_items: true,
               created_at: new Date().toISOString(),
-            },
+            };
+        const { error: saveQuoteStateError } = await supabase
+          .from("whatsapp_conversations")
+          .update({
+            quote_state: nextQuoteState,
             updated_at: new Date().toISOString(),
           })
           .eq("id", conversationId);
@@ -1494,13 +1509,18 @@ async function processIncomingMessage(
         if (clearFailedQuoteStateError) console.error("Failed quote state cleanup failed:", clearFailedQuoteStateError.message);
       }
       await updateMessageMetadata(supabase, providerId, {
-        ai_status: sent ? "catalog_quantity_quote_sent" : "reply_send_failed",
+        ai_status: sent
+          ? (hasInitialOptionalChoice ? "package_quote_with_optional_choice_sent" : "catalog_quantity_quote_sent")
+          : "reply_send_failed",
         reply_sent: sent,
-        reply_type: "catalog_quantity_quote",
+        reply_type: hasInitialOptionalChoice ? "package_quote_with_optional_choice" : "catalog_quantity_quote",
         requested_lesson_count: requestedLessonCount,
-        awaiting_optional_items: Boolean(matchedPackage && sent),
+        optional_item_choice: hasInitialOptionalChoice ? initialOptionalChoice : null,
+        awaiting_optional_items: Boolean(matchedPackage && sent && !hasInitialOptionalChoice),
       });
-      return sent ? "catalog_quantity_quote_sent" : "reply_send_failed";
+      return sent
+        ? (hasInitialOptionalChoice ? "package_quote_with_optional_choice_sent" : "catalog_quantity_quote_sent")
+        : "reply_send_failed";
     }
 
     const analysis = await analyzeWithGemini(privacy.text, selectedService, catalog);
