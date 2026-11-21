@@ -566,9 +566,14 @@ function normalizeChoiceText(value: string): string {
 
 function detectOptionalItemChoice(message: string): OptionalItemChoice {
   const text = normalizeChoiceText(message);
-  if (/\b(nao|nenhum|nenhuma|nao quero nenhum|nao quero nenhum dos dois|nao quero nenhum deles|nenhum dos dois|nenhuma das duas|sem os dois|somente o pacote|so o pacote|apenas as aulas)\b/.test(text)) return "none";
-  if (/\b(os dois|ambos|ambas|as duas|aluguel e (o )?cartao|cartao e (o )?aluguel)\b/.test(text) ||
-      (text.includes("aluguel") && text.includes("cartao"))) return "both";
+  // Detecta primeiro a escolha positiva dos dois itens, inclusive respostas como
+  // "não, quero os dois", sem deixar o "não" isolado cancelar a escolha.
+  const asksBoth =
+    /\b(os dois|os dois adicionais|os dois itens|quero os dois|quero ambos|ambos|ambas|as duas|quero as duas|aluguel e (o )?cartao|cartao e (o )?aluguel)\b/.test(text) ||
+    (text.includes("aluguel") && (text.includes("cartao") || text.includes("moto pista")));
+  if (asksBoth) return "both";
+
+  if (/\b(nao quero nenhum|nao quero nenhum dos dois|nao quero nenhum deles|nenhum|nenhuma|nenhum dos dois|nenhuma das duas|sem os dois|somente o pacote|so o pacote|apenas as aulas)\b/.test(text)) return "none";
   if (/\b(cartao|moto pista|pista)\b/.test(text)) return "card";
   if (/\b(aluguel|veiculo|carro)\b/.test(text)) return "rental";
   return "ambiguous";
@@ -616,14 +621,17 @@ function formatOptionalItemsReply(
     if (card) selected.push(card);
   }
   const mandatory = catalog.filter((item) => item.obrigatorio_conclusao);
-  const mandatoryLines = mandatory.map((item) => {
+  const notSelected = mandatory.filter((item) => !selected.some((chosen) => chosen.nome === item.nome));
+  const itemLine = (item: CatalogProduct) => {
     const billing = item.forma_cobranca === "por_exame"
       ? " — cobrança única por exame"
       : item.forma_cobranca === "por_periodo_30_dias"
         ? " — válido por 30 dias"
         : "";
     return "• " + item.nome + ": " + money(item.preco) + billing;
-  });
+  };
+  const selectedTotal = selected.reduce((sum, item) => sum + item.preco, 0);
+  const grandTotal = lessonTotal + selectedTotal;
   const selectedNames = selected.length
     ? selected.map((item) => item.nome).join(" e ")
     : "somente o pacote de aulas";
@@ -633,10 +641,17 @@ function formatOptionalItemsReply(
   return choiceText + "\n\n" +
     "• " + packageItem.nome + " — " + quantity + " aulas: " + money(lessonTotal) +
     " (" + money(packageItem.preco) + " por aula)." +
-    (mandatoryLines.length
-      ? "\n\nADICIONAIS OBRIGATÓRIOS, COBRADOS SEPARADAMENTE:\n" + mandatoryLines.join("\n")
+    (selected.length
+      ? "\n\nADICIONAIS ESCOLHIDOS (somados ao total):\n" + selected.map(itemLine).join("\n")
       : "") +
-    "\n\nO valor total informado para as aulas não inclui os adicionais. Eles são cobrados separadamente, conforme a forma indicada.";
+    (notSelected.length
+      ? "\n\nOUTROS ITENS OBRIGATÓRIOS (ainda não incluídos no total):\n" + notSelected.map(itemLine).join("\n")
+      : "") +
+    "\n\nTotal dos adicionais escolhidos: " + money(selectedTotal) + "." +
+    "\nTOTAL GERAL (aulas + adicionais escolhidos): " + money(grandTotal) + "." +
+    (notSelected.length
+      ? "\nOs itens obrigatórios não escolhidos ainda não estão incluídos nesse total."
+      : "\nTodos os itens obrigatórios cadastrados foram considerados nesse total.");
 }
 
 function formatQuantityQuote(catalog: CatalogProduct[], quantity: number): string {
@@ -933,6 +948,7 @@ async function processIncomingMessage(
           forma_cobranca: item.forma_cobranca,
         })),
         valor_total_adicionais_selecionados: extrasTotal,
+        valor_total_com_adicionais: lessonSubtotal + extrasTotal,
         adicionais_obrigatorios_nao_selecionados: mandatoryNotSelected.map((item) => ({
           nome: item.nome,
           valor: item.preco,
@@ -992,7 +1008,8 @@ async function processIncomingMessage(
         phone,
         "Pronto! 😊 Registrei sua intenção de contratação do " + packageItem.nome +
           " para " + pendingQuantity + " aulas, com valor total das aulas de " + money(lessonSubtotal) +
-          ". Os adicionais foram registrados separadamente. O pedido foi encaminhado para análise do Instrutor Marcus. Nenhuma contratação ou pagamento será realizado sem a aprovação dele.",
+          ", incluindo os adicionais escolhidos, totalizando " + money(lessonSubtotal + extrasTotal) +
+          ". Os adicionais foram discriminados separadamente. O pedido foi encaminhado para análise do Instrutor Marcus. Nenhuma contratação ou pagamento será realizado sem a aprovação dele.",
       );
       await updateMessageMetadata(supabase, providerId, {
         ai_status: sent ? "package_purchase_intent_registered" : "reply_send_failed",
