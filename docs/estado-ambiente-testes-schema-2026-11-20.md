@@ -372,3 +372,43 @@ Também foram tentadas alterações do `owner_id` dos registros próprios do ins
 Todas as tentativas foram executadas em transações revertidas. Nenhum registro foi excluído, transferido ou persistido.
 
 **Limitação:** os testes de escrita cruzada cobrem as tabelas e fixtures existentes nesta rodada; não substituem tentativas de INSERT com todos os formatos de payload, chamadas HTTP com JWT real ou a execução integral da matriz SEC-001 a SEC-070.
+
+
+## Achado crítico: alteração direta dos campos de vínculo de aluno
+
+Durante os testes de INSERT, foi identificada uma falha que não era coberta pelas policies RLS existentes: um instrutor autenticado podia atualizar `students.user_id`, `students.invited_at` e `students.invite_attempt_id` diretamente no cadastro que já pertencia a ele. A policy validava `owner_id`, mas não impedia a alteração dos campos internos do fluxo de convite.
+
+O impacto foi confirmado em transação revertida: ao mudar temporariamente o perfil de uma segunda identidade sintética para `usuario` e atribuir essa identidade ao cadastro de aluno do primeiro instrutor, a segunda identidade conseguiu consultar pela RPC pública a aula agendada daquele cadastro, incluindo nome do aluno e dados do veículo. Isso confirmou um caminho de quebra do isolamento de agenda por adulteração do vínculo. Nenhuma alteração foi persistida.
+
+### Correção preparada e aplicada somente no ambiente de testes
+
+Foi criada a migration:
+
+`supabase/migrations/20261121133000_guard_student_account_link_fields.sql`
+
+Ela adiciona a função `private.guard_student_account_link_fields()` e um trigger BEFORE INSERT / UPDATE em `public.students`, protegendo os campos:
+
+- `user_id`
+- `invited_at`
+- `invite_attempt_id`
+
+A função é SECURITY INVOKER, tem `search_path=''` e permite alterações nesses campos somente quando `current_user` é `postgres` ou `service_role`. Assim, o fluxo de convite pela Edge Function (service_role), os triggers de Auth e a RPC SECURITY DEFINER que limpa os campos de reserva continuam funcionando; clientes authenticated não podem forjar ou alterar o vínculo diretamente.
+
+A migration foi aplicada exclusivamente ao projeto de testes `voyjssflroiwdyaacthh`. Não foi aplicada ao Supabase original.
+
+### Testes de regressão após a correção
+
+| Teste | Resultado |
+|---|---|
+| Instrutor altera `students.user_id` diretamente | Bloqueado (`42501`) |
+| Instrutor altera `students.invited_at` diretamente | Bloqueado (`42501`) |
+| Instrutor altera `students.invite_attempt_id` diretamente | Bloqueado (`42501`) |
+| Instrutor insere aluno com `user_id` forjado | Bloqueado (`42501`) |
+| Instrutor atualiza campo normal do próprio aluno (`nome`) | Permitido |
+| Operação de vínculo via `service_role` | Permitida |
+| RPC legítima de agenda limpa os campos de reserva | Permitida; retornou a aula vinculada e deixou os três campos de reserva nulos |
+| Tentativa de adulteração seguida de acesso à agenda por outra conta | Adulteração bloqueada (`42501`); RPC da outra conta retornou `CONTA_SEM_VINCULO` (`P0002`) |
+
+Todos os testes foram feitos com identidades e dados sintéticos no banco de testes, em transações revertidas. Não foram criadas contas Auth nem enviados convites. O fluxo real de e-mail/convite não foi executado.
+
+**Status:** o caminho de adulteração do vínculo foi reproduzido, diagnosticado e bloqueado no ambiente isolado. A migration está versionada na branch de testes e aplicada somente no projeto de testes. Antes de qualquer aplicação no banco original, ainda são necessários testes HTTP com JWT real, revisão independente da migration e autorização explícita do usuário. Produção e o banco original permanecem inalterados.
