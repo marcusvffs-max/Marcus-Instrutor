@@ -1605,7 +1605,7 @@ Deno.serve(async (req: Request) => {
                 const drivingFeeReply =
                   "Para realizar o exame prático de direção veicular em Minas Gerais, siga estas orientações do Detran-MG. 😊\n\n" +
                   "QUANDO EMITIR A TAXA:\n" +
-                  "Depois de concluir as etapas anteriores e cumprir as aulas práticas exigidas. Para obter a CNH, o Portal MG informa o mínimo de 2 horas/aula. Para obter a ACC, não há carga horária mínima. O cumprimento das aulas exigidas para a CNH precisa estar lançado no Renach para liberar o agendamento.\n\n" +
+                  "Depois de concluir as etapas anteriores e cumprir as aulas práticas exigidas. Para obter a CNH, são necessárias no mínimo 2 horas/aula em cada categoria pretendida; na categoria AB, são 2 horas para A e 2 horas para B. Para obter a ACC, não há carga horária mínima. As aulas exigidas para a CNH precisam estar registradas no Renach para liberar o agendamento.\n\n" +
                   "COMO EMITIR E PAGAR:\n" +
                   "1. Acesse o formulário oficial para emitir o Documento de Arrecadação Estadual (DAE): https://detran.mg.gov.br/habilitacao/taxas-1/emitir-taxa-de-servico-de-habilitacao/preencher-dados-da-habilitacao/19\n" +
                   "2. Preencha os dados diretamente no site oficial e gere o DAE.\n" +
@@ -1616,7 +1616,7 @@ Deno.serve(async (req: Request) => {
                   "• Para habilitação nas categorias A e B (AB), são necessárias duas taxas: uma para a prova da categoria A e outra para a categoria B.\n\n" +
                   "COMO AGENDAR A PROVA:\n" +
                   "Após a confirmação do pagamento, o exame pode ser agendado pelo CFC, pelo próprio candidato ou pelo instrutor autônomo. Se você for fazer o agendamento diretamente, acesse a página oficial: https://detran.mg.gov.br/habilitacao/1-habilitacao-quero-ser-condutor/agendar-prova-de-direcao-cidadao-ou-instrutor-autonomo\n" +
-                  "O sistema apresenta as datas, horários e locais disponíveis para escolha. Para a categoria A, a prova é realizada em motopista.\n\n" +
+                  "O sistema apresenta as datas, horários e locais disponíveis para escolha. Para a categoria A, a prova é realizada em motopista. Para a ACC, o exame pode ser feito em veículo próprio com no máximo 5 anos de uso e é realizado na Clínica Médica do Detran-MG, em Belo Horizonte.\n\n" +
                   "Se você pretende realizar o exame utilizando o veículo do instrutor, consulte-o antes de escolher a data. O instrutor precisa estar ciente e confirmar que tem disponibilidade para acompanhar a prova.\n\n" +
                   "Atenção: faça a emissão da taxa e o agendamento somente pelos canais oficiais do Governo de Minas. Não envie CPF, documentos ou dados pessoais por esta conversa. 😊\n\n" +
                   "Fonte oficial: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc";
