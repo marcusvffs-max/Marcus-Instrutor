@@ -3,10 +3,13 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer@^9";
 import { getCompletionFallbackOutcome, getReservationStatus } from "../_shared/student-link-rules.mjs";
 
-const APP_ORIGIN = "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app";
-const APP_URL = APP_ORIGIN + "/";
+const APP_ORIGIN = "https://marcusinstrutor.vercel.app";
+const ALLOWED_ORIGINS = new Set([
+  APP_ORIGIN,
+  "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app",
+]);
 const corsHeaders = {
-  "Access-Control-Allow-Origin": APP_ORIGIN,
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Vary": "Origin",
@@ -32,7 +35,10 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return response({ error: "Método não permitido." }, 405);
 
   const origin = req.headers.get("origin");
-  if (origin !== APP_ORIGIN) return new Response("Origem não autorizada.", { status: 403 });
+  if (origin && !ALLOWED_ORIGINS.has(origin)) {
+    return new Response("Origem não autorizada.", { status: 403, headers: corsHeaders });
+  }
+  const requestAppUrl = (origin && ALLOWED_ORIGINS.has(origin) ? origin : APP_ORIGIN) + "/";
 
   try {
     const authorization = req.headers.get("Authorization") ?? "";
@@ -503,7 +509,7 @@ Deno.serve(async (req: Request) => {
       const { data: recoveryData, error: recoveryError } = await admin.auth.admin.generateLink({
         type: "recovery",
         email: targetEmail,
-        options: { redirectTo: APP_URL },
+        options: { redirectTo: requestAppUrl },
       });
       if (recoveryError || !recoveryData.properties?.action_link) {
         console.error("Falha ao gerar link de acesso:", recoveryError?.message ?? "link ausente");
@@ -708,8 +714,8 @@ Deno.serve(async (req: Request) => {
             }
           : {}),
         redirectTo: studentLegacyLinkUserId && studentInviteAttemptId
-          ? `${APP_ORIGIN}/claim-student.html?attempt_id=${encodeURIComponent(studentInviteAttemptId)}`
-          : APP_URL,
+          ? `${requestAppUrl}claim-student.html?attempt_id=${encodeURIComponent(studentInviteAttemptId)}`
+          : requestAppUrl,
       },
     });
     if (linkError) {
