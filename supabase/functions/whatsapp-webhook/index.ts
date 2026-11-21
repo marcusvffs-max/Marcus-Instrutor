@@ -648,6 +648,23 @@ function formatStandaloneAdditionalReply(
     "\n\nDeseja que eu registre essa intenção de contratação para análise do Instrutor Marcus? Responda SIM ou NÃO.";
 }
 
+function isFocusedCardInfoQuery(message: string): boolean {
+  const text = normalizeChoiceText(message);
+  const mentionsCard = /\\b(cartao|moto pista|pista)\\b/.test(text);
+  const mentionsOtherService = /\\b(aluguel|veiculo|carro|aulas?|pacotes?|bronze|prata|ouro)\\b/.test(text);
+  const rejectsCard = /\\b(nao quero|nao preciso|nao desejo|nao vou querer|sem)\\s+(?:o\\s+)?(?:cartao|moto pista|pista)\\b/.test(text);
+  return mentionsCard && !mentionsOtherService && !rejectsCard;
+}
+
+function formatFocusedCardInfoReply(catalog: CatalogProduct[]): string {
+  const card = catalog.find((item) => normalizeChoiceText(item.nome).includes("cartao moto pista"));
+  if (!card) {
+    return "Não localizei o Cartão Moto Pista no catálogo ativo do Instrutor Marcus. Para confirmar, envie “Olá” e escolha “Falar com Instrutor”. 😊";
+  }
+  const money = card.preco.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return "O Cartão Moto Pista (30 dias) custa " + money + ". Ele é válido por 30 dias e é necessário para utilizar a motopista. 😊";
+}
+
 function findPackageForQuantity(catalog: CatalogProduct[], quantity: number): CatalogProduct | undefined {
   return catalog.find((item) =>
     item.quantidade_aulas_min !== null &&
@@ -936,6 +953,21 @@ async function processIncomingMessage(
     const requestedLessonCount = extractRequestedLessonCount(privacy.text);
     const packageQuery = isPackageInfoQuery(privacy.text, selectedService) || requestedLessonCount !== null;
     const catalog = await getActiveServiceCatalog(supabase);
+
+    // A opção do menu "Pacotes e valores" pode permanecer selecionada no histórico.
+    // Uma pergunta focada apenas no Cartão Moto Pista deve prevalecer sobre esse contexto,
+    // sem reapresentar o catálogo completo. Não interrompe uma cotação já em andamento.
+    if (!hasPendingQuote && requestedLessonCount === null && isFocusedCardInfoQuery(privacy.text)) {
+      const focusedReply = formatFocusedCardInfoReply(catalog);
+      const sent = await sendWhatsAppText(supabase, conversationId, phone, focusedReply);
+      await updateMessageMetadata(supabase, providerId, {
+        ai_status: sent ? "focused_card_info_reply_sent" : "reply_send_failed",
+        reply_sent: sent,
+        reply_type: "focused_card_info",
+        selected_service: selectedService || null,
+      });
+      return sent ? "focused_card_info_reply_sent" : "reply_send_failed";
+    }
 
     const standaloneChoice = detectStandaloneAdditionalPurchase(privacy.text);
     const explicitlyRejectsLessons = /\b(nao quero (?:comprar )?(?:as )?aulas|nao vou comprar (?:as )?aulas|sem (?:as )?aulas|nao quero (?:o )?pacote)\b/.test(normalizeChoiceText(privacy.text));
