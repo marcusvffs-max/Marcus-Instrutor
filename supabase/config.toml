@@ -1,0 +1,5 @@
+# Supabase local/deployment configuration.
+# Meta WhatsApp webhooks authenticate requests with X-Hub-Signature-256
+# inside the handler, not with a Supabase user JWT.
+[functions.whatsapp-webhook]
+verify_jwt = false
