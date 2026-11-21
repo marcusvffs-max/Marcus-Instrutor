@@ -179,7 +179,7 @@ Foram adicionados os índices ausentes em `lessons` e `vehicles`, a constraint d
 
 Migration: `20261121001551_restore_core_triggers_and_constraints.sql`.
 
-O projeto de testes possui ainda dois triggers/funções adicionais de vínculo de aluno, oriundos da migration nova de vínculo por `user_id`; esses objetos não existem no banco original atual e são intencionais para testar a correção planejada.
+O projeto de testes possui ainda três triggers/funções adicionais ligados ao vínculo e à proteção dos campos internos do aluno: `link_student_account_from_invite`, `clear_student_account_link_on_user_delete` e `guard_student_account_link_fields`; esses objetos não existem no banco original atual e são intencionais para testar a correção planejada.
 
 ### RPCs financeiras
 
@@ -205,7 +205,7 @@ O catálogo dos dois projetos confirma:
 - 31 índices;
 - 62 constraints de produção e 63 no teste. A constraint adicional é a FK de `students.user_id`, introduzida pela migration de vínculo por conta do aluno;
 - as três colunas adicionais em `students` (`user_id`, `invited_at`, `invite_attempt_id`) também são intencionais para testar a nova vinculação;
-- 14 funções no teste contra 12 no original e 7 triggers no teste contra 5 no original, pelas duas funções e dois triggers extras de vínculo de aluno.
+- 15 funções no teste contra 12 no original e 8 triggers no teste contra 5 no original, pelas três funções e três triggers adicionais de vínculo/proteção do aluno.
 
 ### Testes RLS simulados executados
 
@@ -630,3 +630,30 @@ O papel inicial `instrutor` não libera acesso automaticamente: `private.current
 No fluxo de convite de aluno da branch, a Edge Function atribui explicitamente o papel `usuario` via service_role depois da criação da conta e antes de concluir o envio; o titular precisa confirmar o e-mail para concluir o vínculo legado. Esse fluxo ainda não foi executado por HTTP e não está implantado na versão 7 de produção.
 
 **Resultado da revisão estática:** não foi encontrado caminho de autoatribuição de `admin` por metadados de signup na função de criação de perfil. A criação real de contas e o fluxo HTTP permanecem fora dos testes por decisão de não criar usuários nem disparar e-mails.
+
+
+### Recontagem final de funções, triggers e grants
+
+Uma nova consulta direta ao catálogo, após todas as migrations de endurecimento, corrigiu a contagem registrada anteriormente:
+
+| Objeto | Projeto original | Projeto de testes |
+|---|---:|---:|
+| Tabelas públicas | 13 | 13 |
+| Funções de aplicação em public/private | 12 | 15 |
+| Triggers não internos em public/auth | 5 | 8 |
+
+As três funções e os três triggers adicionais do ambiente de testes são:
+- `private.link_student_account_from_invite()` / trigger de vínculo após criação Auth;
+- `private.clear_student_account_link_on_user_delete()` / trigger de limpeza antes da exclusão Auth;
+- `private.guard_student_account_link_fields()` / trigger de proteção dos campos de vínculo em `students`.
+
+Nova verificação efetiva de privilégios no projeto de testes:
+- 13 tabelas públicas;
+- 0 tabelas com qualquer privilégio de SELECT/INSERT/UPDATE/DELETE/TRUNCATE para anon;
+- 0 tabelas com TRUNCATE, REFERENCES ou TRIGGER para authenticated;
+- 15 funções public/private;
+- 0 funções executáveis por anon;
+- 0 funções de private executáveis por authenticated fora da allowlist `current_app_role()`;
+- 0 funções com EXECUTE herdado de PUBLIC.
+
+A contagem anterior de 14 funções e 7 triggers estava subestimada porque não contabilizava separadamente a função/trigger de proteção dos campos `user_id`, `invited_at` e `invite_attempt_id`. Esta seção passa a ser a contagem de referência.
