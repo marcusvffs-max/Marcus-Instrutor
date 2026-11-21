@@ -325,3 +325,24 @@ A consulta aos Security Advisors retornou:
 - Nenhuma ação paga foi executada.
 
 **Status:** testes adicionais de autorização por papel e grants concluídos no banco de testes; a revisão estática e SQL do wrapper foi concluída, mas a validação HTTP/JWT real e os casos restantes da matriz continuam pendentes.
+
+
+### Ampliação da verificação de leitura cruzada entre instrutores
+
+Foram repetidas consultas sob `SET ROLE authenticated` para os dois instrutores sintéticos, alternando a identidade do JWT simulado e sempre revertendo a transação. Em cada direção, o instrutor consultou registros com o `owner_id` do outro instrutor (e o perfil alheio por `profiles.id`).
+
+| Tabela | Instrutor A consultando B | Instrutor B consultando A |
+|---|---:|---:|
+| profiles | 0 | 0 |
+| students | 0 | 0 |
+| vehicles | 0 | 0 |
+| lessons | 0 | 0 |
+| app_settings | 0 | 0 |
+| products | 0 | 0 |
+| sales | 0 | 0 |
+| sale_items | 0 | 0 |
+| financial_transactions | 0 | 0 |
+| ai_requests | 0 | 0 |
+| ai_runtime_settings | 0 | 0 |
+
+**Resultado:** nenhuma linha do outro proprietário foi visível nas 11 tabelas consultadas em qualquer direção. Essa verificação cobre leitura sob o papel PostgreSQL `authenticated` com claims simuladas; não substitui chamadas HTTP com JWT real, testes de INSERT/UPDATE/DELETE em todas as tabelas, nem a matriz SEC-001 a SEC-070 completa.
