@@ -146,13 +146,32 @@ Deno.serve(async (req: Request) => {
       }
 
       const now = new Date();
-      const pauseUntil = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
+      const { data: currentConversation, error: currentConversationError } = await admin
+        .from("whatsapp_conversations")
+        .select("ai_paused_until,ai_pause_reason")
+        .eq("id", conversationId)
+        .eq("owner_id", authData.user.id)
+        .maybeSingle();
+      if (currentConversationError) throw currentConversationError;
+      if (!currentConversation) return response({ error: "Conversa não encontrada para esta conta." }, 404);
+      const currentPauseMs = currentConversation.ai_paused_until
+        ? new Date(currentConversation.ai_paused_until).getTime()
+        : 0;
+      const preserveTakeoverPause =
+        currentConversation.ai_pause_reason === "instrutor_assumiu_atendimento" &&
+        currentPauseMs > now.getTime();
+      const pauseUntil = preserveTakeoverPause
+        ? currentConversation.ai_paused_until
+        : new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
+      const pauseReason = preserveTakeoverPause
+        ? "instrutor_assumiu_atendimento"
+        : "instrutor_encerramento";
       const { data: closedConversation, error: closeError } = await admin
         .from("whatsapp_conversations")
         .update({
           status: "encerrada",
           ai_paused_until: pauseUntil,
-          ai_pause_reason: "instrutor_encerramento",
+          ai_pause_reason: pauseReason,
           quote_state: null,
           updated_at: now.toISOString(),
         })
@@ -199,39 +218,38 @@ Deno.serve(async (req: Request) => {
       if (requestLookupError) throw requestLookupError;
       if (!requestToUpdate) return response({ error: "Atendimento não encontrado." }, 404);
 
-      // Concluir ou cancelar o pedido também encerra o atendimento humano ativo.
-      // Se o cliente já reativou a assistente com "Olá", não interrompe a nova conversa.
+      // A pausa de 48 horas começa quando Marcus assume o pedido (em_atendimento).
+      // Concluir/cancelar o pedido não reinicia o prazo; "Olá" continua sendo uma reativação imediata.
       let conversationPauseUntil: string | null = null;
       let conversationHumanReopened = false;
       const conversationId = typeof requestToUpdate.resultado?.conversation_id === "string"
         ? requestToUpdate.resultado.conversation_id
         : "";
-      if (["concluido", "cancelado"].includes(nextStatus) && conversationId) {
+
+      if (nextStatus === "em_atendimento" && conversationId) {
         const now = new Date();
         conversationPauseUntil = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
-        const { data: closedHumanConversation, error: closeHumanConversationError } = await admin
+        const { data: assumedConversation, error: assumeError } = await admin
           .from("whatsapp_conversations")
           .update({
-            status: "encerrada",
+            status: "atendimento_humano",
             ai_paused_until: conversationPauseUntil,
-            ai_pause_reason: "instrutor_encerramento",
+            ai_pause_reason: "instrutor_assumiu_atendimento",
             quote_state: null,
             updated_at: now.toISOString(),
           })
           .eq("id", conversationId)
           .eq("owner_id", authData.user.id)
-          .eq("status", "atendimento_humano")
           .select("id")
           .maybeSingle();
-        if (closeHumanConversationError) throw closeHumanConversationError;
-        if (!closedHumanConversation) conversationPauseUntil = null;
-      } else if (["pendente", "em_atendimento"].includes(nextStatus) && conversationId) {
-        // Reabrir um pedido reabre somente conversas encerradas pelo próprio instrutor.
-        // Pausas feitas pelo cliente ou por mensagem manual no WhatsApp são preservadas.
-        const { data: reopenedHumanConversation, error: reopenHumanConversationError } = await admin
+        if (assumeError) throw assumeError;
+        if (!assumedConversation) conversationPauseUntil = null;
+      } else if (nextStatus === "pendente" && conversationId) {
+        // Se Marcus devolver o pedido para pendente, libera a assistente novamente.
+        const { data: reopenedConversation, error: reopenError } = await admin
           .from("whatsapp_conversations")
           .update({
-            status: "atendimento_humano",
+            status: "aguardando_escolha",
             ai_paused_until: null,
             ai_pause_reason: null,
             quote_state: null,
@@ -239,12 +257,12 @@ Deno.serve(async (req: Request) => {
           })
           .eq("id", conversationId)
           .eq("owner_id", authData.user.id)
-          .eq("status", "encerrada")
-          .eq("ai_pause_reason", "instrutor_encerramento")
+          .eq("status", "atendimento_humano")
+          .eq("ai_pause_reason", "instrutor_assumiu_atendimento")
           .select("id")
           .maybeSingle();
-        if (reopenHumanConversationError) throw reopenHumanConversationError;
-        conversationHumanReopened = Boolean(reopenedHumanConversation);
+        if (reopenError) throw reopenError;
+        conversationHumanReopened = Boolean(reopenedConversation);
       }
 
       const { error: updateRequestError } = await admin
