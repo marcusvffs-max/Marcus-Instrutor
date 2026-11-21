@@ -1,8 +1,8 @@
 # Matriz de testes de autorização e isolamento RLS
 
 Projeto: Marcus Instrutor  
-Branch de referência: `feature/relatorios-instrutor-app`  
-Status: plano de testes; não executado contra banco.
+Branch de referência: `feature/acessos-alunos-instrutor`  
+Status: matriz parcialmente executada em projeto Supabase isolado; os casos não listados como aprovados permanecem pendentes.
 
 ## Objetivo
 
@@ -137,3 +137,64 @@ Os novos casos estão pendentes de execução em ambiente isolado. A existência
 - [ ] **SEC-070:** após a primeira consulta autenticada, a limpeza de `invited_at` e `invite_attempt_id` não remove nem troca `students.user_id`.
 
 Esses casos são novos critérios de validação. Permanecem pendentes de execução com contas fictícias em ambiente isolado.
+
+
+## Evidência de execução parcial — 21/11/2026
+
+Ambiente: projeto Supabase isolado de testes `voyjssflroiwdyaacthh`, PostgreSQL 17.12. Nenhuma consulta ou gravação foi executada no projeto original. Foram usados dois perfis fictícios de instrutor com autorização ativa e seus registros sintéticos. Os testes usaram `SET LOCAL ROLE authenticated` e claims JWT simuladas com `request.jwt.claim.sub`/`request.jwt.claims`; **não são testes HTTP/PostgREST com JWT real**.
+
+### Isolamento de leitura por owner — aprovado no escopo testado
+
+Foram comparadas as contagens diretas por owner com as contagens visíveis sob RLS para cada identidade, nas seis tabelas:
+
+- `students`: Instrutor A viu 2/2 registros; Instrutor B viu 1/1.
+- `vehicles`: Instrutor A viu 2/2; Instrutor B viu 1/1.
+- `lessons`: Instrutor A viu 2/2; Instrutor B viu 1/1.
+- `sales`, `sale_items` e `financial_transactions`: ambas as contas viram zero, conforme fixtures disponíveis.
+- Para as seis tabelas, cada identidade viu zero linhas pertencentes ao outro owner.
+
+Resultado: **12 verificações de leitura aprovadas** (seis tabelas × duas identidades). A ausência de registros financeiros significa que ainda não houve validação positiva com dados de venda, itens e transações.
+
+### Tentativas de escrita cruzada — aprovadas no escopo testado
+
+Em transação com rollback, para cada instrutor:
+
+- UPDATE de aluno de outro owner: 0 linhas afetadas.
+- DELETE de aluno de outro owner: 0 linhas afetadas.
+- UPDATE de veículo de outro owner: 0 linhas afetadas.
+- DELETE de aula de outro owner: 0 linhas afetadas.
+- INSERT de aluno com owner_id do outro instrutor: bloqueado com SQLSTATE `42501`.
+- INSERT de veículo com owner_id do outro instrutor: bloqueado com SQLSTATE `42501`.
+- INSERT de aula com owner próprio, mas aluno e veículo de outro owner: bloqueado com SQLSTATE `42501`.
+
+Resultado: **14 verificações DML aprovadas** (sete casos × duas identidades). Todas as transações foram revertidas; nenhuma alteração de fixture permaneceu.
+
+### Instrutor com autorização vencida — aprovado no escopo testado
+
+Foi expirado temporariamente um perfil fictício dentro de transação e consultadas as seis tabelas operacionais/financeiras sob `authenticated`. O perfil não visualizou nenhuma linha em `students`, `vehicles`, `lessons`, `sales`, `sale_items` ou `financial_transactions`.
+
+Resultado: **seis verificações aprovadas**. A alteração temporária de validade foi revertida.
+
+### RPCs que exigem instrutor ativo — aprovado no escopo testado
+
+As RPCs `remove_student_app_access(uuid)` e `delete_my_sale(uuid)` foram testadas em transações com claims simuladas:
+
+- Instrutor expirado: ambas rejeitaram a chamada com `42501`.
+- Instrutor ativo: ambas passaram pela checagem de papel/validade e chegaram à checagem de existência/escopo do registro inexistente (`P0002`).
+
+Nenhum aluno, acesso, venda ou lançamento foi removido. As transações foram revertidas.
+
+### Limitações explícitas
+
+Não marcar como concluídos os casos SEC-001 a SEC-070 em bloco. Permanecem pendentes, entre outros:
+
+- autenticação real via HTTP/PostgREST com JWT emitido pelo Auth;
+- aluno autenticado e RPC de agenda com vínculo `students.user_id`;
+- Admin e Edge Functions com JWT real;
+- dados sintéticos de vendas, itens, produtos e transações para testes positivos e negativos completos;
+- tentativa de escrita cruzada em vendas/itens/transações e validação de exclusão/estorno;
+- confirmação administrativa da lista de schemas expostos pela Data API;
+- privilégios de `TRUNCATE`, `REFERENCES`, `TRIGGER`, memberships e chamadas diretas a funções internas;
+- cenários completos de vínculo/convite, concorrência e integridade financeira.
+
+Esta evidência comprova somente os testes SQL transacionais descritos acima, com claims simuladas no projeto isolado. Não representa homologação funcional, teste HTTP real ou autorização para merge/deploy.
