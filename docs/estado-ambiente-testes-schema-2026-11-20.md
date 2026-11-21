@@ -1194,3 +1194,29 @@ Na branch `feature/acessos-alunos-instrutor`:
 - revisar warnings intencionais de RPCs SECURITY DEFINER públicas, sem remover os guards necessários.
 
 Não houve deploy, merge, operação paga, envio de convite ou alteração no Supabase original.
+
+
+## Atualização: correção de venda e testes financeiros — 21/11/2026
+
+Foi identificada uma inconsistência na RPC `create_instructor_sale`: o saldo de aulas aumentava, mas os campos de aulas e valores do item da venda não eram preenchidos. Isso fazia com que a exclusão da venda não devolvesse as aulas ao saldo e impedia a base correta para devolução administrativa.
+
+Migration criada e aplicada somente no projeto isolado `voyjssflroiwdyaacthh`:
+
+`20261121270000_fix_instructor_sale_item_lesson_tracking.sql`
+
+A função agora grava `tipo_item`, `aulas_contratadas`, `aulas_devolvidas`, `valor_por_aula`, `valor_devolvido` e `valor_liquido`, e valida preço/limites do produto. O cálculo de aulas contratadas segue as regras já usadas pela RPC administrativa de vendas.
+
+### Evidências transacionais posteriores à correção
+
+- Venda própria adiciona cinco aulas e persiste cinco aulas contratadas no item.
+- Exclusão de venda não utilizada devolve o saldo a zero e remove venda/lançamento.
+- Repetição da chamada com o mesmo ID não duplica itens nem saldo.
+- Venda não pode ser excluída depois que uma aula vinculada foi realizada.
+- Devolução de duas aulas em venda de R$ 80,00 gerou R$ 32,00 de saída e reduziu saldo de cinco para três.
+- Devolução de uma unidade de produto de R$ 30,00 gerou R$ 30,00 de saída.
+- Excesso de devolução de aulas ou produtos foi bloqueado sem alteração persistente.
+- UPDATE/DELETE de vendas, itens e transações de outra conta afetaram zero linhas; INSERTs cruzados foram bloqueados por RLS.
+
+Foram registradas 35 verificações aprovadas após a correção, todas em transações revertidas com claims simuladas. A lista detalhada e as limitações estão em `docs/TESTE-RLS-ISOLAMENTO-INSTRUTORES.md`.
+
+A migration eleva o conjunto para 21 migrations implantáveis. O projeto original continua intocado. Não houve teste HTTP com JWT real, validação de UI, merge ou deploy.
