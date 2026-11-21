@@ -743,3 +743,31 @@ Foi tentado, em transação revertida, vincular a mesma identidade sintética a 
 - 0 alunos com user_id preenchido;
 - nenhuma venda, item ou transação financeira de teste persistida;
 - nenhuma alteração de owner_id persistida.
+
+
+## Achado de configuração: permissões padrão de novas tabelas e sequences
+
+A mesma revisão de defaults identificou permissões amplas para novos objetos criados por postgres no schema public:
+
+- No projeto de testes, novas tabelas recebiam SELECT/INSERT/UPDATE/DELETE e outros privilégios para anon, authenticated e service_role.
+- Novas sequences também recebiam privilégios para os três papéis.
+- No projeto original, o catálogo mostra grants padrão de authenticated e service_role para novas tabelas/sequences; anon não aparece na ACL específica de tabelas, mas authenticated continua recebendo privilégios amplos por padrão.
+- Nenhuma tabela atual está exposta por isso: as 13 tabelas existentes têm RLS habilitado e nenhuma concede SELECT/INSERT/UPDATE/DELETE a anon.
+
+### Correção aplicada somente no projeto de testes
+
+Migration:
+`20261121152000_harden_default_table_privileges.sql`
+
+Revoga privilégios padrão de anon, authenticated e service_role para novas tabelas e sequences no schema public, criadas por postgres. Novos objetos começam privados e precisam receber GRANT explícito, além de RLS e policies, quando necessário.
+
+### Prova antes/depois
+
+- Antes: uma tabela temporária com coluna IDENTITY foi criada dentro de uma transação; anon, authenticated e service_role tinham SELECT/INSERT, e todos tinham USAGE na sequence. A transação foi revertida.
+- A regra proposta foi testada dentro de outra transação; os três papéis não receberam SELECT na tabela nem USAGE na sequence. A transação foi revertida.
+- A migration foi aplicada ao projeto de testes.
+- Depois: a mesma prova temporária confirmou zero privilégios para anon, authenticated e service_role em novas tabelas e sequences.
+- As 13 tabelas existentes mantiveram RLS habilitado; nenhuma concede SELECT/INSERT/UPDATE/DELETE a anon.
+- Os três Security Advisor findings permaneceram iguais; nenhum alerta novo foi introduzido.
+
+A configuração original não foi modificada. O risco identificado no original é preventivo para futuras tabelas: migrations devem habilitar RLS e definir grants/policies explicitamente; a correção segura por default foi validada somente no projeto de testes.
