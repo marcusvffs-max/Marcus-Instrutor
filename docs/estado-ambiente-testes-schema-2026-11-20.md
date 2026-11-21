@@ -1050,3 +1050,9 @@ Foram confirmados:
 
 Também foram atualizados os parâmetros de versão dos scripts administrativos em `index.html` para que o navegador solicite as versões novas de `script.js` e `whatsapp-panel.js`, evitando reutilização de uma URL antiga após a futura publicação da branch.
 Os testes estáticos de isolamento do cache foram acrescentados a `scripts/test-student-link-flow.mjs`; não foram executados em navegador ou runtime Node nesta sessão.
+
+
+### Compatibilidade com a Edge Function atualmente implantada
+
+A comparação read-only confirmou que a função `admin-manage-instructors` atualmente implantada no Supabase original ainda não contém a ação `update_whatsapp_request_status` nem a verificação de conta já vinculada adicionadas na branch. Portanto, o novo painel e a Edge Function da branch precisam ser publicados juntos em um futuro deploy autorizado; não se deve publicar apenas o frontend.
+Nenhuma publicação foi feita nesta rodada.
