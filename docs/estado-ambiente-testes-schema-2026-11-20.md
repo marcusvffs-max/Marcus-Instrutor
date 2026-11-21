@@ -1081,3 +1081,61 @@ Os testes estáticos de isolamento do cache foram acrescentados a `scripts/test-
 
 A comparação read-only confirmou que a função `admin-manage-instructors` atualmente implantada no Supabase original ainda não contém a ação `update_whatsapp_request_status` nem a verificação de conta já vinculada adicionadas na branch. Portanto, o novo painel e a Edge Function da branch precisam ser publicados juntos em um futuro deploy autorizado; não se deve publicar apenas o frontend.
 Nenhuma publicação foi feita nesta rodada.
+
+
+## Atualização de validação das migrations mais recentes — 21/11/2026
+
+Esta rodada foi executada exclusivamente no projeto isolado `voyjssflroiwdyaacthh` (PostgreSQL 17.12). O projeto original `ydyqagqsuqntuibzgwzd` não foi consultado nem alterado nesta etapa.
+
+### Migrations aplicadas no projeto isolado
+
+Foram aplicadas, em sequência, as migrations versionadas na branch:
+
+- `20261121170000_add_contractor_identity_to_app_settings.sql` — operação idempotente; as colunas já existiam no schema de teste.
+- `20261121190000_remove_student_app_access.sql`.
+- `20261121210000_add_fk_indexes_and_rls_initplan.sql`.
+- `20261121220000_instructor_profile_and_sale_management.sql`.
+- `20261121230000_harden_instructor_sale_delete_role_check.sql`.
+- `20261121231000_move_instructor_name_lookup_to_private_helper.sql`.
+
+Todas retornaram sucesso. A migration de identificação do contratante foi registrada novamente no histórico de teste porque a estrutura já estava presente, mas não havia registro correspondente com o nome/versão da branch. Nenhuma dessas migrations foi aplicada ao projeto original.
+
+### Verificações SQL transacionais
+
+Com identidades sintéticas e transações revertidas:
+
+- Instrutor autenticado tentou remover acesso de um UUID de aluno sem vínculo: a RPC rejeitou com `P0002`.
+- Instrutor autenticado tentou excluir uma venda inexistente: a função passou pela verificação de papel e rejeitou a busca fora do próprio `owner_id`.
+- Instrutor tentou consultar o nome do instrutor pela RPC de aluno: rejeitado por papel incompatível.
+- Instrutor tentou consultar a agenda pela RPC de aluno: rejeitado por papel incompatível.
+- Em teste positivo, uma identidade sintética foi temporariamente colocada como `usuario` e vinculada a um cadastro sintético; `get_my_instructor_name()` retornou o nome do instrutor responsável. A transação foi revertida.
+
+Resultado: **4 verificações de bloqueio por papel/escopo e 1 verificação positiva do nome do instrutor passaram** no PostgreSQL isolado. Não houve exclusão persistente de conta, venda, aluno ou histórico.
+
+### ACLs e Advisors após as migrations
+
+Consulta de catálogo confirmou:
+
+- `remove_student_app_access`: SECURITY DEFINER, owner `postgres`, `search_path` vazio; sem EXECUTE para `anon`, com EXECUTE para `authenticated`, conforme o fluxo da tela de Acessos.
+- `delete_my_sale` e `get_my_instructor_name`: SECURITY INVOKER, owner `postgres`, `search_path` vazio; EXECUTE apenas para `authenticated`.
+- `private.get_my_instructor_name_internal`: SECURITY DEFINER, owner `postgres`, `search_path` vazio; EXECUTE para `authenticated`, necessário ao wrapper público. A exposição do schema `private` pela Data API ainda deve ser confirmada nas configurações do projeto.
+- Os dez índices previstos na migration `20261121210000` foram encontrados no catálogo.
+
+Security Advisors no ambiente isolado:
+- INFO: `whatsapp_conversations` e `whatsapp_messages` com RLS sem policies; desenho backend-only, sem grants para clientes.
+- WARN: `get_my_scheduled_lessons()` e `remove_student_app_access()` são RPCs públicas SECURITY DEFINER executáveis por authenticated. Ambas validam identidade/papel/escopo internamente; manter como itens de revisão e considerar wrappers SECURITY INVOKER com helpers privados em uma etapa posterior.
+- WARN: proteção contra senhas vazadas desabilitada; não alterada.
+
+Performance Advisors:
+- Restou 1 FK sem índice de cobertura: `students_owner_id_fkey`.
+- Os índices recém-criados aparecem como não utilizados porque o banco de teste tem pouco volume e não representa carga real; não remover com base apenas nesse Advisor.
+- Permanecem alertas de múltiplas policies permissivas em tabelas com políticas distintas para admin e instrutor; revisar otimização sem enfraquecer o isolamento.
+
+### Limites desta rodada
+
+- As verificações foram SQL dentro do banco de teste, com claims simuladas e rollback; não são chamadas HTTP/PostgREST com JWT real.
+- Não houve teste de exclusão real de conta Auth vinculada, envio de convite/e-mail ou teste concorrente.
+- Não foram executados os scripts Node completos nem os testes Deno.
+- O Preview da Vercel continua associado ao commit `fb3ae47c165c03774e5c62acc8149b03e44b1ee1` e READY; isso confirma build/publicação, não validação funcional autenticada.
+- A PR #5 continua draft, baseada em `feature/relatorios-instrutor-app`. Essa branch permanece divergente de `main` (567 commits à frente e 4 atrás, na comparação consultada); não fazer merge direto sem plano de consolidação.
+- Nenhuma ação foi executada em produção, no Supabase original, na branch `main` ou em deploy de produção. Nenhuma ação paga foi realizada.
