@@ -84,6 +84,32 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    if (body.action === "update_whatsapp_request_status") {
+      if (profile.role !== "admin") {
+        return response({ error: "Somente administradores podem atualizar o status dos atendimentos." }, 403);
+      }
+      const requestId = typeof body.request_id === "string" ? body.request_id.trim() : "";
+      const nextStatus = typeof body.status === "string" ? body.status.trim() : "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
+        return response({ error: "Atendimento inválido." }, 400);
+      }
+      if (!["pendente", "em_atendimento", "concluido", "cancelado"].includes(nextStatus)) {
+        return response({ error: "Status de atendimento inválido." }, 400);
+      }
+      const { data: updatedRequest, error: updateRequestError } = await admin
+        .from("ai_requests")
+        .update({ atendimento_status: nextStatus })
+        .eq("id", requestId)
+        .eq("owner_id", authData.user.id)
+        .eq("canal", "whatsapp")
+        .eq("tipo_solicitacao", "atendimento_humano")
+        .select("id")
+        .maybeSingle();
+      if (updateRequestError) throw updateRequestError;
+      if (!updatedRequest) return response({ error: "Atendimento não encontrado." }, 404);
+      return response({ ok: true });
+    }
+
     if (isStudentLinkCompletion) {
       const attemptId = typeof body.attempt_id === "string" ? body.attempt_id.trim() : "";
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(attemptId)) {
