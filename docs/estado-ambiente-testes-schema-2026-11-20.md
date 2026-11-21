@@ -1217,6 +1217,12 @@ A função agora grava `tipo_item`, `aulas_contratadas`, `aulas_devolvidas`, `va
 - Excesso de devolução de aulas ou produtos foi bloqueado sem alteração persistente.
 - UPDATE/DELETE de vendas, itens e transações de outra conta afetaram zero linhas; INSERTs cruzados foram bloqueados por RLS.
 
-Foram registradas 35 verificações aprovadas após a correção, todas em transações revertidas com claims simuladas. A lista detalhada e as limitações estão em `docs/TESTE-RLS-ISOLAMENTO-INSTRUTORES.md`.
+Foram registradas 39 verificações aprovadas após a correção, todas em transações revertidas com claims simuladas. A lista detalhada e as limitações estão em `docs/TESTE-RLS-ISOLAMENTO-INSTRUTORES.md`.
 
 A migration eleva o conjunto para 21 migrations implantáveis. O projeto original continua intocado. Não houve teste HTTP com JWT real, validação de UI, merge ou deploy.
+
+
+Complemento da validação financeira:
+- pacote com faixa mínima/máxima e serviço de múltiplas aulas: 12 aulas adicionadas e persistidas corretamente;
+- quantidade abaixo do mínimo do pacote: bloqueada;
+- chamada de `delete_my_sale` para venda de outro owner: bloqueada com `P0002`.
