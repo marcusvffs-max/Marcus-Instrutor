@@ -40,6 +40,9 @@ alter table public.vehicles
 alter table public.sales
   add constraint sales_id_owner_key unique (id, owner_id);
 
+alter table public.products
+  add constraint products_id_owner_key unique (id, owner_id);
+
 -- Aula deve apontar para aluno e veículo do mesmo instrutor.
 alter table public.lessons
   add constraint lessons_student_owner_fkey
@@ -58,12 +61,18 @@ alter table public.sales
   references public.students (id, owner_id)
   on delete set null (student_id);
 
--- Item deve pertencer ao mesmo owner da venda.
+-- Item deve pertencer ao mesmo owner da venda e do produto.
 alter table public.sale_items
   add constraint sale_items_sale_owner_fkey
   foreign key (sale_id, owner_id)
   references public.sales (id, owner_id)
   on delete cascade;
+
+alter table public.sale_items
+  add constraint sale_items_product_owner_fkey
+  foreign key (product_id, owner_id)
+  references public.products (id, owner_id)
+  on delete set null (product_id);
 
 -- Movimentações preservam owner_id quando aluno ou venda forem removidos.
 alter table public.financial_transactions
@@ -85,7 +94,7 @@ alter table public.financial_transactions
 - A exclusão de uma venda continuará apagando seus itens (`sale_items`) como hoje.
 - Ao excluir aluno, vendas e movimentações preservam seus registros e owner, mas ficam sem student_id, como hoje.
 - Ao excluir venda, movimentações preservam o histórico e owner, mas ficam sem sale_id, como hoje.
-- Produto é exceção intencional: `sale_items.product_id` pode apontar ao catálogo central administrado por Marcus. Não criar FK composta exigindo o mesmo owner nessa relação.
+- `sale_items.product_id` também deve pertencer ao mesmo owner do item vendido. As policies de `sale_items` exigem `products.owner_id = auth.uid()`, e `create_instructor_sale`/`admin_create_sale` só selecionam produtos do próprio owner. O catálogo consultado pelo webhook WhatsApp é uma leitura separada de produtos do admin; ele não é uma referência direta de `sale_items`.
 - `app_settings.owner_id` já referencia `auth.users(id)`; manter comportamento atual.
 - `products.owner_id` não participa da regra de ownership de `sale_items`.
 
@@ -111,7 +120,7 @@ As policies não substituem FKs compostas: policy SELECT limita leitura, mas nã
 6. Tentar criar item de venda de A apontando para venda B; deve falhar.
 7. Tentar criar movimentação de A ligada a aluno/venda B; deve falhar.
 8. Confirmar exclusões preservando as semânticas listadas.
-9. Confirmar que item de venda de A pode referenciar produto do catálogo central de Marcus.
+9. Confirmar que item de venda de A não pode referenciar produto de B; o catálogo usado pelo webhook WhatsApp é uma leitura separada e não é gravado diretamente em sale_items.
 10. Verificar consultas e planos de execução para avaliar índices e impacto.
 
 Não criar projeto/branch Supabase pago para teste. Nenhum usuário de teste, dado, constraint, índice ou trigger foi criado.
@@ -132,10 +141,11 @@ A migration deve criar as FKs compostas e, na mesma transação, remover as FKs 
 - `lessons_vehicle_id_fkey`
 - `sales_student_id_fkey`
 - `sale_items_sale_id_fkey`
+- `sale_items_product_id_fkey`
 - `financial_transactions_student_id_fkey`
 - `financial_transactions_sale_id_fkey`
 
-Isso evita manter duas FKs para a mesma relação e disparar ações referenciais redundantes. As FKs de owner_id para Auth e `sale_items.product_id -> products.id` permanecem.
+Isso evita manter duas FKs para a mesma relação e disparar ações referenciais redundantes. As FKs de owner_id para Auth e `app_settings.owner_id -> auth.users(id)` permanecem.
 
 A documentação PostgreSQL 17 confirma que `ON DELETE SET NULL (coluna)` pode limitar a ação a uma coluna específica; `MATCH SIMPLE` permite que uma FK composta opcional seja ignorada quando um componente é NULL. Fonte: https://www.postgresql.org/docs/17/ddl-constraints.html
 
@@ -156,7 +166,7 @@ Os quatro casos novos verificam:
 - FKs compostas entre aulas/alunos/veículos, vendas/alunos, itens/vendas e movimentações;
 - `ON DELETE SET NULL` limitado à coluna opcional e `ON DELETE CASCADE` dos itens;
 - remoção das seis FKs simples antigas na mesma transação;
-- exceção intencional de `sale_items.product_id` para o catálogo central e preservação da FK de `app_settings.owner_id`.
+- validação de owner em `sale_items.product_id` e preservação da FK de `app_settings.owner_id`.
 
 **Limite do resultado:** trata-se de verificação estática de texto/código em harness JavaScript. Não foi executado `node --test`, PostgreSQL, Deno nem teste contra o Supabase. Não comprova que o DDL será aceito ou que as constraints estejam ativas no banco.
 
