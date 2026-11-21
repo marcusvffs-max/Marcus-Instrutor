@@ -1139,3 +1139,12 @@ Performance Advisors:
 - O Preview da Vercel continua associado ao commit `fb3ae47c165c03774e5c62acc8149b03e44b1ee1` e READY; isso confirma build/publicação, não validação funcional autenticada.
 - A PR #5 continua draft, baseada em `feature/relatorios-instrutor-app`. Essa branch permanece divergente de `main` (567 commits à frente e 4 atrás, na comparação consultada); não fazer merge direto sem plano de consolidação.
 - Nenhuma ação foi executada em produção, no Supabase original, na branch `main` ou em deploy de produção. Nenhuma ação paga foi realizada.
+
+
+## Separação de fixtures e migrations implantáveis — 21/11/2026
+
+As sete migrations de reconstrução do banco isolado foram movidas integralmente para `test-fixtures/supabase-migrations/`, fora de `supabase/migrations/`. Os arquivos originais foram preservados, e o teste estático `scripts/test-student-link-flow.mjs` foi atualizado para ler a fixture do novo caminho. A pasta contém um README com a proibição explícita de usar essas fixtures em produção.
+
+Objetivo: impedir que `supabase db push` trate scripts de reconstrução do ambiente descartável como migrations implantáveis. As migrations reais de evolução do produto permanecem em `supabase/migrations/`.
+
+A separação é uma proteção de organização do repositório, não uma autorização para executar `db push`. Antes de qualquer implantação, ainda será necessário revisar a cadeia completa de migrations contra o histórico real do projeto de destino e validar o diff em ambiente isolado.
