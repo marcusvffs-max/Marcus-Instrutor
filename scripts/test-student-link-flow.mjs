@@ -221,6 +221,9 @@ test("FKs compostas exigem que aluno e veículo pertençam ao mesmo instrutor", 
     "references public.vehicles (id, owner_id)",
     "foreign key (sale_id, owner_id)",
     "references public.sales (id, owner_id)",
+    "unique (id, owner_id)",
+    "foreign key (product_id, owner_id)",
+    "references public.products (id, owner_id)",
   ]) assert.ok(securityDraft.toLowerCase().includes(expected), `FK composta ausente: ${expected}`);
 });
 
@@ -232,15 +235,20 @@ test("ações de exclusão preservam owner_id e mantêm o cascade dos itens", ()
   assert.match(securityDraft, /drop constraint lessons_vehicle_id_fkey/i);
   assert.match(securityDraft, /drop constraint sales_student_id_fkey/i);
   assert.match(securityDraft, /drop constraint sale_items_sale_id_fkey/i);
+  assert.match(securityDraft, /drop constraint sale_items_product_id_fkey/i);
+  assert.match(securityDraft, /foreign key \(student_id, owner_id\)[\s\S]{0,160}on delete no action/i);
+  assert.match(securityDraft, /foreign key \(vehicle_id, owner_id\)[\s\S]{0,160}on delete no action/i);
   assert.match(securityDraft, /drop constraint financial_transactions_student_id_fkey/i);
   assert.match(securityDraft, /drop constraint financial_transactions_sale_id_fkey/i);
 });
 
-test("exceção do catálogo central e FK de app_settings permanecem documentadas", () => {
-  assert.match(fkReview, /sale_items\.product_id.*catálogo central/i);
+test("produto de venda exige o mesmo owner e catálogo WhatsApp permanece separado", () => {
+  assert.match(fkReview, /sale_items\.product_id.*mesmo owner/i);
+  assert.match(fkReview, /catálogo consultado pelo webhook WhatsApp.*leitura separada/i);
   assert.match(fkReview, /app_settings_owner_id_fkey.*auth\.users/i);
-  assert.match(integrityDraft, /sale_items\.product_id.*catálogo central/i);
-  assert.doesNotMatch(securityDraft, /foreign key \(product_id, owner_id\)/i);
+  assert.match(integrityDraft, /sale_items\.product_id.*mesmo owner/i);
+  assert.match(securityDraft, /foreign key \(product_id, owner_id\)/i);
+  assert.match(securityDraft, /drop constraint sale_items_product_id_fkey/i);
 });
 
 test("revisão das FKs registra versão PostgreSQL e semânticas originais", () => {
@@ -250,6 +258,7 @@ test("revisão das FKs registra versão PostgreSQL e semânticas originais", () 
     /lessons\.vehicle_id -> vehicles\.id.*NO ACTION/,
     /sales\.student_id -> students\.id.*ON DELETE SET NULL/,
     /sale_items\.sale_id -> sales\.id.*ON DELETE CASCADE/,
+    /sale_items\.product_id -> products\.id.*ON DELETE SET NULL/,
     /financial_transactions\.student_id -> students\.id.*ON DELETE SET NULL/,
     /financial_transactions\.sale_id -> sales\.id.*ON DELETE SET NULL/,
   ]) assert.match(fkReview, expected);
