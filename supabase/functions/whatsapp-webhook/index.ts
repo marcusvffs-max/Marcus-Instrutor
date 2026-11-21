@@ -1486,7 +1486,6 @@ Deno.serve(async (req: Request) => {
                   reply_type: "first_license_documents_and_steps",
                   reply_sent: sent,
                 });
-                if (sent) await sendReturnToMainMenu(supabase, conversation.id, phone);
                 continue;
               }
 
@@ -1512,7 +1511,6 @@ Deno.serve(async (req: Request) => {
                   reply_type: "free_theory_course_information",
                   reply_sent: sent,
                 });
-                if (sent) await sendReturnToMainMenu(supabase, conversation.id, phone);
                 continue;
               }
 
@@ -1538,7 +1536,6 @@ Deno.serve(async (req: Request) => {
                   reply_type: "registration_fee_instructions",
                   reply_sent: sent,
                 });
-                if (sent) await sendReturnToMainMenu(supabase, conversation.id, phone);
                 continue;
               }
 
@@ -1568,7 +1565,6 @@ Deno.serve(async (req: Request) => {
                   reply_type: "medical_exam_information",
                   reply_sent: sent,
                 });
-                if (sent) await sendReturnToMainMenu(supabase, conversation.id, phone);
                 continue;
               }
 
@@ -1602,7 +1598,6 @@ Deno.serve(async (req: Request) => {
                   reply_type: "theory_exam_fee_instructions",
                   reply_sent: sent,
                 });
-                if (sent) await sendReturnToMainMenu(supabase, conversation.id, phone);
                 continue;
               }
 
@@ -1637,7 +1632,6 @@ Deno.serve(async (req: Request) => {
                   reply_type: "driving_exam_fee_instructions",
                   reply_sent: sent,
                 });
-                if (sent) await sendReturnToMainMenu(supabase, conversation.id, phone);
                 continue;
               }
 
@@ -1648,8 +1642,8 @@ Deno.serve(async (req: Request) => {
                   insertedMessage.id,
                   providerId,
                   phone,
+                  content,
                   selectedService,
-                   selectedService,
                 );
               } else {
                 await sendWhatsAppText(
