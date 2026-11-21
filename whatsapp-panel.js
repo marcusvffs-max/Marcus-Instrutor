@@ -214,7 +214,7 @@
     const enviada = mensagem.direcao === "saida";
     const tipo = String(mensagem.tipo_mensagem || "mensagem");
     const conteudo = typeof mensagem.conteudo === "string" && mensagem.conteudo.trim()
-      ? escaparHtml(mensagem.conteudo).replace(/\\n/g, "<br>")
+      ? escaparHtml(mensagem.conteudo).split(String.fromCharCode(10)).join("<br>")
       : escaparHtml({
         image: "Imagem recebida/enviada (prévia não disponível)",
         video: "Vídeo recebido/enviado (prévia não disponível)",
