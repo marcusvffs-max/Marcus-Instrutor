@@ -426,7 +426,7 @@ using (
 -- As FKs simples existentes confirmam apenas que o ID existe. As FKs
 -- compostas abaixo exigem igualdade de owner_id entre pai e filho.
 -- PostgreSQL 17 suporta SET NULL (coluna), preservando owner_id.
--- Produto e sale_items.product_id ficam fora desta regra: catalogo central.
+-- Produtos tambem precisam pertencer ao mesmo owner do item vendido. O catalogo lido pelo webhook WhatsApp e uma consulta separada ao owner admin; nao e referencia direta de sale_items.
 -- ---------------------------------------------------------------------------
 
 alter table public.students
@@ -437,6 +437,9 @@ alter table public.vehicles
 
 alter table public.sales
   add constraint sales_id_owner_key unique (id, owner_id);
+
+alter table public.products
+  add constraint products_id_owner_key unique (id, owner_id);
 
 alter table public.lessons
   add constraint lessons_student_owner_fkey
@@ -460,6 +463,12 @@ alter table public.sale_items
   references public.sales (id, owner_id)
   on delete cascade;
 
+alter table public.sale_items
+  add constraint sale_items_product_owner_fkey
+  foreign key (product_id, owner_id)
+  references public.products (id, owner_id)
+  on delete set null (product_id);
+
 alter table public.financial_transactions
   add constraint financial_student_owner_fkey
   foreign key (student_id, owner_id)
@@ -482,7 +491,8 @@ alter table public.sales
   drop constraint sales_student_id_fkey;
 
 alter table public.sale_items
-  drop constraint sale_items_sale_id_fkey;
+  drop constraint sale_items_sale_id_fkey,
+  drop constraint sale_items_product_id_fkey;
 
 alter table public.financial_transactions
   drop constraint financial_transactions_student_id_fkey,
