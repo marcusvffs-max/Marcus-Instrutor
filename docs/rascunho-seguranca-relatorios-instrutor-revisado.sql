@@ -1,4 +1,6 @@
 -- RASCUNHO REVISADO DE SEGURANCA E RLS
+-- ATENCAO: a secao de policies deste arquivo e historica e nao reflete integralmente
+-- o acesso atual de instrutores a produtos. Nao executar sem nova revisao.
 -- Projeto Marcus Instrutor
 -- Branch: feature/relatorios-instrutor-app
 --
@@ -417,8 +419,8 @@ using (
   )
 );
 
--- Produtos e app_settings permanecem exclusivos do admin neste primeiro
--- desenho. Os itens vendidos ja guardam descricao/valor em sale_items.
+-- app_settings permanece exclusivo do admin. Produtos sao owner-scoped no banco ativo;
+-- este rascunho de policies ainda precisa ser reconciliado antes de qualquer uso.
 
 
 -- ---------------------------------------------------------------------------
@@ -437,9 +439,6 @@ alter table public.vehicles
 
 alter table public.sales
   add constraint sales_id_owner_key unique (id, owner_id);
-
-alter table public.products
-  add constraint products_id_owner_key unique (id, owner_id);
 
 alter table public.products
   add constraint products_id_owner_key unique (id, owner_id);
@@ -467,12 +466,6 @@ alter table public.sale_items
   foreign key (sale_id, owner_id)
   references public.sales (id, owner_id)
   on delete cascade;
-
-alter table public.sale_items
-  add constraint sale_items_product_owner_fkey
-  foreign key (product_id, owner_id)
-  references public.products (id, owner_id)
-  on delete set null (product_id);
 
 alter table public.sale_items
   add constraint sale_items_product_owner_fkey
@@ -536,7 +529,7 @@ commit;
 --   - admin le e administra dados de A e B;
 --   - joins de aulas, vendas, itens e transacoes nao retornam relacoes
 --     pertencentes a outro owner_id;
---   - app_settings e products seguem exclusivos do admin;
+--   - app_settings segue exclusivo do admin; products deve ser owner-scoped e requer revisão das policies;
 --   - politicas de whatsapp/ai_requests nao sao tocadas por este script.
 --
 -- IMPORTANTE: grants de tabela e coluna foram restringidos para PUBLIC, anon
