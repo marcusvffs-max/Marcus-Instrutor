@@ -2164,9 +2164,6 @@ Deno.serve(async (req: Request) => {
                   reply_sent: textSent || buttonSent,
                   handoff_button: "menu_talk_marcus",
                 });
-                if (!sent) {
-                  await sendWhatsAppText(supabase, conversation.id, phone, packagesReply, true);
-                }
                 continue;
               }
 
