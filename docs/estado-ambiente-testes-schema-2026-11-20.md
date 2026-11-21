@@ -1046,3 +1046,7 @@ Foram confirmados:
 - os dados antigos não são apagados.
 
 **Limite:** não foi executado teste de navegador com duas sessões reais. A correção está apenas na branch de testes e não foi implantada. Dados antigos sem proprietário identificado permanecem preservados e não foram migrados automaticamente.
+
+
+Também foram atualizados os parâmetros de versão dos scripts administrativos em `index.html` para que o navegador solicite as versões novas de `script.js` e `whatsapp-panel.js`, evitando reutilização de uma URL antiga após a futura publicação da branch.
+Os testes estáticos de isolamento do cache foram acrescentados a `scripts/test-student-link-flow.mjs`; não foram executados em navegador ou runtime Node nesta sessão.
