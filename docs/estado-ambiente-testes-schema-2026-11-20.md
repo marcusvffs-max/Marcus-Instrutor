@@ -876,6 +876,8 @@ Migrations:
 - `20261121160000_enforce_same_owner_foreign_keys.sql`
 - `20261121162000_align_composite_fk_delete_actions.sql`
 
+A migration `20261121160000` foi revisada na branch antes de qualquer publicação para preservar NO ACTION nas duas FKs de lessons e remover as sete FKs simples após validar as compostas. Como a versão inicial já havia sido aplicada ao projeto de testes, a migration `20261121162000` corrige o estado remoto de testes: recria as duas FKs de lessons com NO ACTION e remove as FKs simples redundantes. Em uma reconstrução nova, ambas as migrations continuam compatíveis e o resultado final é o mesmo.
+
 Adicionam chaves únicas compostas (id, owner_id) em students, vehicles, sales e products, e sete FKs compostas:
 - lessons(student_id, owner_id) → students(id, owner_id), ON DELETE NO ACTION;
 - lessons(vehicle_id, owner_id) → vehicles(id, owner_id), ON DELETE NO ACTION;
