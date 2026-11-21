@@ -257,3 +257,58 @@ Para as nove tabelas públicas operacionais e de configuração examinadas (`pro
 - nenhuma membership de `anon` ou `authenticated` para papéis privilegiados na consulta de `pg_auth_members`.
 
 Resultado: **36 verificações de privilégios aprovadas** (quatro verificações × nove tabelas), além da inspeção de memberships. Isso é evidência de catálogo do projeto isolado, não um teste HTTP.
+
+
+## Auditoria financeira: venda, devolução e exclusão — 21/11/2026
+
+Ambiente: projeto isolado `voyjssflroiwdyaacthh`, PostgreSQL 17.12. Todos os cenários usaram IDs e dados sintéticos em transações com `ROLLBACK`. A identidade de instrutor foi temporariamente promovida a admin somente dentro de transações de teste para alcançar as RPCs administrativas; a alteração de papel foi revertida. Claims foram simuladas com `request.jwt.claims`; não são testes HTTP/PostgREST com JWT real.
+
+### Defeito encontrado e corrigido
+
+O primeiro teste funcional da RPC `create_instructor_sale` mostrou que ela aumentava o saldo do aluno, mas gravava os campos `tipo_item`, `aulas_contratadas`, `valor_por_aula` e `valor_liquido` com valores default. Como `delete_my_sale` e `admin_refund_sale_lessons` dependem desses campos, a exclusão não retirava as aulas do saldo (o aluno mantinha cinco aulas após apagar a venda).
+
+Foi criada a migration:
+
+`20261121270000_fix_instructor_sale_item_lesson_tracking.sql`
+
+Ela foi aplicada somente no projeto isolado. A RPC agora classifica o item como serviço/produto, valida preço e limites de quantidade, calcula aulas contratadas e grava os valores necessários para estorno e exclusão. Também mantém o owner scope, `FOR SHARE` no produto, `search_path TO ''`, e ACL restrita a `authenticated` e `service_role`.
+
+### Venda e exclusão — aprovado após correção
+
+- Venda de serviço próprio: saldo do aluno aumentou em cinco aulas.
+- Item da venda: `aulas_contratadas=5`.
+- Vendas, itens e transações do outro owner: zero linhas visíveis.
+- Tentativa de vender para aluno de outro instrutor: bloqueada com `42501`.
+- Tentativa de usar produto de outro instrutor: bloqueada com `42501`.
+- Exclusão da venda não utilizada: saldo retornou a zero; venda e lançamento financeiro foram removidos.
+- Repetição da mesma chamada com o mesmo `p_sale_id`: não duplicou item nem saldo.
+- Após registrar uma aula como realizada, exclusão da venda foi recusada com `P0001`; venda permaneceu e saldo utilizado foi preservado.
+
+### Devoluções administrativas — aprovado
+
+Com uma venda sintética de cinco aulas a R$ 80,00 e outra venda de duas unidades de produto a R$ 30,00 cada:
+
+- Devolução de duas aulas: `aulas_devolvidas=2`, saldo passou de cinco para três e gerou saída financeira de R$ 32,00.
+- Devolução de uma unidade de produto: `quantidade_devolvida=1`, saída financeira de R$ 30,00.
+- Total de saídas registradas pelas duas devoluções: R$ 62,00.
+- Exclusão posterior da venda parcialmente devolvida: saldo retornou a zero e os lançamentos ligados à venda foram removidos.
+- Tentativa de devolver quatro aulas quando só restavam três: bloqueada, sem alterar saldo ou transações.
+- Tentativa de devolver duas unidades quando só restava uma: bloqueada, sem alterar saldo ou transações.
+
+### Escrita cruzada em vendas e finanças — aprovado
+
+Para as tabelas `sales`, `sale_items` e `financial_transactions`, sob instrutor A:
+
+- UPDATE e DELETE de registros pertencentes ao instrutor B: zero linhas afetadas em cada tabela (6 verificações).
+- INSERT de venda associada a aluno do instrutor B: bloqueado por RLS (`42501`).
+- INSERT de item associado à venda/produto do instrutor B: bloqueado por RLS (`42501`).
+- INSERT de transação associada a venda/aluno do instrutor B: bloqueado por RLS (`42501`).
+
+Resultado: **35 verificações de fluxo financeiro aprovadas após a correção**, somando os cenários de venda, idempotência, exclusão, consumo de aula, devoluções, limites e isolamento cruzado descritos acima. Todos os dados e mudanças de papel foram revertidos.
+
+### Limitações
+
+- Ainda não foram realizados testes HTTP/PostgREST com JWT real.
+- Não foram testados concorrência real entre transações independentes, pagamentos externos, conciliação bancária ou notificações.
+- Não houve validação de UI no navegador/app após a migration.
+- Não houve operação no Supabase original, deploy ou merge.
