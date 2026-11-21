@@ -189,7 +189,7 @@ async function sendInteractiveServiceMenu(
           ? "📘 Menu do Instrutor\n\nEscolha uma opção para continuar:"
           : "🚦 Menu do Detran\n\nEscolha uma opção para continuar:",
       },
-      footer: { text: "Selecione uma opção da lista." },
+      footer: { text: "Para encerrar, digite Encerrar. A assistente ficará pausada por 48 horas; para chamá-la antes, digite Olá." },
       action: {
         button: "Ver opções",
         sections: [{ title: isMain ? "Menu do Instrutor" : "Menu do Detran", rows }],
@@ -225,7 +225,7 @@ async function sendInitialMenuSelection(
     interactive: {
       type: "button",
       body: {
-        text: "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma das opções abaixo para começar:",
+        text: "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma das opções abaixo para começar.\n\nA qualquer momento, digite Encerrar para finalizar e pausar a assistente por 48 horas. Para chamá-la novamente antes desse prazo, digite Olá.",
       },
       footer: { text: "Você pode trocar de menu quando quiser." },
       action: {
@@ -1105,6 +1105,65 @@ Deno.serve(async (req: Request) => {
           });
           continue;
         }
+        if (change.field === "smb_message_echoes") {
+          for (const echo of value.message_echoes ?? []) {
+            const customerPhone = String(echo.to ?? "").replace(/\D/g, "");
+            const echoId = String(echo.id ?? "").trim();
+            if (!customerPhone || !echoId) continue;
+
+            const { data: existingConversation, error: echoConversationError } = await supabase
+              .from("whatsapp_conversations")
+              .select("id")
+              .eq("owner_id", OWNER_ID)
+              .eq("telefone", customerPhone)
+              .maybeSingle();
+
+            if (echoConversationError || !existingConversation) {
+              if (echoConversationError) console.error("WhatsApp app echo conversation lookup failed:", echoConversationError.message);
+              continue;
+            }
+
+            const echoType = String(echo.type ?? "unknown");
+            const echoContent = echo.text?.body ?? echo.image?.caption ?? echo.video?.caption ?? echo.document?.caption ?? null;
+            const { error: echoInsertError } = await supabase
+              .from("whatsapp_messages")
+              .insert({
+                owner_id: OWNER_ID,
+                conversation_id: existingConversation.id,
+                provider_message_id: echoId,
+                direcao: "saida",
+                tipo_mensagem: echoType,
+                conteudo: typeof echoContent === "string" ? prepareMessageForStorage(echoContent).content : null,
+                status_provedor: "sent",
+                metadados: {
+                  source: "whatsapp_business_app_echo",
+                  timestamp: echo.timestamp ?? null,
+                },
+              });
+
+            if (echoInsertError?.code === "23505") continue;
+            if (echoInsertError) {
+              console.error("WhatsApp app echo persistence failed:", echoInsertError.message);
+              continue;
+            }
+
+            const pauseUntil = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+            const { error: pauseError } = await supabase
+              .from("whatsapp_conversations")
+              .update({
+                status: "encerrada",
+                ai_paused_until: pauseUntil,
+                ai_pause_reason: "instrutor_mensagem_manual",
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", existingConversation.id)
+              .eq("owner_id", OWNER_ID);
+
+            if (pauseError) console.error("Assistant pause after instructor WhatsApp message failed:", pauseError.message);
+          }
+          continue;
+        }
+
         for (const message of value.messages ?? []) {
           const phone = String(message.from ?? "").trim();
           const providerId = String(message.id ?? "").trim();
@@ -1126,7 +1185,7 @@ Deno.serve(async (req: Request) => {
 
           let { data: conversation, error: conversationError } = await supabase
             .from("whatsapp_conversations")
-            .select("id,status")
+            .select("id,status,ai_paused_until")
             .eq("owner_id", OWNER_ID)
             .eq("telefone", phone)
             .maybeSingle();
@@ -1151,13 +1210,13 @@ Deno.serve(async (req: Request) => {
                 ultima_mensagem_em: messageTime,
                 updated_at: new Date().toISOString(),
               })
-              .select("id,status")
+              .select("id,status,ai_paused_until")
               .single();
 
             if (createError?.code === "23505") {
               const retry = await supabase
                 .from("whatsapp_conversations")
-                .select("id,status")
+                .select("id,status,ai_paused_until")
                 .eq("owner_id", OWNER_ID)
                 .eq("telefone", phone)
                 .single();
@@ -1226,6 +1285,40 @@ Deno.serve(async (req: Request) => {
           }
           stored++;
 
+          const normalizedCustomerCommand = typeof content === "string"
+            ? content.normalize("NFKC").trim().toLocaleLowerCase("pt-BR")
+            : "";
+
+          if (normalizedCustomerCommand === "encerrar") {
+            const pauseUntil = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+            const { error: closeError } = await supabase
+              .from("whatsapp_conversations")
+              .update({
+                status: "encerrada",
+                ai_paused_until: pauseUntil,
+                ai_pause_reason: "cliente_encerramento",
+                quote_state: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", conversation.id)
+              .eq("owner_id", OWNER_ID);
+            if (closeError) {
+              console.error("Customer conversation closure failed:", closeError.message);
+              continue;
+            }
+            await updateMessageMetadata(supabase, providerId, {
+              ai_status: "conversation_closed_by_customer",
+              ai_paused_until: pauseUntil,
+            });
+            await sendWhatsAppText(
+              supabase,
+              conversation.id,
+              phone,
+              "Conversa encerrada! 😊 A Assistente Virtual ficará pausada por 48 horas. Se quiser chamá-la novamente antes desse prazo, basta enviar “Olá”.",
+            );
+            continue;
+          }
+
           if (typeof content === "string" && /^(olá|ola)$/i.test(content.normalize("NFKC").trim())) {
             const { error: reactivateError } = await supabase
               .from("whatsapp_conversations")
@@ -1239,6 +1332,42 @@ Deno.serve(async (req: Request) => {
             await updateMessageMetadata(supabase, providerId, {
               menu_choice: "customer_opened_assistant_menu",
               ai_status: "waiting_for_service_choice",
+            });
+            await sendInitialMenuSelection(supabase, conversation.id, phone);
+            menusSent++;
+            continue;
+          }
+
+          if (conversationStatus === "encerrada") {
+            const pauseUntilMs = conversation.ai_paused_until
+              ? new Date(conversation.ai_paused_until).getTime()
+              : Number.POSITIVE_INFINITY;
+
+            if (pauseUntilMs > Date.now()) {
+              await updateMessageMetadata(supabase, providerId, {
+                ai_status: "paused_after_conversation_closure",
+                ai_paused_until: Number.isFinite(pauseUntilMs) ? new Date(pauseUntilMs).toISOString() : null,
+              });
+              continue;
+            }
+
+            const { error: resumeError } = await supabase
+              .from("whatsapp_conversations")
+              .update({
+                status: "aguardando_escolha",
+                ai_paused_until: null,
+                ai_pause_reason: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", conversation.id)
+              .eq("owner_id", OWNER_ID);
+            if (resumeError) {
+              console.error("Expired assistant pause could not be cleared:", resumeError.message);
+              continue;
+            }
+            conversationStatus = "aguardando_escolha";
+            await updateMessageMetadata(supabase, providerId, {
+              ai_status: "pause_expired_waiting_for_service_choice",
             });
             await sendInitialMenuSelection(supabase, conversation.id, phone);
             menusSent++;
