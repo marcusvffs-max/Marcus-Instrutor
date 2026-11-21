@@ -1056,6 +1056,26 @@ Deno.serve(async (req: Request) => {
 
   if (payload.object !== "whatsapp_business_account") return json({ received: true });
 
+  // Reject unrelated or unconfigured phone-number events before creating a privileged client
+  // or querying application data. The per-change check below remains as defense in depth.
+  const configuredPhoneNumberId = WHATSAPP_PHONE_NUMBER_ID.trim();
+  const hasMatchingPhoneNumberEvent = Boolean(
+    configuredPhoneNumberId &&
+    Array.isArray(payload.entry) &&
+    payload.entry.some((entry: any) =>
+      Array.isArray(entry?.changes) &&
+      entry.changes.some((change: any) =>
+        String(change?.value?.metadata?.phone_number_id ?? "").trim() === configuredPhoneNumberId
+      )
+    )
+  );
+  if (!hasMatchingPhoneNumberEvent) {
+    console.warn("Ignoring WhatsApp webhook payload without a matching configured phone number event.", {
+      configuredPhoneNumberIdPresent: Boolean(configuredPhoneNumberId),
+    });
+    return json({ received: true });
+  }
+
   try {
     const supabase = getAdminClient();
     const { data: aiRuntimeSettings, error: aiRuntimeSettingsError } = await supabase
