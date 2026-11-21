@@ -557,6 +557,7 @@ test("mensagens manuais do WhatsApp Business pausam a assistente via coexistênc
   assert.match(whatsappWebhook, /change\.field === "smb_message_echoes"/);
   assert.match(whatsappWebhook, /value\.message_echoes/);
   assert.match(whatsappWebhook, /source: "whatsapp_business_app_echo"/);
+  assert.match(whatsappWebhook, /echoType === "edit" \|\| echoType === "revoke"/);
   assert.match(whatsappWebhook, /ai_pause_reason: "instrutor_mensagem_manual"/);
   assert.match(whatsappWebhook, /status: "encerrada"/);
 });
@@ -569,6 +570,7 @@ test("painel lista conversas ativas e encerra somente como administrador", () =>
   assert.match(whatsappPanel, /action: "list_whatsapp_conversations"/);
   assert.match(whatsappPanel, /action: "close_whatsapp_conversation"/);
   assert.match(whatsappPanel, /data-encerrar-conversa/);
+  assert.match(whatsappPanel, /A lista de conversas será habilitada quando a atualização do serviço WhatsApp estiver disponível/);
 });
 
 test("migration registra prazo e origem da pausa sem expor tabelas WhatsApp", () => {
