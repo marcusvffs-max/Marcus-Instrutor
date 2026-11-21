@@ -978,3 +978,10 @@ Foram lidas as três funções de trigger do projeto de testes:
 - `clear_student_account_link_on_user_delete()`: trigger BEFORE DELETE em auth.users, SECURITY DEFINER owner postgres, limpa user_id e campos de reserva antes da ação da FK ON DELETE SET NULL; assim, a proteção de campos internos é executada no contexto privilegiado esperado.
 
 As três funções não concedem EXECUTE direto a anon/authenticated/service_role; são chamadas pelos triggers. Nenhuma conta Auth foi criada ou excluída durante a revisão. O comportamento real de criação/exclusão de conta não foi exercitado por HTTP; foi revisado estaticamente e por catálogo.
+
+
+### Pré-verificação read-only no banco original para FKs compostas
+
+Foi executada a mesma consulta agregada somente de leitura no Supabase original. Resultado: zero relacionamentos cross-owner nas sete combinações que receberiam FKs compostas (lessons/student, lessons/vehicle, sales/student, sale_items/sale, sale_items/product, financial_transactions/student e financial_transactions/sale).
+
+Isso indica que, no estado observado, os dados existentes não impediriam a validação dessas FKs no original. A migration permanece apenas na branch e no projeto de testes; a pré-verificação não é autorização para aplicá-la no original.
