@@ -355,6 +355,8 @@
             <label for="contratanteCivil">Estado civil (necessário no contrato de parceria)</label><input id="contratanteCivil" type="text">
             <label for="contratanteProfissao">Profissão (necessária no contrato de parceria)</label><input id="contratanteProfissao" type="text">
             <label for="contratanteEndereco">Endereço completo (necessário no contrato de parceria)</label><textarea id="contratanteEndereco" rows="2"></textarea>
+            <button id="btnSalvarDadosContratante" class="secondary-button" type="button">Salvar meus dados</button>
+            <p id="statusDadosContratante" class="form-hint" role="status" aria-live="polite">Seus dados serão guardados na sua conta.</p>
           </div>
           <div id="formContratoCliente">
             <label for="contratoAluno">Usar aluno cadastrado</label><select id="contratoAluno"><option value="">Preencher manualmente</option></select>
@@ -515,7 +517,8 @@
       async function carregarPainelAdmin() {
         if (painelAdminCarregado) return;
         await carregarScript("script.js?v=relatorios-instrutor5-cache-isolation");
-        await carregarScript("contratos.js?v=contratos30");
+        await carregarScript("contratante-perfil.js?v=1");
+        await carregarScript("contratos.js?v=contratos31");
         await carregarScript("whatsapp-panel.js?v=whatsapp-panel-v3-edge-status");
         await carregarScript("admin-users.js?v=admin-users-v2");
         painelAdminCarregado = true;
