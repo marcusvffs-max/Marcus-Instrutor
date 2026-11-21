@@ -1124,6 +1124,7 @@ Deno.serve(async (req: Request) => {
             }
 
             const echoType = String(echo.type ?? "unknown");
+            if (echoType === "edit" || echoType === "revoke") continue;
             const echoContent = echo.text?.body ?? echo.image?.caption ?? echo.video?.caption ?? echo.document?.caption ?? null;
             const { error: echoInsertError } = await supabase
               .from("whatsapp_messages")
