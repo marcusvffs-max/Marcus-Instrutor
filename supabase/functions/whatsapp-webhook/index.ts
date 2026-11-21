@@ -210,7 +210,7 @@ async function sendInteractiveServiceMenu(
       supabase,
       conversationId,
       recipient,
-      `${isMain ? "Menu do Instrutor" : "Menu do Detran"}:\n${fallback}\n\nResponda com o nome da opção desejada.`,
+      `${isMain ? "Menu do Instrutor" : "Menu do Detran"}:\n${fallback}\n\nResponda com o nome da opção desejada.\n\nPara encerrar a conversa e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la novamente antes, digite Olá.`,
     );
   }
 }
@@ -261,7 +261,7 @@ async function sendInitialMenuSelection(
       supabase,
       conversationId,
       recipient,
-      "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma opção:\n1️⃣ Menu do Instrutor — pacotes, contratação, agendamento e aulas.\n2️⃣ Menu do Detran — documentos, etapas, taxas e exames.\n\nResponda 1 ou 2.",
+      "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma opção:\n1️⃣ Menu do Instrutor — pacotes, contratação, agendamento e aulas.\n2️⃣ Menu do Detran — documentos, etapas, taxas e exames.\n\nResponda 1 ou 2.\n\nA qualquer momento, digite Encerrar para finalizar e pausar a assistente por 48 horas. Para chamá-la novamente antes, digite Olá.",
     );
   }
 }
