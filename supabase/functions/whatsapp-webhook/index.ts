@@ -601,7 +601,7 @@ function detectStandaloneAdditionalPurchase(message: string): OptionalItemChoice
   const explicitlyRejectsLessons =
     /\b(nao quero (?:comprar )?(?:as )?aulas|nao vou comprar (?:as )?aulas|sem (?:as )?aulas|nao quero (?:o )?pacote)\b/.test(text);
   const asksToBuyAdditional =
-    /\b(quero|comprar|contratar|adquirir|preciso)\b/.test(text);
+    /\b(comprar|contratar|adquirir|reservar)\b/.test(text);
   const mentionsLessonsOrPackage = /\b(aulas?|pacotes?)\b/.test(text);
 
   if (explicitlyRejectsLessons || (asksToBuyAdditional && !mentionsLessonsOrPackage)) {
@@ -933,7 +933,7 @@ async function processIncomingMessage(
     const catalog = await getActiveServiceCatalog(supabase);
 
     const standaloneChoice = detectStandaloneAdditionalPurchase(privacy.text);
-    const explicitlyRejectsLessons = /\\b(nao quero (?:comprar )?(?:as )?aulas|nao vou comprar (?:as )?aulas|sem (?:as )?aulas|nao quero (?:o )?pacote)\\b/.test(normalizeChoiceText(privacy.text));
+    const explicitlyRejectsLessons = /\b(nao quero (?:comprar )?(?:as )?aulas|nao vou comprar (?:as )?aulas|sem (?:as )?aulas|nao quero (?:o )?pacote)\b/.test(normalizeChoiceText(privacy.text));
     const shouldStartStandalonePurchase =
       standaloneChoice !== "ambiguous" &&
       requestedLessonCount === null &&
