@@ -103,3 +103,48 @@
   .user-lesson-top { align-items:flex-start; }
   .user-lesson-info h4 { font-size:.95rem; }
 }
+
+
+/* Atalho flutuante da Assistente Virtual: exibido somente após validação do vínculo. */
+.whatsapp-float {
+  position:fixed;
+  right:22px;
+  bottom:22px;
+  z-index:1000;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  min-height:56px;
+  padding:0 19px;
+  border-radius:999px;
+  background:#20b85a;
+  color:#fff;
+  text-decoration:none;
+  font-size:.92rem;
+  font-weight:800;
+  box-shadow:0 8px 24px rgba(0,0,0,.22);
+  transition:transform .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.whatsapp-float:hover {
+  background:#159447;
+  color:#fff;
+  transform:translateY(-2px);
+  box-shadow:0 11px 28px rgba(0,0,0,.25);
+}
+.whatsapp-float svg {
+  width:27px;
+  height:27px;
+  fill:currentColor;
+  flex:0 0 auto;
+}
+.whatsapp-float[hidden] { display:none; }
+@media (max-width:600px) {
+  .whatsapp-float {
+    right:16px;
+    bottom:16px;
+    min-height:54px;
+    padding:0 16px;
+    font-size:.86rem;
+  }
+}
