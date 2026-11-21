@@ -828,3 +828,28 @@ A mudança não afrouxa a unicidade nem permite múltiplos vínculos. Ela alinha
 - anon e authenticated não têm CREATE nos schemas public/private; service_role também não tem CREATE em public.
 - Nenhuma tabela está publicada em `supabase_realtime` no projeto original ou no projeto de testes.
 - Não há buckets nem policies de Storage em nenhum dos dois projetos.
+
+
+## Revalidação do achado de agenda no Supabase original
+
+Uma consulta somente de leitura feita em 21/11/2026 confirmou a diferença exata entre original e testes:
+
+### Projeto original: ydyqagqsuqntuibzgwzd
+
+- public.get_my_scheduled_lessons(): SECURITY INVOKER, owner postgres, search_path vazio, EXECUTE para authenticated e sem EXECUTE para anon.
+- private.get_my_scheduled_lessons_internal(): SECURITY DEFINER, owner postgres, search_path vazio, EXECUTE para authenticated; o schema private também concede USAGE a authenticated.
+- A função interna deriva o e-mail do JWT e seleciona alunos por lower(trim(students.email)) = e-mail autenticado. Não filtra por students.user_id (coluna ainda inexistente no original) nem por proprietário do instrutor.
+- O wrapper público apenas chama a função interna; por isso, mesmo sendo SECURITY INVOKER, a consulta privilegiada da função interna é executada.
+- A consulta agregada atual confirmou 1 e-mail normalizado compartilhado entre proprietários, 2 cadastros de alunos e 2 aulas agendadas.
+
+Esse conjunto mantém o achado de isolamento de agenda no projeto original. Não foi feita chamada autenticada exploratória, alteração de dados ou DDL no original.
+
+### Projeto de testes: voyjssflroiwdyaacthh
+
+O desenho é diferente e intencional:
+- public.get_my_scheduled_lessons(): SECURITY DEFINER, EXECUTE autenticado, wrapper público;
+- private.get_my_scheduled_lessons_internal(): SECURITY DEFINER, sem EXECUTE para authenticated/service_role/anon/PUBLIC;
+- a função interna valida auth.uid(), role usuario e students.user_id = auth.uid(), sem fallback por e-mail;
+- a função também faz joins com student_id + owner_id e vehicle_id + owner_id.
+
+A diferença de SECURITY DEFINER do wrapper apontada pelo Advisor refere-se ao projeto de testes. No original, o wrapper é SECURITY INVOKER; o SECURITY DEFINER vulnerável é a função interna privada, executável por authenticated. Esta distinção substitui qualquer interpretação anterior que confundisse os dois objetos.
