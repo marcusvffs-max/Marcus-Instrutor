@@ -634,7 +634,8 @@ function detectStandaloneAdditionalPurchase(message: string): OptionalItemChoice
   const explicitlyRejectsLessons =
     /\b(nao quero (?:comprar )?(?:as )?aulas|nao vou comprar (?:as )?aulas|sem (?:as )?aulas|nao quero (?:o )?pacote)\b/.test(text);
   const asksToBuyAdditional =
-    /\b(comprar|contratar|adquirir|reservar)\b/.test(text);
+    /\b(comprar|contratar|adquirir|reservar|solicitar)\b/.test(text) ||
+    /\b(quero|vou querer|pode incluir|inclua|adiciona|adicionar|pode colocar|coloca)\s+(?:o\s+)?(?:cartao|moto pista|pista|aluguel|veiculo|carro)\b/.test(text);
   const mentionsLessonsOrPackage = /\b(aulas?|pacotes?)\b/.test(text);
 
   if (explicitlyRejectsLessons || (asksToBuyAdditional && !mentionsLessonsOrPackage)) {
@@ -642,7 +643,6 @@ function detectStandaloneAdditionalPurchase(message: string): OptionalItemChoice
   }
   return "ambiguous";
 }
-
 function formatStandaloneAdditionalReply(
   catalog: CatalogProduct[],
   choice: OptionalItemChoice,
@@ -985,7 +985,11 @@ async function processIncomingMessage(
     // A opção do menu "Pacotes e valores" pode permanecer selecionada no histórico.
     // Uma pergunta focada apenas no Cartão Moto Pista deve prevalecer sobre esse contexto,
     // sem reapresentar o catálogo completo. Não interrompe uma cotação já em andamento.
-    if (!hasPendingQuote && requestedLessonCount === null && isFocusedCardInfoQuery(privacy.text)) {
+    // Mensagens que expressam intenção de solicitar/contratar o cartão devem seguir o fluxo de pedido,
+    // não a resposta meramente informativa sobre preço e validade.
+    if (!hasPendingQuote && requestedLessonCount === null &&
+      isFocusedCardInfoQuery(privacy.text) &&
+      detectStandaloneAdditionalPurchase(privacy.text) === "ambiguous") {
       const focusedReply = formatFocusedCardInfoReply(catalog);
       const sent = await sendWhatsAppText(supabase, conversationId, phone, focusedReply);
       await updateMessageMetadata(supabase, providerId, {
