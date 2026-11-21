@@ -1622,6 +1622,9 @@ Deno.serve(async (req: Request) => {
                   "COMO AGENDAR A PROVA:\n" +
                   "Após a confirmação do pagamento, o exame pode ser agendado pelo CFC, pelo próprio candidato ou pelo instrutor autônomo. Se você for fazer o agendamento diretamente, acesse a página oficial: https://detran.mg.gov.br/habilitacao/1-habilitacao-quero-ser-condutor/agendar-prova-de-direcao-cidadao-ou-instrutor-autonomo\n" +
                   "O sistema apresenta as datas, horários e locais disponíveis para escolha. Para a categoria A, a prova é realizada em motopista.\n\n" +
+                  "IMPORTANTE — CONSULTE SEU INSTRUTOR ANTES DE AGENDAR:\n" +
+                  "Se você pretende realizar o exame utilizando o veículo do instrutor, consulte-o antes de escolher a data. As taxas necessárias devem estar pagas, e o instrutor precisa estar ciente e confirmar que tem disponibilidade para acompanhar a prova.\n" +
+                  "Em Governador Valadares, há limite de 5 candidatos por veículo no mesmo dia. Por isso, confirme a disponibilidade com seu instrutor antes de concluir o agendamento.\n\n" +
                   "Atenção: faça a emissão da taxa e o agendamento somente pelos canais oficiais do Governo de Minas. Não envie CPF, documentos ou dados pessoais por esta conversa. 😊\n\n" +
                   "Fonte oficial: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc";
                 const sent = await sendWhatsAppText(
