@@ -492,3 +492,10 @@ Commit da migration: 96f0a2526488e326fdbce5486913e7f080bbcce4
 Commit da atualização desta documentação: be62f2d7bc55f95d48127816432da935c74b0fe4
 
 A migration não foi aplicada ao projeto original. Nenhuma publicação ou deploy foi executado.
+
+
+### Regressão do trigger após revogar EXECUTE
+
+Para confirmar que a revogação de EXECUTE não interrompe o uso legítimo do trigger, foi executado UPDATE transacional de um perfil sintético sob SET ROLE service_role. A operação atingiu uma linha e passou pelo trigger protect_profile_role_trigger com sucesso. A transação foi revertida.
+
+Resultado: chamadas diretas continuam sem EXECUTE para anon/authenticated/service_role, mas a execução interna do trigger continua funcionando para a operação legítima de service_role. O teste não alterou permanentemente o perfil.
