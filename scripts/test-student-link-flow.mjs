@@ -622,3 +622,13 @@ test("concluir ou cancelar atendimento humano encerra a conversa e inicia pausa 
   assert.match(statusHandler, /if \(!closedHumanConversation\) conversationPauseUntil = null/);
   assert.match(statusHandler, /\.update\(\{ atendimento_status: nextStatus \}\)/);
 });
+test("reabrir atendimento restaura somente conversas encerradas pelo instrutor", () => {
+  const statusHandler = edge.slice(edge.indexOf('if (body.action === "update_whatsapp_request_status")'));
+  assert.match(statusHandler, /\["pendente", "em_atendimento"\]\.includes\(nextStatus\)/);
+  assert.match(statusHandler, /status: "atendimento_humano"/);
+  assert.match(statusHandler, /ai_paused_until: null/);
+  assert.match(statusHandler, /ai_pause_reason: null/);
+  assert.match(statusHandler, /\.eq\("status", "encerrada"\)/);
+  assert.match(statusHandler, /\.eq\("ai_pause_reason", "instrutor_encerramento"\)/);
+  assert.match(statusHandler, /conversation_human_reopened: conversationHumanReopened/);
+});
