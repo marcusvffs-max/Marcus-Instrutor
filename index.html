@@ -80,9 +80,12 @@
             <span class="eyebrow">CADASTROS</span>
             <h2>Alunos</h2>
           </div>
-          <button id="btnNovoAluno" class="primary-button" type="button">
-            + Novo aluno
-          </button>
+          <div class="heading-actions">
+            <button id="btnAtualizarConvites" class="secondary-button" type="button">Atualizar convites</button>
+            <button id="btnNovoAluno" class="primary-button" type="button">
+              + Novo aluno
+            </button>
+          </div>
         </div>
 
         <input id="buscaAlunos" class="search-input" type="search"
@@ -516,7 +519,7 @@
       }
       async function carregarPainelAdmin() {
         if (painelAdminCarregado) return;
-        await carregarScript("script.js?v=relatorios-instrutor6-student-invite");
+        await carregarScript("script.js?v=relatorios-instrutor7-student-link-refresh");
         await carregarScript("contratante-perfil.js?v=1");
         await carregarScript("contratos.js?v=contratos31");
         await carregarScript("whatsapp-panel.js?v=whatsapp-panel-v11-button-fix");
