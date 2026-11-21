@@ -1390,6 +1390,7 @@ Deno.serve(async (req: Request) => {
           }
 
           // Open the selected top-level menu.
+          if (menuChoice === "menu_main") {
             const { error: mainMenuStateError } = await supabase
               .from("whatsapp_conversations")
               .update({ status: "aguardando_escolha", updated_at: new Date().toISOString() })
