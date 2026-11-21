@@ -49,7 +49,7 @@ where ns.nspname='public'
 order by tbl.relname,con.contype,con.conname;
 ```
 
-Confirmar as seis FKs simples a substituir: `lessons_student_id_fkey`, `lessons_vehicle_id_fkey`, `sales_student_id_fkey`, `sale_items_sale_id_fkey`, `financial_transactions_student_id_fkey`, `financial_transactions_sale_id_fkey`. Preservar FKs de owner para Auth, `sale_items.product_id -> products.id` e `app_settings.owner_id -> auth.users.id`.
+Confirmar as sete FKs simples a substituir: `lessons_student_id_fkey`, `lessons_vehicle_id_fkey`, `sales_student_id_fkey`, `sale_items_sale_id_fkey`, `sale_items_product_id_fkey`, `financial_transactions_student_id_fkey` e `financial_transactions_sale_id_fkey`. Preservar FKs de owner para Auth e `app_settings.owner_id -> auth.users.id`.
 
 ## 4. Verificar colisões dos nove nomes propostos
 
@@ -97,6 +97,10 @@ union all
 select 'sale_items -> sales',count(*)
 from public.sale_items i left join public.sales x on x.id=i.sale_id
 where i.sale_id is not null and (x.id is null or x.owner_id is distinct from i.owner_id)
+union all
+select 'sale_items -> products',count(*)
+from public.sale_items i left join public.products p on p.id=i.product_id
+where i.product_id is not null and (p.id is null or p.owner_id is distinct from i.owner_id)
 union all
 select 'financial_transactions -> students',count(*)
 from public.financial_transactions f left join public.students s on s.id=f.student_id
