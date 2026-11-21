@@ -84,6 +84,12 @@
     }).format(data);
   }
 
+  function formatarMoeda(valor) {
+    const numero = Number(valor);
+    if (!Number.isFinite(numero)) return "Não informado";
+    return numero.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
   function atualizarContador(total) {
     const badge = document.getElementById("badgeAtendimentosWhatsapp");
     const resumo = document.getElementById("totalAtendimentosWhatsapp");
@@ -100,17 +106,52 @@
     const nome = escaparHtml(pedido.nome_solicitante || "Cliente WhatsApp");
     const telefone = String(pedido.telefone_solicitante || "");
     const telefoneSeguro = escaparHtml(telefone);
-    const numeroWhatsApp = telefone.replace(/\D/g, "");
+    const numeroWhatsApp = telefone.replace(/\\D/g, "");
     const linkWhatsApp = numeroWhatsApp
       ? `<a class="whatsapp-open-link" href="https://wa.me/${numeroWhatsApp}" target="_blank" rel="noopener noreferrer">Abrir conversa no WhatsApp</a>`
       : "";
 
-    const mensagem = typeof pedido.dados_propostos?.mensagem === "string"
-      ? escaparHtml(pedido.dados_propostos.mensagem)
+    const dados = pedido.dados_propostos && typeof pedido.dados_propostos === "object"
+      ? pedido.dados_propostos
+      : {};
+    const mensagem = typeof dados.mensagem === "string"
+      ? escaparHtml(dados.mensagem)
       : "";
     const tipoSolicitacao = pedido.tipo_solicitacao === "duvida_outros_detran"
       ? "Dúvida — Outros assuntos"
-      : "Pedido de atendimento humano";
+      : pedido.tipo_solicitacao === "intencao_compra_pacote"
+        ? "Intenção de contratação de pacote"
+        : "Pedido de atendimento humano";
+
+    let detalhesPacote = "";
+    if (pedido.tipo_solicitacao === "intencao_compra_pacote") {
+      const adicionais = Array.isArray(dados.adicionais_selecionados) ? dados.adicionais_selecionados : [];
+      const adicionaisPendentes = Array.isArray(dados.adicionais_obrigatorios_nao_selecionados)
+        ? dados.adicionais_obrigatorios_nao_selecionados
+        : [];
+      const adicionaisHtml = adicionais.length
+        ? `<p><strong>Adicionais selecionados (separados):</strong><br>${adicionais.map(item =>
+            `${escaparHtml(item?.nome || "Adicional")}: ${formatarMoeda(item?.valor)}`
+          ).join("<br>")}</p>`
+        : "";
+      const pendentesHtml = adicionaisPendentes.length
+        ? `<p><strong>Outros itens obrigatórios:</strong><br>${adicionaisPendentes.map(item =>
+            `${escaparHtml(item?.nome || "Adicional")}: ${formatarMoeda(item?.valor)}`
+          ).join("<br>")}</p>`
+        : "";
+      detalhesPacote = `
+        <div style="margin:8px 0;padding:10px;border:1px solid var(--border);border-radius:10px;">
+          <p><strong>Pacote:</strong> ${escaparHtml(dados.pacote || "Não informado")}</p>
+          <p><strong>Quantidade:</strong> ${escaparHtml(dados.quantidade_aulas ?? "Não informada")} aulas</p>
+          <p><strong>Valor por aula:</strong> ${formatarMoeda(dados.valor_por_aula)}</p>
+          <p><strong>Valor total das aulas:</strong> ${formatarMoeda(dados.valor_total_aulas)}</p>
+          ${adicionaisHtml}
+          ${pendentesHtml}
+          <small>Os adicionais são cobrados separadamente do valor das aulas.</small>
+        </div>
+      `;
+    }
+
     const opcoesStatus = Object.entries(STATUS).map(([valor, rotulo]) =>
       `<option value="${valor}" ${pedido.atendimento_status === valor ? "selected" : ""}>${rotulo}</option>`
     ).join("");
@@ -121,6 +162,7 @@
           <strong>${nome}</strong>
           <span>${telefoneSeguro || "Telefone não informado"}</span>
           <small>${escaparHtml(tipoSolicitacao)} · Recebido em ${escaparHtml(formatarData(pedido.created_at))}</small>
+          ${detalhesPacote}
           ${mensagem ? `<p style="margin:8px 0;white-space:pre-wrap;overflow-wrap:anywhere;">${mensagem}</p>` : ""}
           <label style="display:block;margin-top:8px;font-size:12px;font-weight:700;" for="status-atendimento-${escaparHtml(pedido.id)}">Status do atendimento</label>
           <select
@@ -359,7 +401,7 @@
         .select("id, nome_solicitante, telefone_solicitante, created_at, atendimento_status, tipo_solicitacao, dados_propostos")
         .eq("owner_id", sessao.user.id)
         .eq("canal", "whatsapp")
-        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"]);
+        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran", "intencao_compra_pacote"]);
 
       const [abertos, encerrados] = await Promise.all([
         base.in("atendimento_status", ["pendente", "em_atendimento"]).order("created_at", { ascending: false }),
@@ -368,7 +410,7 @@
           .select("id, nome_solicitante, telefone_solicitante, created_at, atendimento_status, tipo_solicitacao, dados_propostos")
           .eq("owner_id", sessao.user.id)
           .eq("canal", "whatsapp")
-          .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"])
+          .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran", "intencao_compra_pacote"])
           .in("atendimento_status", ["concluido", "cancelado"])
           .order("created_at", { ascending: false })
       ]);
