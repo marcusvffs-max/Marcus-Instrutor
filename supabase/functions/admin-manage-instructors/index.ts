@@ -131,7 +131,7 @@ Deno.serve(async (req: Request) => {
         .update({ atendimento_status: "concluido" })
         .eq("owner_id", authData.user.id)
         .eq("canal", "whatsapp")
-        .eq("tipo_solicitacao", "atendimento_humano")
+        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"])
         .filter("resultado->>conversation_id", "eq", conversationId);
       if (requestsError) throw requestsError;
 
@@ -156,7 +156,7 @@ Deno.serve(async (req: Request) => {
         .eq("id", requestId)
         .eq("owner_id", authData.user.id)
         .eq("canal", "whatsapp")
-        .eq("tipo_solicitacao", "atendimento_humano")
+        .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran"])
         .select("id")
         .maybeSingle();
       if (updateRequestError) throw updateRequestError;
