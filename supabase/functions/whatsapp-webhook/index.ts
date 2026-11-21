@@ -523,7 +523,7 @@ function formatCatalogReply(catalog: CatalogProduct[]): string {
       const faixa = item.quantidade_aulas_max !== null
         ? " — de " + item.quantidade_aulas_min + " a " + item.quantidade_aulas_max + " aulas"
         : " — a partir de " + item.quantidade_aulas_min + " aulas";
-      return "• " + item.nome + faixa + ": " + money(item.preco) + " por aula";
+      return "• " + item.nome + faixa + ": " + money(item.preco);
     }),
     ...nonPackages.map((item) => {
       const billing = item.forma_cobranca === "por_exame"
@@ -678,9 +678,9 @@ function formatStandaloneAdditionalReply(
 
 function isFocusedCardInfoQuery(message: string): boolean {
   const text = normalizeChoiceText(message);
-  const mentionsCard = /\\b(cartao|moto pista|pista)\\b/.test(text);
-  const mentionsOtherService = /\\b(aluguel|veiculo|carro|aulas?|pacotes?|bronze|prata|ouro)\\b/.test(text);
-  const rejectsCard = /\\b(nao quero|nao preciso|nao desejo|nao vou querer|sem)\\s+(?:o\\s+)?(?:cartao|moto pista|pista)\\b/.test(text);
+  const mentionsCard = /\b(cartao|moto pista|pista)\b/.test(text);
+  const mentionsOtherService = /\b(aluguel|veiculo|carro|aulas?|pacotes?|bronze|prata|ouro)\b/.test(text);
+  const rejectsCard = /\b(nao quero|nao preciso|nao desejo|nao vou querer|sem)\s+(?:o\s+)?(?:cartao|moto pista|pista)\b/.test(text);
   return mentionsCard && !mentionsOtherService && !rejectsCard;
 }
 
