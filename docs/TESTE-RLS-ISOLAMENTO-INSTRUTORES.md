@@ -198,3 +198,39 @@ Não marcar como concluídos os casos SEC-001 a SEC-070 em bloco. Permanecem pen
 - cenários completos de vínculo/convite, concorrência e integridade financeira.
 
 Esta evidência comprova somente os testes SQL transacionais descritos acima, com claims simuladas no projeto isolado. Não representa homologação funcional, teste HTTP real ou autorização para merge/deploy.
+
+
+### Perfis: redução de privilégios e validação — 21/11/2026
+
+A revisão de ACL identificou que `authenticated` ainda possuía grants de INSERT e DELETE em `public.profiles`, embora as policies existentes não oferecessem esses caminhos e o frontend não use escrita direta para criar/remover perfis. A criação é feita pelo trigger confiável de Auth e as operações administrativas são realizadas pela Edge Function com cliente administrativo.
+
+Foi criada e aplicada somente no projeto isolado a migration:
+
+`20261121260000_restrict_profile_insert_delete.sql`
+
+A migration revoga INSERT em nível de tabela e de coluna e revoga DELETE de `authenticated`. Mantém SELECT e UPDATE somente da coluna `nome`, já restrita por RLS ao próprio instrutor.
+
+Verificações transacionais com claims simuladas:
+
+- UPDATE do próprio nome: 1 linha afetada — PASS.
+- INSERT direto de perfil pelo usuário autenticado: negado, SQLSTATE `42501` — PASS.
+- DELETE do próprio perfil: negado, SQLSTATE `42501` — PASS.
+
+Consulta posterior de privilégios confirmou: SELECT permitido; INSERT negado; UPDATE de tabela negado; DELETE negado; UPDATE(nome) permitido; INSERT(role) e INSERT(instructor_access_until) negados.
+
+### RPCs administrativas chamadas diretamente por instrutor — 21/11/2026
+
+Com Instrutor autenticado por claims simuladas, as quatro RPCs abaixo foram chamadas diretamente, sem passar pelo frontend:
+
+- `admin_create_sale`
+- `admin_delete_sale`
+- `admin_refund_sale_lessons`
+- `admin_refund_sale_product`
+
+Todas interromperam no guard de papel com a mensagem `Acesso administrativo obrigatório.` e SQLSTATE `P0001`. Resultado: **4/4 bloqueios aprovados**. As chamadas não chegaram às operações de negócio e a transação foi revertida.
+
+### Observação sobre produtos e configurações por owner
+
+A matriz inicial deste documento indicava que instrutores não deveriam ler produtos/configurações. A inspeção das policies atuais mostra, porém, que `products` e `app_settings` permitem acesso de instrutor somente aos registros cujo `owner_id = auth.uid()`; produtos também têm policies próprias para admin. Isso parece compatível com a separação de catálogo/configuração por conta e não foi alterado nesta etapa.
+
+O projeto isolado não contém linhas de fixture em `products` nem `app_settings`, então ainda não houve teste positivo/negativo com registros nessas duas tabelas. A expectativa funcional da matriz deve ser alinhada a essa regra por owner antes de marcar SEC-017 como aprovado; não se deve interpretar a policy por owner como acesso global entre instrutores.
