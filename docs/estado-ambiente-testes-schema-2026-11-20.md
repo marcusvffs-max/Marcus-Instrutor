@@ -889,3 +889,29 @@ As FKs simples existentes foram mantidas para preservar as regras anteriores; as
 ### Observação sobre privilégios padrão
 
 A consulta de pg_default_acl confirmou que os privilégios padrão restritivos para objetos criados pelo owner postgres estão ativos em public: novas funções, tabelas e sequences não recebem permissões de anon/authenticated por padrão. ACLs de papéis internos do Supabase, como supabase_admin e supabase_auth_admin, foram apenas inspecionadas e não foram alteradas.
+
+
+## Webhook WhatsApp: validação do número de destino
+
+### Achado na função ativa do Supabase original
+
+A função `whatsapp-webhook` já:
+- mantém `verify_jwt=false`, adequado a um webhook externo da Meta;
+- valida o token de verificação no GET;
+- valida `X-Hub-Signature-256` por HMAC-SHA256 sobre o corpo bruto no POST, antes de interpretar o JSON;
+- usa um segredo do servidor para o cliente Supabase privilegiado;
+- grava conversas e mensagens com owner_id fixo.
+
+Entretanto, não comparava `value.metadata.phone_number_id` do evento com `WHATSAPP_PHONE_NUMBER_ID` configurado. Uma assinatura Meta válida autentica a origem/app, mas não substitui a validação de que o evento pertence ao número conectado a esta instalação.
+
+### Preparação na branch de testes
+
+- Foi copiada a versão ativa lida do Supabase para `supabase/functions/whatsapp-webhook/index.ts`, preservando seu conteúdo original.
+- Foi adicionada uma validação por evento: se o ID configurado estiver vazio, o ID recebido estiver ausente ou os IDs forem diferentes, o evento é ignorado antes de percorrer mensagens.
+- O log registra apenas presença/ausência dos IDs, não seus valores.
+- Foi criado `supabase/config.toml` com `[functions.whatsapp-webhook] verify_jwt = false`; as outras funções continuam com o padrão verify_jwt=true. A assinatura HMAC permanece obrigatória no handler.
+- A comparação do arquivo confirma que a versão da branch é exatamente o código ativo recuperado, mais apenas esse guard.
+
+Casos lógicos verificados estaticamente: ID igual é aceito; ID diferente, ausente ou configuração vazia são rejeitados.
+
+**Limite da validação:** não houve deploy nem chamada HTTP à Meta ou à Edge Function. O Supabase original continua sem alteração. Antes de um futuro deploy, será necessário testar com evento de número correto, número divergente e assinatura inválida no ambiente isolado.
