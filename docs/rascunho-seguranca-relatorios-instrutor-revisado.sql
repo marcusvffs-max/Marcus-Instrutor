@@ -441,15 +441,20 @@ alter table public.sales
 alter table public.products
   add constraint products_id_owner_key unique (id, owner_id);
 
+alter table public.products
+  add constraint products_id_owner_key unique (id, owner_id);
+
 alter table public.lessons
   add constraint lessons_student_owner_fkey
   foreign key (student_id, owner_id)
-  references public.students (id, owner_id);
+  references public.students (id, owner_id)
+  on delete no action;
 
 alter table public.lessons
   add constraint lessons_vehicle_owner_fkey
   foreign key (vehicle_id, owner_id)
-  references public.vehicles (id, owner_id);
+  references public.vehicles (id, owner_id)
+  on delete no action;
 
 alter table public.sales
   add constraint sales_student_owner_fkey
@@ -462,6 +467,12 @@ alter table public.sale_items
   foreign key (sale_id, owner_id)
   references public.sales (id, owner_id)
   on delete cascade;
+
+alter table public.sale_items
+  add constraint sale_items_product_owner_fkey
+  foreign key (product_id, owner_id)
+  references public.products (id, owner_id)
+  on delete set null (product_id);
 
 alter table public.sale_items
   add constraint sale_items_product_owner_fkey
