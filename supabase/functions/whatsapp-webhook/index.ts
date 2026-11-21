@@ -157,42 +157,29 @@ async function sendInteractiveServiceMenu(
   supabase: ReturnType<typeof getAdminClient>,
   conversationId: string,
   recipient: string,
-  page: "principal" | "complementar",
 ) {
-  const isMain = page === "principal";
-  const rows = isMain
-    ? [
-        { id: "menu_talk_marcus", title: "Falar com Instrutor", description: "Fale diretamente com o Instrutor Marcus." },
-        { id: "service_packages", title: "Pacotes e valores", description: "Consulte os pacotes disponíveis e seus preços." },
-        { id: "service_contract", title: "Contratar serviços", description: "Escolha um serviço para solicitar contratação." },
-        { id: "service_schedule", title: "Agendar aulas", description: "Consulte horários e solicite o agendamento de aulas." },
-        { id: "service_balance", title: "Aulas e saldos", description: "Consulte suas aulas agendadas, realizadas e saldo." },
-        { id: "service_reschedule", title: "Reagendar/cancelar", description: "Solicite alteração ou cancelamento de aulas." },
-        { id: "menu_second", title: "Abrir Menu do Detran", description: "Acesse documentos, taxas e exames da habilitação." },
-      ]
-    : [
-        { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
-        { id: "service_registration_fee", title: "Taxa de inscrição", description: "Informações para emitir a taxa da primeira habilitação." },
-        { id: "service_medical", title: "Exame médico", description: "Informações sobre o exame médico da habilitação." },
-        { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
-        { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
-        { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
-        { id: "menu_main", title: "Abrir Menu do Instrutor", description: "Acesse pacotes, aulas e serviços do instrutor." },
-      ];
+  const rows = [
+    { id: "service_packages", title: "Pacotes e valores", description: "Consulte os pacotes disponíveis e seus preços." },
+    { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
+    { id: "service_registration_fee", title: "Taxa de inscrição", description: "Informações para emitir a taxa da primeira habilitação." },
+    { id: "service_medical", title: "Exame médico", description: "Informações sobre o exame médico da habilitação." },
+    { id: "service_free_theory_course", title: "Curso Gratuito de Legislação", description: "Saiba como acessar o curso gratuito de legislação." },
+    { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
+    { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
+    { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
+  ];
 
   const menu = {
     type: "interactive",
     interactive: {
       type: "list",
       body: {
-        text: isMain
-          ? "📘 Menu do Instrutor\n\nEscolha uma opção para continuar.\n\nPara encerrar e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la antes, digite Olá."
-          : "🚦 Menu do Detran\n\nEscolha uma opção para continuar.\n\nPara encerrar e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la antes, digite Olá.",
+        text: "📋 Menu\\n\\nEscolha uma opção para continuar.\\n\\nPara encerrar e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la antes, digite Olá.",
       },
       footer: { text: "Digite Encerrar para pausar por 48 horas." },
       action: {
         button: "Ver opções",
-        sections: [{ title: isMain ? "Menu do Instrutor" : "Menu do Detran", rows }],
+        sections: [{ title: "Menu", rows }],
       },
     },
   };
@@ -202,15 +189,15 @@ async function sendInteractiveServiceMenu(
     conversationId,
     recipient,
     menu,
-    isMain ? "Menu do Instrutor" : "Menu do Detran",
+    "Menu",
   );
   if (!sent) {
-    const fallback = rows.map((row) => `${row.title} — ${row.description}`).join("\n");
+    const fallback = rows.map((row) => `${row.title} — ${row.description}`).join("\\n");
     await sendWhatsAppText(
       supabase,
       conversationId,
       recipient,
-      `${isMain ? "Menu do Instrutor" : "Menu do Detran"}:\n${fallback}\n\nResponda com o nome da opção desejada.\n\nPara encerrar a conversa e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la novamente antes, digite Olá.`,
+      `Menu:\\n${fallback}\\n\\nResponda com o nome da opção desejada.\\n\\nPara encerrar a conversa e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la novamente antes, digite Olá.`,
     );
   }
 }
@@ -227,21 +214,21 @@ async function sendInitialMenuSelection(
       body: {
         text: "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma das opções abaixo para começar.\n\nA qualquer momento, digite Encerrar para finalizar e pausar a assistente por 48 horas. Para chamá-la novamente antes desse prazo, digite Olá.",
       },
-      footer: { text: "Você pode trocar de menu quando quiser." },
+      footer: { text: "Atendimento do Instrutor Marcus." },
       action: {
         buttons: [
           {
             type: "reply",
             reply: {
-              id: "menu_main",
-              title: "Menu do Instrutor",
+              id: "menu_talk_marcus",
+              title: "Falar com Instrutor",
             },
           },
           {
             type: "reply",
             reply: {
               id: "menu_second",
-              title: "Menu do Detran",
+              title: "Menu",
             },
           },
         ],
@@ -254,14 +241,14 @@ async function sendInitialMenuSelection(
     conversationId,
     recipient,
     selection,
-    "Escolha inicial: Menu do Instrutor ou Menu do Detran",
+    "Escolha inicial: Falar com Instrutor ou Menu",
   );
   if (!sent) {
     await sendWhatsAppText(
       supabase,
       conversationId,
       recipient,
-      "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma opção:\n1️⃣ Menu do Instrutor — pacotes, contratação, agendamento e aulas.\n2️⃣ Menu do Detran — documentos, etapas, taxas e exames.\n\nResponda 1 ou 2.\n\nA qualquer momento, digite Encerrar para finalizar e pausar a assistente por 48 horas. Para chamá-la novamente antes, digite Olá.",
+      "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma opção:\n1️⃣ Falar com Instrutor\n2️⃣ Menu\n\nResponda 1 ou 2.\n\nA qualquer momento, digite Encerrar para finalizar e pausar a assistente por 48 horas. Para chamá-la novamente antes, digite Olá.",
     );
   }
 }
@@ -271,7 +258,7 @@ async function sendAttendanceMenu(
   conversationId: string,
   recipient: string,
 ) {
-  await sendInteractiveServiceMenu(supabase, conversationId, recipient, "principal");
+  await sendInteractiveServiceMenu(supabase, conversationId, recipient);
 }
 
 async function sendSecondServiceMenu(
@@ -279,7 +266,7 @@ async function sendSecondServiceMenu(
   conversationId: string,
   recipient: string,
 ) {
-  await sendInteractiveServiceMenu(supabase, conversationId, recipient, "complementar");
+  await sendInteractiveServiceMenu(supabase, conversationId, recipient);
 }
 
 async function sendReturnToMainMenu(
@@ -287,7 +274,7 @@ async function sendReturnToMainMenu(
   conversationId: string,
   recipient: string,
 ) {
-  // Após cada resposta, reapresenta os mesmos dois botões da abertura inicial.
+  // Após cada resposta, reapresenta os dois botões iniciais: Falar com Instrutor e Menu.
   await sendInitialMenuSelection(supabase, conversationId, recipient);
 }
 
@@ -303,7 +290,7 @@ function readMenuChoice(message: any, content: unknown): string | null {
     "menu_talk_marcus", "menu_second", "menu_main",
     "service_packages", "service_contract", "service_schedule",
     "service_balance", "service_reschedule", "service_documents",
-    "service_registration_fee", "service_medical", "service_theory_fee",
+    "service_registration_fee", "service_medical", "service_free_theory_course", "service_theory_fee",
     "service_driving_fee", "service_other",
   ]);
   if (validChoices.has(choiceId)) return choiceId === "menu_talk_marcus" ? "humano" : choiceId;
@@ -313,7 +300,7 @@ function readMenuChoice(message: any, content: unknown): string | null {
     : "";
   if (/^(olá|ola|continuar|continuar com ia|continuar com o assistente|assistente virtual)$/i.test(text)) return "ia";
   if (/^(falar com instrutor|falar com marcus|atendimento humano)$/i.test(text)) return "humano";
-  if (/^(menu do detran|abrir menu do detran|ver segundo menu|segundo menu|mais opções|mais opcoes)$/i.test(text)) return "menu_second";
+  if (/^(menu|menu do detran|abrir menu do detran|ver segundo menu|segundo menu|mais opções|mais opcoes|voltar ao menu principal|menu principal)$/i.test(text)) return "menu_second";
   if (/^(menu do instrutor|abrir menu do instrutor|voltar ao menu principal|menu principal|voltar ao início|voltar ao inicio)$/i.test(text)) return "menu_main";
   if (/^(consultar pacotes e valores|pacotes e valores)$/i.test(text)) return "service_packages";
   if (/^contratar serviços?$|^contratar servicos?$/i.test(text)) return "service_contract";
@@ -337,6 +324,7 @@ function serviceChoiceLabel(choice: string): string {
     service_balance: "Consultar aulas e saldos",
     service_reschedule: "Reagendar ou cancelar aulas",
     service_documents: "Consultar documentos e etapas da habilitação",
+    service_free_theory_course: "Curso Gratuito de Legislação",
     service_registration_fee: "Emitir taxa de inscrição (Detran-MG)",
     service_medical: "Exame médico",
     service_theory_fee: "Emitir taxa exame Legislação (Detran-MG)",
@@ -1495,6 +1483,32 @@ Deno.serve(async (req: Request) => {
                 await updateMessageMetadata(supabase, providerId, {
                   ai_status: sent ? "static_service_reply_sent" : "static_service_reply_failed",
                   reply_type: "first_license_documents_and_steps",
+                  reply_sent: sent,
+                });
+                if (sent) await sendReturnToMainMenu(supabase, conversation.id, phone);
+                continue;
+              }
+
+              if (menuChoice === "service_free_theory_course") {
+                const freeTheoryCourseReply =
+                  "O Curso Gratuito de Legislação pode ser feito pelo aplicativo CNH do Brasil, usando sua conta Gov.br. 😊\\n\\n" +
+                  "COMO ACESSAR:\\n" +
+                  "1. Baixe ou abra o aplicativo CNH do Brasil.\\n" +
+                  "2. Entre com sua conta Gov.br.\\n" +
+                  "3. Acesse o curso de formação de condutores e escolha o conteúdo de legislação.\\n" +
+                  "4. Conclua as aulas e atividades indicadas no aplicativo.\\n\\n" +
+                  "Se preferir, você também pode fazer o curso presencial ou a distância em um Centro de Formação de Condutores (CFC/autoescola).\\n\\n" +
+                  "Se você iniciou o processo pelo aplicativo, siga as orientações para integrar a conclusão do curso ao seu processo de habilitação em Minas Gerais. Não envie senha ou dados pessoais por esta conversa.";
+                const sent = await sendWhatsAppText(
+                  supabase,
+                  conversation.id,
+                  phone,
+                  freeTheoryCourseReply,
+                  true,
+                );
+                await updateMessageMetadata(supabase, providerId, {
+                  ai_status: sent ? "static_service_reply_sent" : "static_service_reply_failed",
+                  reply_type: "free_theory_course_information",
                   reply_sent: sent,
                 });
                 if (sent) await sendReturnToMainMenu(supabase, conversation.id, phone);
