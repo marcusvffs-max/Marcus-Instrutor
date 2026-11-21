@@ -603,3 +603,19 @@ A versão implantada contém o gerenciamento administrativo tradicional (listar 
 O projeto de testes não tem Edge Functions implantadas e não há identidade JWT sintética disponível para chamadas HTTP reais. Não foram enviados POSTs ao webhook de produção, não foram disparados convites, e-mails ou mensagens, nem foram chamadas rotas que pudessem alterar dados ou gerar custos.
 
 **Status:** revisão estática das oito funções ativas concluída; controles de JWT/admin e assinatura do webhook identificados. A validação HTTP/JWT das funções continua pendente e exige ambiente de testes com funções implantadas e contas sintéticas criadas de modo controlado. Nenhuma alteração foi feita no projeto original ou na produção.
+
+
+### Achado condicional no webhook: falta validar o número de telefone de origem
+
+Na leitura estática da versão ativa 64 de `whatsapp-webhook`, confirmei que o POST valida corretamente a assinatura HMAC da Meta antes de interpretar o JSON. Porém, após a validação, o processamento percorre `payload.entry[].changes[].value.messages[]` sem comparar `value.metadata.phone_number_id` com o `WHATSAPP_PHONE_NUMBER_ID` configurado no servidor.
+
+A função grava e processa todas essas mensagens usando o `OWNER_ID` fixo. Portanto:
+
+- Se a aplicação Meta estiver inscrita em somente um número, o risco prático fica limitado à configuração atual.
+- Se a mesma aplicação Meta receber eventos de mais de um número/WABA, eventos assinados de outro número poderão ser tratados como mensagens do proprietário fixo, misturando conversas e atendimentos.
+
+Classificação: **achado condicional de escopo de origem**, não exploração confirmada. Não foi feita chamada HTTP nem alteração na função implantada.
+
+Correção recomendada para uma futura versão de testes: antes de processar mensagens, exigir que `value.metadata.phone_number_id` exista e corresponda exatamente a `WHATSAPP_PHONE_NUMBER_ID`; rejeitar/ignorar eventos de números diferentes. Se houver mais de uma conta empresarial, validar também o identificador WABA esperado. Adicionar teste negativo com outro `phone_number_id`.
+
+O arquivo da função webhook não está presente no caminho convencional da branch consultada, e o projeto de testes não tem Edge Functions implantadas. Por isso, não foi criada uma cópia parcial nem aplicado patch sem o arquivo-fonte correto. A produção permanece inalterada.
