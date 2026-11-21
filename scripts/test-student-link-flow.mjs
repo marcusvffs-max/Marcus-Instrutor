@@ -528,3 +528,14 @@ test("status de atendimento WhatsApp é alterado por ação exclusiva do admin",
   assert.match(whatsappPanel, /action: "update_whatsapp_request_status"/);
   assert.doesNotMatch(whatsappPanel, /\.from\("ai_requests"\)[\s\S]{0,120}\.update\(/);
 });
+
+test("webhook rejeita phone_number_id ausente ou divergente antes de acessar o banco", () => {
+  const preflight = whatsappWebhook.indexOf("const hasMatchingPhoneNumberEvent");
+  const adminClient = whatsappWebhook.indexOf("const supabase = getAdminClient()", preflight);
+  const perChangeGuard = whatsappWebhook.indexOf("eventPhoneNumberId !== expectedPhoneNumberId");
+  assert.ok(preflight >= 0, "Preflight do phone_number_id ausente");
+  assert.ok(adminClient > preflight, "Cliente privilegiado criado antes do preflight");
+  assert.ok(perChangeGuard > adminClient, "Defesa por evento individual foi removida");
+  assert.match(whatsappWebhook, /Array\.isArray\(payload\.entry\)/);
+  assert.match(whatsappWebhook, /configuredPhoneNumberIdPresent: Boolean\(configuredPhoneNumberId\)/);
+});
