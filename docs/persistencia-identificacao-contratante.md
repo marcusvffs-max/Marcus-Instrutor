@@ -30,12 +30,14 @@ No projeto de testes, a verificação com dois instrutores sintéticos confirmou
 - a conta A enxerga sua própria linha;
 - a conta B não enxerga a linha da conta A;
 - uma tentativa de UPDATE por B não altera a linha de A;
-- uma conta temporariamente promovida a admin consegue inserir e ler sua própria linha.
+- uma conta temporariamente promovida a admin consegue inserir e ler sua própria linha;
+- no teste direto de RLS, a conta A conseguiu inserir e atualizar sua linha;
+- a conta B recebeu zero linhas da conta A e sua tentativa de UPDATE alterou zero registros.
 
 As linhas sintéticas foram removidas ou revertidas por rollback ao final dos testes; o perfil temporariamente promovido voltou ao papel instrutor. Nenhum dado pessoal real foi usado.
 
 ## Limites da validação
 
-Os arquivos JavaScript alterados passaram por verificação de sintaxe e verificações estáticas de integração. Foi criado `scripts/test-contractor-profile.mjs` para regressão automatizada, mas a suíte Node ainda precisa ser executada em ambiente de runtime e os formulários precisam de teste visual/browser.
+Os arquivos JavaScript alterados passaram por verificação de sintaxe e verificações estáticas de integração. Também foi executada uma simulação isolada do helper, com cliente Supabase fictício, cobrindo leitura, atualização de uma linha existente e inserção quando ainda não existe linha. Foi criado `scripts/test-contractor-profile.mjs` para regressão automatizada, mas a suíte Node ainda precisa ser executada em ambiente de runtime e os formulários precisam de teste visual/browser.
 
 A migration `20261121170000_add_contractor_identity_to_app_settings.sql` foi aplicada somente no Supabase de testes. O Supabase original foi consultado apenas por SELECT e continua sem essas seis colunas. Nenhum deploy foi feito.
