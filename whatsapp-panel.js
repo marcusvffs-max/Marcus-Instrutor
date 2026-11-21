@@ -8,6 +8,10 @@
     cancelado: "Cancelado"
   };
 
+  let whatsappPollingTimer = null;
+  let whatsappInitialLoadComplete = false;
+  let knownPendingRequestIds = new Set();
+
   const botaoAbrir = document.createElement("button");
   botaoAbrir.type = "button";
   botaoAbrir.id = "btnAtendimentosWhatsapp";
@@ -100,6 +104,38 @@
     }
 
     if (resumo) resumo.textContent = String(total);
+  }
+
+  function notificarNovoAtendimento(pedidos) {
+    if (!Array.isArray(pedidos) || !pedidos.length) return;
+    let aviso = document.getElementById("avisoNovoAtendimentoWhatsapp");
+    if (!aviso) {
+      aviso = document.createElement("button");
+      aviso.type = "button";
+      aviso.id = "avisoNovoAtendimentoWhatsapp";
+      aviso.setAttribute("role", "status");
+      aviso.style.cssText = [
+        "position:fixed", "z-index:99999", "right:16px", "top:82px",
+        "max-width:min(360px,calc(100vw - 32px))", "padding:14px 18px",
+        "border:0", "border-radius:12px", "background:#12345a", "color:#fff",
+        "box-shadow:0 8px 28px rgba(0,0,0,.24)", "font:600 14px/1.45 system-ui,sans-serif",
+        "text-align:left", "cursor:pointer"
+      ].join(";");
+      document.body.appendChild(aviso);
+      aviso.addEventListener("click", function () {
+        if (typeof window.mostrarPagina === "function") window.mostrarPagina("whatsapp");
+        carregarAtendimentosWhatsapp();
+        aviso.hidden = true;
+      });
+    }
+    const primeiro = pedidos[0];
+    const nome = String(primeiro.nome_solicitante || "Cliente WhatsApp");
+    aviso.textContent = pedidos.length === 1
+      ? "Novo atendimento recebido: " + nome + ". Toque para abrir."
+      : pedidos.length + " novos atendimentos recebidos. Toque para abrir.";
+    aviso.hidden = false;
+    if (aviso._hideTimer) window.clearTimeout(aviso._hideTimer);
+    aviso._hideTimer = window.setTimeout(() => { aviso.hidden = true; }, 12000);
   }
 
   function renderizarPedido(pedido) {
@@ -384,7 +420,7 @@
     }
   }
 
-  async function carregarAtendimentosWhatsapp() {
+  async function carregarAtendimentosWhatsapp(opcoes = {}) {\n    const silencioso = opcoes.silent === true;
     const lista = document.getElementById("listaAtendimentosWhatsapp");
     const historico = document.getElementById("historicoAtendimentosWhatsapp");
     const conversas = document.getElementById("listaConversasWhatsapp");
@@ -400,9 +436,11 @@
       return;
     }
 
-    lista.innerHTML = '<div class="empty-state">Carregando atendimentos...</div>';
-    if (historico) historico.innerHTML = '<div class="empty-state">Carregando histórico...</div>';
-    if (conversas) conversas.innerHTML = '<div class="empty-state">Carregando conversas...</div>';
+    if (!silencioso) {
+      lista.innerHTML = '<div class="empty-state">Carregando atendimentos...</div>';
+      if (historico) historico.innerHTML = '<div class="empty-state">Carregando histórico...</div>';
+      if (conversas) conversas.innerHTML = '<div class="empty-state">Carregando conversas...</div>';
+    }
 
     try {
       const { data: sessao, error: erroUsuario } = await supabase.auth.getUser();
@@ -431,6 +469,13 @@
       if (encerrados.error) throw encerrados.error;
 
       const pedidosAbertos = Array.isArray(abertos.data) ? abertos.data : [];
+      const idsAtuais = new Set(pedidosAbertos.map(pedido => String(pedido.id)));
+      if (whatsappInitialLoadComplete && opcoes.notifyNew !== false) {
+        const novosPedidos = pedidosAbertos.filter(pedido => !knownPendingRequestIds.has(String(pedido.id)));
+        if (novosPedidos.length) notificarNovoAtendimento(novosPedidos);
+      }
+      knownPendingRequestIds = idsAtuais;
+      whatsappInitialLoadComplete = true;
       const pedidosEncerrados = Array.isArray(encerrados.data) ? encerrados.data : [];
       let listaConversas = [];
       let erroListaConversas = false;
@@ -507,8 +552,28 @@
     encerrarConversaWhatsapp(evento);
   });
 
-  window.addEventListener("marcus-authenticated", carregarAtendimentosWhatsapp);
+  function iniciarAtualizacaoAutomaticaWhatsapp() {
+    if (whatsappPollingTimer) window.clearInterval(whatsappPollingTimer);
+    whatsappPollingTimer = window.setInterval(function () {
+      if (document.visibilityState === "visible") {
+        carregarAtendimentosWhatsapp({ silent: true, notifyNew: true });
+      }
+    }, 15000);
+  }
+
+  window.addEventListener("marcus-authenticated", function () {
+    knownPendingRequestIds = new Set();
+    whatsappInitialLoadComplete = false;
+    carregarAtendimentosWhatsapp({ notifyNew: false });
+    iniciarAtualizacaoAutomaticaWhatsapp();
+  });
   window.addEventListener("marcus-unauthenticated", function () {
+    if (whatsappPollingTimer) {
+      window.clearInterval(whatsappPollingTimer);
+      whatsappPollingTimer = null;
+    }
+    knownPendingRequestIds = new Set();
+    whatsappInitialLoadComplete = false;
     atualizarContador(0);
     if (lista) lista.innerHTML = '<div class="empty-state">Entre no aplicativo para consultar os atendimentos.</div>';
     if (historico) historico.innerHTML = '<div class="empty-state">Entre no aplicativo para consultar o histórico.</div>';
