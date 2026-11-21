@@ -2064,6 +2064,73 @@ Deno.serve(async (req: Request) => {
                 continue;
               }
 
+              if (menuChoice === "service_packages") {
+                const packagesReply =
+                  "Confira os valores cadastrados: 😊\\n\\n" +
+                  "VALORES:\\n" +
+                  "• Pacote Bronze — de 1 a 5 aulas: R$ 80,00\\n" +
+                  "• Pacote Prata — de 6 a 10 aulas: R$ 75,00\\n" +
+                  "• Pacote Ouro — a partir de 11 aulas: R$ 70,00\\n" +
+                  "• Aluguel do veículo: R$ 150,00 (por exame)\\n" +
+                  "• Cartão Moto Pista (30 dias): R$ 120,00\\n\\n" +
+                  "ITENS OBRIGATÓRIOS PARA O PROCESSO:\\n" +
+                  "• Mínimo de 2 aulas.\\n" +
+                  "• Aluguel do veículo.\\n" +
+                  "• Cartão Moto Pista.\\n\\n" +
+                  "Os valores dos pacotes são por aula, não pelo pacote completo. O aluguel e o cartão são cobrados separadamente.\\n\\n" +
+                  "Se quiser, posso te encaminhar pro Instrutor Marcus pra darmos sequencia no atendimento. 😊";
+
+                // Esta opção é apenas informativa: não inicia cotação nem mantém pedido pendente.
+                const { error: packagesStateError } = await supabase
+                  .from("whatsapp_conversations")
+                  .update({
+                    status: "aguardando_escolha",
+                    quote_state: null,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", conversation.id)
+                  .eq("owner_id", OWNER_ID);
+                if (packagesStateError) {
+                  console.error("Packages information state reset failed:", packagesStateError.message);
+                  continue;
+                }
+
+                const packagesPayload = {
+                  type: "interactive",
+                  interactive: {
+                    type: "button",
+                    body: { text: packagesReply },
+                    action: {
+                      buttons: [{
+                        type: "reply",
+                        reply: {
+                          id: "menu_talk_marcus",
+                          title: "Falar com Instrutor",
+                        },
+                      }],
+                    },
+                  },
+                };
+                const sent = await sendWhatsAppPayload(
+                  supabase,
+                  conversation.id,
+                  phone,
+                  packagesPayload,
+                  packagesReply,
+                  true,
+                );
+                await updateMessageMetadata(supabase, providerId, {
+                  ai_status: sent ? "static_service_reply_sent" : "static_service_reply_failed",
+                  reply_type: "packages_and_values_information",
+                  reply_sent: sent,
+                  handoff_button: "menu_talk_marcus",
+                });
+                if (!sent) {
+                  await sendWhatsAppText(supabase, conversation.id, phone, packagesReply, true);
+                }
+                continue;
+              }
+
               if (menuChoice === "service_documents") {
                 const documentsAndStepsReply =
                   "Para iniciar a primeira habilitação em Minas Gerais (CNH nas categorias A, B ou AB, ou ACC), confira os requisitos e siga as etapas abaixo. 😊\n\n" +
