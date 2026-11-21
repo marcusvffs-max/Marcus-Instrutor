@@ -123,7 +123,7 @@ As policies não substituem FKs compostas: policy SELECT limita leitura, mas nã
 9. Confirmar que item de venda de A não pode referenciar produto de B; o catálogo usado pelo webhook WhatsApp é uma leitura separada e não é gravado diretamente em sale_items.
 10. Verificar consultas e planos de execução para avaliar índices e impacto.
 
-Não criar projeto/branch Supabase pago para teste. Nenhum usuário de teste, dado, constraint, índice ou trigger foi criado.
+Não criar projeto/branch Supabase pago para teste. Esta observação descrevia apenas o estágio inicial do rascunho. O ambiente isolado de testes foi criado posteriormente, com duas contas Auth sintéticas e fixtures de teste; as migrations de FKs foram aplicadas somente nele.
 
 ## 6. Correção de documentação anterior
 
