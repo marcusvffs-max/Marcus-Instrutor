@@ -202,8 +202,8 @@ O catálogo dos dois projetos confirma:
 - 13 tabelas públicas;
 - RLS habilitado nas 13;
 - 38 policies nas mesmas 11 tabelas;
-- 31 índices;
-- 62 constraints de produção e 63 no teste. A constraint adicional é a FK de `students.user_id`, introduzida pela migration de vínculo por conta do aluno;
+- 31 índices no original e 35 no teste após as quatro chaves únicas compostas;
+- 62 constraints no original e 67 no teste: 1 FK extra de `students.user_id`, 4 chaves únicas compostas e 7 FKs compostas substituindo 7 FKs simples;
 - as três colunas adicionais em `students` (`user_id`, `invited_at`, `invite_attempt_id`) também são intencionais para testar a nova vinculação;
 - 15 funções no teste contra 12 no original e 8 triggers no teste contra 5 no original, pelas três funções e três triggers adicionais de vínculo/proteção do aluno.
 
