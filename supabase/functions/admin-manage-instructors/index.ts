@@ -99,6 +99,40 @@ Deno.serve(async (req: Request) => {
       return response({ ok: true, conversations: conversations ?? [] });
     }
 
+    if (body.action === "list_whatsapp_messages") {
+      if (profile.role !== "admin") {
+        return response({ error: "Somente administradores podem consultar mensagens do WhatsApp." }, 403);
+      }
+      const conversationId = typeof body.conversation_id === "string" ? body.conversation_id.trim() : "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId)) {
+        return response({ error: "Conversa inválida." }, 400);
+      }
+
+      const { data: conversation, error: conversationError } = await admin
+        .from("whatsapp_conversations")
+        .select("id")
+        .eq("id", conversationId)
+        .eq("owner_id", authData.user.id)
+        .maybeSingle();
+      if (conversationError) throw conversationError;
+      if (!conversation) return response({ error: "Conversa não encontrada para esta conta." }, 404);
+
+      const { data: messages, error: messagesError } = await admin
+        .from("whatsapp_messages")
+        .select("id,direcao,tipo_mensagem,conteudo,status_provedor,created_at")
+        .eq("conversation_id", conversationId)
+        .eq("owner_id", authData.user.id)
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (messagesError) throw messagesError;
+
+      return response({
+        ok: true,
+        messages: (messages ?? []).reverse(),
+        has_more: (messages ?? []).length === 100,
+      });
+    }
+
     if (body.action === "close_whatsapp_conversation") {
       if (profile.role !== "admin") {
         return response({ error: "Somente administradores podem encerrar conversas do WhatsApp." }, 403);
