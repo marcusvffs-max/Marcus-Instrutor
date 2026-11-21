@@ -422,7 +422,7 @@
           .select("id, nome_solicitante, telefone_solicitante, created_at, atendimento_status, tipo_solicitacao, dados_propostos")
           .eq("owner_id", sessao.user.id)
           .eq("canal", "whatsapp")
-          .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran", "intencao_compra_pacote"])
+          .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran", "intencao_compra_pacote", "intencao_compra_adicionais"])
           .in("atendimento_status", ["concluido", "cancelado"])
           .order("created_at", { ascending: false })
       ]);
