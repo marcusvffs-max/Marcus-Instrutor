@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v22-instrutor-corrections";
+const CACHE_NAME = "marcus-instrutor-v23-safe-confirm";
 
 const ARQUIVOS = [
   "./",
@@ -8,7 +8,7 @@ const ARQUIVOS = [
   "./instrutor.html",
   "./style.css?v=admin-invite-refresh-1",
   "./instrutor.css?v=19-instructor-settings",
-  "./instrutor.js?v=27-profile-batch-finance",
+  "./instrutor.js?v=28-safe-confirm",
   "./manifest.json"
 ];
 
