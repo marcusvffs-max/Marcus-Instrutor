@@ -159,16 +159,17 @@ O SQL revisado foi atualizado para incluir as FKs compostas e remover as FKs sim
 
 ## 9. Verificação estática adicional — 20/11/2026
 
-O arquivo `scripts/test-student-link-flow.mjs` recebeu quatro testes para a integridade referencial. O harness JavaScript isolado executado com os arquivos atuais da branch terminou com **24/24 testes aprovados**.
+O arquivo `scripts/test-student-link-flow.mjs` contém testes estáticos para integridade referencial, vínculo de aluno, cache local por administrador e webhook/status WhatsApp. A revisão inicial de 20/11 registrou 24/24 testes aprovados no harness então disponível; depois disso foram acrescentados novos casos e o conjunto completo não foi reexecutado com Node.
 
-Os casos estáticos verificam:
-- existência das chaves únicas compostas `(id, owner_id)` nos pais;
-- FKs compostas entre aulas/alunos/veículos, vendas/alunos, itens/vendas/produtos e movimentações;
-- `ON DELETE SET NULL` limitado à coluna opcional e `ON DELETE CASCADE` dos itens;
-- remoção das sete FKs simples antigas na mesma transação;
-- validação de owner em `sale_items.product_id` e preservação da FK de `app_settings.owner_id`.
+Nesta rodada, 11/11 verificações estáticas direcionadas aos arquivos atuais passaram, cobrindo:
+- FKs compostas e owner matching para aluno, veículo, venda e produto;
+- preservação de `NO ACTION` nas relações de lessons;
+- substituição das sete FKs simples;
+- validação de phone_number_id e HMAC no webhook;
+- ação de status WhatsApp restrita ao admin e ao owner;
+- cache local isolado por usuário autenticado.
 
-**Limite do resultado:** trata-se de verificação estática de texto/código em harness JavaScript. Não foi executado `node --test`, PostgreSQL, Deno nem teste contra o Supabase. Não comprova que o DDL será aceito ou que as constraints estejam ativas no banco.
+**Limite do resultado:** as 11 verificações foram assertions estáticas executadas com o conteúdo atual da branch. Não foi executado `node --test`, Deno ou teste HTTP/JWT real. Os testes SQL de PostgreSQL foram executados separadamente no projeto isolado e estão descritos no relatório de estado.
 
 O rascunho continua **não aprovado para execução**. Antes de qualquer DDL, repetir em leitura somente:
 1. nulidade/tipos das colunas de relacionamento e `owner_id`;
