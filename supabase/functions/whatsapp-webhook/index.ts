@@ -2066,18 +2066,18 @@ Deno.serve(async (req: Request) => {
 
               if (menuChoice === "service_packages") {
                 const packagesReply =
-                  "Confira os valores cadastrados: 😊\\n\\n" +
-                  "VALORES:\\n" +
-                  "• Pacote Bronze — de 1 a 5 aulas: R$ 80,00\\n" +
-                  "• Pacote Prata — de 6 a 10 aulas: R$ 75,00\\n" +
-                  "• Pacote Ouro — a partir de 11 aulas: R$ 70,00\\n" +
-                  "• Aluguel do veículo: R$ 150,00 (por exame)\\n" +
-                  "• Cartão Moto Pista (30 dias): R$ 120,00\\n\\n" +
-                  "ITENS OBRIGATÓRIOS PARA O PROCESSO:\\n" +
-                  "• Mínimo de 2 aulas.\\n" +
-                  "• Aluguel do veículo.\\n" +
-                  "• Cartão Moto Pista.\\n\\n" +
-                  "Os valores dos pacotes são referentes às aulas. O aluguel e o cartão são cobrados separadamente.\\n\\n" +
+                  "Confira os valores cadastrados: 😊\n\n" +
+                  "VALORES:\n" +
+                  "• Pacote Bronze — de 1 a 5 aulas: R$ 80,00\n" +
+                  "• Pacote Prata — de 6 a 10 aulas: R$ 75,00\n" +
+                  "• Pacote Ouro — a partir de 11 aulas: R$ 70,00\n" +
+                  "• Aluguel do veículo: R$ 150,00 (por exame)\n" +
+                  "• Cartão Moto Pista (30 dias): R$ 120,00\n\n" +
+                  "ITENS OBRIGATÓRIOS PARA O PROCESSO:\n" +
+                  "• Mínimo de 2 aulas.\n" +
+                  "• Aluguel do veículo.\n" +
+                  "• Cartão Moto Pista.\n\n" +
+                  "Os valores dos pacotes são referentes às aulas. O aluguel e o cartão são cobrados separadamente.\n\n" +
                   "Se quiser, posso te encaminhar para o Instrutor Marcus pra darmos sequência no atendimento. 😊";
 
                 // Esta opção é apenas informativa: não inicia cotação nem mantém pedido pendente.
