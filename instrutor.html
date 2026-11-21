@@ -335,6 +335,20 @@
           <div><h3>Contrato de prestação de serviços</h3><p>Gere um contrato com os dados dos seus alunos e a sua identificação de instrutor.</p></div>
         </div>
         <div class="student-form contract-form">
+          <h4>Seus dados de identificação (contratado / instrutor)</h4>
+          <div class="student-form-grid">
+            <div><label for="contratanteNome">Nome completo *</label><input id="contratanteNome" maxlength="160" autocomplete="name"></div>
+            <div><label for="contratanteDocumento">CPF / CNPJ *</label><input id="contratanteDocumento" maxlength="24" inputmode="numeric" autocomplete="off"></div>
+            <div><label for="contratanteNacionalidade">Nacionalidade</label><input id="contratanteNacionalidade" maxlength="80"></div>
+            <div><label for="contratanteCivil">Estado civil</label><input id="contratanteCivil" maxlength="80"></div>
+            <div><label for="contratanteProfissao">Profissão</label><input id="contratanteProfissao" maxlength="100"></div>
+            <div class="form-full"><label for="contratanteEndereco">Endereço completo</label><textarea id="contratanteEndereco" rows="2" maxlength="300"></textarea></div>
+          </div>
+          <div class="student-form-actions">
+            <button id="btnSalvarDadosContratante" class="button button-outline" type="button">Salvar meus dados</button>
+            <p id="statusDadosContratante" class="contract-note" role="status" aria-live="polite">Seus dados serão guardados na sua conta.</p>
+          </div>
+          <h4>Dados do contrato do aluno</h4>
           <div class="student-form-grid">
             <div class="form-full">
               <label for="contratoAlunoInstrutor">Usar aluno cadastrado</label>
@@ -378,6 +392,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="instrutor.js?v=23"></script>
+  <script src="contratante-perfil.js?v=1"></script>
+  <script src="instrutor.js?v=24"></script>
 </body>
 </html>
