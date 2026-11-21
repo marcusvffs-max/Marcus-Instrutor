@@ -274,12 +274,18 @@
 
       const pedidosAbertos = Array.isArray(abertos.data) ? abertos.data : [];
       const pedidosEncerrados = Array.isArray(encerrados.data) ? encerrados.data : [];
-      const { data: conversasData, error: conversasError } = await supabase.functions.invoke("admin-manage-instructors", {
-        body: { action: "list_whatsapp_conversations" },
-      });
-      if (conversasError) throw conversasError;
-      if (!conversasData?.ok) throw new Error(conversasData?.error || "Não foi possível carregar as conversas.");
-      const listaConversas = Array.isArray(conversasData.conversations) ? conversasData.conversations : [];
+      let listaConversas = [];
+      let erroListaConversas = false;
+      try {
+        const { data: conversasData, error: conversasError } = await supabase.functions.invoke("admin-manage-instructors", {
+          body: { action: "list_whatsapp_conversations" },
+        });
+        if (conversasError || !conversasData?.ok) throw conversasError || new Error(conversasData?.error || "A listagem de conversas ainda não está disponível.");
+        listaConversas = Array.isArray(conversasData.conversations) ? conversasData.conversations : [];
+      } catch (erroConversas) {
+        erroListaConversas = true;
+        console.warn("Listagem de conversas WhatsApp indisponível:", erroConversas);
+      }
 
       atualizarContador(pedidosAbertos.length);
       lista.innerHTML = pedidosAbertos.length
@@ -292,9 +298,11 @@
           : '<div class="empty-state">Nenhum atendimento concluído ou cancelado.</div>';
       }
       if (conversas) {
-        conversas.innerHTML = listaConversas.length
-          ? listaConversas.map(renderizarConversaWhatsapp).join("")
-          : '<div class="empty-state">Nenhuma conversa ativa no momento.</div>';
+        conversas.innerHTML = erroListaConversas
+          ? '<div class="empty-state">A lista de conversas será habilitada quando a atualização do serviço WhatsApp estiver disponível.</div>'
+          : (listaConversas.length
+            ? listaConversas.map(renderizarConversaWhatsapp).join("")
+            : '<div class="empty-state">Nenhuma conversa ativa no momento.</div>');
       }
     } catch (erro) {
       console.error("Erro ao carregar atendimentos do WhatsApp:", erro);
