@@ -523,16 +523,16 @@ function formatCatalogReply(catalog: CatalogProduct[]): string {
   });
   const otherLines = others.map((item) => "• " + item.nome + ": " + money(item.preco) + (item.descricao ? " — " + item.descricao : ""));
   const sections = [
-    packageLines.length ? "PACOTES (valor por aula):\\n" + packageLines.join("\\n") : "",
-    necessaryLines.length || packages.length ? "O QUE É NECESSÁRIO PARA O PROCESSO:\\n" + [
+    packageLines.length ? "PACOTES (valor por aula):\n" + packageLines.join("\n") : "",
+    necessaryLines.length || packages.length ? "O QUE É NECESSÁRIO PARA O PROCESSO:\n" + [
       "• Aulas: mínimo de 2 aulas.",
       ...necessaryLines,
-    ].join("\\n") : "",
-    otherLines.length ? "OUTROS ITENS:\\n" + otherLines.join("\\n") : "",
+    ].join("\n") : "",
+    otherLines.length ? "OUTROS ITENS:\n" + otherLines.join("\n") : "",
   ].filter(Boolean);
-  return "Confira os valores cadastrados: 😊\\n\\n" + sections.join("\\n\\n") +
-    "\\n\\nOs valores dos pacotes são por aula, não pelo pacote completo. O aluguel e o cartão são cobrados separadamente." +
-    "\\n\\nSe quiser, informe quantas aulas deseja e faço o cálculo para você. 😊";
+  return "Confira os valores cadastrados: 😊\n\n" + sections.join("\n\n") +
+    "\n\nOs valores dos pacotes são por aula, não pelo pacote completo. O aluguel e o cartão são cobrados separadamente." +
+    "\n\nSe quiser, informe quantas aulas deseja e faço o cálculo para você. 😊";
 }
 
 function appendMandatoryItemsToPackageReply(
