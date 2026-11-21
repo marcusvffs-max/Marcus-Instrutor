@@ -1316,6 +1316,18 @@
     state.profile = profile;
     el("nomeInstrutor").textContent = profile.nome || state.user.email || "Instrutor";
     renderAccessCountdown(profile.instructor_access_until);
+    if (window.MarcusContractorProfile) {
+      const obterCliente = () => state.supabase;
+      const obterUsuario = () => state.user?.id || null;
+      try {
+        await window.MarcusContractorProfile.carregar(state.supabase, state.user.id);
+      } catch (error) {
+        console.error("Não foi possível carregar a identificação do contratante:", error);
+        const status = el("statusDadosContratante");
+        if (status) status.textContent = "Não foi possível carregar seus dados salvos. Você ainda pode preencher e salvar novamente.";
+      }
+      window.MarcusContractorProfile.vincular(obterCliente, obterUsuario);
+    }
     await loadOwnData();
 
     el("btnNovoAluno").addEventListener("click", () => openStudentForm());
