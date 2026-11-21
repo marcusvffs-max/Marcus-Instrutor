@@ -17,7 +17,7 @@ Comportamentos atuais relevantes:
 - `sale_items.product_id -> products.id`: ON DELETE SET NULL.
 - `app_settings.owner_id -> auth.users.id`: FK existente (NO ACTION). A documentação anterior que dizia não haver FK estava incorreta e foi corrigida.
 
-Todas as tabelas relacionadas têm `owner_id NOT NULL`. Não há dados atualmente nas tabelas operacionais auditadas; as seis verificações de relações entre owners retornaram zero inconsistências. Isso não substitui constraints: os dados podem ser inseridos depois.
+Todas as tabelas relacionadas têm `owner_id NOT NULL`. Há registros operacionais no banco; as sete verificações de relações entre owners retornaram zero inconsistências no momento da consulta. Isso não substitui constraints: os dados podem ser inseridos depois.
 
 ## 2. Integridade que as FKs simples não garantem
 
