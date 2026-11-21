@@ -566,7 +566,7 @@ function normalizeChoiceText(value: string): string {
 
 function detectOptionalItemChoice(message: string): OptionalItemChoice {
   const text = normalizeChoiceText(message);
-  if (/\b(nenhum|nenhuma|nao quero nenhum|nao quero nenhum dos dois|nao quero nenhum deles|nenhum dos dois|nenhuma das duas|sem os dois|somente o pacote|so o pacote|apenas as aulas)\b/.test(text)) return "none";
+  if (/\b(nao|nenhum|nenhuma|nao quero nenhum|nao quero nenhum dos dois|nao quero nenhum deles|nenhum dos dois|nenhuma das duas|sem os dois|somente o pacote|so o pacote|apenas as aulas)\b/.test(text)) return "none";
   if (/\b(os dois|ambos|ambas|as duas|aluguel e (o )?cartao|cartao e (o )?aluguel)\b/.test(text) ||
       (text.includes("aluguel") && text.includes("cartao"))) return "both";
   if (/\b(cartao|moto pista|pista)\b/.test(text)) return "card";
@@ -1008,7 +1008,7 @@ async function processIncomingMessage(
     if (hasPendingQuote && storedQuoteState?.awaiting_optional_items === true) {
       const choice = detectOptionalItemChoice(privacy.text);
       if (choice === "ambiguous") {
-        const clarification = "Claro! 😊 Você prefere incluir somente o aluguel do veículo, somente o Cartão Moto Pista ou os dois no cálculo?";
+        const clarification = "Claro! 😊 Você prefere que eu destaque somente o aluguel do veículo, somente o Cartão Moto Pista ou os dois? Os valores serão apresentados separadamente do valor das aulas.";
         const sent = await sendWhatsAppText(supabase, conversationId, phone, clarification);
         await updateMessageMetadata(supabase, providerId, {
           ai_status: sent ? "awaiting_optional_quote_choice" : "reply_send_failed",
