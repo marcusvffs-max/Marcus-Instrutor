@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v19-confirmacao-conta-legada";
+const CACHE_NAME = "marcus-instrutor-v20-perfil-contratante";
 
 const ARQUIVOS = [
   "./",
@@ -8,13 +8,15 @@ const ARQUIVOS = [
   "./instrutor.html",
   "./style.css?v=atendimentos-whatsapp-v2",
   "./instrutor.css?v=18",
-  "./instrutor.js?v=23",
+  "./contratante-perfil.js?v=1",
+  "./instrutor.js?v=26",
   "./manifest.json"
 ];
 
 const ARQUIVOS_ADMINISTRATIVOS = [
   "/script.js",
   "/contratos.js",
+  "/contratante-perfil.js",
   "/whatsapp-panel.js",
   "/admin-users.js"
 ];
