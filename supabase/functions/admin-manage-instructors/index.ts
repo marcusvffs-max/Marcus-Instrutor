@@ -678,12 +678,17 @@ Deno.serve(async (req: Request) => {
     }
 
     if (isStudentInvite && studentInviteId && !studentRecoveryUserId) {
-      const { error: clearStaleError } = await admin.from("students")
+      const clearStaleQuery = admin.from("students")
         .update({ invited_at: null, invite_attempt_id: null })
         .eq("id", studentInviteId)
         .eq("owner_id", authData.user.id)
-        .is("user_id", null)
-        .eq("invited_at", studentInvitePreviousInvitedAt);
+        .is("user_id", null);
+      if (studentInvitePreviousInvitedAt) {
+        clearStaleQuery.eq("invited_at", studentInvitePreviousInvitedAt);
+      } else {
+        clearStaleQuery.is("invited_at", null);
+      }
+      const { error: clearStaleError } = await clearStaleQuery;
       if (clearStaleError) throw clearStaleError;
 
       studentInviteReservation = new Date().toISOString();
