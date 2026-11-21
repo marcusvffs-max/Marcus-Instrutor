@@ -1,14 +1,14 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v21-perfil-contratante";
+const CACHE_NAME = "marcus-instrutor-v22-instrutor-corrections";
 
 const ARQUIVOS = [
   "./",
   "./index.html",
   "./instrutor.html",
-  "./style.css?v=atendimentos-whatsapp-v2",
-  "./instrutor.css?v=18",
-  "./instrutor.js?v=26",
+  "./style.css?v=admin-invite-refresh-1",
+  "./instrutor.css?v=19-instructor-settings",
+  "./instrutor.js?v=27-profile-batch-finance",
   "./manifest.json"
 ];
 
