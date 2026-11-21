@@ -771,3 +771,38 @@ Revoga privilégios padrão de anon, authenticated e service_role para novas tab
 - Os três Security Advisor findings permaneceram iguais; nenhum alerta novo foi introduzido.
 
 A configuração original não foi modificada. O risco identificado no original é preventivo para futuras tabelas: migrations devem habilitar RLS e definir grants/policies explicitamente; a correção segura por default foi validada somente no projeto de testes.
+
+
+## Achado e correção: comparações de papel que não tratavam NULL como negação
+
+A função private.current_app_role() retorna NULL para instrutor com autorização expirada. Cinco RPCs financeiras comparavam o resultado com `<>` dentro de PL/pgSQL `IF`. Como `NULL <> 'papel'` resulta em NULL e um IF com NULL não entra no ramo, a checagem de papel não encerrava a execução imediatamente.
+
+### Impacto avaliado
+
+- Antes da correção, uma chamada de instrutor expirado a create_instructor_sale com itens vazios passava pela checagem de papel e chegava à validação de itens (erro 22023).
+- As operações de dados continuavam protegidas pelas policies RLS: instrutor expirado não vê o aluno nem os registros de venda, e os testes anteriores confirmaram zero linhas visíveis. Não foi confirmada leitura ou alteração indevida.
+- O achado é uma falha de defesa em profundidade nas próprias RPCs; pode se tornar mais grave se futuramente forem adicionadas operações antes das consultas protegidas por RLS.
+
+A consulta somente de leitura ao Supabase original confirmou o mesmo padrão nas cinco funções originais. Nenhuma alteração foi feita nele.
+
+### Correção no projeto de testes
+
+Migration:
+`20261121154000_null_safe_financial_rpc_role_checks.sql`
+
+Substitui comparações de papel por `IS DISTINCT FROM`, que considera NULL diferente de qualquer papel permitido, nas funções:
+- create_instructor_sale (exige instrutor ativo);
+- admin_create_sale;
+- admin_delete_sale;
+- admin_refund_sale_lessons;
+- admin_refund_sale_product (as quatro últimas exigem admin).
+
+### Testes após a correção
+
+- Instrutor expirado: as cinco RPCs bloquearam imediatamente com as mensagens de autorização esperadas.
+- Perfil usuario: create_instructor_sale bloqueada imediatamente.
+- Instrutor ativo: venda legítima de teste continuou funcionando; criou 1 venda, 1 item e 1 lançamento financeiro, e acrescentou 2 aulas ao saldo.
+- A venda positiva foi revertida; consulta posterior confirmou zero venda/item/lançamento persistidos e saldo restaurado a 5 aulas compradas e 5 restantes.
+- As cinco funções continuam SECURITY INVOKER, owner postgres, search_path vazio, sem EXECUTE para anon/PUBLIC e com EXECUTE preservado para authenticated/service_role.
+
+**Importante:** a correção foi aplicada somente ao banco de testes e versionada na branch de testes. O mesmo ajuste precisa ser avaliado para as cinco RPCs do projeto original, mas não foi aplicado sem autorização explícita.
