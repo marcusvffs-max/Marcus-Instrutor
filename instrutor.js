@@ -42,6 +42,71 @@
     target.style.color = isError ? "#a12b2b" : "#16794b";
   }
 
+  function confirmAction(message) {
+    return new Promise(resolve => {
+      const styleId = "marcus-safe-confirm-style";
+      if (!document.getElementById(styleId)) {
+        const style = document.createElement("style");
+        style.id = styleId;
+        style.textContent = `
+          .marcus-confirm-overlay{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.62)}
+          .marcus-confirm-dialog{width:min(100%,440px);padding:22px;border-radius:16px;background:#fff;color:#172033;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+          .marcus-confirm-dialog h2{margin:0 0 12px;font-size:19px}
+          .marcus-confirm-dialog p{margin:0;white-space:pre-line;overflow-wrap:anywhere;line-height:1.5}
+          .marcus-confirm-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+          .marcus-confirm-actions button{border:0;border-radius:9px;padding:11px 16px;font:inherit;font-weight:650;cursor:pointer}
+          .marcus-confirm-cancel{background:#e8edf3;color:#172033}
+          .marcus-confirm-ok{background:#12345a;color:#fff}
+        `;
+        document.head.appendChild(style);
+      }
+
+      const overlay = document.createElement("div");
+      overlay.className = "marcus-confirm-overlay";
+      const dialog = document.createElement("section");
+      dialog.className = "marcus-confirm-dialog";
+      dialog.setAttribute("role", "dialog");
+      dialog.setAttribute("aria-modal", "true");
+      dialog.setAttribute("aria-labelledby", "marcusConfirmTitle");
+      const title = document.createElement("h2");
+      title.id = "marcusConfirmTitle";
+      title.textContent = "Confirmação";
+      const text = document.createElement("p");
+      text.textContent = String(message ?? "");
+      const actions = document.createElement("div");
+      actions.className = "marcus-confirm-actions";
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.className = "marcus-confirm-cancel";
+      cancel.textContent = "Cancelar";
+      const accept = document.createElement("button");
+      accept.type = "button";
+      accept.className = "marcus-confirm-ok";
+      accept.textContent = "Confirmar";
+      actions.append(cancel, accept);
+      dialog.append(title, text, actions);
+      overlay.append(dialog);
+      document.body.appendChild(overlay);
+
+      const previousOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      let finished = false;
+      const finish = value => {
+        if (finished) return;
+        finished = true;
+        document.removeEventListener("keydown", onKey);
+        overlay.remove();
+        document.body.style.overflow = previousOverflow;
+        resolve(value);
+      };
+      const onKey = event => { if (event.key === "Escape") finish(false); };
+      document.addEventListener("keydown", onKey);
+      cancel.addEventListener("click", () => finish(false));
+      accept.addEventListener("click", () => finish(true));
+      cancel.focus();
+    });
+  }
+
   function localToday() {
     const now = new Date();
     return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -382,7 +447,7 @@
     }
 
     const actionLabel = nextStatus === "realizada" ? "marcar esta aula como realizada" : "cancelar esta aula";
-    if (!window.confirm("Deseja " + actionLabel + " para " + studentName(lesson.student_id) + "?")) return;
+    if (!await confirmAction("Deseja " + actionLabel + " para " + studentName(lesson.student_id) + "?")) return;
 
     try {
       const { error } = await state.supabase.from("lessons")
@@ -681,7 +746,7 @@
   async function deleteLesson(id) {
     const lesson = state.lessons.find(item => item.id === id);
     if (!lesson) return;
-    if (!window.confirm("Deseja excluir esta aula de " + studentName(lesson.student_id) + "?")) return;
+    if (!await confirmAction("Deseja excluir esta aula de " + studentName(lesson.student_id) + "?")) return;
     try {
       const { error } = await state.supabase.from("lessons").delete().eq("id", id);
       if (error) throw error;
@@ -758,7 +823,7 @@
   async function deleteVehicle(id) {
     const vehicle = state.vehicles.find(item => item.id === id);
     if (!vehicle) return;
-    if (!window.confirm('Deseja excluir o veículo "' + vehicleLabel(vehicle) + '"?')) return;
+    if (!await confirmAction('Deseja excluir o veículo "' + vehicleLabel(vehicle) + '"?')) return;
     try {
       const { error } = await state.supabase.from("vehicles").delete().eq("id", id);
       if (error) throw error;
@@ -878,7 +943,7 @@
     const product = state.products.find(item => item.id === id);
     if (!product) return;
     const action = product.ativo ? "inativar" : "ativar";
-    if (!window.confirm("Deseja " + action + ' "' + product.nome + '"?')) return;
+    if (!await confirmAction("Deseja " + action + ' "' + product.nome + '"?')) return;
     const { error } = await state.supabase.from("products").update({ ativo: !product.ativo }).eq("id", id);
     if (error) { console.error(error); showMessage("Não foi possível atualizar o item."); return; }
     await loadProductsAndSales();
@@ -987,7 +1052,7 @@
   async function deleteInstructorSale(id) {
     const sale = state.sales.find(item => item.id === id);
     if (!sale) return;
-    if (!window.confirm("Deseja excluir esta venda? O saldo de aulas será ajustado. Se alguma aula deste pacote já tiver sido utilizada, a exclusão será bloqueada.")) return;
+    if (!await confirmAction("Deseja excluir esta venda? O saldo de aulas será ajustado. Se alguma aula deste pacote já tiver sido utilizada, a exclusão será bloqueada.")) return;
     try {
       const { error } = await state.supabase.rpc("delete_my_sale", { p_sale_id: id });
       if (error) throw error;
@@ -1074,7 +1139,7 @@
       item.id === id && item.tipo === "saida" && !item.sale_id
     );
     if (!transaction) return;
-    if (!window.confirm("Deseja excluir esta despesa?")) return;
+    if (!await confirmAction("Deseja excluir esta despesa?")) return;
     try {
       const { error } = await state.supabase.from("financial_transactions")
         .delete()
@@ -1374,7 +1439,7 @@
   async function deleteStudent(id) {
     const student = state.students.find(item => item.id === id);
     if (!student) return;
-    if (!window.confirm('Deseja excluir o aluno "' + student.nome + '"?')) return;
+    if (!await confirmAction('Deseja excluir o aluno "' + student.nome + '"?')) return;
 
     try {
       const { error } = await state.supabase.from("students").delete().eq("id", id);
@@ -1636,7 +1701,7 @@
         const isRecovery = Boolean(student.user_id);
         const actionLabel = isRecovery ? "Reenviar link de acesso" : "Enviar convite ou confirmação de acesso";
         const confirmationText = actionLabel + " para " + student.nome + " (" + student.email + ")?\n\nConfira se este e-mail foi informado pelo próprio aluno. Se já existir uma conta com esse endereço, o titular receberá um link para confirmar o vínculo. O cadastro só será associado depois que ele abrir o link.";
-        if (!window.confirm(confirmationText)) return;
+        if (!await confirmAction(confirmationText)) return;
         button.disabled = true;
         button.textContent = isRecovery ? "Reenviando..." : "Enviando...";
         try {
