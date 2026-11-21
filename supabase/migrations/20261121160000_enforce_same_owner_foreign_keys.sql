@@ -1,5 +1,5 @@
 -- Enforce tenant ownership in relational references as defense in depth.
--- The existing single-column FKs are retained to preserve their original semantics;
+-- The existing single-column FKs are replaced after validation to preserve their original semantics;
 -- these composite FKs ensure the referenced row belongs to the same owner_id.
 -- PostgreSQL 17 supports column-specific SET NULL for composite foreign keys.
 
@@ -19,13 +19,13 @@ ALTER TABLE public.lessons
   ADD CONSTRAINT lessons_student_owner_fkey
   FOREIGN KEY (student_id, owner_id)
   REFERENCES public.students (id, owner_id)
-  ON DELETE CASCADE NOT VALID;
+  ON DELETE NO ACTION NOT VALID;
 
 ALTER TABLE public.lessons
   ADD CONSTRAINT lessons_vehicle_owner_fkey
   FOREIGN KEY (vehicle_id, owner_id)
   REFERENCES public.vehicles (id, owner_id)
-  ON DELETE SET NULL (vehicle_id) NOT VALID;
+  ON DELETE NO ACTION NOT VALID;
 
 ALTER TABLE public.sales
   ADD CONSTRAINT sales_student_owner_fkey
@@ -64,3 +64,14 @@ ALTER TABLE public.sale_items VALIDATE CONSTRAINT sale_items_sale_owner_fkey;
 ALTER TABLE public.sale_items VALIDATE CONSTRAINT sale_items_product_owner_fkey;
 ALTER TABLE public.financial_transactions VALIDATE CONSTRAINT financial_student_owner_fkey;
 ALTER TABLE public.financial_transactions VALIDATE CONSTRAINT financial_sale_owner_fkey;
+
+-- Replace the original single-column FKs only after the composite constraints
+-- have been validated. This preserves the original ON DELETE behavior while
+-- avoiding duplicate referential-action triggers.
+ALTER TABLE public.lessons DROP CONSTRAINT lessons_student_id_fkey;
+ALTER TABLE public.lessons DROP CONSTRAINT lessons_vehicle_id_fkey;
+ALTER TABLE public.sales DROP CONSTRAINT sales_student_id_fkey;
+ALTER TABLE public.sale_items DROP CONSTRAINT sale_items_sale_id_fkey;
+ALTER TABLE public.sale_items DROP CONSTRAINT sale_items_product_id_fkey;
+ALTER TABLE public.financial_transactions DROP CONSTRAINT financial_transactions_student_id_fkey;
+ALTER TABLE public.financial_transactions DROP CONSTRAINT financial_transactions_sale_id_fkey;
