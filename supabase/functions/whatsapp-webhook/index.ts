@@ -1102,7 +1102,7 @@ Deno.serve(async (req: Request) => {
 
             const { data: existingConversation, error: echoConversationError } = await supabase
               .from("whatsapp_conversations")
-              .select("id")
+              .select("id,status,ai_paused_until,ai_pause_reason")
               .eq("owner_id", OWNER_ID)
               .eq("telefone", customerPhone)
               .maybeSingle();
@@ -1137,14 +1137,25 @@ Deno.serve(async (req: Request) => {
               continue;
             }
 
-            const pauseUntil = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+            const now = new Date();
+            const currentPauseMs = existingConversation.ai_paused_until
+              ? new Date(existingConversation.ai_paused_until).getTime()
+              : 0;
+            const alreadyPausedForTakeover =
+              existingConversation.status === "atendimento_humano" &&
+              currentPauseMs > now.getTime();
+            const pauseUntil = alreadyPausedForTakeover
+              ? existingConversation.ai_paused_until
+              : new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
             const { error: pauseError } = await supabase
               .from("whatsapp_conversations")
               .update({
-                status: "encerrada",
+                status: "atendimento_humano",
                 ai_paused_until: pauseUntil,
-                ai_pause_reason: "instrutor_mensagem_manual",
-                updated_at: new Date().toISOString(),
+                ai_pause_reason: alreadyPausedForTakeover
+                  ? existingConversation.ai_pause_reason
+                  : "instrutor_assumiu_atendimento",
+                updated_at: now.toISOString(),
               })
               .eq("id", existingConversation.id)
               .eq("owner_id", OWNER_ID);
@@ -1175,7 +1186,7 @@ Deno.serve(async (req: Request) => {
 
           let { data: conversation, error: conversationError } = await supabase
             .from("whatsapp_conversations")
-            .select("id,status,ai_paused_until")
+            .select("id,status,ai_paused_until,ai_pause_reason")
             .eq("owner_id", OWNER_ID)
             .eq("telefone", phone)
             .maybeSingle();
@@ -1200,13 +1211,13 @@ Deno.serve(async (req: Request) => {
                 ultima_mensagem_em: messageTime,
                 updated_at: new Date().toISOString(),
               })
-              .select("id,status,ai_paused_until")
+              .select("id,status,ai_paused_until,ai_pause_reason")
               .single();
 
             if (createError?.code === "23505") {
               const retry = await supabase
                 .from("whatsapp_conversations")
-                .select("id,status,ai_paused_until")
+                .select("id,status,ai_paused_until,ai_pause_reason")
                 .eq("owner_id", OWNER_ID)
                 .eq("telefone", phone)
                 .single();
@@ -1767,6 +1778,36 @@ Deno.serve(async (req: Request) => {
           }
 
           if (conversationStatus === "atendimento_humano") {
+            const pauseUntilMs = conversation.ai_paused_until
+              ? new Date(conversation.ai_paused_until).getTime()
+              : Number.POSITIVE_INFINITY;
+
+            if (pauseUntilMs <= Date.now()) {
+              const { error: resumeHumanError } = await supabase
+                .from("whatsapp_conversations")
+                .update({
+                  status: "aguardando_escolha",
+                  ai_paused_until: null,
+                  ai_pause_reason: null,
+                  quote_state: null,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", conversation.id)
+                .eq("owner_id", OWNER_ID);
+              if (resumeHumanError) {
+                console.error("Expired human takeover pause could not be cleared:", resumeHumanError.message);
+                continue;
+              }
+
+              conversationStatus = "aguardando_escolha";
+              await updateMessageMetadata(supabase, providerId, {
+                ai_status: "human_takeover_pause_expired",
+              });
+              await sendInitialMenuSelection(supabase, conversation.id, phone);
+              menusSent++;
+              continue;
+            }
+
             const { error: clearHumanQuoteError } = await supabase
               .from("whatsapp_conversations")
               .update({ quote_state: null, updated_at: new Date().toISOString() })
@@ -1775,6 +1816,9 @@ Deno.serve(async (req: Request) => {
             await updateMessageMetadata(supabase, providerId, {
               ai_status: "paused_for_human",
               human_handoff: true,
+              ai_paused_until: Number.isFinite(pauseUntilMs)
+                ? new Date(pauseUntilMs).toISOString()
+                : null,
             });
             continue;
           }
