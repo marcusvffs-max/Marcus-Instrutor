@@ -57,8 +57,8 @@ test("contrato do instrutor usa a identificação persistida na emissão", () =>
 
 test("service worker atualiza versão e não armazena o helper no cache compartilhado", () => {
   assert.match(serviceWorker, /marcus-instrutor-v24-linked-student-access/);
-  const htmlVersion = instructorHtml.match(/src="instrutor\\.js\\?v=([^"]+)"/)?.[1];
-  const cachedVersion = serviceWorker.match(/"\\.\\/instrutor\\.js\\?v=([^"]+)"/)?.[1];
+  const htmlVersion = instructorHtml.match(/src="instrutor\.js\?v=([^"]+)"/)?.[1];
+  const cachedVersion = serviceWorker.match(/"\.\/instrutor\.js\?v=([^"]+)"/)?.[1];
   assert.ok(htmlVersion, "A versão do script do instrutor deve estar declarada no HTML.");
   assert.equal(cachedVersion, htmlVersion, "O cache do service worker deve usar a mesma versão carregada pelo HTML.");
   assert.match(serviceWorker, /"\/contratante-perfil\.js"/);
