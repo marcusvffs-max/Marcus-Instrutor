@@ -1374,9 +1374,9 @@ Deno.serve(async (req: Request) => {
               console.error("Main menu state update failed:", mainMenuStateError.message);
               continue;
             }
-            await clearPendingOtherDetails(supabase, conversation.id, "customer_returned_to_instructor_menu");
+            await clearPendingOtherDetails(supabase, conversation.id, "customer_returned_to_menu");
             await updateMessageMetadata(supabase, providerId, {
-              menu_choice: "open_instructor_menu",
+              menu_choice: "open_menu",
               ai_status: "waiting_for_service_choice",
             });
             await sendAttendanceMenu(supabase, conversation.id, phone);
@@ -1395,9 +1395,9 @@ Deno.serve(async (req: Request) => {
               console.error("Second menu state update failed:", menuStateError.message);
               continue;
             }
-            await clearPendingOtherDetails(supabase, conversation.id, "customer_returned_to_detran_menu");
+            await clearPendingOtherDetails(supabase, conversation.id, "customer_returned_to_menu");
             await updateMessageMetadata(supabase, providerId, {
-              menu_choice: "open_detran_menu",
+              menu_choice: "open_menu",
               ai_status: "waiting_for_service_choice",
             });
             await sendSecondServiceMenu(supabase, conversation.id, phone);
