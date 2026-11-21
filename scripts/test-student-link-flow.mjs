@@ -651,6 +651,15 @@ test("cada telefone possui uma única conversa por proprietário", () => {
   assert.match(whatsappSchema, /CONSTRAINT whatsapp_conversations_owner_id_telefone_key UNIQUE\(owner_id,telefone\)/);
 });
 
+test("lista de conversas inclui encerradas para permitir consulta do histórico", () => {
+  const conversationsHandler = edge.slice(edge.indexOf('if (body.action === "list_whatsapp_conversations")'), edge.indexOf('if (body.action === "list_whatsapp_messages")'));
+  assert.match(conversationsHandler, /\.eq\("owner_id", authData\.user\.id\)/);
+  assert.match(conversationsHandler, /\.limit\(50\)/);
+  assert.doesNotMatch(conversationsHandler, /\.neq\("status", "encerrada"\)/);
+  assert.match(whatsappPanel, /const encerrada = conversa\.status === "encerrada"/);
+  assert.match(whatsappPanel, /\$\{encerrada \? "" :/);
+});
+
 test("histórico de mensagens exige administrador e valida propriedade da conversa", () => {
   const historyHandler = edge.slice(edge.indexOf('if (body.action === "list_whatsapp_messages")'), edge.indexOf('if (body.action === "close_whatsapp_conversation")'));
   assert.match(historyHandler, /profile\.role !== "admin"/);
