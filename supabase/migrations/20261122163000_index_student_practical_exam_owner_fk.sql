@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS student_practical_exams_student_owner_fk_idx ON public.student_practical_exams(student_id,owner_id);
