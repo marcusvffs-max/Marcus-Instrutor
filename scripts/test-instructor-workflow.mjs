@@ -126,6 +126,16 @@ test("módulo de exames reutiliza o cliente autenticado do ambiente atual", () =
   assert.doesNotMatch(examsModule, /ydyqagqsuqntuibzgwzd\.supabase\.co/);
 });
 
+test("histórico de exames oferece filtro por status combinado ao aluno selecionado", () => {
+  assert.match(examsModule, /id="mx-status-filter"/);
+  assert.match(examsModule, /value="todos"/);
+  assert.match(examsModule, /value="agendado"/);
+  assert.match(examsModule, /value="realizado"/);
+  assert.match(examsModule, /value="cancelado"/);
+  assert.match(examsModule, /selectedStatus==="todos"\|\|x\.status===selectedStatus/);
+  assert.match(examsModule, /selectedStatus=e\.target\.value/);
+});
+
 
 test("devoluções administrativas exigem venda confirmada no banco", () => {
   const lessonsStart = adminRefundStatusMigration.indexOf("CREATE OR REPLACE FUNCTION public.admin_refund_sale_lessons");
