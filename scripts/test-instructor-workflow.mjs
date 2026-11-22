@@ -151,3 +151,37 @@ test("devoluções administrativas exigem venda confirmada no banco", () => {
   assert.match(lessons, /aulas_restantes/i);
   assert.match(lessons, /financial_transactions/i);
 });
+
+const rentalCreditMigration = read("../supabase/migrations/20261122213000_student_rental_credit_ledger.sql");
+const rentalCreditIndexesMigration = read("../supabase/migrations/20261122214000_student_rental_credit_fk_indexes.sql");
+
+test("créditos de aluguel ficam vinculados à compra e protegidos por RLS", () => {
+  assert.match(rentalCreditMigration, /CREATE TABLE public\.student_rental_credits/i);
+  assert.match(rentalCreditMigration, /sale_item_id uuid NOT NULL UNIQUE/i);
+  assert.match(rentalCreditMigration, /FOREIGN KEY \(sale_id, owner_id\)/i);
+  assert.match(rentalCreditMigration, /FOREIGN KEY \(student_id, owner_id\)/i);
+  assert.match(rentalCreditMigration, /quantity_refunded \+ quantity_consumed <= quantity_purchased/i);
+  assert.match(rentalCreditMigration, /ENABLE ROW LEVEL SECURITY/i);
+  assert.match(rentalCreditMigration, /REVOKE ALL ON TABLE public\.student_rental_credits FROM PUBLIC, anon, authenticated/i);
+  assert.match(rentalCreditMigration, /AFTER INSERT OR UPDATE OF fixed_item_key, quantidade_devolvida/i);
+});
+
+test("resultado do exame consome crédito FIFO e vincula o exame à compra", () => {
+  assert.match(rentalCreditMigration, /ORDER BY created_at, id\s+LIMIT 1\s+FOR UPDATE/i);
+  assert.match(rentalCreditMigration, /SET quantity_consumed = quantity_consumed \+ 1/i);
+  assert.match(rentalCreditMigration, /rental_credit_id = v_credit\.id/i);
+  assert.match(rentalCreditMigration, /scheduled_at > now\(\)/i);
+  assert.match(rentalCreditMigration, /status = 'agendado'/i);
+});
+
+test("devolução não ultrapassa os créditos não consumidos da própria compra", () => {
+  assert.match(rentalCreditMigration, /quantity_purchased - quantity_refunded - quantity_consumed >= v_delta/i);
+  assert.match(rentalCreditMigration, /A devolução excede os aluguéis não utilizados desta compra/i);
+  assert.match(rentalCreditMigration, /Existem aluguéis ou saldos históricos/i);
+});
+
+test("ledger possui índices para suas chaves estrangeiras", () => {
+  assert.match(rentalCreditIndexesMigration, /student_rental_credits_sale_owner_idx/i);
+  assert.match(rentalCreditIndexesMigration, /student_rental_credits_student_owner_idx/i);
+  assert.match(rentalCreditIndexesMigration, /student_practical_exams_rental_credit_owner_idx/i);
+});
