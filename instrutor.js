@@ -1286,8 +1286,6 @@
     const type = item.tipo_item === "produto" ? "produto" : "servico";
     const original = type === "produto" ? Number(item.quantidade || 0) : Number(item.aulas_contratadas || 0);
     const returned = type === "produto" ? Number(item.quantidade_devolvida || 0) : Number(item.aulas_devolvidas || 0);
-    const sale = state.sales.find(entry => entry.id === item.sale_id);
-    const student = state.students.find(entry => entry.id === sale?.student_id);
     const saleRemaining = Math.max(0, original - returned);
     const available = item.fixed_item_key === "aluguel_veiculo"
       ? Math.min(saleRemaining, Number(state.rentalCreditAvailability.get(item.id) || 0))
