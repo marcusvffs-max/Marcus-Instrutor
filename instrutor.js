@@ -1215,37 +1215,61 @@
     }).join("");
   }
 
-  function openInstructorRefundForm(saleId) {
-    const sale = state.sales.find(item => item.id === saleId && item.status === "confirmada");
-    if (!sale) {
-      showMessage("Não foi possível localizar uma venda confirmada para devolução.");
-      return;
-    }
-    const items = state.saleItems.filter(item => item.sale_id === sale.id).map(item => ({
-      item, ...refundableInstructorItem(item)
-    })).filter(entry => entry.available > 0);
-    if (!items.length) {
-      showMessage("Esta venda não possui itens disponíveis para devolução.");
+  function openInstructorRefundForm(saleId = null) {
+    const availableSales = state.sales.map(sale => ({
+      sale,
+      items: state.saleItems.filter(item => item.sale_id === sale.id)
+        .map(item => ({ item, ...refundableInstructorItem(item) }))
+        .filter(entry => entry.available > 0)
+    })).filter(group => group.sale.status === "confirmada" && group.items.length > 0);
+
+    if (!availableSales.length) {
+      showMessage("Não existem vendas confirmadas com itens disponíveis para devolução.");
       return;
     }
 
-    state.refundSaleId = sale.id;
     el("formDevolucaoInstrutor").reset();
-    el("tituloDevolucaoInstrutor").textContent = "Devolução da venda de " + studentName(sale.student_id);
-    el("resumoVendaDevolucaoInstrutor").innerHTML =
-      '<strong>' + escapeHtml(studentName(sale.student_id)) + '</strong><span>' +
-      escapeHtml(formatDate(sale.data_venda)) + ' · ' + escapeHtml(sale.forma_pagamento || "Pagamento não informado") +
-      '</span><span>Valor da venda: ' + currency(sale.total) + '</span>';
+    el("tituloDevolucaoInstrutor").textContent = "Devolução de produtos e serviços";
+    el("devolucaoVendaInstrutor").innerHTML = '<option value="">Selecione uma venda</option>' +
+      availableSales.map(group => '<option value="' + escapeHtml(group.sale.id) + '">' +
+        escapeHtml(studentName(group.sale.student_id)) + ' · ' + escapeHtml(formatDate(group.sale.data_venda)) +
+        ' · ' + currency(group.sale.total) + '</option>').join("");
+    el("devolucaoVendaInstrutor").value = saleId && availableSales.some(group => group.sale.id === saleId) ? saleId : "";
+    state.refundSaleId = null;
+    el("resumoVendaDevolucaoInstrutor").textContent = "Selecione uma venda para visualizar os itens disponíveis.";
+    el("devolucaoItemInstrutor").innerHTML = '<option value="">Selecione primeiro uma venda</option>';
+    el("devolucaoItemInstrutor").disabled = true;
+    el("devolucaoQuantidadeInstrutor").value = "";
+    el("devolucaoQuantidadeInstrutor").disabled = true;
+    el("devolucaoQuantidadeInstrutor").removeAttribute("max");
+    el("devolucaoPreviaInstrutor").innerHTML = "<strong>Resumo da devolução</strong><p>Escolha uma venda e um item.</p>";
+    el("formDevolucaoInstrutor").onsubmit = saveInstructorRefund;
+    openInstructorModal("formDevolucaoInstrutor");
+    if (el("devolucaoVendaInstrutor").value) updateInstructorRefundSaleSelection();
+  }
+
+  function updateInstructorRefundSaleSelection() {
+    const saleId = el("devolucaoVendaInstrutor").value;
+    const sale = state.sales.find(item => item.id === saleId && item.status === "confirmada");
+    state.refundSaleId = sale?.id || null;
+    const items = sale ? state.saleItems.filter(item => item.sale_id === sale.id)
+      .map(item => ({ item, ...refundableInstructorItem(item) }))
+      .filter(entry => entry.available > 0) : [];
+
+    el("resumoVendaDevolucaoInstrutor").innerHTML = sale
+      ? '<strong>' + escapeHtml(studentName(sale.student_id)) + '</strong><span>' +
+        escapeHtml(formatDate(sale.data_venda)) + ' · ' + escapeHtml(sale.forma_pagamento || "Pagamento não informado") +
+        '</span><span>Valor da venda: ' + currency(sale.total) + '</span>'
+      : "Selecione uma venda para visualizar os itens disponíveis.";
     el("devolucaoItemInstrutor").innerHTML = '<option value="">Selecione um item desta venda</option>' +
       items.map(entry => '<option value="' + escapeHtml(entry.item.id) + '">' + escapeHtml(entry.item.descricao || "Item") +
         ' · ' + entry.available + (entry.type === "produto" ? " unidade(s)" : " aula(s)") + ' disponíveis</option>').join("");
+    el("devolucaoItemInstrutor").disabled = !items.length;
     el("devolucaoItemInstrutor").value = "";
     el("devolucaoQuantidadeInstrutor").value = "";
     el("devolucaoQuantidadeInstrutor").disabled = true;
     el("devolucaoQuantidadeInstrutor").removeAttribute("max");
     el("devolucaoPreviaInstrutor").innerHTML = "<strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p>";
-    el("formDevolucaoInstrutor").onsubmit = saveInstructorRefund;
-    openInstructorModal("formDevolucaoInstrutor");
   }
 
   function updateInstructorRefundPreview() {
@@ -2064,6 +2088,8 @@
       const deleteButton = event.target.closest("[data-sale-delete]");
       if (deleteButton) deleteInstructorSale(deleteButton.dataset.saleDelete);
     });
+    el("btnDevolucaoFinanceiro").addEventListener("click", () => openInstructorRefundForm());
+    el("devolucaoVendaInstrutor").addEventListener("change", updateInstructorRefundSaleSelection);
     el("devolucaoItemInstrutor").addEventListener("change", updateInstructorRefundPreview);
     el("devolucaoQuantidadeInstrutor").addEventListener("input", updateInstructorRefundPreview);
     el("btnCancelarDevolucaoInstrutor").addEventListener("click", () => {
