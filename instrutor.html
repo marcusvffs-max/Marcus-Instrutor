@@ -287,6 +287,16 @@
           <div class="student-form-actions"><button id="btnCancelarProduto" class="button button-outline" type="button">Cancelar</button><button id="btnSalvarProduto" class="button button-primary" type="submit">Salvar item</button></div>
         </form>
         <div class="list-toolbar"><div class="list-toolbar-copy"><strong>Seus produtos e serviços</strong><span id="contadorProdutos">0 itens</span></div><label class="search-field" for="filtroBuscaProdutos"><span>⌕</span><input id="filtroBuscaProdutos" type="search" placeholder="Buscar produto ou serviço"></label></div>
+        <div class="panel fixed-item-prices">
+          <h4>Preços de itens fixos</h4>
+          <p>Aluguel e Cartão Moto Pista são vendidos junto com os demais produtos e serviços.</p>
+          <div class="student-form-grid">
+            <div><label for="precoAluguelFixoInstrutor">Aluguel de Veículo (R$)</label><input id="precoAluguelFixoInstrutor" type="number" min="0" step="0.01"></div>
+            <div><label for="precoCartaoFixoInstrutor">Cartão Moto Pista (R$)</label><input id="precoCartaoFixoInstrutor" type="number" min="0" step="0.01"></div>
+          </div>
+          <button id="btnSalvarPrecosFixosInstrutor" class="button button-outline" type="button">Salvar preços</button>
+          <p id="statusPrecosFixosInstrutor" role="status"></p>
+        </div>
         <div id="listaProdutos" class="product-cards"><div class="empty-state">Carregando produtos...</div></div>
       </section>
 
@@ -401,7 +411,6 @@
           </div>
           <div class="student-form-actions">
             <button id="btnSalvarConfiguracoesInstrutor" class="button button-primary" type="button">Salvar alterações</button>
-            <button id="btnPrecosItensFixos" class="button button-outline" type="button">Configurar preços de aluguel e Cartão Moto Pista</button>
           </div>
         </div>
       </section>
