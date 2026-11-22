@@ -544,6 +544,7 @@ test("webhook rejeita phone_number_id ausente ou divergente antes de acessar o b
 
 const whatsappPauseMigration = read("../supabase/migrations/20261121180000_add_whatsapp_conversation_ai_pause.sql");
 const whatsappCycleMigration = read("../supabase/migrations/20261122191000_close_whatsapp_cycle_when_ai_disabled.sql");
+const whatsappCyclesMigration = read("../supabase/migrations/20261122190000_whatsapp_conversation_cycles_and_history.sql");
 
 test("cliente pode encerrar e reativar a assistente com pausa de 48 horas", () => {
   assert.match(whatsappWebhook, /normalizedCustomerCommand === "encerrar"/);
@@ -560,8 +561,9 @@ test("mensagens manuais do WhatsApp Business pausam a assistente via coexistênc
   assert.match(whatsappWebhook, /value\.message_echoes/);
   assert.match(whatsappWebhook, /source: "whatsapp_business_app_echo"/);
   assert.match(whatsappWebhook, /echoType === "edit" \|\| echoType === "revoke"/);
-  assert.match(whatsappWebhook, /ai_pause_reason: "instrutor_mensagem_manual"/);
-  assert.match(whatsappWebhook, /status: "encerrada"/);
+  assert.match(whatsappWebhook, /ai_pause_reason: "instrutor_assumiu_atendimento"/);
+  assert.match(whatsappWebhook, /status: "atendimento_humano"/);
+  assert.match(whatsappWebhook, /const echoConversationIsPaused/);
 });
 
 test("painel lista conversas ativas e encerra somente como administrador", () => {
@@ -596,7 +598,7 @@ test("menus WhatsApp usam saudação aprovada, Falar com Instrutor e Menu único
   assert.match(whatsappWebhook, /title: "Curso Gratuito", description: "de Legislação — saiba como acessar\\."/);
   assert.match(whatsappWebhook, /title: "Taxa exame legislação"/);
   assert.match(whatsappWebhook, /title: "Taxa exame direção"/);
-  assert.match(whatsappWebhook, /title: "Outros assuntos"/);
+  assert.match(whatsappWebhook, /service_other: "Outros"/);
   assert.match(whatsappWebhook, /service_free_theory_course/);
   assert.match(whatsappWebhook, /reply_type: "free_theory_course_information"/);
   assert.doesNotMatch(whatsappWebhook, /title: "Menu do Instrutor"|title: "Menu do Detran"/);
@@ -646,11 +648,14 @@ test("webhook não processa duas vezes a mesma mensagem recebida ou eco enviado"
   assert.match(whatsappWebhook, /if \(messageError\?\.code === "23505"\)/);
   assert.match(whatsappWebhook, /duplicates\+\+/);
   assert.match(whatsappWebhook, /provider_message_id: echoId/);
-  assert.match(whatsappWebhook, /if \(echoInsertError\?\.code === "23505"\) continue/);
+  assert.match(whatsappWebhook, /if \(echoInsertError\?\.code === "23505"\)/);
+  assert.match(whatsappWebhook, /duplicateEcho\?\.metadados\?\.source === "whatsapp_webhook_automation"/);
 });
 
-test("cada telefone possui uma única conversa por proprietário", () => {
-  assert.match(whatsappSchema, /CONSTRAINT whatsapp_conversations_owner_id_telefone_key UNIQUE\(owner_id,telefone\)/);
+test("cada telefone mantém um único ciclo ativo e preserva ciclos encerrados", () => {
+  assert.match(whatsappCyclesMigration, /drop constraint if exists whatsapp_conversations_owner_id_telefone_key/i);
+  assert.match(whatsappCyclesMigration, /create unique index if not exists whatsapp_conversations_one_active_cycle_idx/i);
+  assert.match(whatsappCyclesMigration, /where status not in \('atendimento_humano', 'encerrada'\)/i);
 });
 
 test("lista de conversas inclui encerradas para permitir consulta do histórico", () => {
