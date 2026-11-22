@@ -30,7 +30,8 @@
     vehicleSearch: "",
     lessonEditingId: null,
     lessonSearch: "",
-    lessonStatusFilter: ""
+    lessonStatusFilter: "",
+    logoUrl: ""
   };
 
   function escapeHtml(value) {
@@ -183,10 +184,29 @@
     document.documentElement.style.setProperty("--background", backgroundColor);
   }
 
+  function validateInstructorLogo(file) {
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      throw new Error("Use uma imagem PNG, JPG ou WEBP.");
+    }
+    if (file.size > 2 * 1024 * 1024) throw new Error("A imagem deve ter no máximo 2 MB.");
+  }
+
+  function renderInstructorLogo(url) {
+    const preview = el("logoInstrutorPreview");
+    const removeButton = el("btnRemoverLogoInstrutor");
+    if (preview) {
+      preview.src = url || "";
+      preview.hidden = !url;
+    }
+    if (removeButton) removeButton.hidden = !url;
+    state.logoUrl = url || "";
+  }
+
   async function loadInstructorSettings() {
     const { data, error } = await state.supabase
       .from("app_settings")
-      .select("nome_empresa,cor_principal,cor_secundaria")
+      .select("nome_empresa,cor_principal,cor_secundaria,logo_url")
       .eq("owner_id", state.user.id)
       .maybeSingle();
     if (error) throw error;
@@ -198,6 +218,7 @@
     el("corPrincipalInstrutor").value = primary;
     el("corSecundariaInstrutor").value = secondary;
     el("nomeInstrutor").textContent = name;
+    renderInstructorLogo(data?.logo_url || "");
     applyInstructorTheme(primary, secondary);
   }
 
@@ -206,6 +227,7 @@
     const name = el("nomePerfilInstrutor").value.trim();
     const primary = el("corPrincipalInstrutor").value;
     const secondary = el("corSecundariaInstrutor").value;
+    const file = el("logoInstrutorArquivo")?.files?.[0] || null;
     if (!name) {
       showMessage("Informe seu nome para salvar as configurações.");
       el("nomePerfilInstrutor").focus();
@@ -216,6 +238,19 @@
     button.textContent = "Salvando...";
     showMessage("");
     try {
+      validateInstructorLogo(file);
+      let logoUrl = state.logoUrl || null;
+      if (file) {
+        const path = state.user.id + "/logo";
+        const { error: uploadError } = await state.supabase.storage
+          .from("instructor-logos")
+          .upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
+        if (uploadError) throw uploadError;
+        const { data: publicData } = state.supabase.storage.from("instructor-logos").getPublicUrl(path);
+        logoUrl = publicData?.publicUrl || null;
+        if (!logoUrl) throw new Error("Não foi possível obter o endereço da logomarca.");
+      }
+
       const { error: profileError } = await state.supabase
         .from("profiles")
         .update({ nome: name })
@@ -228,20 +263,46 @@
           owner_id: state.user.id,
           nome_empresa: name,
           cor_principal: primary,
-          cor_secundaria: secondary
+          cor_secundaria: secondary,
+          logo_url: logoUrl
         }, { onConflict: "owner_id" });
       if (settingsError) throw settingsError;
 
       state.profile.nome = name;
       el("nomeInstrutor").textContent = name;
+      renderInstructorLogo(logoUrl);
       applyInstructorTheme(primary, secondary);
-      showMessage("Seu nome e as cores do aplicativo foram salvos.", false);
+      showMessage("Seu perfil, cores e logomarca foram salvos.", false);
     } catch (error) {
       console.error("Falha ao salvar perfil e aparência do instrutor:", error);
-      showMessage("Não foi possível salvar as configurações. Confira sua conexão e tente novamente.");
+      showMessage(error?.message || "Não foi possível salvar as configurações. Confira sua conexão e tente novamente.");
     } finally {
       button.disabled = false;
       button.textContent = "Salvar alterações";
+    }
+  }
+
+  async function removeInstructorLogo() {
+    if (!state.logoUrl) return;
+    if (!(await confirmAction("Deseja remover a logomarca desta conta?"))) return;
+    const button = el("btnRemoverLogoInstrutor");
+    if (button) { button.disabled = true; button.textContent = "Removendo..."; }
+    try {
+      const path = state.user.id + "/logo";
+      const { error: storageError } = await state.supabase.storage.from("instructor-logos").remove([path]);
+      if (storageError) throw storageError;
+      const { error } = await state.supabase.from("app_settings")
+        .update({ logo_url: null }).eq("owner_id", state.user.id);
+      if (error) throw error;
+      renderInstructorLogo("");
+      const input = el("logoInstrutorArquivo");
+      if (input) input.value = "";
+      showMessage("Logomarca removida desta conta.", false);
+    } catch (error) {
+      console.error("Falha ao remover logomarca do instrutor:", error);
+      showMessage("Não foi possível remover a logomarca. Tente novamente.");
+    } finally {
+      if (button) { button.disabled = false; button.textContent = "Remover logomarca"; }
     }
   }
 
@@ -1547,7 +1608,7 @@
     ];
 
     el("contratoPreviewInstrutor").innerHTML =
-      '<article class="contract-sheet"><header><h2>' + safe(instructor) + '</h2><p>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</p></header>' +
+      '<article class="contract-sheet"><header>' + (state.logoUrl ? '<img src="' + safe(state.logoUrl) + '" alt="Logomarca do instrutor" style="display:block;max-width:110px;max-height:85px;object-fit:contain;margin:0 auto 12px;">' : '') + '<h2>' + safe(instructor) + '</h2><p>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</p></header>' +
       '<main><p><strong>CONTRATADO(A) / INSTRUTOR(A):</strong> ' + safe(instructor) + '</p><p><strong>CPF/CNPJ:</strong> ' + safe(contratanteDocumento) + '</p>' +
       (contratanteNacionalidade || contratanteCivil || contratanteProfissao || contratanteEndereco ? '<p><strong>Identificação:</strong> ' + safe([contratanteNacionalidade, contratanteCivil, contratanteProfissao, contratanteEndereco].filter(Boolean).join(", ")) + '</p>' : "") +
       '<p><strong>CONTRATANTE / ALUNO(A):</strong> ' + safe(nome) + '</p><p><strong>CPF:</strong> ' + safe(cpf) + '</p>' +
@@ -2047,6 +2108,7 @@
     el("btnCancelarAulasLote").addEventListener("click", resetBatchLessonForm);
     el("formAulasLote").addEventListener("submit", saveBatchLessons);
     el("btnSalvarConfiguracoesInstrutor").addEventListener("click", saveInstructorSettings);
+    el("btnRemoverLogoInstrutor").addEventListener("click", removeInstructorLogo);
     el("btnAgendarInicio").addEventListener("click", () => {
       navigateInstructorPage("aulas");
       openLessonForm();
