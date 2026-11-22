@@ -668,7 +668,7 @@ function listarAlunos() {
           </div>
           <div class="record-actions">
             ${a.email ? `<button type="button" data-invite-aluno="${a.id}">${a.user_id ? "Reenviar acesso" : a.invited_at ? "Reenviar convite" : "Enviar convite"}</button>` : ""}
-            <button type="button" data-open-student-exams="${a.id}">Exames / aluguéis</button>
+            <button type="button" data-open-student-exams="${a.id}">Exames</button>
             <button type="button" data-edit-aluno="${a.id}">Editar</button>
             <button type="button" data-delete-aluno="${a.id}">Excluir</button>
           </div>
