@@ -46,7 +46,8 @@
       const overlayConfirm = create("div", { class: "users-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "usersConfirmTitle" });
       const dialogConfirm = create("div", { class: "users-dialog" });
       const titleConfirm = create("h2", { id: "usersConfirmTitle" }, "Confirmação");
-      const textConfirm = create("p", {}, String(message ?? ""));
+      const safeMessage = String(message ?? "").replace(/\b(?:https?:\/\/|www\.)[^\s<]+/gi, "[link ocultado]");
+      const textConfirm = create("p", {}, safeMessage);
       textConfirm.style.whiteSpace = "pre-line";
       textConfirm.style.overflowWrap = "anywhere";
       const actionsConfirm = create("div", { class: "users-actions" });
