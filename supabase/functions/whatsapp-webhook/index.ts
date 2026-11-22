@@ -224,6 +224,23 @@ async function sendServiceContinuationMenu(
   await sendInitialMenuSelection(supabase, conversationId, recipient);
 }
 
+
+async function sendPausedServiceChoice(
+  supabase: ReturnType<typeof getAdminClient>,
+  conversationId: string,
+  recipient: string,
+  choice: string,
+) {
+  const replies: Record<string, string> = {"service_packages":"Confira os valores cadastrados: 😊\n\nVALORES:\n• Pacote Bronze — de 1 a 5 aulas: R$ 80,00\n• Pacote Prata — de 6 a 10 aulas: R$ 75,00\n• Pacote Ouro — a partir de 11 aulas: R$ 70,00\n• Aluguel do veículo: R$ 150,00 (por exame)\n• Cartão Moto Pista (30 dias): R$ 120,00\n\nITENS OBRIGATÓRIOS PARA O PROCESSO:\n• Mínimo de 2 aulas.\n• Aluguel do veículo.\n• Cartão Moto Pista.\n\nOs valores dos pacotes são por aula e não o pacote completo. O aluguel e o cartão são cobrados separadamente.\n\nSe quiser, posso te encaminhar para o Instrutor Marcus pra darmos sequência no atendimento. 😊","service_documents":"Para iniciar a primeira habilitação em Minas Gerais (CNH nas categorias A, B ou AB, ou ACC), confira os requisitos e siga as etapas abaixo. 😊\n\nREQUISITOS BÁSICOS:\n• Ter 18 anos completos.\n• Saber ler e escrever.\n• Possuir documento oficial de identificação atualizado com foto e CPF.\n\nETAPAS DA PRIMEIRA HABILITAÇÃO:\n\n1. CADASTRO E TAXA DE INSCRIÇÃO\nFaça o cadastro no processo de Minas Gerais e emita a taxa de inscrição (DAE). O valor informado pelo Portal MG é R$ 115,80. O pagamento pode ser feito por PIX ou boleto em banco credenciado.\n\n2. AGENDAMENTO DOS EXAMES E BIOMETRIA\nDepois da compensação da taxa, agende digitalmente a coleta biométrica, o exame médico e a avaliação psicológica. Você escolhe a data e o horário disponíveis, mas não escolhe a clínica.\n\n3. BIOMETRIA, EXAME MÉDICO E AVALIAÇÃO PSICOLÓGICA\nCompareça no dia marcado com documento oficial atualizado com foto e CPF. Serão coletados fotografia, assinatura e impressões digitais. Os valores informados são R$ 232,23 para o exame médico e R$ 232,23 para a avaliação psicológica, pagos diretamente na clínica.\n\n4. CURSO DE LEGISLAÇÃO DE TRÂNSITO\nVocê pode fazer o curso gratuito pelo aplicativo CNH do Brasil, com acesso pela conta Gov.br, ou realizar o curso presencial ou a distância em um Centro de Formação de Condutores (CFC/autoescola). Se optar pelo curso da CNH do Brasil, conclua e faça a integração pelo próprio aplicativo antes da prova de legislação.\n\n5. TAXA DA PROVA DE LEGISLAÇÃO\nDepois de concluir as etapas anteriores, emita e pague a taxa da prova teórica. O valor informado pelo Portal MG é R$ 115,80. Consulte a opção específica 'Taxa exame Legislação' no Menu.\n\n6. AGENDAMENTO DA PROVA DE LEGISLAÇÃO\nFaça o agendamento pelo site oficial. O Portal MG informa que o agendamento ocorre no período das 13h às 18h. Você escolhe a data e o local, mas não o horário.\n\n7. PROVA DE LEGISLAÇÃO\nCompareça com documento oficial de identificação com foto. A prova tem 30 questões e é necessário alcançar pelo menos 20 acertos para aprovação.\n\n8. LADV E AULAS PRÁTICAS DE DIREÇÃO\nAntes de iniciar as aulas, confira a emissão da Licença para Aprendizagem de Direção Veicular (LADV) no aplicativo CNH do Brasil. Com a LADV emitida, você poderá fazer as aulas com um CFC ou instrutor autônomo autorizado. Para CNH, o mínimo informado é de 2 horas/aula. Para ACC, não há carga horária mínima.\n\n9. TAXA E EXAME PRÁTICO DE DIREÇÃO\nEmita e pague a taxa do exame prático, informada em R$ 115,80. O agendamento pode ser feito pelo CFC, pelo candidato ou pelo instrutor autônomo. Na categoria A, a prova é realizada em motopista. Para categoria AB, são necessárias duas taxas para a prova prática: uma da categoria A e outra da B. Consulte a opção 'Taxa exame direção' no Menu.\n\n10. EXAME TOXICOLÓGICO\nPara processos de primeira habilitação nas categorias A, B ou AB iniciados a partir de 20/06/2026, é exigido resultado negativo no exame toxicológico para a emissão da PPD. Segundo orientação do Detran-MG, o exame deve ser realizado após a aprovação na prova prática, em laboratório credenciado pela Senatran. Processos iniciados antes de 20/06/2026 não são alcançados por essa exigência. Se tiver dúvida sobre a data de abertura do seu processo ou sobre a aplicação da regra, confirme diretamente com o Detran-MG.\n\n11. EMISSÃO E ENTREGA DA PERMISSÃO PARA DIRIGIR (PPD)\nDepois da aprovação nas provas e da conclusão dos registros, a PPD é enviada pelos Correios. O Portal MG informa prazo de até 10 dias úteis para entrega. A PPD vale por 12 meses; para obter a CNH definitiva, é necessário cumprir as regras de trânsito durante esse período.\n\nPRAZO DO PROCESSO:\nSegundo o Portal MG, atualmente não há prazo limite para concluir o processo de primeira habilitação.\n\nIMPORTANTE:\nSe você iniciou o processo pelo aplicativo CNH do Brasil, também precisa cumprir as etapas de continuidade em Minas Gerais e integrar as informações pelo aplicativo quando solicitado.\n\nConsulte a página oficial, que reúne os documentos, valores, formulários e orientações atualizadas: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc\n\nPor segurança, informe CPF e outros dados pessoais somente nos canais oficiais do Governo de Minas. Não envie documentos ou dados pessoais por esta conversa. 😊","service_free_theory_course":"O Curso Gratuito de Legislação pode ser feito pelo aplicativo CNH do Brasil, usando sua conta Gov.br. 😊\n\nCOMO ACESSAR:\n1. Baixe ou abra o aplicativo CNH do Brasil.\n2. Entre com sua conta Gov.br.\n3. Acesse o curso de formação de condutores e escolha o conteúdo de legislação.\n4. Conclua as aulas e atividades indicadas no aplicativo.\n\nSe preferir, você também pode fazer o curso presencial ou a distância em um Centro de Formação de Condutores (CFC/autoescola).\n\nSe você iniciou o processo pelo aplicativo, siga as orientações para integrar a conclusão do curso ao seu processo de habilitação em Minas Gerais. Não envie senha ou dados pessoais por esta conversa.","service_registration_fee":"Para emitir a taxa de inscrição da primeira habilitação em Minas Gerais, siga estes passos:\n\n1. Acesse o formulário oficial do Detran-MG: https://www.transito.mg.gov.br/habilitacao/1-habilitacao-quero-ser-condutor/taxa-para-obter-a-1-habilitacao\n2. Preencha o formulário de cadastro e emissão do Documento de Arrecadação Estadual (DAE). Confira os dados antes de concluir.\n3. Gere o DAE e faça o pagamento por PIX ou boleto em uma unidade de banco credenciado.\n\nO Portal MG informa o valor de R$ 115,80 para essa taxa. O PIX tem compensação instantânea; o boleto pode levar até 2 dias úteis. Atenção: boletos pagos fora da rede bancária credenciada podem não ser reconhecidos.\n\nDepois que o pagamento for compensado, você poderá agendar a coleta biométrica, o exame médico e a avaliação psicológica.\n\nPor segurança, informe CPF e outros dados pessoais somente no site oficial do Governo de Minas. Não envie esses dados por esta conversa. 😊\n\nFonte oficial: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc","service_medical":"Em Minas Gerais, o exame médico da primeira habilitação é realizado em clínica credenciada pelo Detran-MG. 😊\n\nCOMO FUNCIONA:\n1. Primeiro, aguarde a compensação do pagamento da taxa de inscrição.\n2. Depois, faça o agendamento digital da coleta biométrica, do exame médico e da avaliação psicológica.\n3. No agendamento, você escolhe a data e o horário disponíveis. A clínica não pode ser escolhida pelo candidato.\n4. Compareça à clínica na data marcada, levando documento oficial de identificação atualizado com foto e CPF. No local também serão coletadas foto, assinatura e impressões digitais.\n\nVALORES INFORMADOS PELO PORTAL MG:\n• Exame médico: R$ 232,23, pago diretamente na clínica.\n• Avaliação psicológica: R$ 232,23, paga diretamente na clínica. É uma etapa separada do exame médico.\n\nA clínica deve informar o resultado em até 2 dias úteis. Se não puder comparecer, é possível marcar uma nova data sem custo adicional.\n\nConsulte as orientações e faça o agendamento somente pelos canais oficiais: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc\n\nPor segurança, não envie CPF, documentos ou dados pessoais por esta conversa.","service_theory_fee":"Para emitir a taxa da prova de legislação da primeira habilitação em Minas Gerais, siga estas orientações oficiais do Detran-MG. 😊\n\nQUANDO EMITIR:\nA taxa deve ser emitida depois de concluir as etapas anteriores, incluindo o curso de legislação.\n\nCOMO EMITIR E PAGAR:\n1. Acesse o formulário oficial para emissão do Documento de Arrecadação Estadual (DAE): https://transito.mg.gov.br/habilitacao/outros-servicos-e-taxas/emitir-taxa-de-servico-de-habilitacao/preencher-dados-da-habilitacao/18\n2. Preencha os dados solicitados no próprio site oficial e gere o DAE.\n3. Pague por PIX ou boleto em uma unidade de banco credenciado.\n\nVALOR INFORMADO PELO PORTAL MG:\n• Taxa da prova de legislação: R$ 115,80.\n• Se precisar repetir a prova, a taxa informada também é de R$ 115,80.\n\nO PIX tem compensação instantânea. O boleto pode levar até 2 dias úteis. Boletos pagos fora da rede bancária credenciada podem não ser reconhecidos.\n\nDEPOIS DO PAGAMENTO:\nApós a compensação, faça o agendamento da prova pelo formulário oficial: https://www.detran.mg.gov.br/habilitacao/1-habilitacao-quero-ser-condutor/agendar-exame-de-legislacao-candidato. O Portal MG informa que o agendamento ocorre no período de 13h às 18h e que é possível escolher a data e o local, mas não o horário.\n\nA prova tem 30 questões e, conforme orientação divulgada pelo Detran-MG, é necessário acertar pelo menos 20 para aprovação. Compareça levando documento oficial de identificação com foto.\n\nPor segurança, informe CPF e outros dados pessoais somente nos sites oficiais do Governo de Minas. Não envie esses dados por esta conversa. 😊\n\nFonte oficial: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc","service_driving_fee":"Para realizar o exame prático de direção veicular em Minas Gerais, siga estas orientações do Detran-MG. 😊\n\nQUANDO EMITIR A TAXA:\nDepois de concluir as etapas anteriores e cumprir as aulas práticas exigidas. Para obter a CNH, são necessárias no mínimo 2 horas/aula em cada categoria pretendida; na categoria AB, são 2 horas para A e 2 horas para B. Para obter a ACC, não há carga horária mínima. As aulas exigidas para a CNH precisam estar registradas no Renach para liberar o agendamento.\n\nCOMO EMITIR E PAGAR:\n1. Acesse o formulário oficial para emitir o Documento de Arrecadação Estadual (DAE): https://detran.mg.gov.br/habilitacao/taxas-1/emitir-taxa-de-servico-de-habilitacao/preencher-dados-da-habilitacao/19\n2. Preencha os dados diretamente no site oficial e gere o DAE.\n3. Pague por PIX ou boleto em uma instituição bancária credenciada. O PIX tem compensação instantânea; o boleto pode levar até 2 dias úteis.\n\nVALOR INFORMADO PELO PORTAL MG:\n• Exame de direção: R$ 115,80.\n• Em caso de reprovação ou necessidade de repetir o exame, a nova taxa também é de R$ 115,80.\n• Para habilitação nas categorias A e B (AB), são necessárias duas taxas: uma para a prova da categoria A e outra para a categoria B.\n\nCOMO AGENDAR A PROVA:\nApós a confirmação do pagamento, o exame pode ser agendado pelo CFC, pelo próprio candidato ou pelo instrutor autônomo. Se você for fazer o agendamento diretamente, acesse a página oficial: https://detran.mg.gov.br/habilitacao/1-habilitacao-quero-ser-condutor/agendar-prova-de-direcao-cidadao-ou-instrutor-autonomo\nO sistema apresenta as datas, horários e locais disponíveis para escolha. Para a categoria A, a prova é realizada em motopista. Para a ACC, o exame pode ser feito em veículo próprio com no máximo 5 anos de uso e é realizado na Clínica Médica do Detran-MG, em Belo Horizonte.\n\nSe você pretende realizar o exame utilizando o veículo do instrutor, consulte-o antes de escolher a data. O instrutor precisa estar ciente e confirmar que tem disponibilidade para acompanhar a prova.\n\nAtenção: faça a emissão da taxa e o agendamento somente pelos canais oficiais do Governo de Minas. Não envie CPF, documentos ou dados pessoais por esta conversa. 😊\n\nFonte oficial: https://www.mg.gov.br/servico/obter-1a-habilitacao-cnh-ou-acc"};
+  const reply = replies[choice] ??
+    `Você selecionou: ${serviceChoiceLabel(choice)}. 😊\\n\\nEsta opção precisa de continuidade com o Instrutor Marcus. O atendimento humano continua ativo e a Assistente Virtual permanece pausada. Você pode consultar outra opção pelo menu.`;
+  const sent = choice === "service_documents"
+    ? await sendWhatsAppTextInChunks(supabase, conversationId, recipient, reply, true)
+    : await sendWhatsAppText(supabase, conversationId, recipient, reply, true);
+  if (sent) await sendServiceContinuationMenu(supabase, conversationId, recipient);
+  return sent;
+}
+
 async function sendAttendanceMenu(
   supabase: ReturnType<typeof getAdminClient>,
   conversationId: string,
@@ -1660,6 +1677,11 @@ Deno.serve(async (req: Request) => {
     for (const entry of payload.entry ?? []) {
       for (const change of entry.changes ?? []) {
         const value = change.value ?? {};
+        console.info("WhatsApp webhook event received", {
+          field: change.field ?? "unknown",
+          inboundMessages: Array.isArray(value.messages) ? value.messages.length : 0,
+          messageEchoes: Array.isArray(value.message_echoes) ? value.message_echoes.length : 0,
+        });
         const expectedPhoneNumberId = WHATSAPP_PHONE_NUMBER_ID.trim();
         const eventPhoneNumberId = String(value.metadata?.phone_number_id ?? "").trim();
         if (!expectedPhoneNumberId || !eventPhoneNumberId || eventPhoneNumberId !== expectedPhoneNumberId) {
@@ -1671,7 +1693,7 @@ Deno.serve(async (req: Request) => {
         }
         if (change.field === "smb_message_echoes") {
           for (const echo of value.message_echoes ?? []) {
-            const customerPhone = String(echo.to ?? "").replace(/\D/g, "");
+            const customerPhone = String(echo.to ?? echo.recipient_id ?? "").replace(/\D/g, "");
             const echoId = String(echo.id ?? "").trim();
             if (!customerPhone || !echoId) continue;
 
@@ -1756,12 +1778,11 @@ Deno.serve(async (req: Request) => {
           const reactivationGreeting = typeof content === "string" &&
             /^(olá|ola)$/i.test(content.normalize("NFKC").trim());
 
-          // Menus permanecem acessíveis durante pausas humanas/encerramentos,
-          // sem gravar a mensagem no histórico e sem reativar a IA.
+          // Menus e opções informativas permanecem acessíveis durante pausas,
+          // sem gravar a mensagem do cliente no histórico e sem reativar a IA.
           if (
             conversation &&
-            ["atendimento_humano", "encerrada"].includes(String(conversation.status)) &&
-            (menuChoice === "menu_main" || menuChoice === "menu_second")
+            ["atendimento_humano", "encerrada"].includes(String(conversation.status))
           ) {
             const pauseDeadline = conversation.ai_paused_until
               ? new Date(conversation.ai_paused_until).getTime()
@@ -1770,10 +1791,40 @@ Deno.serve(async (req: Request) => {
             if (pauseDeadline > Date.now() || globallyDisabled) {
               if (menuChoice === "menu_main") {
                 await sendAttendanceMenu(supabase, conversation.id, phone);
-              } else {
+                menusSent++;
+              } else if (menuChoice === "menu_second") {
                 await sendSecondServiceMenu(supabase, conversation.id, phone);
+                menusSent++;
+              } else if (typeof menuChoice === "string" && menuChoice.startsWith("service_")) {
+                await sendPausedServiceChoice(supabase, conversation.id, phone, menuChoice);
+                menusSent++;
+              } else if (menuChoice === "humano") {
+                await sendWhatsAppText(
+                  supabase,
+                  conversation.id,
+                  phone,
+                  "O atendimento humano já está ativo nesta conversa. 😊 O Instrutor Marcus poderá continuar o atendimento por aqui. A Assistente Virtual permanece pausada.",
+                );
+              } else if (menuChoice === "encerrar") {
+                const pauseUntil = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+                const { error: renewCloseError } = await supabase
+                  .from("whatsapp_conversations")
+                  .update({
+                    status: "encerrada",
+                    ai_paused_until: pauseUntil,
+                    ai_pause_reason: "cliente_encerramento",
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", conversation.id)
+                  .eq("owner_id", OWNER_ID);
+                if (renewCloseError) console.error("Customer pause renewal failed:", renewCloseError.message);
+                else await sendWhatsAppText(
+                  supabase,
+                  conversation.id,
+                  phone,
+                  "Tudo certo! 😊 A Assistente Virtual continuará pausada por mais 48 horas. Para chamá-la antes desse prazo, digite Olá.",
+                );
               }
-              menusSent++;
               continue;
             }
           }
@@ -1995,7 +2046,12 @@ Deno.serve(async (req: Request) => {
           if (menuChoice === "menu_main") {
             const { error: mainMenuStateError } = await supabase
               .from("whatsapp_conversations")
-              .update({ status: "aguardando_escolha", updated_at: new Date().toISOString() })
+              .update({
+                    status: "aguardando_escolha",
+                    ai_paused_until: null,
+                    ai_pause_reason: null,
+                    updated_at: new Date().toISOString(),
+                  })
               .eq("id", conversation.id);
             if (mainMenuStateError) {
               console.error("Main menu state update failed:", mainMenuStateError.message);
@@ -2374,7 +2430,13 @@ Deno.serve(async (req: Request) => {
             if (menuChoice === "humano") {
               const { error: stateError } = await supabase
                 .from("whatsapp_conversations")
-                .update({ status: "atendimento_humano", quote_state: null, updated_at: new Date().toISOString() })
+                .update({
+                  status: "atendimento_humano",
+                  ai_paused_until: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+                  ai_pause_reason: "cliente_solicitou_atendimento_humano",
+                  quote_state: null,
+                  updated_at: new Date().toISOString(),
+                })
                 .eq("id", conversation.id);
 
               if (stateError) {
