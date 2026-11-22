@@ -1,0 +1,1 @@
+GRANT SELECT, INSERT ON public.student_practical_exams TO authenticated;
