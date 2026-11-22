@@ -45,6 +45,7 @@
   function tab(name){activeTab=name;render();}
   function modal(){
     if($("marcus-exam-overlay"))return;
+    injectStyle();
     const overlay=document.createElement("div");overlay.id="marcus-exam-overlay";
     overlay.innerHTML='<section id="marcus-exam-dialog" role="dialog" aria-modal="true" aria-labelledby="mx-title"><header><h2 id="mx-title">Exames e aluguéis</h2><button id="marcus-exam-close" aria-label="Fechar">×</button></header><div id="marcus-exam-content"></div></section>';
     document.body.append(overlay);
