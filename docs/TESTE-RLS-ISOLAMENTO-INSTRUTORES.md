@@ -34,8 +34,8 @@ Guardar os UUIDs em variáveis de teste; não copiar dados reais. Tirar snapshot
 |---|---|---|---|---|---|
 | anon | Negado | Negado | Negado | Negado | Negado |
 | Aluno A | Somente agenda própria pela RPC | Negado | Negado | Negado | Negado |
-| Instrutor A | Permitido | Negado | Negado | Negado | Negado |
-| Instrutor B | Negado | Permitido | Negado | Negado | Negado |
+| Instrutor A | Permitido | Negado | Negado | Negado | Somente registros próprios por owner_id |
+| Instrutor B | Negado | Permitido | Negado | Negado | Somente registros próprios por owner_id |
 | Admin | Permitido | Permitido | Permitido | Somente pelo backend confiável | Permitido |
 
 A área do aluno não deve receber acesso direto às tabelas `students`, `lessons` ou `vehicles`; a consulta de agenda ocorre pela RPC autenticada e vinculada a `auth.uid()`.
@@ -61,7 +61,7 @@ A área do aluno não deve receber acesso direto às tabelas `students`, `lesson
 - [ ] **SEC-014:** repetir SEC-010 a SEC-013 com Instrutor B, invertendo A e B.
 - [ ] **SEC-015:** Instrutor A tenta INSERT/UPDATE/DELETE em `students`, `lessons`, `vehicles`, `sales`, `sale_items` e `financial_transactions`; operações negadas por ausência de policies de escrita.
 - [ ] **SEC-016:** Instrutor A tenta usar `TRUNCATE`, `REFERENCES` ou criar trigger nas tabelas; privilégio SQL negado antes mesmo de considerar RLS.
-- [ ] **SEC-017:** Instrutor A tenta ler/alterar `products` e `app_settings`; acesso negado.
+- [x] **SEC-017 (leitura):** Instrutor A e B consultam `products` e `app_settings` e recebem somente os registros próprios por `owner_id`; nenhuma linha do outro owner é visível. Escritas cruzadas nessas duas tabelas permanecem pendentes.
 - [ ] **SEC-018:** Instrutor A tenta ler perfil de Instrutor B; SELECT negado por RLS.
 - [ ] **SEC-019:** Instrutor A tenta atualizar `profiles.role` para `admin`, `usuario` ou qualquer papel diferente; negado pelo trigger e pelos grants.
 - [ ] **SEC-020:** Instrutor A tenta criar perfil para outro UUID; negado.
@@ -412,3 +412,8 @@ Com o perfil de instrutor temporariamente expirado dentro de uma transação:
 - nenhuma venda foi criada.
 
 Resultado: **2 verificações aprovadas**. A expiração temporária foi revertida.
+
+
+### Ajuste da expectativa sobre catálogo e configurações por conta
+
+A matriz inicial foi corrigida: `products` e `app_settings` possuem políticas por `owner_id`, não são exclusivamente globais do administrador. Os testes com fixtures sintéticas confirmaram leitura de uma linha própria e zero linhas do outro owner para cada tabela/conta. Isso não valida ainda todas as operações de escrita dessas tabelas; elas permanecem pendentes na matriz.
