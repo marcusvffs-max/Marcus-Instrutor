@@ -350,3 +350,30 @@ Resultado: **14 verificações/asserções aprovadas** no escopo de agenda, visi
 ### Limitações
 
 Não foi feito login real, fluxo de e-mail, convite via Edge Function em ambiente implantado, teste HTTP com JWT real ou validação visual da tela do aluno. O resultado confirma a lógica SQL com claims simuladas e revisão estática do código, não uma homologação ponta a ponta.
+
+
+## Convite, vínculo automático e remoção de acesso — 21/11/2026
+
+### Trigger de vínculo no Auth — aprovado
+
+Em transação com dados sintéticos, a inserção em `auth.users` disparou `private.link_student_account_from_invite()`:
+
+- reserva ativa + `student_id`, `instructor_id`, `invite_attempt_id` e e-mail correspondentes: vínculo criado;
+- e-mail diferente do cadastro: vínculo não criado;
+- reserva com mais de 15 minutos: vínculo não criado.
+
+Resultado: **3 verificações aprovadas**. Não foi enviado e-mail nem criado usuário persistente; a transação foi revertida.
+
+### Remoção de acesso de aluno — aprovado
+
+Com dois usuários Auth e dois cadastros de aluno sintéticos:
+
+- instrutor removeu o acesso do aluno pertencente à própria conta: identidade Auth removida, vínculo limpo pelo trigger e cadastro/histórico do aluno preservado;
+- tentativa de remover acesso de aluno de outro instrutor: bloqueada com `P0002`;
+- a identidade Auth do outro owner permaneceu intacta.
+
+Resultado: **4 verificações aprovadas**. A exclusão de Auth e a limpeza do vínculo foram revertidas no fim da transação.
+
+### Limitações
+
+A validação acima executou triggers diretamente por inserção SQL em `auth.users` e RPCs no PostgreSQL isolado. Não substitui o fluxo real de convite, confirmação de e-mail, navegação pelo `claim-student.html`, SMTP ou chamadas HTTP autenticadas à Edge Function.
