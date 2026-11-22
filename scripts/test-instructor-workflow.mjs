@@ -135,7 +135,7 @@ test("devoluções administrativas exigem venda confirmada no banco", () => {
   const products = adminRefundStatusMigration.slice(productsStart);
   assert.match(lessons, /v_sale\.status is distinct from 'confirmada'/i);
   assert.match(products, /v_sale\.status is distinct from 'confirmada'/i);
-  assert.match(products, /fixed_item_key='aluguel_veiculo'/i);
+  assert.match(products, /fixed_item_key\\s*=\\s*'aluguel_veiculo'/i);
   assert.match(products, /alugueis_disponiveis/i);
   assert.match(products, /app\.allow_vehicle_rental_refund/i);
   assert.match(lessons, /aulas_restantes/i);
