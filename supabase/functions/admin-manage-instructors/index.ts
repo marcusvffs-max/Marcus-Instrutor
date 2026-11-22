@@ -6,6 +6,10 @@ import { getCompletionFallbackOutcome, getReservationStatus } from "../_shared/s
 const APP_ORIGIN = "https://marcusinstrutor.vercel.app";
 const ALLOWED_ORIGINS = new Set([
   APP_ORIGIN,
+  // Preview estável da branch usada para validar as alterações administrativas.
+  "https://marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app",
+  // URL do deployment de preview atualmente entregue para teste.
+  "https://marcusinstrutor-ksdzg4ovx-marcusvffs-2839.vercel.app",
   "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app",
 ]);
 const corsHeaders = {
