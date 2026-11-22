@@ -94,7 +94,7 @@ test("service worker usa a mesma versão de instrutor.js declarada no HTML", () 
   const cachedVersion = serviceWorker.match(/"\.\/instrutor\.js\?v=([^"]+)"/)?.[1];
   assert.ok(htmlVersion);
   assert.equal(cachedVersion, htmlVersion);
-  assert.match(serviceWorker, /marcus-instrutor-v24-linked-student-access/);
+  assert.match(serviceWorker, /marcus-instrutor-v25-instructor-modal-forms/);
 });
 
 
