@@ -1471,9 +1471,10 @@ function listarMovimentacoes() {
         <strong class="finance-line-value ${entrada ? "finance-positive" : "finance-negative"}">${entrada ? "+" : "−"}${moeda(item.valor)}</strong>
       </div>`;
     }).join("");
+    const possuiAluguel = (venda?.itens || []).some(item => item.fixedItemKey === "aluguel_veiculo");
     const acao = venda && itens.some(item => item.tipo === "entrada")
       ? `<button type="button" class="secondary-button finance-action" data-print-sale="${escapar(venda.id)}">Imprimir recibo</button>
-         <button type="button" class="secondary-button finance-action" data-delete-venda="${escapar(venda.id)}">Excluir venda</button>`
+         ${!possuiAluguel ? `<button type="button" class="secondary-button finance-action" data-delete-venda="${escapar(venda.id)}">Excluir venda</button>` : ""}`
       : "";
     return {
       data: dataMaisRecente,
@@ -2346,6 +2347,10 @@ function abrirDespesa() {
 async function excluirVenda(id) {
   const venda = db.vendas.find(v => v.id === id);
   if (!venda) return;
+  if ((venda.itens || []).some(item => item.fixedItemKey === "aluguel_veiculo")) {
+    mostrarAviso("Esta venda contém aluguéis de veículo e deve permanecer no histórico. Use a opção de devolução para ajustar o saldo.");
+    return;
+  }
 
   if (!(await confirmar("Excluir esta venda e seus lançamentos financeiros?"))) {
     return;
