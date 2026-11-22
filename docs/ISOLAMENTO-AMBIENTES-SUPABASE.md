@@ -52,3 +52,10 @@ Não fazer merge para `main` nem deploy manual como parte desta alteração.
 A migration `20261122011223_prevent_duplicate_active_lesson_slots.sql` cria um índice único parcial em `lessons(owner_id, data_aula, horario)`. Ele impede que o mesmo instrutor tenha duas aulas não canceladas no mesmo horário, inclusive quando duas telas tentam salvar ao mesmo tempo. Aulas com status `cancelada` liberam o horário para novo agendamento.
 
 A migration foi aplicada e verificada somente no projeto isolado `voyjssflroiwdyaacthh`. Antes de aplicá-la em qualquer banco de produção, executar uma consulta de pré-validação para identificar duplicidades existentes por proprietário, data e horário; não remover nem alterar aulas automaticamente para contornar conflitos.
+
+
+## Visibilidade do atalho WhatsApp na área do aluno
+
+A RPC `can_show_marcus_whatsapp_assistant()` libera o atalho somente para contas com perfil de aluno vinculadas a um cadastro pertencente ao proprietário Marcus atualmente configurado na integração WhatsApp. A função usa um helper no schema privado e não concede execução a `anon`. Esta regra é específica da integração de proprietário único; antes de habilitar parceiros ou outros instrutores, será necessário substituir a regra fixa por uma associação de proprietário validada por conta.
+
+A migration foi aplicada somente no Supabase isolado. A ausência de dados do proprietário Marcus nesse projeto impede um teste positivo com uma conta real; foi verificado que, sem sessão, a RPC retorna `false`, que `anon` não tem EXECUTE e que `authenticated` tem EXECUTE.

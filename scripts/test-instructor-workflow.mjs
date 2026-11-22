@@ -198,7 +198,7 @@ test("painel administrativo trata conflito de horário sem erro genérico", () =
 
 
 test("botão WhatsApp só é liberado para aluno vinculado ao Marcus", () => {
-  const whatsappVisibilityMigration = read("../supabase/migrations/20261122013000_add_marcus_student_whatsapp_visibility.sql");
+  const whatsappVisibilityMigration = read("../supabase/migrations/20261122013042_add_marcus_student_whatsapp_visibility.sql");
   assert.match(studentJs, /rpc\("can_show_marcus_whatsapp_assistant"\)/);
   assert.match(whatsappVisibilityMigration, /private\.can_show_marcus_whatsapp_assistant_internal/);
   assert.match(whatsappVisibilityMigration, /p\.role = 'usuario'/);
