@@ -2111,17 +2111,18 @@ function abrirDevolucao() {
   const vendasDisponiveis = db.vendas.map(venda => {
     const aluno = db.alunos.find(item => String(item.id) === String(venda.alunoId));
     const itens = (venda.itens || []).map(item => {
-      if (!item.saleItemId || item.fixedItemKey === "aluguel_veiculo") return null;
+      if (!item.saleItemId) return null;
       const tipo = item.tipo === "produto" ? "produto" : "servico";
       const quantidadeOriginal = tipo === "produto" ? Number(item.quantidade || 0) : Number(item.aulasContratadas || 0);
       const quantidadeDevolvida = tipo === "produto" ? Number(item.quantidadeDevolvida || 0) : Number(item.aulasDevolvidas || 0);
-      const disponiveis = Math.max(0, quantidadeOriginal - quantidadeDevolvida);
+      const saldoAluno = item.fixedItemKey === "aluguel_veiculo" ? Number(aluno?.alugueisDisponiveis || 0) : Infinity;
+      const disponiveis = Math.min(Math.max(0, quantidadeOriginal - quantidadeDevolvida), saldoAluno);
       if (disponiveis <= 0) return null;
       const valorLiquido = Number(item.valorLiquido ?? item.total ?? 0);
       const valorUnitario = tipo === "produto"
         ? (quantidadeOriginal > 0 ? valorLiquido / quantidadeOriginal : 0)
         : Number(item.valorPorAula || 0);
-      return { valor: tipo + ":" + item.saleItemId, tipo, item, disponiveis, valorUnitario };
+      return { valor: tipo + ":" + item.saleItemId, tipo, item, disponiveis, valorUnitario, unidade: item.fixedItemKey === "aluguel_veiculo" ? "aluguel(is)" : tipo === "produto" ? "unidade(s)" : "aula(s)" };
     }).filter(Boolean);
     return { venda, aluno, itens };
   }).filter(grupo => grupo.itens.length > 0 && grupo.venda.status !== "cancelada");
@@ -2177,7 +2178,7 @@ function abrirDevolucao() {
       previa.innerHTML = "<strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p>";
       return;
     }
-    rotuloQuantidade.textContent = opcao.tipo === "produto" ? "Unidades para devolver" : "Aulas para devolver";
+    rotuloQuantidade.textContent = opcao.item.fixedItemKey === "aluguel_veiculo" ? "Aluguéis para devolver" : opcao.tipo === "produto" ? "Unidades para devolver" : "Aulas para devolver";
     campoQuantidade.disabled = false;
     campoQuantidade.max = String(opcao.disponiveis);
     const quantidade = Number(campoQuantidade.value || 0);
@@ -2185,7 +2186,7 @@ function abrirDevolucao() {
     const restante = Math.max(0, Number(opcao.item.valorLiquido ?? opcao.item.total ?? 0) - Number(opcao.item.valorDevolvido || 0));
     const estimado = valida ? Math.min(opcao.valorUnitario * quantidade, restante) : 0;
     previa.innerHTML = valida
-      ? `<strong>Resumo da devolução</strong><p>${opcao.tipo === "produto" ? "Unidades" : "Aulas"}: <strong>${quantidade}</strong> de ${opcao.disponiveis} disponíveis</p><p>Valor unitário: <strong>${moeda(opcao.valorUnitario)}</strong></p><p class="refund-preview-total">Estorno estimado: <strong>${moeda(estimado)}</strong></p>`
+      ? `<strong>Resumo da devolução</strong><p>${opcao.item.fixedItemKey === "aluguel_veiculo" ? "Aluguéis" : opcao.tipo === "produto" ? "Unidades" : "Aulas"}: <strong>${quantidade}</strong> de ${opcao.disponiveis} disponíveis</p><p>Valor unitário: <strong>${moeda(opcao.valorUnitario)}</strong></p><p class="refund-preview-total">Estorno estimado: <strong>${moeda(estimado)}</strong></p>`
       : `<strong>Resumo da devolução</strong><p>Informe uma quantidade inteira entre 1 e ${opcao.disponiveis}.</p>`;
   };
 
@@ -2194,7 +2195,7 @@ function abrirDevolucao() {
     opcoesAtuais = grupo?.itens || [];
     seletorItem.innerHTML = '<option value="">Selecione um item desta venda</option>' +
       opcoesAtuais.map(opcao => {
-        const unidade = opcao.tipo === "produto" ? "unidade(s)" : "aula(s)";
+        const unidade = opcao.unidade;
         return `<option value="${escapar(opcao.valor)}">${escapar(opcao.item.nome)} · ${opcao.disponiveis} ${unidade}</option>`;
       }).join("");
     seletorItem.disabled = !opcoesAtuais.length;
