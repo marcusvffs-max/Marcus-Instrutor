@@ -6,7 +6,7 @@ const ARQUIVOS = [
   "./",
   "./index.html",
   "./instrutor.html",
-  "./style.css?v=admin-finance-refunds",
+  "./style.css?v=admin-finance-refunds-2",
   "./instrutor.css?v=21-finance-refunds",
   "./instrutor.js?v=31-sale-refunds",
   "./manifest.json"
