@@ -1760,6 +1760,10 @@ function validateMetaPayload(payload: unknown): string | null {
         const parsed = parseMetaTimestamp(message.timestamp);
         if (!parsed.ok) return parsed.reason;
       }
+      for (const status of change.value.statuses ?? []) {
+        const parsed = parseMetaTimestamp(status.timestamp);
+        if (!parsed.ok) return parsed.reason;
+      }
       for (const echo of change.value.message_echoes ?? []) {
         const parsed = parseMetaTimestamp(echo.timestamp);
         if (!parsed.ok) return parsed.reason;
