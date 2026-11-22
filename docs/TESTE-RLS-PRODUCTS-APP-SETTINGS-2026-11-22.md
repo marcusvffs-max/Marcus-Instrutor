@@ -1,4 +1,4 @@
-# Testes de CRUD próprio e escrita cruzada em products e app_settings — 22/11/2026
+# Testes de CRUD próprio e escrita cruzada em products e app_settings — 21/11/2026
 
 ## Ambiente e escopo
 
