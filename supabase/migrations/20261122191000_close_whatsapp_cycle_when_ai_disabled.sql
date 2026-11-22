@@ -1,3 +1,19 @@
+alter table public.whatsapp_conversations
+  drop constraint if exists whatsapp_conversations_ai_pause_reason_check;
+alter table public.whatsapp_conversations
+  add constraint whatsapp_conversations_ai_pause_reason_check
+  check (
+    ai_pause_reason is null
+    or ai_pause_reason in (
+      'cliente_encerramento',
+      'instrutor_encerramento',
+      'instrutor_mensagem_manual',
+      'instrutor_assumiu_atendimento',
+      'ia_desativada_global',
+      'instrutor_reativou_ia'
+    )
+  );
+
 -- Closing the assistant globally ends the current transcript cycle.
 -- When it is enabled again, the webhook creates a new conversation on the next message.
 create or replace function public.close_whatsapp_cycles_when_ai_disabled()
