@@ -15,11 +15,16 @@
     .users-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}.users-actions button{border:0;border-radius:9px;padding:11px 15px;font:inherit;font-weight:600;cursor:pointer}
     .users-primary{background:#12345a;color:#fff}.users-secondary{background:#e8edf3;color:#172033}
     .users-message{min-height:22px;margin:8px 0;color:#334155}.users-list{margin-top:22px;border-top:1px solid #e2e8f0;padding-top:16px}
-    .users-item{padding:12px 0;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .users-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px 16px;align-items:start;padding:16px;margin:12px 0;border:1px solid #d9e2ec;border-radius:14px;background:#fff;box-shadow:0 3px 14px rgba(15,23,42,.06)}
     .users-item[hidden]{display:none}
-    .users-item small{display:block;color:#64748b;margin-top:3px}.users-role{font-size:.82rem;background:#eef2f7;padding:4px 8px;border-radius:20px;white-space:nowrap}
-    .users-item-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
-    .users-item-actions button{border:0;border-radius:8px;padding:8px 10px;font:inherit;font-size:.82rem;font-weight:600;cursor:pointer}
+    .users-item-info{min-width:0;padding:2px 0}.users-item-info strong{display:block;font-size:1rem;color:#172033;overflow-wrap:anywhere}
+    .users-item small{display:block;color:#64748b;margin-top:5px;overflow-wrap:anywhere}
+    .users-role{align-self:start;font-size:.82rem;background:#eef2f7;padding:6px 10px;border-radius:20px;white-space:nowrap;font-weight:700}
+    .users-item-actions{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-top:12px;border-top:1px solid #e8edf3}
+    .users-item-actions select{min-height:36px;max-width:190px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#172033;font:inherit;font-size:.84rem}
+    .users-item-actions button{border:0;border-radius:8px;padding:9px 11px;font:inherit;font-size:.82rem;font-weight:650;cursor:pointer}
+    .users-link{background:#e0f2fe;color:#075985}
+    @media(max-width:520px){.users-dialog{padding:16px}.users-item{grid-template-columns:minmax(0,1fr)}.users-role{justify-self:start}.users-item-actions{grid-column:1}.users-item-actions select{max-width:none;flex:1 1 100%}.users-item-actions button{flex:1 1 42%}}
     .users-resend{background:#e8edf3;color:#172033}.users-delete{background:#fee2e2;color:#991b1b}
     .users-access{display:block;margin-top:7px;font-size:.82rem;font-weight:700}.users-access.active{color:#16794b}.users-access.blocked{color:#b42318}.users-activate{background:#dbeafe;color:#12345a}
     .users-item-actions button:disabled{opacity:.55;cursor:wait}
@@ -206,7 +211,7 @@
       }
       result.users.forEach((user) => {
         const item = create("div", { class: "users-item", "data-role": user.role || "sem-perfil" });
-        const info = create("div");
+        const info = create("div", { class: "users-item-info" });
         info.append(create("strong", {}, user.nome || "Sem nome"));
         info.append(create("small", {}, user.email || "Sem e-mail"));
         if (user.role === "instrutor") {
@@ -257,6 +262,37 @@
           });
         }
         const remove = create("button", { class: "users-delete", type: "button" }, "Excluir");
+        let linkStudent = null;
+        if (user.role === "usuario") {
+          linkStudent = create("button", { class: "users-link", type: "button" }, "Vincular aluno");
+          linkStudent.addEventListener("click", async () => {
+            const email = String(user.email || "").trim();
+            if (!email) { message.textContent = "Esta conta não possui e-mail para localizar o cadastro do aluno."; return; }
+            linkStudent.disabled = true;
+            linkStudent.textContent = "Localizando...";
+            try {
+              const { data: authResult, error: authError } = await supabase.auth.getUser();
+              if (authError || !authResult?.user?.id) throw new Error("Não foi possível identificar a conta administradora.");
+              const { data: matches, error: lookupError } = await supabase.from("students")
+                .select("id,nome,user_id").eq("owner_id", authResult.user.id).ilike("email", email).limit(2);
+              if (lookupError) throw lookupError;
+              if (!matches?.length) throw new Error("Não encontrei, na sua conta, um cadastro de aluno com o e-mail " + email + ".");
+              if (matches.length > 1) throw new Error("Há mais de um cadastro de aluno com esse e-mail. Corrija a duplicidade antes de vincular.");
+              const student = matches[0];
+              if (student.user_id === user.id) { message.textContent = "A conta já está vinculada ao cadastro de " + student.nome + "."; return; }
+              if (student.user_id) throw new Error("O cadastro de " + student.nome + " já está vinculado a outra conta. Nenhuma alteração foi feita.");
+              if (!await confirmAction("Foi encontrado o cadastro de " + student.nome + " pelo e-mail " + email + ". Enviar um link para o titular confirmar o vínculo? A associação só será concluída depois que o próprio aluno confirmar pelo e-mail.")) return;
+              linkStudent.textContent = "Enviando...";
+              const result = await call("invite_student", { student_id: student.id });
+              message.textContent = result.message || "Link de confirmação enviado. O aluno precisa confirmar para concluir o vínculo.";
+              await loadUsers();
+            } catch (error) {
+              message.textContent = error.message || "Não foi possível iniciar o vínculo do aluno.";
+            } finally {
+              if (linkStudent?.isConnected) { linkStudent.disabled = false; linkStudent.textContent = "Vincular aluno"; }
+            }
+          });
+        }
         saveRole.addEventListener("click", async () => {
           if (roleEditor.value === user.role) {
             message.textContent = "Esse usuário já possui esse tipo de acesso.";
@@ -306,7 +342,9 @@
         });
         controls.append(roleEditor, saveRole);
         if (activate) controls.append(activate);
-        controls.append(resend, remove);
+        controls.append(resend);
+        if (linkStudent) controls.append(linkStudent);
+        controls.append(remove);
         item.append(info, role, controls);
         list.append(item);
       });
