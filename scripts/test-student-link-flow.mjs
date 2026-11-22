@@ -693,3 +693,13 @@ test("motivo de pausa por solicitação de atendimento humano é aceito pelo ban
   assert.match(whatsappWebhook, /ai_pause_reason: "cliente_solicitou_atendimento_humano"/);
   assert.match(whatsappCycleMigration, /'cliente_solicitou_atendimento_humano'/);
 });
+
+test("mensagens manuais durante pausa não são acrescentadas ao histórico antigo", () => {
+  assert.match(whatsappWebhook, /const echoConversationIsPaused/);
+  assert.match(whatsappWebhook, /if \(echoConversationIsPaused\)[\s\S]{0,1100}continue;/);
+});
+
+test("primeira mensagem após expirar a pausa inicia um novo ciclo", () => {
+  assert.match(whatsappWebhook, /previousPauseUntil <= Date\.now\(\)/);
+  assert.match(whatsappWebhook, /Expired WhatsApp pause cycle creation failed/);
+});
