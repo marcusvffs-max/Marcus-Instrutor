@@ -414,7 +414,7 @@
         '</div>' +
         '<div class="student-card-actions">' +
           inviteButton +
-          '<button class="button button-outline button-small" type="button" data-student-action="view-link" data-student-id="' + escapeHtml(student.id) + '">Ver vínculo</button>' +
+          '<button class="button button-outline button-small" type="button" data-student-action="exams" data-student-id="' + escapeHtml(student.id) + '">Exames / aluguéis</button><button class="button button-outline button-small" type="button" data-student-action="view-link" data-student-id="' + escapeHtml(student.id) + '">Ver vínculo</button>' +
           '<button class="button button-outline button-small" type="button" data-student-action="edit" data-student-id="' + escapeHtml(student.id) + '">Editar</button>' +
           '<button class="button button-danger button-small" type="button" data-student-action="delete" data-student-id="' + escapeHtml(student.id) + '">Excluir</button>' +
         '</div>' +
@@ -2096,6 +2096,11 @@
       const id = button.dataset.studentId;
       const student = state.students.find(item => item.id === id);
       if (!student) return;
+      if (button.dataset.studentAction === "exams") {
+        if (window.MarcusExamsRentals?.openForStudent) await window.MarcusExamsRentals.openForStudent(id);
+        else showMessage("O módulo de exames ainda está carregando. Atualize a página e tente novamente.");
+        return;
+      }
       if (button.dataset.studentAction === "edit") openStudentForm(student);
       if (button.dataset.studentAction === "delete") deleteStudent(id);
       if (button.dataset.studentAction === "view-link") {
