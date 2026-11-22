@@ -1760,6 +1760,8 @@ Deno.serve(async (req: Request) => {
               .select("id,status,ai_paused_until,ai_pause_reason")
               .eq("owner_id", OWNER_ID)
               .eq("telefone", customerPhone)
+              .order("created_at", { ascending: false })
+              .limit(1)
               .maybeSingle();
 
             if (echoConversationError || !existingConversation) {
@@ -1769,29 +1771,8 @@ Deno.serve(async (req: Request) => {
 
             const echoType = String(echo.type ?? "unknown");
             if (echoType === "edit" || echoType === "revoke") continue;
-            const echoContent = echo.text?.body ?? echo.image?.caption ?? echo.video?.caption ?? echo.document?.caption ?? null;
-            const { error: echoInsertError } = await supabase
-              .from("whatsapp_messages")
-              .insert({
-                owner_id: OWNER_ID,
-                conversation_id: existingConversation.id,
-                provider_message_id: echoId,
-                direcao: "saida",
-                tipo_mensagem: echoType,
-                conteudo: typeof echoContent === "string" ? prepareMessageForStorage(echoContent).content : null,
-                status_provedor: "sent",
-                metadados: {
-                  source: "whatsapp_business_app_echo",
-                  timestamp: echo.timestamp ?? null,
-                },
-              });
-
-            if (echoInsertError?.code === "23505") continue;
-            if (echoInsertError) {
-              console.error("WhatsApp app echo persistence failed:", echoInsertError.message);
-              continue;
-            }
-
+            // Human-sent WhatsApp Business App messages are deliberately not
+            // appended to the AI transcript. They only pause the assistant.
             const now = new Date();
             const currentPauseMs = existingConversation.ai_paused_until
               ? new Date(existingConversation.ai_paused_until).getTime()
@@ -1844,6 +1825,8 @@ Deno.serve(async (req: Request) => {
             .select("id,status,ai_paused_until,ai_pause_reason")
             .eq("owner_id", OWNER_ID)
             .eq("telefone", phone)
+            .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle();
 
           if (conversationError) {
@@ -1854,6 +1837,36 @@ Deno.serve(async (req: Request) => {
           const messageTime = new Date(
             Number(message.timestamp ?? Date.now() / 1000) * 1000,
           ).toISOString();
+          const reactivationGreeting = typeof content === "string" &&
+            /^(olá|ola)$/i.test(content.normalize("NFKC").trim());
+
+          // While the global assistant is disabled, do not add incoming messages
+          // to any AI transcript. Mark the current cycle as inactive so the next
+          // enabled greeting starts a fresh history.
+          if (!aiAutoReplyEnabled) {
+            if (conversation) {
+              const { error: pauseError } = await supabase
+                .from("whatsapp_conversations")
+                .update({
+                  status: "encerrada",
+                  ai_paused_until: null,
+                  ai_pause_reason: "ia_desativada_global",
+                  quote_state: null,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", conversation.id)
+                .eq("owner_id", OWNER_ID);
+              if (pauseError) console.error("Global assistant pause state update failed:", pauseError.message);
+            }
+            continue;
+          }
+
+          // Human takeover and closed cycles are immutable transcript boundaries.
+          // Only an explicit "Olá" starts a new conversation cycle.
+          const lastCycleInactive = Boolean(conversation) &&
+            ["atendimento_humano", "encerrada"].includes(String(conversation.status));
+          if (lastCycleInactive && !reactivationGreeting) continue;
+          if (lastCycleInactive && reactivationGreeting) conversation = null;
 
           if (!conversation) {
             const { data: created, error: createError } = await supabase
