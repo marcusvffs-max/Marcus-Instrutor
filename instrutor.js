@@ -1426,7 +1426,7 @@
       : "Selecione uma venda para visualizar os itens disponíveis.";
     el("devolucaoItemInstrutor").innerHTML = '<option value="">Selecione um item desta venda</option>' +
       items.map(entry => '<option value="' + escapeHtml(entry.item.id) + '">' + escapeHtml(entry.item.descricao || "Item") +
-        ' · ' + entry.available + (entry.type === "produto" ? " unidade(s)" : " aula(s)") + ' disponíveis</option>').join("");
+        ' · ' + entry.available + (entry.item.fixed_item_key === "aluguel_veiculo" ? " aluguel(is)" : entry.type === "produto" ? " unidade(s)" : " aula(s)") + ' disponíveis</option>').join("");
     el("devolucaoItemInstrutor").disabled = !items.length;
     el("devolucaoItemInstrutor").value = "";
     el("devolucaoQuantidadeInstrutor").value = "";
@@ -1456,7 +1456,7 @@
     const remainingValue = Math.max(0, entry.netValue - Number(entry.item.valor_devolvido || 0));
     const refund = valid ? Math.min(entry.unitValue * quantity, remainingValue) : 0;
     preview.innerHTML = valid
-      ? '<strong>Resumo da devolução</strong><p>' + (entry.type === "produto" ? "Unidades" : "Aulas") + ': <strong>' + quantity +
+      ? '<strong>Resumo da devolução</strong><p>' + (entry.item.fixed_item_key === "aluguel_veiculo" ? "Aluguéis" : entry.type === "produto" ? "Unidades" : "Aulas") + ': <strong>' + quantity +
         '</strong> de ' + entry.available + ' disponíveis</p><p>Valor unitário: <strong>' + currency(entry.unitValue) +
         '</strong></p><p class="refund-preview-total">Estorno estimado: <strong>' + currency(refund) + '</strong></p>'
       : '<strong>Resumo da devolução</strong><p>Informe uma quantidade inteira entre 1 e ' + entry.available + '.</p>';
