@@ -328,8 +328,11 @@
           <label for="corSecundaria">Cor secundária</label>
           <input id="corSecundaria" type="color" value="#e8edf3">
 
-          <label for="logoEmpresa">Logo do aplicativo</label>
-          <input id="logoEmpresa" type="file" accept="image/*">
+          <label for="logoEmpresa">Logomarca desta conta</label>
+          <input id="logoEmpresa" type="file" accept="image/png,image/jpeg,image/webp">
+          <p class="muted">PNG, JPG ou WEBP · máximo 2 MB. A logomarca será exibida nos contratos e na área dos alunos vinculados a esta conta.</p>
+          <img id="logoEmpresaPreview" alt="Prévia da logomarca da conta" hidden style="display:block;max-width:180px;max-height:110px;object-fit:contain;margin:12px 0;border-radius:10px;">
+          <button id="btnRemoverLogoEmpresa" class="secondary-button" type="button" hidden>Remover logomarca</button>
 
           <button id="btnSalvarConfiguracoes" class="primary-button" type="button">
             Salvar configurações
