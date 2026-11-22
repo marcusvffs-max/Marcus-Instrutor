@@ -306,6 +306,19 @@
           <div><label for="vendaObservacoes">Observações</label><input id="vendaObservacoes" maxlength="500" placeholder="Observações opcionais"></div>
           <div class="student-form-actions"><button id="btnSalvarVenda" class="button button-primary" type="submit" disabled>Confirmar venda</button></div>
         </form>
+        <form id="formDevolucaoInstrutor" class="student-form" hidden>
+          <h4 id="tituloDevolucaoInstrutor">Devolução da venda</h4>
+          <div id="resumoVendaDevolucaoInstrutor" class="refund-sale-summary">Dados da venda selecionada.</div>
+          <label for="devolucaoItemInstrutor">Item desta venda *</label>
+          <select id="devolucaoItemInstrutor" required><option value="">Selecione um item</option></select>
+          <label for="devolucaoQuantidadeInstrutor">Quantidade para devolver *</label>
+          <input id="devolucaoQuantidadeInstrutor" type="number" min="1" step="1" required disabled>
+          <div id="devolucaoPreviaInstrutor" class="refund-preview"><strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p></div>
+          <div class="student-form-actions">
+            <button id="btnCancelarDevolucaoInstrutor" class="button button-outline" type="button">Cancelar</button>
+            <button id="btnConfirmarDevolucaoInstrutor" class="button button-primary" type="submit">Confirmar devolução</button>
+          </div>
+        </form>
         <div class="list-toolbar"><div class="list-toolbar-copy"><strong>Histórico de vendas</strong><span id="contadorVendas">0 vendas</span></div></div>
         <div id="listaVendas" class="sales-list"><div class="empty-state">Carregando vendas...</div></div>
       </section>
