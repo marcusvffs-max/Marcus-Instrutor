@@ -544,6 +544,7 @@ test("webhook rejeita phone_number_id ausente ou divergente antes de acessar o b
 
 const whatsappPauseMigration = read("../supabase/migrations/20261121180000_add_whatsapp_conversation_ai_pause.sql");
 const whatsappCycleMigration = read("../supabase/migrations/20261122191000_close_whatsapp_cycle_when_ai_disabled.sql");
+const whatsappHandoffCorrectionMigration = read("../supabase/migrations/20261122220439_allow_customer_human_handoff_pause_reason.sql");
 const whatsappCyclesMigration = read("../supabase/migrations/20261122190000_whatsapp_conversation_cycles_and_history.sql");
 
 test("cliente pode encerrar e reativar a assistente com pausa de 48 horas", () => {
@@ -697,6 +698,7 @@ test("ciclos do WhatsApp selecionam o registro mais recente e criam novo ciclo n
 test("motivo de pausa por solicitação de atendimento humano é aceito pelo banco", () => {
   assert.match(whatsappWebhook, /ai_pause_reason: "cliente_solicitou_atendimento_humano"/);
   assert.match(whatsappCycleMigration, /'cliente_solicitou_atendimento_humano'/);
+  assert.match(whatsappHandoffCorrectionMigration, /whatsapp_conversations_ai_pause_reason_check/);
 });
 
 test("mensagens manuais durante pausa não são acrescentadas ao histórico antigo", () => {
