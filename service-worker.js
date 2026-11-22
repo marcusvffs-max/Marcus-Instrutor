@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v39-exams-modal-style-fix";
+const CACHE_NAME = "marcus-instrutor-v40-unified-fixed-items";
 
 const ARQUIVOS = [
   "./",
@@ -9,8 +9,8 @@ const ARQUIVOS = [
   "./style.css?v=admin-finance-refunds-2",
   "./admin-visual.css?v=admin-visual-1",
   "./instrutor.css?v=21-finance-refunds",
-  "./instrutor.js?v=qa-preview-isolated-1",
-  "./exames-alugueis.js?v=4-modal-style-fix",
+  "./instrutor.js?v=unified-fixed-items-1",
+  "./exames-alugueis.js?v=exams-history-schedule-1",
   "./usuario.html",
   "./usuario.js?v=qa-preview-isolated-1",
   "./manifest.json"
