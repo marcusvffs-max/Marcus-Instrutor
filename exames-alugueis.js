@@ -1,7 +1,5 @@
 "use strict";
 (function () {
-  const URL = "https://ydyqagqsuqntuibzgwzd.supabase.co";
-  const KEY = "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
   const $ = id => document.getElementById(id);
   let client, ownerId, role, students = [], exams = [];
   let activeTab = "historico";
@@ -58,7 +56,10 @@
   function nav(){if($("marcus-exam-launch"))return;const actions=document.querySelector("#page-inicio .quick-actions");if(!actions)return;const b=document.createElement("button");b.id="marcus-exam-launch";b.type="button";b.className="primary-button";b.textContent="Exames";b.setAttribute("aria-label","Abrir Exames");b.onclick=async()=>{selectedStudentId=null;activeTab="historico";modal();await refresh();};actions.append(b);}
   async function init(){
     if(!window.supabase?.createClient)return;
-    client=window.getMarcusSupabase?.()||window.supabase.createClient(URL,KEY,{auth:{persistSession:true,autoRefreshToken:true,storage:window.sessionStorage,detectSessionInUrl:true}});
+    const getClient=window.getMarcusSupabase;
+    if(typeof getClient!=="function")return;
+    client=getClient();
+    if(!client)return;
     const {data,error}=await client.auth.getSession();if(error||!data?.session?.user)return;
     ownerId=data.session.user.id;
     const p=await client.from("profiles").select("role").eq("id",ownerId).maybeSingle();
