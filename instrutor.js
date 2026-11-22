@@ -407,6 +407,7 @@
             '<span><small>Telefone</small><strong>' + escapeHtml(student.telefone || "Não informado") + '</strong></span>' +
             '<span><small>Categoria</small><strong>' + escapeHtml(student.categoria || "Não definida") + '</strong></span>' +
             '<span><small>Aulas restantes</small><strong class="student-balance">' + escapeHtml(student.aulas_restantes ?? 0) + '</strong></span>' +
+            '<span><small>Aluguéis disponíveis</small><strong>' + escapeHtml(student.alugueis_disponiveis ?? 0) + ' de ' + escapeHtml(student.alugueis_comprados ?? 0) + '</strong></span>' +
           '</div>' +
           (student.email ? '<p class="student-card-email">' + escapeHtml(student.email) + '</p>' : '') +
           '<p class="student-card-email student-account-status"><small>Acesso do aluno: </small><strong class="' + accountClass + '">' + escapeHtml(accountStatus) + '</strong></p>' +
@@ -1687,7 +1688,7 @@
   async function loadOwnData() {
     const [studentsResult, lessonsResult, vehiclesResult] = await Promise.all([
       state.supabase.from("students")
-        .select("id,nome,email,telefone,cpf,endereco,categoria,status,aulas_compradas,aulas_restantes")
+        .select("id,nome,email,telefone,cpf,endereco,categoria,status,aulas_compradas,aulas_restantes,alugueis_comprados,alugueis_disponiveis")
         .order("nome", { ascending: true }),
       state.supabase.from("lessons")
         .select("id,student_id,data_aula,horario,numero_aula,status,vehicle_id,observacoes")
