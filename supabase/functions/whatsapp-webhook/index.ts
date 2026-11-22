@@ -1896,7 +1896,9 @@ Deno.serve(async (req: Request) => {
                 .select("id,status,ai_paused_until,ai_pause_reason")
                 .eq("owner_id", OWNER_ID)
                 .eq("telefone", phone)
-                .single();
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
               conversation = retry.data;
               conversationError = retry.error;
             } else {
