@@ -226,5 +226,6 @@ test("webhook valida timestamp antes de persistir mensagem", () => {
   assert.match(whatsappWebhook, /MAX_FUTURE_TIMESTAMP_SKEW_SECONDS/);
   assert.match(whatsappWebhook, /const parsedMessageTime = parseMetaTimestamp\(message\.timestamp\)/);
   assert.match(whatsappWebhook, /if \(!parsedMessageTime\.ok\)\s*\{[\s\S]*?continue;/);
+  assert.match(whatsappWebhook, /for \(const status of change\.value\.statuses/);
   assert.match(whatsappWebhook, /for \(const echo of change\.value\.message_echoes/);
 });
