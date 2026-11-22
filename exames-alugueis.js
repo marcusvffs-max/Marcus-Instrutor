@@ -93,7 +93,8 @@
     }
     host.innerHTML='<nav class="mx-tabs">'+tabs.map(t=>'<button type="button" data-tab="'+t[0]+'" class="'+(activeTab===t[0]?'active':'')+'">'+t[1]+'</button>').join("")+'</nav>'+body+'<p id="mx-message" class="mx-message" role="status" aria-live="polite"></p>';
     host.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>tab(b.dataset.tab));
-    $("mx-status-filter")?.addEventListener("change",e=>{selectedStatus=e.target.value;render();});
+    const statusFilter=$("mx-status-filter");
+    if(statusFilter){statusFilter.value=selectedStatus;statusFilter.addEventListener("change",e=>{selectedStatus=e.target.value;render();});}
     $("mx-exam-form")?.addEventListener("submit",schedule);
     host.querySelectorAll("[data-result]").forEach(b=>b.onclick=()=>recordResult(b.dataset.result,b.dataset.value));
     host.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>cancelExam(b.dataset.cancel));

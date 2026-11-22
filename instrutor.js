@@ -1253,27 +1253,25 @@
   }
 
   async function loadProductsAndSales() {
-    const [productsResult, salesResult, saleItemsResult, fixedPricesResult, rentalCreditsResult] = await Promise.all([
+    const [productsResult, salesResult, saleItemsResult, fixedPricesResult] = await Promise.all([
       state.supabase.from("products").select("id,nome,tipo,descricao,preco,quantidade_aulas,ativo").order("nome", { ascending: true }),
       state.supabase.from("sales").select("id,student_id,data_venda,total,forma_pagamento,status,observacoes,created_at").order("data_venda", { ascending: false }).order("created_at", { ascending: false }),
       state.supabase.from("sale_items").select("id,sale_id,descricao,quantidade,tipo_item,aulas_contratadas,aulas_devolvidas,valor_por_aula,valor_liquido,valor_devolvido,quantidade_devolvida,subtotal,valor_unitario,fixed_item_key").eq("owner_id", state.user.id),
-      state.supabase.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", state.user.id).maybeSingle(),
-      state.supabase.from("student_rental_credits")
-        .select("sale_item_id,quantity_purchased,quantity_refunded,quantity_consumed")
+      state.supabase.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", state.user.id).maybeSingle()
     ]);
     if (productsResult.error) throw productsResult.error;
     if (salesResult.error) throw salesResult.error;
     if (saleItemsResult.error) throw saleItemsResult.error;
     if (fixedPricesResult.error) throw fixedPricesResult.error;
-    if (rentalCreditsResult.error) throw rentalCreditsResult.error;
     state.products = productsResult.data || [];
     state.sales = salesResult.data || [];
     state.saleItems = saleItemsResult.data || [];
-    state.rentalCreditAvailability = new Map((rentalCreditsResult.data || []).map(row => [
-      row.sale_item_id,
-      Math.max(0, Number(row.quantity_purchased || 0) -
-        Number(row.quantity_refunded || 0) - Number(row.quantity_consumed || 0))
-    ]));
+    // A tabela de créditos individuais não existe no schema oficial. A lista
+    // mostra o restante de cada item; a RPC confere o saldo total do aluno
+    // e impede devolver aluguéis já consumidos em exames.
+    state.rentalCreditAvailability = new Map(state.saleItems
+      .filter(item => item.fixed_item_key === "aluguel_veiculo")
+      .map(item => [item.id, Math.max(0, Number(item.quantidade || 0) - Number(item.quantidade_devolvida || 0))]));
     state.fixedItemPrices = { aluguel:Number(fixedPricesResult.data?.aluguel_veiculo_preco||0), cartao:Number(fixedPricesResult.data?.cartao_moto_pista_preco||0) };
     const aluguelInput=el("precoAluguelFixoInstrutor"),cartaoInput=el("precoCartaoFixoInstrutor");
     if(aluguelInput)aluguelInput.value=state.fixedItemPrices.aluguel.toFixed(2);
