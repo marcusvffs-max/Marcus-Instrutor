@@ -1795,11 +1795,10 @@ Deno.serve(async (req: Request) => {
   const valid = await verifyMetaSignature(bodyResult.bytes, req.headers.get("x-hub-signature-256"));
   if (!valid) return json({ error: "Invalid webhook signature." }, 401);
 
-  let rawBody: string;
   let payload: any;
   try {
-    rawBody = new TextDecoder("utf-8", { fatal: true }).decode(bodyResult.bytes);
-    payload = JSON.parse(rawBody);
+    const decodedBody = new TextDecoder("utf-8", { fatal: true }).decode(bodyResult.bytes);
+    payload = JSON.parse(decodedBody);
   } catch {
     return json({ error: "Invalid JSON or UTF-8 payload." }, 400);
   }
