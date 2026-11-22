@@ -15,6 +15,7 @@ const instructorManagementMigration = read("../supabase/migrations/2026112123000
 const instructorNameMigration = read("../supabase/migrations/20261121231000_move_instructor_name_lookup_to_private_helper.sql");
 const saleTrackingMigration = read("../supabase/migrations/20261121270000_fix_instructor_sale_item_lesson_tracking.sql");
 const studentOwnerIndexMigration = read("../supabase/migrations/20261121280000_add_students_owner_fk_index.sql");
+const adminRefundStatusMigration = read("../supabase/migrations/20261122181000_admin_refunds_require_confirmed_sales.sql");
 
 test("área de acessos lista somente alunos com conta vinculada", () => {
   assert.match(instructorHtml, /data-view="alunos-vinculados"/);
@@ -123,4 +124,20 @@ test("módulo de exames reutiliza o cliente autenticado do ambiente atual", () =
   assert.match(examsModule, /client\s*=\s*getClient\(\)/);
   assert.doesNotMatch(examsModule, /createClient\(URL,KEY/);
   assert.doesNotMatch(examsModule, /ydyqagqsuqntuibzgwzd\.supabase\.co/);
+});
+
+
+test("devoluções administrativas exigem venda confirmada no banco", () => {
+  const lessonsStart = adminRefundStatusMigration.indexOf("CREATE OR REPLACE FUNCTION public.admin_refund_sale_lessons");
+  const productsStart = adminRefundStatusMigration.indexOf("CREATE OR REPLACE FUNCTION public.admin_refund_sale_product");
+  assert.ok(lessonsStart >= 0 && productsStart > lessonsStart);
+  const lessons = adminRefundStatusMigration.slice(lessonsStart, productsStart);
+  const products = adminRefundStatusMigration.slice(productsStart);
+  assert.match(lessons, /v_sale\.status is distinct from 'confirmada'/i);
+  assert.match(products, /v_sale\.status is distinct from 'confirmada'/i);
+  assert.match(products, /fixed_item_key='aluguel_veiculo'/i);
+  assert.match(products, /alugueis_disponiveis/i);
+  assert.match(products, /app\.allow_vehicle_rental_refund/i);
+  assert.match(lessons, /aulas_restantes/i);
+  assert.match(lessons, /financial_transactions/i);
 });
