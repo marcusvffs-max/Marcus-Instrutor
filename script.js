@@ -2864,33 +2864,56 @@ function importarBackup() {
 ========================================= */
 function aplicarLogo() {
   const elemento = document.querySelector(".brand-icon");
-
   if (!elemento) return;
-
-  const logo = db.configuracoes?.logo;
-
+  const logo = db.configuracoes?.logo || "";
   if (logo) {
     const imagem = document.createElement("img");
     imagem.src = logo;
-    imagem.alt = "Logo do aplicativo";
+    imagem.alt = "Logomarca da conta";
     elemento.replaceChildren(imagem);
   } else {
     elemento.textContent = "MI";
   }
-                                 }
+}
+
+function atualizarPreviewLogoAdmin(url) {
+  const preview = document.getElementById("logoEmpresaPreview");
+  const remover = document.getElementById("btnRemoverLogoEmpresa");
+  if (preview) {
+    preview.src = url || "";
+    preview.hidden = !url;
+  }
+  if (remover) remover.hidden = !url;
+}
+
+function validarArquivoLogo(arquivo) {
+  const tipos = ["image/png", "image/jpeg", "image/webp"];
+  if (!arquivo) return;
+  if (!tipos.includes(arquivo.type)) throw new Error("Use uma imagem PNG, JPG ou WEBP.");
+  if (arquivo.size > 2 * 1024 * 1024) throw new Error("A imagem deve ter no máximo 2 MB.");
+}
+
+function caminhoLogoConta(usuarioId) {
+  return String(usuarioId) + "/logo";
+}
+
 function carregarConfiguracoes() {
   const nome = document.getElementById("nomeEmpresa");
   const principal = document.getElementById("corPrincipal");
   const secundaria = document.getElementById("corSecundaria");
+  const arquivo = document.getElementById("logoEmpresa");
+  const remover = document.getElementById("btnRemoverLogoEmpresa");
 
   if (nome) nome.value = db.configuracoes.nome;
   if (principal) principal.value = db.configuracoes.corPrincipal;
   if (secundaria) secundaria.value = db.configuracoes.corSecundaria;
+  if (arquivo) arquivo.value = "";
+  atualizarPreviewLogoAdmin(db.configuracoes.logo || "");
+  if (remover) remover.onclick = removerLogoEmpresa;
 }
 
 async function salvarConfiguracoes() {
   const cliente = window.getMarcusSupabase?.();
-
   if (!cliente || !adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
     mostrarAviso("Não foi possível salvar: conexão administrativa com o Supabase indisponível.");
     return;
@@ -2900,65 +2923,77 @@ async function salvarConfiguracoes() {
   const nome = document.getElementById("nomeEmpresa").value.trim() || "Marcus Instrutor";
   const corPrincipal = document.getElementById("corPrincipal").value;
   const corSecundaria = document.getElementById("corSecundaria").value;
-  const arquivo = document.getElementById("logoEmpresa").files[0];
-
-  if (botao) {
-    botao.disabled = true;
-    botao.textContent = "Salvando...";
-  }
+  const arquivo = document.getElementById("logoEmpresa")?.files?.[0] || null;
+  if (botao) { botao.disabled = true; botao.textContent = "Salvando..."; }
 
   try {
-    let logoLocal = null;
-
+    validarArquivoLogo(arquivo);
+    let logoUrl = db.configuracoes.logo || null;
     if (arquivo) {
-      logoLocal = await new Promise((resolve, reject) => {
-        const leitor = new FileReader();
-        leitor.onload = () => resolve(leitor.result);
-        leitor.onerror = () => reject(new Error("Não foi possível ler o arquivo do logo."));
-        leitor.readAsDataURL(arquivo);
-      });
+      const caminho = caminhoLogoConta(adminSupabaseUserId);
+      const { error: uploadError } = await cliente.storage
+        .from("instructor-logos")
+        .upload(caminho, arquivo, { upsert: true, contentType: arquivo.type, cacheControl: "3600" });
+      if (uploadError) throw uploadError;
+      const { data: publicData } = cliente.storage.from("instructor-logos").getPublicUrl(caminho);
+      logoUrl = publicData?.publicUrl || null;
+      if (!logoUrl) throw new Error("Não foi possível obter o endereço da logomarca.");
     }
 
-    const { error } = await cliente
-      .from("app_settings")
-      .upsert({
-        owner_id: adminSupabaseUserId,
-        nome_empresa: nome,
-        cor_principal: corPrincipal,
-        cor_secundaria: corSecundaria
-      }, { onConflict: "owner_id" });
-
+    const { error } = await cliente.from("app_settings").upsert({
+      owner_id: adminSupabaseUserId,
+      nome_empresa: nome,
+      cor_principal: corPrincipal,
+      cor_secundaria: corSecundaria,
+      logo_url: logoUrl
+    }, { onConflict: "owner_id" });
     if (error) throw error;
 
     db.configuracoes.nome = nome;
     db.configuracoes.corPrincipal = corPrincipal;
     db.configuracoes.corSecundaria = corSecundaria;
-
-    // O arquivo de logo continua local até configurarmos o Storage.
-    if (logoLocal) db.configuracoes.logo = logoLocal;
-
+    db.configuracoes.logo = logoUrl || "";
+    db.configuracoes.logo_url = logoUrl || "";
     document.documentElement.style.setProperty("--primary", corPrincipal);
     document.documentElement.style.setProperty("--secondary", corSecundaria);
-
     const titulo = document.querySelector(".brand h1");
     if (titulo) titulo.textContent = nome;
-
     aplicarLogo();
+    atualizarPreviewLogoAdmin(logoUrl);
     salvarDados();
-
-    mostrarAviso(
-      logoLocal
-        ? "Nome e cores salvos na nuvem. O logo foi salvo somente neste navegador."
-        : "Configurações salvas na nuvem."
-    );
+    mostrarAviso("Configurações e logomarca salvas na nuvem.");
   } catch (erro) {
     console.error("Erro ao salvar configurações no Supabase:", erro);
-    mostrarAviso("Não foi possível salvar as configurações na nuvem. Nenhuma alteração foi confirmada.");
+    mostrarAviso(erro?.message || "Não foi possível salvar as configurações. Nenhuma alteração foi confirmada.");
   } finally {
-    if (botao) {
-      botao.disabled = false;
-      botao.textContent = "Salvar configurações";
-    }
+    if (botao) { botao.disabled = false; botao.textContent = "Salvar configurações"; }
+  }
+}
+
+async function removerLogoEmpresa() {
+  const cliente = window.getMarcusSupabase?.();
+  if (!cliente || !adminSupabaseUserId || !db.configuracoes.logo) return;
+  if (!(await confirmar("Deseja remover a logomarca desta conta?"))) return;
+  const botao = document.getElementById("btnRemoverLogoEmpresa");
+  if (botao) { botao.disabled = true; botao.textContent = "Removendo..."; }
+  try {
+    const caminho = caminhoLogoConta(adminSupabaseUserId);
+    const { error: storageError } = await cliente.storage.from("instructor-logos").remove([caminho]);
+    if (storageError) throw storageError;
+    const { error } = await cliente.from("app_settings")
+      .update({ logo_url: null }).eq("owner_id", adminSupabaseUserId);
+    if (error) throw error;
+    db.configuracoes.logo = "";
+    db.configuracoes.logo_url = "";
+    aplicarLogo();
+    atualizarPreviewLogoAdmin("");
+    salvarDados();
+    mostrarAviso("Logomarca removida desta conta.");
+  } catch (erro) {
+    console.error("Erro ao remover logomarca:", erro);
+    mostrarAviso("Não foi possível remover a logomarca. Tente novamente.");
+  } finally {
+    if (botao) { botao.disabled = false; botao.textContent = "Remover logomarca"; }
   }
 }
 /* =========================================
@@ -3355,6 +3390,18 @@ async function carregarDadosAdminSupabase() {
   }));
 
   const dados = Object.fromEntries(resultados);
+
+  const configuracoesNuvem = dados.app_settings?.[0] || null;
+  if (configuracoesNuvem) {
+    db.configuracoes = {
+      ...db.configuracoes,
+      nome: configuracoesNuvem.nome_empresa || db.configuracoes.nome,
+      corPrincipal: configuracoesNuvem.cor_principal || db.configuracoes.corPrincipal,
+      corSecundaria: configuracoesNuvem.cor_secundaria || db.configuracoes.corSecundaria,
+      logo: configuracoesNuvem.logo_url || "",
+      logo_url: configuracoesNuvem.logo_url || ""
+    };
+  }
 
   // A partir desta etapa, a lista de alunos do painel admin tem o Supabase
   // como fonte oficial. Os registros antigos do navegador permanecem
