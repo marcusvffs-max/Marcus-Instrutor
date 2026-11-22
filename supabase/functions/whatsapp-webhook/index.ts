@@ -110,24 +110,44 @@ async function sendWhatsAppPayload(
 
     const providerId = data?.messages?.[0]?.id;
     if (typeof providerId === "string") {
-      const outgoingPrivacy = skipOutgoingPrivacy
-        ? { content: logContent, redacted: false }
-        : prepareMessageForStorage(logContent);
-      const { error } = await supabase.from("whatsapp_messages").insert({
-        owner_id: OWNER_ID,
-        conversation_id: conversationId,
-        provider_message_id: providerId,
-        direcao: "saida",
-        tipo_mensagem: String(payload.type ?? "text"),
-        conteudo: outgoingPrivacy.content,
-        status_provedor: "sent",
-        metadados: {
-          source: "whatsapp_webhook_automation",
-          privacy_redacted: outgoingPrivacy.redacted,
-          ...(outgoingPrivacy.reason ? { privacy_reason: outgoingPrivacy.reason } : {}),
-        },
-      });
-      if (error) console.error("Outgoing WhatsApp message log failed:", error.message);
+      const { data: conversationState, error: conversationStateError } = await supabase
+        .from("whatsapp_conversations")
+        .select("status,ai_paused_until")
+        .eq("id", conversationId)
+        .eq("owner_id", OWNER_ID)
+        .maybeSingle();
+      const pauseUntilMs = conversationState?.ai_paused_until
+        ? new Date(conversationState.ai_paused_until).getTime()
+        : Number.POSITIVE_INFINITY;
+      const assistantIsPaused = conversationStateError || (
+        ["atendimento_humano", "encerrada"].includes(String(conversationState?.status ?? "")) &&
+        pauseUntilMs > Date.now()
+      );
+
+      // Mensagens enviadas durante a pausa podem ser entregues normalmente,
+      // mas não são acrescentadas ao histórico do ciclo inativo.
+      if (conversationStateError) {
+        console.error("Outgoing WhatsApp log skipped because conversation state could not be verified:", conversationStateError.message);
+      } else if (!assistantIsPaused) {
+        const outgoingPrivacy = skipOutgoingPrivacy
+          ? { content: logContent, redacted: false }
+          : prepareMessageForStorage(logContent);
+        const { error } = await supabase.from("whatsapp_messages").insert({
+          owner_id: OWNER_ID,
+          conversation_id: conversationId,
+          provider_message_id: providerId,
+          direcao: "saida",
+          tipo_mensagem: String(payload.type ?? "text"),
+          conteudo: outgoingPrivacy.content,
+          status_provedor: "sent",
+          metadados: {
+            source: "whatsapp_webhook_automation",
+            privacy_redacted: outgoingPrivacy.redacted,
+            ...(outgoingPrivacy.reason ? { privacy_reason: outgoingPrivacy.reason } : {}),
+          },
+        });
+        if (error) console.error("Outgoing WhatsApp message log failed:", error.message);
+      }
     }
     return true;
   } catch (error) {
