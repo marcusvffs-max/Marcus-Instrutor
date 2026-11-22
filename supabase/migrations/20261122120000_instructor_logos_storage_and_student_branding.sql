@@ -74,7 +74,7 @@ begin
   end if;
 
   return query
-  select coalesce(p.nome, ''), a.logo_url
+  select coalesce(nullif(a.nome_empresa, ''), p.nome, ''), a.logo_url
   from public.students s
   join public.profiles p on p.id = s.owner_id
   left join public.app_settings a on a.owner_id = s.owner_id
