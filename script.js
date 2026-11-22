@@ -2118,8 +2118,8 @@ function abrirDevolucao() {
       const tipo = item.tipo === "produto" ? "produto" : "servico";
       const quantidadeOriginal = tipo === "produto" ? Number(item.quantidade || 0) : Number(item.aulasContratadas || 0);
       const quantidadeDevolvida = tipo === "produto" ? Number(item.quantidadeDevolvida || 0) : Number(item.aulasDevolvidas || 0);
-      const saldoAluno = item.fixedItemKey === "aluguel_veiculo" ? Number(aluno?.alugueisDisponiveis || 0) : Infinity;
-      const disponiveis = Math.min(Math.max(0, quantidadeOriginal - quantidadeDevolvida), saldoAluno);
+      const saldoCompra = item.fixedItemKey === "aluguel_veiculo" ? Number(item.alugueisDisponiveisNaCompra || 0) : Infinity;
+      const disponiveis = Math.min(Math.max(0, quantidadeOriginal - quantidadeDevolvida), saldoCompra);
       if (disponiveis <= 0) return null;
       const valorLiquido = Number(item.valorLiquido ?? item.total ?? 0);
       const valorUnitario = tipo === "produto"
@@ -3469,6 +3469,16 @@ async function carregarDadosAdminSupabase() {
 
   const dados = Object.fromEntries(resultados);
 
+  const { data: rentalCreditRows, error: rentalCreditError } = await cliente.rpc(
+    "get_student_rental_credit_availability",
+    {}
+  );
+  if (rentalCreditError) throw new Error("Falha ao consultar os aluguéis disponíveis por compra: " + rentalCreditError.message);
+  const rentalCreditAvailability = new Map((rentalCreditRows || []).map(row => [
+    row.sale_item_id,
+    Number(row.quantity_available || 0)
+  ]));
+
   const configuracoesNuvem = dados.app_settings?.[0] || null;
   db.configuracoes = {
     ...db.configuracoes,
@@ -3602,7 +3612,8 @@ async function carregarDadosAdminSupabase() {
         aulasDevolvidas: Number(item.aulas_devolvidas || 0),
         valorPorAula: Number(item.valor_por_aula || 0),
         valorDevolvido: Number(item.valor_devolvido || 0),
-        quantidadeDevolvida: Number(item.quantidade_devolvida || 0)
+        quantidadeDevolvida: Number(item.quantidade_devolvida || 0),
+        alugueisDisponiveisNaCompra: Number(rentalCreditAvailability.get(item.id) || 0)
       };
     });
     const aluno = alunos.find(a => a.id === v.student_id);
