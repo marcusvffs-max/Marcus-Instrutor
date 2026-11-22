@@ -1818,6 +1818,8 @@ Deno.serve(async (req: Request) => {
               .select("id,status,ai_paused_until,ai_pause_reason")
               .eq("owner_id", OWNER_ID)
               .eq("telefone", customerPhone)
+              .order("created_at", { ascending: false })
+              .limit(1)
               .maybeSingle();
 
             if (echoConversationError || !existingConversation) {
@@ -1907,6 +1909,8 @@ Deno.serve(async (req: Request) => {
             .select("id,status,ai_paused_until,ai_pause_reason")
             .eq("owner_id", OWNER_ID)
             .eq("telefone", phone)
+            .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle();
 
           if (conversationError) {
@@ -1917,6 +1921,48 @@ Deno.serve(async (req: Request) => {
           const messageTime = new Date(
             Number(message.timestamp ?? Date.now() / 1000) * 1000,
           ).toISOString();
+
+          // A saudação explícita inicia um ciclo novo; o registro pausado/encerrado
+          // permanece intacto para consulta e nunca recebe mensagens do novo ciclo.
+          if (conversation && reactivationGreeting &&
+            ["atendimento_humano", "encerrada"].includes(String(conversation.status ?? ""))) {
+            const { data: newCycle, error: newCycleError } = await supabase
+              .from("whatsapp_conversations")
+              .insert({
+                owner_id: OWNER_ID,
+                telefone: phone,
+                nome_contato: contactName,
+                status: "aguardando_escolha",
+                ultima_mensagem_em: messageTime,
+                updated_at: new Date().toISOString(),
+              })
+              .select("id,status,ai_paused_until,ai_pause_reason")
+              .single();
+
+            if (newCycleError?.code === "23505") {
+              // Webhooks repetidos podem concorrer para criar o mesmo ciclo.
+              // Reutiliza o ciclo ativo criado pela primeira execução.
+              const retry = await supabase
+                .from("whatsapp_conversations")
+                .select("id,status,ai_paused_until,ai_pause_reason")
+                .eq("owner_id", OWNER_ID)
+                .eq("telefone", phone)
+                .not("status", "in", '("atendimento_humano","encerrada")')
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              conversation = retry.data;
+              conversationError = retry.error;
+            } else {
+              conversation = newCycle;
+              conversationError = newCycleError;
+            }
+
+            if (conversationError || !conversation) {
+              console.error("New WhatsApp conversation cycle creation failed:", conversationError?.message);
+              continue;
+            }
+          }
 
           if (!conversation) {
             const { data: created, error: createError } = await supabase
@@ -1938,7 +1984,9 @@ Deno.serve(async (req: Request) => {
                 .select("id,status,ai_paused_until,ai_pause_reason")
                 .eq("owner_id", OWNER_ID)
                 .eq("telefone", phone)
-                .single();
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
               conversation = retry.data;
               conversationError = retry.error;
             } else {
