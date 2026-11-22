@@ -3407,6 +3407,17 @@ async function carregarDadosAdminSupabase() {
   // preservados no localStorage, mas não são misturados com os da nuvem.
   adminSupabaseUserId = usuario.id;
   adminAlunosSupabaseAtivo = true;
+
+  if (window.MarcusContractorProfile) {
+    try {
+      await window.MarcusContractorProfile.carregar(cliente, usuario.id);
+      window.MarcusContractorProfile.vincular(() => cliente, () => usuario.id);
+    } catch (erroCadastro) {
+      console.error("Não foi possível carregar o cadastro do responsável:", erroCadastro);
+      const statusCadastro = document.getElementById("statusDadosContratante");
+      if (statusCadastro) statusCadastro.textContent = "Não foi possível carregar seus dados. Confira a conexão e tente novamente.";
+    }
+  }
   db.alunos = (dados.students || []).map(a => ({
     id: a.id,
     nome: a.nome || "",
