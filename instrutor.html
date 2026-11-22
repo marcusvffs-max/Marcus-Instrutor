@@ -291,8 +291,8 @@
       </section>
 
       <section class="panel sales-panel" data-view="vendas">
-        <div class="section-heading"><div><h3>Registrar venda</h3><p>Selecione o aluno, adicione os itens e confirme. A entrada financeira e o saldo de aulas serão atualizados automaticamente.</p></div></div>
-        <form id="formVenda" class="student-form">
+        <div class="section-heading"><div><h3>Vendas</h3><p>Registre novas vendas e acompanhe o histórico. A entrada financeira e o saldo de aulas são atualizados automaticamente.</p></div><button id="btnNovaVenda" class="button button-primary" type="button">+ Nova venda</button></div>
+        <form id="formVenda" class="student-form" hidden>
           <div class="student-form-grid">
             <div><label for="vendaAluno">Aluno *</label><select id="vendaAluno" required><option value="">Selecione um aluno</option></select></div>
             <div><label for="vendaPagamento">Forma de pagamento</label><select id="vendaPagamento"><option value="">Não informado</option><option>Dinheiro</option><option>Pix</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option><option>Outro</option></select></div>
@@ -315,13 +315,14 @@
             <h3>Meu financeiro</h3>
             <p>Acompanhe suas entradas, despesas e saldo. Os dados são exclusivos da sua conta.</p>
           </div>
+          <button id="btnNovaMovimentacao" class="button button-primary" type="button">+ Nova movimentação</button>
         </div>
         <div class="finance-summary">
           <article class="finance-summary-card"><span>Entradas</span><strong id="financeEntradas">R$ 0,00</strong></article>
           <article class="finance-summary-card"><span>Despesas</span><strong id="financeDespesas">R$ 0,00</strong></article>
           <article class="finance-summary-card finance-balance-card"><span>Saldo</span><strong id="financeSaldo">R$ 0,00</strong></article>
         </div>
-        <form id="formMovimentacao" class="student-form">
+        <form id="formMovimentacao" class="student-form" hidden>
           <h4>Registrar movimentação</h4>
           <div class="student-form-grid">
             <div><label for="movimentoTipo">Tipo *</label><select id="movimentoTipo" required><option value="entrada">Entrada</option><option value="saida">Despesa</option></select></div>
