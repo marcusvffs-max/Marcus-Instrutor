@@ -13,7 +13,7 @@ O projeto original `ydyqagqsuqntuibzgwzd` não foi acessado nem alterado nesta r
 A inspeção de catálogo confirmou as policies:
 
 - `products`: admin e instrutor podem gerenciar somente linhas com `owner_id = auth.uid()`.
-- `app_settings`: admin e instrutor podem selecionar/inserir/atualizar/excluir somente linhas com `owner_id = auth.uid()`.
+- `app_settings`: admin e instrutor podem gerenciar somente linhas com `owner_id = auth.uid()`.
 
 ## Procedimento
 
@@ -33,7 +33,6 @@ Para cada instrutor e tabela, foram testados:
 
 ## Resultado
 
-<text></text>
 **24/24 verificações aprovadas.**
 
 | Tabela | CRUD próprio A | CRUD próprio B | Escrita cruzada A → B | Escrita cruzada B → A |
