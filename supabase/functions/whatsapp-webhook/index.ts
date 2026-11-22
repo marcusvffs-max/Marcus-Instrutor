@@ -181,8 +181,8 @@ async function sendInitialMenuSelection(
   ];
 
   const greeting =
-    "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\\n\\n" +
-    "Escolha uma opção para começar. Toque em “Ver opções” para abrir o menu.\\n\\n" +
+    "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\n" +
+    "Escolha uma opção para começar. Toque em “Ver opções” para abrir o menu.\n\n" +
     "A qualquer momento, digite Encerrar para finalizar e pausar a assistente por 48 horas. " +
     "Para chamá-la novamente antes desse prazo, digite Olá.";
 
@@ -1230,7 +1230,7 @@ async function processIncomingMessage(
             .eq("id", conversationId);
           if (saveRevisedChoiceError) throw new Error("Revised optional choice save failed: " + saveRevisedChoiceError.message);
           const revisedReply = formatOptionalItemsReply(catalog, pendingQuantity, mergedChoice) +
-            "\\n\\nAgora deseja que eu registre essa intenção de contratação para análise do Instrutor Marcus? Responda SIM ou NÃO.";
+            "\n\nAgora deseja que eu registre essa intenção de contratação para análise do Instrutor Marcus? Responda SIM ou NÃO.";
           const sent = await sendWhatsAppText(supabase, conversationId, phone, revisedReply);
           await updateMessageMetadata(supabase, providerId, {
             ai_status: sent ? "package_optional_choice_updated" : "reply_send_failed",
