@@ -3519,6 +3519,8 @@ async function carregarDadosAdminSupabase() {
     situacao: statusAlunoParaTela(a.status),
     contratadas: Number(a.aulas_compradas || 0),
     saldo: Number(a.aulas_restantes || 0),
+    alugueisComprados: Number(a.alugueis_comprados || 0),
+    alugueisDisponiveis: Number(a.alugueis_disponiveis || 0),
     user_id: a.user_id || null,
     invited_at: a.invited_at || null
   }));
