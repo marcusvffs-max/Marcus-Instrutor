@@ -1325,7 +1325,7 @@
       <p><strong>Situação:</strong><br><span class="status">${cancelled?"CANCELADA":"CONFIRMADA"}</span></p></div>
       <table><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Total</th></tr></thead><tbody>${lines||'<tr><td colspan="4">Itens não disponíveis.</td></tr>'}</tbody></table>
       <div class="total">Total: ${currency(sale.total)}</div>
-      ${Number(sale.observacoes||0)?'<p class="muted">'+escapeHtml(sale.observacoes)+'</p>':""}
+      ${sale.observacoes?'<p class="muted">Observações: '+escapeHtml(sale.observacoes)+'</p>':""}
       <p class="muted">Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
       <div class="signature"><span></span><strong>${escapeHtml(responsible)}</strong><br><small>Responsável</small></div>
       <div class="actions"><button onclick="window.print()">Imprimir / Salvar PDF</button></div></body></html>`);
