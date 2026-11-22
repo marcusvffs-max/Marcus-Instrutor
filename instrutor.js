@@ -93,7 +93,11 @@
     activeInstructorModal = null;
   }
 
-  function semLinksIndesejados(message) {\n    return String(message ?? "").replace(/\\b(?:https?:\\/\\/|www\\.)[^\\s<]+/gi, "[link ocultado]");\n  }\n\n  function showMessage(message, isError = true) {
+  function semLinksIndesejados(message) {
+    return String(message ?? "").replace(/\b(?:https?:\/\/|www\.)[^\s<]+/gi, "[link ocultado]");
+  }
+
+  function showMessage(message, isError = true) {
     const target = el("mensagem");
     if (!target) return;
     target.textContent = semLinksIndesejados(message);
