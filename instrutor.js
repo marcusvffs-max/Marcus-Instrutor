@@ -35,6 +35,60 @@
     })[char]);
   }
 
+  let activeInstructorModal = null;
+
+  function openInstructorModal(formId) {
+    const form = el(formId);
+    if (!form) return;
+    if (activeInstructorModal) closeInstructorModal();
+    const placeholder = document.createComment("form-" + formId);
+    form.parentNode.insertBefore(placeholder, form);
+    const overlay = document.createElement("div");
+    overlay.className = "instructor-modal-overlay";
+    const dialog = document.createElement("section");
+    dialog.className = "instructor-modal-dialog";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    const header = document.createElement("div");
+    header.className = "instructor-modal-header";
+    const title = document.createElement("h2");
+    title.textContent = form.querySelector("h4")?.textContent || "Cadastro";
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "instructor-modal-close";
+    close.setAttribute("aria-label", "Fechar");
+    close.textContent = "×";
+    header.append(title, close);
+    dialog.append(header, form);
+    overlay.append(dialog);
+    document.body.append(overlay);
+    form.hidden = false;
+    form.classList.add("instructor-modal-form");
+    document.body.classList.add("instructor-modal-open");
+    const onKeyDown = event => { if (event.key === "Escape") closeInstructorModal(formId); };
+    activeInstructorModal = { form, placeholder, overlay, onKeyDown };
+    close.addEventListener("click", () => closeInstructorModal(formId));
+    overlay.addEventListener("click", event => {
+      if (event.target === overlay) closeInstructorModal(formId);
+    });
+    document.addEventListener("keydown", onKeyDown);
+  }
+
+  function closeInstructorModal(formId = null) {
+    const modal = activeInstructorModal;
+    if (!modal || (formId && modal.form.id !== formId)) return;
+    document.removeEventListener("keydown", modal.onKeyDown);
+    if (modal.placeholder.parentNode) {
+      modal.placeholder.parentNode.insertBefore(modal.form, modal.placeholder);
+      modal.placeholder.remove();
+    }
+    modal.form.classList.remove("instructor-modal-form");
+    modal.form.hidden = true;
+    modal.overlay.remove();
+    document.body.classList.remove("instructor-modal-open");
+    activeInstructorModal = null;
+  }
+
   function showMessage(message, isError = true) {
     const target = el("mensagem");
     if (!target) return;
@@ -463,12 +517,14 @@
     const container = el("proximasAulas");
     if (!container) return;
 
+    const today = localToday();
     const scheduled = sortLessons(state.lessons.filter(lesson =>
-      String(lesson.status || "").toLowerCase() === "agendada"
+      String(lesson.status || "").toLowerCase() === "agendada" &&
+      String(lesson.data_aula || "").slice(0, 10) === today
     ));
 
     if (!scheduled.length) {
-      container.innerHTML = '<div class="empty-state">Você não possui aulas agendadas.</div>';
+      container.innerHTML = '<div class="empty-state">Você não possui aulas agendadas para hoje.</div>';
       return;
     }
 
@@ -579,6 +635,7 @@
     el("formAula").reset();
     el("tituloFormAula").textContent = "Agendar aula";
     el("btnSalvarAula").textContent = "Salvar aula";
+    closeInstructorModal("formAula");
     el("formAula").hidden = true;
     updateLessonBalanceHint();
   }
@@ -603,6 +660,7 @@
     }
 
     el("formAula").hidden = false;
+    openInstructorModal("formAula");
     updateLessonBalanceHint();
     el("aulaAluno").focus();
   }
@@ -617,12 +675,14 @@
     el("loteQuantidade").value = "4";
     el("loteIntervaloDias").value = "7";
     el("formAulasLote").hidden = false;
+    openInstructorModal("formAulasLote");
     generateBatchLessonRows();
     el("loteAluno").focus();
   }
 
   function resetBatchLessonForm() {
     el("formAulasLote").reset();
+    closeInstructorModal("formAulasLote");
     el("formAulasLote").hidden = true;
     el("listaDatasAulasLote").innerHTML = "";
   }
@@ -819,6 +879,7 @@
     el("formVeiculo").reset();
     el("tituloFormVeiculo").textContent = "Cadastrar veículo";
     el("btnSalvarVeiculo").textContent = "Salvar veículo";
+    closeInstructorModal("formVeiculo");
     el("formVeiculo").hidden = true;
   }
 
@@ -834,6 +895,7 @@
       el("veiculoNome").value = vehicle.nome || "";
     }
     el("formVeiculo").hidden = false;
+    openInstructorModal("formVeiculo");
     el("veiculoTipo").focus();
   }
 
@@ -936,6 +998,7 @@
     el("tituloFormProduto").textContent = "Cadastrar produto ou serviço";
     el("btnSalvarProduto").textContent = "Salvar item";
     el("produtoAtivo").value = "true";
+    closeInstructorModal("formProduto");
     el("formProduto").hidden = true;
   }
 
@@ -955,6 +1018,7 @@
       el("produtoAtivo").value = "true";
     }
     el("formProduto").hidden = false;
+    openInstructorModal("formProduto");
     el("produtoNome").focus();
   }
 
@@ -1058,6 +1122,7 @@
       if (error) throw error;
 
       // A transação foi confirmada no banco; limpar o carrinho antes de atualizar as listas.
+      closeInstructorModal("formVenda");
       el("formVenda").reset();
       el("vendaQuantidade").value = "1";
       state.saleCart = [];
@@ -1176,6 +1241,7 @@
     try {
       const { error } = await state.supabase.from("financial_transactions").insert(transaction);
       if (error) throw error;
+      closeInstructorModal("formMovimentacao");
       el("formMovimentacao").reset();
       el("movimentoData").value = localToday();
       await loadFinancialData();
@@ -1405,6 +1471,7 @@
     el("formAluno").reset();
     el("tituloFormAluno").textContent = "Cadastrar aluno";
     el("btnSalvarAluno").textContent = "Salvar aluno";
+    closeInstructorModal("formAluno");
     el("formAluno").hidden = true;
   }
 
@@ -1426,6 +1493,7 @@
     }
 
     el("formAluno").hidden = false;
+    openInstructorModal("formAluno");
     el("alunoNome").focus();
   }
 
@@ -1840,6 +1908,12 @@
       if (button.dataset.lessonAction === "delete") deleteLesson(id);
     });
 
+    el("btnNovaMovimentacao").addEventListener("click", () => {
+      el("formMovimentacao").reset();
+      el("movimentoData").value = localToday();
+      openInstructorModal("formMovimentacao");
+      el("movimentoTipo").focus();
+    });
     el("formMovimentacao").addEventListener("submit", saveFinancialTransaction);
     el("listaVendas").addEventListener("click", event => {
       const button = event.target.closest("[data-sale-delete]");
@@ -1859,6 +1933,13 @@
       const product = state.products.find(item => item.id === button.dataset.productId);
       if (button.dataset.productAction === "edit" && product) openProductForm(product);
       if (button.dataset.productAction === "toggle") toggleProduct(button.dataset.productId);
+    });
+    el("btnNovaVenda").addEventListener("click", () => {
+      el("formVenda").reset();
+      state.saleCart = [];
+      renderSaleCart();
+      openInstructorModal("formVenda");
+      el("vendaAluno").focus();
     });
     el("btnAdicionarItemVenda").addEventListener("click", addSaleCartItem);
     el("itensCarrinhoVenda").addEventListener("click", event => {
