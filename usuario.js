@@ -75,12 +75,31 @@
 
   async function loadInstructorName() {
     try {
-      const { data, error } = await state.supabase.rpc("get_my_instructor_name");
+      const { data, error } = await state.supabase.rpc("get_my_instructor_branding");
       if (error) throw error;
-      el("nomeInstrutorResponsavel").textContent = data || "Aguardando vínculo do instrutor";
+      const branding = Array.isArray(data) ? data[0] : data;
+      const name = branding?.instructor_name || "";
+      el("nomeInstrutorResponsavel").textContent = name || "Aguardando vínculo do instrutor";
+      const heading = el("nomeEmpresaInstrutor");
+      if (heading && name) heading.textContent = name;
+      const logo = el("logoInstrutorResponsavel");
+      if (logo && branding?.logo_url) {
+        const image = document.createElement("img");
+        image.src = branding.logo_url;
+        image.alt = "Logomarca do instrutor responsável";
+        image.style.width = "100%";
+        image.style.height = "100%";
+        image.style.objectFit = "contain";
+        logo.replaceChildren(image);
+      }
     } catch (error) {
-      console.warn("Não foi possível consultar o instrutor responsável:", error);
-      el("nomeInstrutorResponsavel").textContent = "Não disponível no momento";
+      console.warn("Não foi possível consultar a identidade visual do instrutor responsável:", error);
+      try {
+        const { data } = await state.supabase.rpc("get_my_instructor_name");
+        el("nomeInstrutorResponsavel").textContent = data || "Aguardando vínculo do instrutor";
+      } catch (_) {
+        el("nomeInstrutorResponsavel").textContent = "Não disponível no momento";
+      }
     }
   }
 
