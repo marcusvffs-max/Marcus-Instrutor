@@ -93,10 +93,10 @@
     activeInstructorModal = null;
   }
 
-  function showMessage(message, isError = true) {
+  function semLinksIndesejados(message) {\n    return String(message ?? "").replace(/\\b(?:https?:\\/\\/|www\\.)[^\\s<]+/gi, "[link ocultado]");\n  }\n\n  function showMessage(message, isError = true) {
     const target = el("mensagem");
     if (!target) return;
-    target.textContent = message || "";
+    target.textContent = semLinksIndesejados(message);
     target.style.color = isError ? "#a12b2b" : "#16794b";
   }
 
@@ -130,7 +130,7 @@
       title.id = "marcusConfirmTitle";
       title.textContent = "Confirmação";
       const text = document.createElement("p");
-      text.textContent = String(message ?? "");
+      text.textContent = semLinksIndesejados(message);
       const actions = document.createElement("div");
       actions.className = "marcus-confirm-actions";
       const cancel = document.createElement("button");
