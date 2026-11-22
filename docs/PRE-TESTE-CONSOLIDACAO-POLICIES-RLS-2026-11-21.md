@@ -3,7 +3,7 @@
 ## Ambiente e escopo
 
 Projeto Supabase isolado: `voyjssflroiwdyaacthh`, PostgreSQL 17.12.
-A consolidação foi simulada dentro de transação SQL, com fixtures sintéticas e claims JWT simuladas. As policies originais foram removidas apenas dentro da transação, substituídas por policies candidatas e restauradas automaticamente pelo `ROLLBACK`.
+A consolidação foi simulada dentro de transações SQL, com fixtures sintéticas e claims JWT simuladas. As policies originais foram removidas apenas dentro das transações, substituídas por policies candidatas e restauradas automaticamente pelo `ROLLBACK`.
 
 Nenhuma policy persistente foi alterada. O projeto original `ydyqagqsuqntuibzgwzd` não foi acessado.
 
@@ -19,7 +19,9 @@ Nas tabelas `sales`, `sale_items` e `financial_transactions`, os `WITH CHECK` pr
 
 ## Resultado da simulação
 
-**54 asserções passaram** na execução transacional com dois instrutores sintéticos ativos:
+**76 asserções passaram** nas transações com dois instrutores sintéticos ativos, um instrutor temporariamente expirado e um administrador sintético:
+
+### Instrutores
 
 - SELECT: cada instrutor leu o próprio registro e não viu registros do outro em todas as quatro tabelas;
 - UPDATE e DELETE cruzados: zero linhas afetadas nas quatro tabelas;
@@ -28,22 +30,34 @@ Nas tabelas `sales`, `sale_items` e `financial_transactions`, os `WITH CHECK` pr
 - INSERT com `owner_id` forjado: bloqueado nas quatro tabelas para ambos os instrutores;
 - acesso expirado: instrutor expirado não viu produtos e teve INSERT bloqueado.
 
-Todas as fixtures e mudanças temporárias de policies foram revertidas com `ROLLBACK`.
+### Administrador sintético
+
+Uma identidade Auth sintética foi criada dentro da transação; o trigger criou o perfil e o papel foi ajustado para `admin` somente no banco isolado e dentro da transação.
+
+- `private.current_app_role()` retornou `admin`;
+- SELECT e UPDATE dos próprios registros funcionaram nas quatro tabelas;
+- SELECT de produtos pertencentes a outro owner retornou zero;
+- UPDATE e DELETE cruzados retornaram zero linhas nas quatro tabelas;
+- INSERT com `owner_id` de outro instrutor foi bloqueado nas quatro tabelas.
+
+Todas as identidades, perfis, fixtures e mudanças temporárias de policies foram revertidas com `ROLLBACK`. A consulta posterior confirmou que a identidade administrativa sintética não permaneceu no Auth e que as contagens de policies originais foram restauradas.
 
 ## Limitações
 
 - Os testes usaram `SET LOCAL ROLE authenticated` e claims simuladas; não foram chamadas HTTP/PostgREST com JWT real.
-- O banco isolado contém dois instrutores sintéticos e nenhum perfil administrador disponível nesta rodada. Portanto, o ramo de papel `admin` da condição combinada ainda precisa de teste com identidade administrativa sintética antes de aplicar a consolidação.
-- O teste de INSERT próprio em vendas, itens e transações foi realizado; não se deve interpretar este relatório como cobertura de todos os fluxos financeiros/RPCs.
+- Para o administrador, foram testados SELECT, UPDATE, bloqueios cruzados e INSERT forjado; não foram testados INSERT próprio e DELETE próprio em todas as quatro tabelas.
+- O teste de INSERT próprio em vendas, itens e transações para instrutores foi realizado; não se deve interpretar este relatório como cobertura de todos os fluxos financeiros/RPCs.
 - A simulação não mede ganho de desempenho real. O objetivo foi verificar equivalência funcional e isolamento, não provar redução de latência.
+- O Advisor foi consultado após o rollback e continuou reportando as 16 ocorrências de policies permissivas múltiplas, pois a consolidação não foi persistida.
 - Não foi criada nem aplicada migration nesta etapa.
 
 ## Recomendação
 
-A consolidação é candidata tecnicamente viável, mas deve permanecer fora do schema persistente até:
+A equivalência funcional das policies candidatas foi testada para os papéis de instrutor e administrador, mas a consolidação deve continuar fora do schema persistente até:
 
-1. testar o ramo `admin` com identidade sintética isolada;
-2. executar novamente a matriz financeira completa;
-3. revisar os diffs finais das policies e obter resultado limpo nos Advisors aplicáveis.
+1. completar INSERT e DELETE próprios para o administrador;
+2. executar novamente a matriz financeira completa com as policies candidatas;
+3. aplicar a migration somente no projeto isolado e executar os Advisors após a alteração persistente;
+4. revisar os diffs finais e confirmar ausência de regressão antes de qualquer proposta de integração.
 
-Nenhuma alteração em produção ou no Supabase original foi realizada. O commit desta documentação acionou automaticamente a integração Git da Vercel, que gerou um Preview em estado `READY`; não foi executado deploy manual nem deploy de produção. O estado READY confirma a conclusão da implantação de Preview, não valida o login ou os fluxos funcionais autenticados.
+Nenhuma alteração em produção ou no Supabase original foi realizada. O commit desta documentação acionou automaticamente a integração Git da Vercel; o Preview do commit anterior ficou `READY`. O commit mais recente não recebeu implantação de Preview: o check Vercel retornou falha por limite de builds (`build-rate-limit`). Não foi executado deploy manual nem deploy de produção. Um Preview `READY` não valida login ou fluxos funcionais autenticados.
