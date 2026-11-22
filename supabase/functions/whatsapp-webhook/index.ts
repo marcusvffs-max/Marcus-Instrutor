@@ -1865,8 +1865,16 @@ Deno.serve(async (req: Request) => {
           // Only an explicit "Olá" starts a new conversation cycle.
           const lastCycleInactive = Boolean(conversation) &&
             ["atendimento_humano", "encerrada"].includes(String(conversation.status));
-          if (lastCycleInactive && !reactivationGreeting) continue;
-          if (lastCycleInactive && reactivationGreeting) conversation = null;
+          const pauseUntilMs = conversation?.ai_paused_until
+            ? new Date(conversation.ai_paused_until).getTime()
+            : 0;
+          const pauseExpired = Boolean(conversation?.ai_paused_until) && pauseUntilMs <= Date.now();
+          const stateReactivated = ["ia_desativada_global", "instrutor_reativou_ia"].includes(
+            String(conversation?.ai_pause_reason ?? ""),
+          );
+          const canStartNewCycle = reactivationGreeting || pauseExpired || stateReactivated;
+          if (lastCycleInactive && !canStartNewCycle) continue;
+          if (lastCycleInactive && canStartNewCycle) conversation = null;
 
           if (!conversation) {
             const { data: created, error: createError } = await supabase
