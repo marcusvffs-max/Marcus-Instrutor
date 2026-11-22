@@ -112,6 +112,30 @@ Deno.serve(async (req: Request) => {
       return response({ ok: true, conversations: conversations ?? [] }, 200, origin);
     }
 
+    if (body.action === "delete_whatsapp_conversation") {
+      if (profile.role !== "admin") {
+        return response({ error: "Somente administradores podem excluir conversas do WhatsApp." }, 403, origin);
+      }
+      const conversationId = typeof body.conversation_id === "string" ? body.conversation_id.trim() : "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId)) {
+        return response({ error: "Conversa inválida." }, 400, origin);
+      }
+      const { data: deletedConversation, error: deleteError } = await admin
+        .from("whatsapp_conversations")
+        .delete()
+        .eq("id", conversationId)
+        .eq("owner_id", authData.user.id)
+        .select("id")
+        .maybeSingle();
+      if (deleteError) throw deleteError;
+      if (!deletedConversation) {
+        return response({ error: "Conversa não encontrada para esta conta." }, 404, origin);
+      }
+      // whatsapp_messages.conversation_id has ON DELETE CASCADE, so only
+      // messages belonging to this exact conversation cycle are removed.
+      return response({ ok: true, deleted_conversation_id: deletedConversation.id }, 200, origin);
+    }
+
     if (body.action === "list_whatsapp_messages") {
       if (profile.role !== "admin") {
         return response({ error: "Somente administradores podem consultar mensagens do WhatsApp." }, 403, origin);
