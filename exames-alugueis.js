@@ -163,6 +163,7 @@
   }
   window.MarcusExamsRentals={
     open:async()=>{selectedStudentId=null;activeTab="resumo";modal();await refresh();},
+    openPrices:async()=>{selectedStudentId=null;activeTab="precos";modal();await refresh();},
     openForStudent:async id=>{selectedStudentId=String(id);activeTab="aluno";modal();await refresh();}
   };
   document.addEventListener("DOMContentLoaded",()=>{init().catch(e=>console.error("Módulo de exames e aluguéis:",e));});
