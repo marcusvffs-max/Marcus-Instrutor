@@ -5,6 +5,7 @@
   const $ = id => document.getElementById(id);
   let client, ownerId, role, students = [], exams = [], settings = {};
   let activeTab = "resumo";
+  let pendingFixedSaleId = null, pendingFixedSaleFingerprint = null;
 
   const css = `
     #marcus-exam-launch{margin-left:8px;white-space:nowrap}
@@ -103,9 +104,19 @@
   async function sell(ev){
     ev.preventDefault();const f=ev.currentTarget;const qty=Number(f.quantity.value);
     if(!Number.isInteger(qty)||qty<1||qty>100){say("Informe uma quantidade entre 1 e 100.");return;}
-    const btn=f.querySelector("button[type=submit]");btn.disabled=true;
-    try{const {data,error}=await client.rpc("register_fixed_item_sale",{p_sale_id:crypto.randomUUID(),p_student_id:f.student.value,p_fixed_item_key:f.elements["item"].value,p_quantity:qty,p_payment_method:f.payment.value||null,p_notes:f.notes.value.trim()||null});if(error)throw error;await refresh();tab("resumo");say("Venda registrada com sucesso. "+(f.item.value==="aluguel_veiculo"?"O saldo de aluguéis foi atualizado.":"O Cartão Moto Pista foi lançado sem alterar o saldo."),false);}
-    catch(e){say(e.message||"Não foi possível registrar a venda.");}finally{btn.disabled=false;}
+    const btn=f.querySelector("button[type=submit]");
+    const request={student:f.student.value,item:f.elements["item"].value,quantity:qty,payment:f.payment.value||null,notes:f.notes.value.trim()||null};
+    const fingerprint=JSON.stringify(request);
+    if(!pendingFixedSaleId||pendingFixedSaleFingerprint!==fingerprint){pendingFixedSaleId=crypto.randomUUID();pendingFixedSaleFingerprint=fingerprint;}
+    btn.disabled=true;
+    try{
+      const {error}=await client.rpc("register_fixed_item_sale",{p_sale_id:pendingFixedSaleId,p_student_id:request.student,p_fixed_item_key:request.item,p_quantity:qty,p_payment_method:request.payment,p_notes:request.notes});
+      if(error)throw error;
+      pendingFixedSaleId=null;pendingFixedSaleFingerprint=null;
+      try{await refresh();tab("resumo");say("Venda registrada com sucesso. "+(request.item==="aluguel_veiculo"?"O saldo de aluguéis foi atualizado.":"O Cartão Moto Pista foi lançado sem alterar o saldo."),false);}
+      catch(refreshError){console.error("Venda fixa confirmada, mas houve falha ao atualizar a tela:",refreshError);say("A venda foi registrada. Atualize a tela para conferir os saldos.",false);}
+    }catch(e){say(e.message||"Não foi possível registrar a venda. Você pode tentar novamente sem duplicar o lançamento.");}
+    finally{btn.disabled=false;}
   }
   async function schedule(ev){
     ev.preventDefault();const f=ev.currentTarget;const local=f.elements["date"].value+"T"+f.elements["time"].value;
