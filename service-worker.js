@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v28-no-confirm-links";
+const CACHE_NAME = "marcus-instrutor-v29-confirm-dialog-links";
 
 const ARQUIVOS = [
   "./",
