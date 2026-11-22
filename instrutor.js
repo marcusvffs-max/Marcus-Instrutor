@@ -1286,7 +1286,7 @@
         (sale.status === "confirmada" ? "Confirmada" : "Cancelada") + '</span><div class="sale-history-actions">' +
         '<button class="button button-outline button-small" type="button" data-sale-print="' + escapeHtml(sale.id) + '">Imprimir recibo</button>' +
         (canRefund ? '<button class="button button-outline button-small" type="button" data-sale-refund="' + escapeHtml(sale.id) + '">↩ Devolver itens</button>' : '') +
-        '<button class="button button-danger button-small" type="button" data-sale-delete="' + escapeHtml(sale.id) + '">Excluir venda</button></div></article>';
+        (containsRental ? "" : '<button class="button button-danger button-small" type="button" data-sale-delete="' + escapeHtml(sale.id) + '">Excluir venda</button>') + '</div></article>';
     }).join("");
   }
 
