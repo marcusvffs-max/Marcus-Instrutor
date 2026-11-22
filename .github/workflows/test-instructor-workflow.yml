@@ -1,0 +1,25 @@
+name: Testes estáticos do aplicativo
+
+on:
+  push:
+    branches:
+      - fix/preview-supabase-isolation
+  pull_request:
+    branches:
+      - fix/preview-supabase-isolation
+
+permissions:
+  contents: read
+
+jobs:
+  instructor-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Executar testes automatizados
+        run: node --test scripts/test-instructor-workflow.mjs

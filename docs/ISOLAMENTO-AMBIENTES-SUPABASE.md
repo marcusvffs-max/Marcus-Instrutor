@@ -45,3 +45,10 @@ A Edge Function `whatsapp-webhook` não foi implantada no projeto isolado: o có
 Não copiar secrets de produção nem usar a service role key no frontend.
 
 Não fazer merge para `main` nem deploy manual como parte desta alteração.
+
+
+## Proteção contra conflito de horário
+
+A migration `20261122011223_prevent_duplicate_active_lesson_slots.sql` cria um índice único parcial em `lessons(owner_id, data_aula, horario)`. Ele impede que o mesmo instrutor tenha duas aulas não canceladas no mesmo horário, inclusive quando duas telas tentam salvar ao mesmo tempo. Aulas com status `cancelada` liberam o horário para novo agendamento.
+
+A migration foi aplicada e verificada somente no projeto isolado `voyjssflroiwdyaacthh`. Antes de aplicá-la em qualquer banco de produção, executar uma consulta de pré-validação para identificar duplicidades existentes por proprietário, data e horário; não remover nem alterar aulas automaticamente para contornar conflitos.
