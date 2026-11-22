@@ -12,6 +12,8 @@ const serviceWorker = read("../service-worker.js");
 const accessMigration = read("../supabase/migrations/20261121190000_remove_student_app_access.sql");
 const instructorManagementMigration = read("../supabase/migrations/20261121230000_harden_instructor_sale_delete_role_check.sql");
 const instructorNameMigration = read("../supabase/migrations/20261121231000_move_instructor_name_lookup_to_private_helper.sql");
+const saleTrackingMigration = read("../supabase/migrations/20261121270000_fix_instructor_sale_item_lesson_tracking.sql");
+const studentOwnerIndexMigration = read("../supabase/migrations/20261121280000_add_students_owner_fk_index.sql");
 
 test("área de acessos lista somente alunos com conta vinculada", () => {
   assert.match(instructorHtml, /data-view="alunos-vinculados"/);
@@ -93,4 +95,23 @@ test("service worker usa a mesma versão de instrutor.js declarada no HTML", () 
   assert.ok(htmlVersion);
   assert.equal(cachedVersion, htmlVersion);
   assert.match(serviceWorker, /marcus-instrutor-v24-linked-student-access/);
+});
+
+
+test("venda do instrutor grava aulas contratadas e valor líquido por aula", () => {
+  assert.match(saleTrackingMigration, /private\.current_app_role\(\) is distinct from 'instrutor'/i);
+  assert.match(saleTrackingMigration, /p\.owner_id = v_owner_id/i);
+  assert.match(saleTrackingMigration, /aulas_contratadas/i);
+  assert.match(saleTrackingMigration, /valor_por_aula/i);
+  assert.match(saleTrackingMigration, /valor_liquido/i);
+  assert.match(saleTrackingMigration, /round\(v_subtotal \/ v_item_lessons, 2\)/i);
+  assert.match(saleTrackingMigration, /insert into public\.financial_transactions/i);
+  assert.match(saleTrackingMigration, /aulas_compradas = coalesce\(aulas_compradas, 0\) \+ v_lessons/i);
+  assert.match(saleTrackingMigration, /aulas_restantes = coalesce\(aulas_restantes, 0\) \+ v_lessons/i);
+  assert.match(saleTrackingMigration, /where id = p_student_id and owner_id = v_owner_id/i);
+});
+
+test("índice da FK students.owner_id é versionado em migration própria", () => {
+  assert.match(studentOwnerIndexMigration, /create index if not exists students_owner_id_idx/i);
+  assert.match(studentOwnerIndexMigration, /on public\.students\s*\(owner_id\)/i);
 });
