@@ -98,6 +98,34 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    if (body.action === "assume_whatsapp_conversation") {
+      if (profile.role !== "admin") {
+        return response({ error: "Somente administradores podem assumir atendimentos do WhatsApp." }, 403, origin);
+      }
+      const conversationId = typeof body.conversation_id === "string" ? body.conversation_id.trim() : "";
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId)) {
+        return response({ error: "Conversa inválida." }, 400, origin);
+      }
+      const now = new Date();
+      const pauseUntil = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
+      const { data: assumedConversation, error: assumeError } = await admin
+        .from("whatsapp_conversations")
+        .update({
+          status: "atendimento_humano",
+          ai_paused_until: pauseUntil,
+          ai_pause_reason: "instrutor_assumiu_atendimento",
+          quote_state: null,
+          updated_at: now.toISOString(),
+        })
+        .eq("id", conversationId)
+        .eq("owner_id", authData.user.id)
+        .select("id")
+        .maybeSingle();
+      if (assumeError) throw assumeError;
+      if (!assumedConversation) return response({ error: "Conversa não encontrada para esta conta." }, 404, origin);
+      return response({ ok: true, conversation_id: conversationId, ai_paused_until: pauseUntil }, 200, origin);
+    }
+
     if (body.action === "list_whatsapp_conversations") {
       if (profile.role !== "admin") {
         return response({ error: "Somente administradores podem consultar as conversas do WhatsApp." }, 403, origin);
