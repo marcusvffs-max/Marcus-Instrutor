@@ -1823,17 +1823,18 @@ async function excluirProduto(id) {
 ========================================= */
 
 
-function abrirVenda() {
+async function abrirVenda() {
   if (!db.alunos.length) {
     mostrarAviso("Cadastre um aluno primeiro.");
     return;
   }
 
   const produtosAtivos = db.produtos.filter(p => p.ativo !== false);
-  if (!produtosAtivos.length) {
-    mostrarAviso("Cadastre um produto ou serviço ativo primeiro.");
-    return;
-  }
+  const clientePrecos = window.getMarcusSupabase?.();
+  const { data: fx, error: fxError } = await clientePrecos.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", adminSupabaseUserId).maybeSingle();
+  if (fxError) { mostrarAviso("Não foi possível carregar os preços dos itens fixos."); return; }
+  const itensFixos = [{key:"aluguel_veiculo",nome:"Aluguel de Veículo",preco:Number(fx?.aluguel_veiculo_preco||0)},{key:"cartao_moto_pista",nome:"Cartão Moto Pista",preco:Number(fx?.cartao_moto_pista_preco||0)}].filter(x=>x.preco>0);
+  if (!produtosAtivos.length && !itensFixos.length) { mostrarAviso("Cadastre produtos/serviços ou configure os preços em Produtos e Serviços."); return; }
 
   const itensCarrinho = [];
 
@@ -1854,6 +1855,7 @@ function abrirVenda() {
         ${produtosAtivos.map(p =>
           `<option value="${p.id}">${escapar(p.nome)} — ${moeda(p.preco)}</option>`
         ).join("")}
+        ${itensFixos.map(x => `<option value="fixed:${x.key}">${x.nome} — ${moeda(x.preco)}</option>`).join("")}
       </select>
 
       <label>Quantidade</label>
@@ -1974,14 +1976,16 @@ function abrirVenda() {
   campoValorDesconto.oninput = atualizarCarrinho;
 
   document.getElementById("adicionarItemVenda").onclick = () => {
+    const fixo = campoProduto.value.startsWith("fixed:") ? itensFixos.find(x => x.key === campoProduto.value.slice(6)) : null;
     const produto = produtosAtivos.find(p => p.id === campoProduto.value);
     const quantidade = numero(campoQuantidade.value);
 
-    if (!produto || !Number.isInteger(quantidade) || quantidade < 1) {
+    if ((!produto && !fixo) || !Number.isInteger(quantidade) || quantidade < 1) {
       mostrarAviso("Selecione um item e informe uma quantidade válida.");
       return;
     }
 
+    if (fixo) { itensCarrinho.push({produtoId:null,fixedItemKey:fixo.key,nome:fixo.nome,tipo:"produto",quantidade,precoUnitario:fixo.preco,total:Math.round(fixo.preco*quantidade*100)/100,aulasContratadas:0}); campoProduto.value=""; campoQuantidade.value="1"; atualizarCarrinho(); return; }
     const tipo = produto.tipo ||
       (/pacote\s*(bronze|prata|ouro)|aula avulsa/i.test(produto.nome || "")
         ? "servico" : "produto");
@@ -2007,6 +2011,7 @@ function abrirVenda() {
 
     itensCarrinho.push({
       produtoId: produto.id,
+      fixedItemKey: null,
       nome: produto.nome,
       tipo,
       quantidade,
@@ -2071,15 +2076,11 @@ async function salvarVenda(evento, itensCarrinho) {
     const cliente = window.getMarcusSupabase?.();
     if (!cliente) throw new Error("Conexão com o Supabase indisponível.");
 
-    const { data, error } = await cliente.rpc("admin_create_sale", {
-      p_student_id: alunoId,
-      p_forma_pagamento: formaPagamento,
-      p_items: itensCarrinho.map(item => ({
-        product_id: item.produtoId,
-        quantidade: item.quantidade
-      })),
-      p_desconto_tipo: descontoTipo,
-      p_desconto_valor: descontoValor
+    const saleId = formulario.dataset.saleId || (formulario.dataset.saleId = crypto.randomUUID());
+    const { data, error } = await cliente.rpc("create_sale_with_fixed_items", {
+      p_sale_id:saleId, p_student_id:alunoId, p_payment_method:formaPagamento, p_notes:null,
+      p_items:itensCarrinho.map(item=>item.fixedItemKey?{fixed_item_key:item.fixedItemKey,quantidade:item.quantidade}:{product_id:item.produtoId,quantidade:item.quantidade}),
+      p_discount_type:descontoTipo, p_discount_value:descontoValor
     });
 
     if (error) throw error;
