@@ -107,7 +107,7 @@ begin
 end;
 $function$
 
-
+;
 CREATE OR REPLACE FUNCTION public.instructor_refund_sale_item(p_sale_item_id uuid, p_quantidade numeric)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -205,7 +205,7 @@ BEGIN
 END;
 $function$
 
-
+;
 CREATE OR REPLACE FUNCTION private.protect_vehicle_rental_sale_item()
 RETURNS trigger LANGUAGE plpgsql SET search_path='' AS $function$
 BEGIN
