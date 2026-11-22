@@ -1271,3 +1271,29 @@ O Performance Advisor identificou que `students.owner_id` não tinha índice pr�
 O índice `students_owner_id_idx` foi confirmado no catálogo. A recomendação `unindexed_foreign_keys` deixou de aparecer no Performance Advisor. O índice aparece como ainda não utilizado porque o banco de testes tem pouco volume; manter a decisão para revisão quando houver carga representativa.
 
 O conjunto versionado passa a ter 22 migrations implantáveis. Os avisos de políticas permissivas sobrepostas continuam sem alteração para evitar mudança de semântica RLS sem testes CRUD completos.
+
+
+## Atualização: revisão de API, permissões do schema private e CI — 21/11/2026
+
+### Schema `private`
+
+No projeto isolado, a consulta de privilégios confirmou:
+- `anon`: sem USAGE no schema `private`;
+- `authenticated`: com USAGE no schema `private`;
+- `service_role`: sem USAGE;
+- `private.get_my_scheduled_lessons_internal()`: sem EXECUTE direto para anon/authenticated;
+- `private.current_app_role()`: EXECUTE para authenticated, usada por RPCs públicas SECURITY INVOKER de autorização;
+- `public.get_my_scheduled_lessons()` e `public.remove_student_app_access(uuid)`: SECURITY DEFINER, sem EXECUTE para anon e com EXECUTE para authenticated; ambas têm `search_path` vazio e guards internos testados.
+
+A consulta SQL não revela a lista de schemas configurada no PostgREST/API. Portanto, **não foi possível confirmar pelo banco se `private` está exposto na Data API**. Não revogar USAGE nem mudar as funções neste passo: várias RPCs públicas SECURITY INVOKER dependem de `private.current_app_role()`. A confirmação da lista de schemas deve ser feita em Project Settings → API → Exposed schemas, somente no projeto isolado. Se `private` estiver listado, retirar da lista de schemas expostos é preferível a alterar a semântica das RPCs.
+
+### Edge Functions e CI
+
+- O projeto Supabase isolado não tem Edge Functions implantadas; nenhum teste HTTP ou JWT real foi executado.
+- Não há workflow run associado à branch `feature/acessos-alunos-instrutor` nem check run no commit `dadc22d32b8fa5d4ecc1548d5969a7226da0b02e`. O histórico recente de Actions retornou apenas o workflow de Pages na branch `main`, não testes da PR.
+- A PR #5 continua aberta em Draft, base `feature/relatorios-instrutor-app`.
+- Comparação atual com `main`: branch divergente, 616 commits à frente e 4 atrás. Não retargetar nem fazer merge automaticamente; é necessária uma estratégia de consolidação e revisão de diff antes da integração.
+
+### Configuração Auth pendente
+
+O Security Advisor do projeto isolado ainda aponta proteção contra senhas vazadas desabilitada. A configuração não é exposta pelas consultas SQL usadas nesta auditoria e não foi alterada. Habilitar somente pelo painel de Auth do projeto de testes, após revisão da política de senha; nunca no projeto original sem autorização específica.
