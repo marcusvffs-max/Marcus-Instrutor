@@ -82,31 +82,18 @@
     const host=$("marcus-exam-content");if(!host)return;
     const tabs=[["historico","Histórico"],["agendar","Agendar exame"]];
     let body="";
-    if(activeTab==="resumo"){
-      body='<div class="mx-card"><h3>Saldo de aluguéis por aluno</h3><p class="mx-muted">Cada resultado de exame (aprovado ou reprovado) consome um aluguel. Agendamentos e cancelamentos não consomem.</p><div class="mx-scroll"><table class="mx-table"><thead><tr><th>Aluno</th><th>Comprados</th><th>Disponíveis</th><th>Exames</th></tr></thead><tbody>'+
-      (students.length?students.map(s=>'<tr><td>'+esc(s.nome)+'</td><td>'+Number(s.alugueis_comprados||0)+'</td><td><strong>'+Number(s.alugueis_disponiveis||0)+'</strong></td><td>'+exams.filter(x=>x.student_id===s.id&&x.status==="realizado").length+'</td></tr>').join(""):'<tr><td colspan="4">Nenhum aluno cadastrado.</td></tr>')+'</tbody></table></div></div>';
-    } else if(activeTab==="venda"){
-      body='<div class="mx-card"><h3>Registrar venda de item fixo</h3><p class="mx-muted">Aluguel de Veículo aumenta o saldo do aluno. Cartão Moto Pista é apenas uma cobrança, sem controle de saldo.</p><form id="mx-sale"><label>Aluno</label><select name="student" required>'+studentOptions()+'</select><div class="mx-grid"><div><label>Item</label><select name="item"><option value="aluguel_veiculo">Aluguel de Veículo</option><option value="cartao_moto_pista">Cartão Moto Pista</option></select></div><div><label>Quantidade</label><input name="quantity" type="number" min="1" max="100" value="1" required></div><div><label>Forma de pagamento</label><select name="payment"><option value="">Não informada</option><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência bancária</option><option>Outro</option></select></div><div><label>Observações</label><input name="notes" maxlength="500"></div></div><button class="mx-btn" type="submit">Confirmar venda</button></form></div>';
-    } else if(activeTab==="agendar"){
+    if(activeTab==="agendar"){
       body='<div class="mx-card"><h3>Agendar exame prático</h3><p class="mx-muted">O agendamento não desconta aluguel. O saldo será conferido e consumido somente quando o resultado for registrado.</p><form id="mx-exam-form"><label>Aluno</label><select name="student" required>'+studentOptions()+'</select><div class="mx-grid"><div><label>Data</label><input name="date" type="date" required></div><div><label>Horário</label><input name="time" type="time" required></div></div><label>Observações</label><textarea name="notes" rows="2" maxlength="500"></textarea><button class="mx-btn" type="submit">Salvar agendamento</button></form></div>';
-    } else if(activeTab==="aluno"){
-      const student=students.find(s=>String(s.id)===String(selectedStudentId));
-      const attempts=exams.filter(x=>String(x.student_id)===String(selectedStudentId)).sort((a,b)=>new Date(b.scheduled_at)-new Date(a.scheduled_at));
-      const upcoming=attempts.filter(x=>x.status==="agendado"&&new Date(x.scheduled_at)>=new Date()).sort((a,b)=>new Date(a.scheduled_at)-new Date(b.scheduled_at))[0];
-      const completed=attempts.filter(x=>x.status==="realizado");
-      const history=attempts.map(x=>'<tr><td>'+date(x.scheduled_at)+'</td><td>'+({agendado:"Agendado",realizado:"Realizado",cancelado:"Cancelado"}[x.status]||x.status)+'</td><td>'+({aprovado:"Aprovado",reprovado:"Reprovado"}[x.resultado]||"—")+'</td><td>'+(x.aluguel_consumido?"Sim":"Não")+'</td><td>'+(x.status==="agendado"?'<button class="mx-btn" data-result="'+esc(x.id)+'" data-value="aprovado">Aprovado</button><button class="mx-btn alt" data-result="'+esc(x.id)+'" data-value="reprovado">Reprovado</button><button class="mx-btn danger" data-cancel="'+esc(x.id)+'">Cancelar</button>':"—")+'</td></tr>').join("");
-      body=student?'<div class="mx-card"><h3>'+esc(student.nome)+'</h3><div class="mx-stat"><span>Aluguéis comprados: <strong>'+Number(student.alugueis_comprados||0)+'</strong></span><span>Disponíveis: <strong>'+Number(student.alugueis_disponiveis||0)+'</strong></span><span>Exames realizados: <strong>'+completed.length+'</strong></span></div><h4>Próximo exame</h4><p>'+(upcoming?date(upcoming.scheduled_at):'Nenhum exame futuro agendado')+'</p><h4>Histórico de tentativas</h4><div class="mx-scroll"><table class="mx-table"><thead><tr><th>Data</th><th>Status</th><th>Resultado</th><th>Consumiu aluguel</th><th>Ação</th></tr></thead><tbody>'+(history||'<tr><td colspan="5">Nenhuma tentativa registrada.</td></tr>')+'</tbody></table></div><button class="mx-btn alt" type="button" data-tab="agendar">Agendar novo exame</button></div>':'<div class="mx-card">Aluno não encontrado nesta conta.</div>';
-    } else if(activeTab==="historico"){
-      const rows=exams.filter(x=>!selectedStudentId||String(x.student_id)===String(selectedStudentId)).map(x=>{const st=students.find(s=>s.id===x.student_id);return '<tr><td>'+esc(st?.nome||"Aluno")+'</td><td>'+date(x.scheduled_at)+'</td><td>'+({agendado:"Agendado",realizado:"Realizado",cancelado:"Cancelado"}[x.status]||x.status)+'</td><td>'+({aprovado:"Aprovado",reprovado:"Reprovado"}[x.resultado]||"—")+'</td><td>'+(x.aluguel_consumido?"Sim":"Não")+'</td><td>'+(x.status==="agendado"?'<button class="mx-btn" data-result="'+esc(x.id)+'" data-value="aprovado">Aprovado</button><button class="mx-btn alt" data-result="'+esc(x.id)+'" data-value="reprovado">Reprovado</button><button class="mx-btn danger" data-cancel="'+esc(x.id)+'">Cancelar</button>':"—")+'</td></tr>';}).join("");
+    }else{
+      const rows=exams.filter(x=>!selectedStudentId||String(x.student_id)===String(selectedStudentId)).map(x=>{
+        const st=students.find(s=>s.id===x.student_id);
+        return '<tr><td>'+esc(st?.nome||"Aluno")+'</td><td>'+date(x.scheduled_at)+'</td><td>'+({agendado:"Agendado",realizado:"Realizado",cancelado:"Cancelado"}[x.status]||x.status)+'</td><td>'+({aprovado:"Aprovado",reprovado:"Reprovado"}[x.resultado]||"—")+'</td><td>'+(x.aluguel_consumido?"Sim":"Não")+'</td><td>'+(x.status==="agendado"?'<button class="mx-btn" data-result="'+esc(x.id)+'" data-value="aprovado">Aprovado</button><button class="mx-btn alt" data-result="'+esc(x.id)+'" data-value="reprovado">Reprovado</button><button class="mx-btn danger" data-cancel="'+esc(x.id)+'">Cancelar</button>':"—")+'</td></tr>';
+      }).join("");
       body='<div class="mx-card"><h3>Histórico de exames</h3><p class="mx-muted">O histórico é preservado após a realização ou cancelamento. Registre o resultado apenas após o exame acontecer.</p><div class="mx-scroll"><table class="mx-table"><thead><tr><th>Aluno</th><th>Data</th><th>Status</th><th>Resultado</th><th>Consumiu aluguel</th><th>Ação</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6">Nenhum exame registrado.</td></tr>')+'</tbody></table></div></div>';
-    } else {
-      body='<div class="mx-card"><h3>Valores dos itens fixos</h3><p class="mx-muted">Os preços são exclusivos desta conta e não aparecem no catálogo comum de produtos.</p><form id="mx-prices"><div class="mx-grid"><div><label>Aluguel de Veículo (R$)</label><input name="aluguel" type="number" min="0" step="0.01" value="'+Number(settings.aluguel_veiculo_preco||0).toFixed(2)+'" required></div><div><label>Cartão Moto Pista (R$)</label><input name="cartao" type="number" min="0" step="0.01" value="'+Number(settings.cartao_moto_pista_preco||0).toFixed(2)+'" required></div></div><button class="mx-btn" type="submit">Salvar valores</button></form></div>';
     }
     host.innerHTML='<nav class="mx-tabs">'+tabs.map(t=>'<button type="button" data-tab="'+t[0]+'" class="'+(activeTab===t[0]?'active':'')+'">'+t[1]+'</button>').join("")+'</nav>'+body+'<p id="mx-message" class="mx-message" role="status" aria-live="polite"></p>';
     host.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>tab(b.dataset.tab));
-    $("mx-sale")?.addEventListener("submit",sell);
     $("mx-exam-form")?.addEventListener("submit",schedule);
-    $("mx-prices")?.addEventListener("submit",savePrices);
     host.querySelectorAll("[data-result]").forEach(b=>b.onclick=()=>recordResult(b.dataset.result,b.dataset.value));
     host.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>cancelExam(b.dataset.cancel));
   }
@@ -163,7 +150,6 @@
   }
   window.MarcusExamsRentals={
     open:async()=>{selectedStudentId=null;activeTab="historico";modal();await refresh();},
-    openPrices:async()=>{selectedStudentId=null;activeTab="precos";modal();await refresh();},
     openForStudent:async id=>{selectedStudentId=String(id);activeTab="historico";modal();await refresh();}
   };
   document.addEventListener("DOMContentLoaded",()=>{init().catch(e=>console.error("Módulo de exames e aluguéis:",e));});
