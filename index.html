@@ -501,7 +501,7 @@
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("./service-worker.js?v=qa-preview-isolated-1", { updateViaCache: "none" })
+        navigator.serviceWorker.register("./service-worker.js?v=qa-preview-isolated-2", { updateViaCache: "none" })
           .then(function (registro) {
             return registro.update();
           })
@@ -552,7 +552,7 @@
       async function carregarPainelAdmin() {
         if (painelAdminCarregado) return;
         await carregarScript("contratante-perfil.js?v=2-cellphone");
-        await carregarScript("script.js?v=unified-fixed-items-1");
+        await carregarScript("script.js?v=unified-fixed-items-2");
         await carregarScript("exames-alugueis.js?v=exams-status-filter-1");
         await carregarScript("contratos.js?v=contratos33-profile-cell");
         await carregarScript("whatsapp-panel.js?v=whatsapp-history-delete-cycles-2");
