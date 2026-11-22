@@ -242,7 +242,7 @@ async function sendReturnToMainMenu(
   conversationId: string,
   recipient: string,
 ) {
-  // Após cada resposta, reapresenta os dois botões iniciais: Falar com Instrutor e Menu.
+  // Após cada resposta, reapresenta o mesmo menu único de opções.
   await sendInitialMenuSelection(supabase, conversationId, recipient);
 }
 
