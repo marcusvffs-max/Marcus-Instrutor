@@ -138,7 +138,7 @@
   function configureInstructorWhatsAppButton(cellphone) {
     const button = el("btnWhatsAppAssistente");
     if (!button) return;
-    const digits = String(cellphone || "").replace(/\\D/g, "");
+    const digits = String(cellphone || "").replace(/\D/g, "");
     const number = digits.length === 10 || digits.length === 11 ? "55" + digits : digits;
     if (!/^55[1-9][0-9]{9,10}$/.test(number)) {
       button.hidden = true;
