@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v36-whatsapp-history-cycles";
+const CACHE_NAME = "marcus-instrutor-v37-qa-preview-isolated";
 
 const ARQUIVOS = [
   "./",
@@ -9,10 +9,10 @@ const ARQUIVOS = [
   "./style.css?v=admin-finance-refunds-2",
   "./admin-visual.css?v=admin-visual-1",
   "./instrutor.css?v=21-finance-refunds",
-  "./instrutor.js?v=36-student-exam-history",
+  "./instrutor.js?v=qa-preview-isolated-1",
   "./exames-alugueis.js?v=2-student-history",
   "./usuario.html",
-  "./usuario.js?v=7-instructor-whatsapp",
+  "./usuario.js?v=qa-preview-isolated-1",
   "./manifest.json"
 ];
 
