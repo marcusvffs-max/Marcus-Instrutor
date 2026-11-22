@@ -1463,6 +1463,9 @@
   async function deleteInstructorSale(id) {
     const sale = state.sales.find(item => item.id === id);
     if (!sale) return;
+    if (state.saleItems.some(item => item.sale_id === id && item.fixed_item_key === "aluguel_veiculo")) {
+      return showMessage("Esta venda contém aluguéis de veículo e deve permanecer no histórico. Use a opção de devolução para ajustar o saldo.");
+    }
     if (!await confirmAction("Deseja excluir esta venda? O saldo de aulas será ajustado. Se alguma aula deste pacote já tiver sido utilizada, a exclusão será bloqueada.")) return;
     try {
       const { error } = await state.supabase.rpc("delete_my_sale", { p_sale_id: id });
