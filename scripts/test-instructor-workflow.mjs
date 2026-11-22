@@ -16,6 +16,7 @@ const instructorNameMigration = read("../supabase/migrations/20261121231000_move
 const saleTrackingMigration = read("../supabase/migrations/20261121270000_fix_instructor_sale_item_lesson_tracking.sql");
 const studentOwnerIndexMigration = read("../supabase/migrations/20261121280000_add_students_owner_fk_index.sql");
 const adminRefundStatusMigration = read("../supabase/migrations/20261122181000_admin_refunds_require_confirmed_sales.sql");
+const rentalCreditAvailabilityMigration = read("../supabase/migrations/20261122215000_student_rental_credit_availability_rpc.sql");
 
 test("área de acessos lista somente alunos com conta vinculada", () => {
   assert.match(instructorHtml, /data-view="alunos-vinculados"/);
@@ -184,4 +185,16 @@ test("ledger possui índices para suas chaves estrangeiras", () => {
   assert.match(rentalCreditIndexesMigration, /student_rental_credits_sale_owner_idx/i);
   assert.match(rentalCreditIndexesMigration, /student_rental_credits_student_owner_idx/i);
   assert.match(rentalCreditIndexesMigration, /student_practical_exams_rental_credit_owner_idx/i);
+});
+
+test("saldo de aluguel exibido é consultado por compra nas telas de administrador e instrutor", () => {
+  assert.match(rentalCreditAvailabilityMigration, /get_student_rental_credit_availability/i);
+  assert.match(rentalCreditAvailabilityMigration, /credit\.owner_id = v_uid/i);
+  assert.match(rentalCreditAvailabilityMigration, /credit\.sale_id = p_sale_id/i);
+  assert.match(rentalCreditAvailabilityMigration, /GRANT EXECUTE ON FUNCTION public\.get_student_rental_credit_availability/i);
+  assert.match(instructorJs, /rpc\("get_student_rental_credit_availability"/i);
+  assert.match(instructorJs, /rentalCreditAvailability\.get\(item\.id\)/i);
+  assert.match(adminJs, /get_student_rental_credit_availability/i);
+  assert.match(adminJs, /alugueisDisponiveisNaCompra/);
+  assert.match(adminJs, /saldoCompra/);
 });
