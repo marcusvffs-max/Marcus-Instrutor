@@ -133,7 +133,11 @@ function numero(valor) {
   return Number(String(valor || "0").replace(",", ".")) || 0;
 }
 
-function textoSemLinks(mensagem) {\n  return String(mensagem ?? "").replace(/\\b(?:https?:\\/\\/|www\\.)[^\\s<]+/gi, "[link ocultado]");\n}\n\nfunction mostrarAviso(mensagem) {
+function textoSemLinks(mensagem) {
+  return String(mensagem ?? "").replace(/\b(?:https?:\/\/|www\.)[^\s<]+/gi, "[link ocultado]");
+}
+
+function mostrarAviso(mensagem) {
   const container = document.getElementById("toastContainer");
   if (!container) return;
 
