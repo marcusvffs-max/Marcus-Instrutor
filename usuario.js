@@ -78,7 +78,7 @@
       const { data, error } = await state.supabase.rpc("get_my_instructor_branding");
       if (error) throw error;
       const branding = Array.isArray(data) ? data[0] : data;
-      const name = branding?.instructor_name || "";
+      const name = branding?.instructor_name || "";\n      configureInstructorWhatsAppButton(branding?.instructor_cellphone);
       el("nomeInstrutorResponsavel").textContent = name || "Aguardando vínculo do instrutor";
       const heading = el("nomeEmpresaInstrutor");
       if (heading && name) heading.textContent = name;
@@ -135,24 +135,22 @@
     }
   }
 
-  async function configureWhatsAppAssistantButton() {
+  function configureInstructorWhatsAppButton(cellphone) {
     const button = el("btnWhatsAppAssistente");
     if (!button) return;
-
-    try {
-      const { data, error } = await state.supabase.rpc("can_show_marcus_whatsapp_assistant");
-      if (error) throw error;
-
-      if (data === true) {
-        const message = encodeURIComponent("Olá");
-        button.href = "https://wa.me/5533997092835?text=" + message;
-        button.hidden = false;
-      }
-    } catch (error) {
-      // Em caso de falha na validação, o botão permanece oculto por segurança.
-      console.warn("Não foi possível validar o acesso ao WhatsApp da assistente.", error);
+    const digits = String(cellphone || "").replace(/\\D/g, "");
+    const number = digits.length === 10 || digits.length === 11 ? "55" + digits : digits;
+    if (!/^55[1-9][0-9]{9,10}$/.test(number)) {
       button.hidden = true;
+      button.removeAttribute("href");
+      return;
     }
+    button.href = "https://wa.me/" + number + "?text=" + encodeURIComponent("Olá! Sou aluno e gostaria de falar com meu instrutor.");
+    button.hidden = false;
+    button.setAttribute("aria-label", "Falar com meu instrutor pelo WhatsApp");
+    button.title = "Falar com meu instrutor";
+    const label = button.querySelector("span");
+    if (label) label.textContent = "Falar com instrutor";
   }
 
   async function signOut() {
@@ -197,7 +195,7 @@
     });
     await loadInstructorName();
     await loadLessons();
-    await configureWhatsAppAssistantButton();
+
   }
 
   initialize().catch(error => {
