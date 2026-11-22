@@ -2033,7 +2033,7 @@ Deno.serve(async (req: Request) => {
             continue;
           }
 
-          if (conversationStatus === "aguardando_escolha") {
+          if (["aguardando_escolha", "aguardando"].includes(conversationStatus)) {
             if (typeof menuChoice === "string" && menuChoice.startsWith("service_")) {
               const selectedService = serviceChoiceLabel(menuChoice);
               const { error: serviceStateError } = await supabase
