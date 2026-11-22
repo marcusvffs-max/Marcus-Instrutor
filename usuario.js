@@ -80,7 +80,8 @@
       const { data, error } = await state.supabase.rpc("get_my_instructor_branding");
       if (error) throw error;
       const branding = Array.isArray(data) ? data[0] : data;
-      const name = branding?.instructor_name || "";\n      configureInstructorWhatsAppButton(branding?.instructor_cellphone);
+      const name = branding?.instructor_name || "";
+      configureInstructorWhatsAppButton(branding?.instructor_cellphone);
       el("nomeInstrutorResponsavel").textContent = name || "Aguardando vínculo do instrutor";
       const heading = el("nomeEmpresaInstrutor");
       if (heading && name) heading.textContent = name;
