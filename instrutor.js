@@ -1260,7 +1260,8 @@
       state.supabase.from("sales").select("id,student_id,data_venda,total,forma_pagamento,status,observacoes,created_at").order("data_venda", { ascending: false }).order("created_at", { ascending: false }),
       state.supabase.from("sale_items").select("id,sale_id,descricao,quantidade,tipo_item,aulas_contratadas,aulas_devolvidas,valor_por_aula,valor_liquido,valor_devolvido,quantidade_devolvida,subtotal,valor_unitario,fixed_item_key").eq("owner_id", state.user.id),
       state.supabase.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", state.user.id).maybeSingle(),
-      state.supabase.rpc("get_student_rental_credit_availability", {})
+      state.supabase.from("student_rental_credits")
+        .select("sale_item_id,quantity_purchased,quantity_refunded,quantity_consumed")
     ]);
     if (productsResult.error) throw productsResult.error;
     if (salesResult.error) throw salesResult.error;
@@ -1271,7 +1272,9 @@
     state.sales = salesResult.data || [];
     state.saleItems = saleItemsResult.data || [];
     state.rentalCreditAvailability = new Map((rentalCreditsResult.data || []).map(row => [
-      row.sale_item_id, Number(row.quantity_available || 0)
+      row.sale_item_id,
+      Math.max(0, Number(row.quantity_purchased || 0) -
+        Number(row.quantity_refunded || 0) - Number(row.quantity_consumed || 0))
     ]));
     state.fixedItemPrices = { aluguel:Number(fixedPricesResult.data?.aluguel_veiculo_preco||0), cartao:Number(fixedPricesResult.data?.cartao_moto_pista_preco||0) };
     const aluguelInput=el("precoAluguelFixoInstrutor"),cartaoInput=el("precoCartaoFixoInstrutor");
