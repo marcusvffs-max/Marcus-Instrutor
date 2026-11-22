@@ -2058,6 +2058,8 @@
     state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage }
     });
+    // Compartilha o cliente autenticado e o ambiente (QA/produção) com os módulos auxiliares.
+    window.getMarcusSupabase = () => state.supabase;
 
     const { data: sessionData, error: sessionError } = await state.supabase.auth.getSession();
     if (sessionError || !sessionData.session) {
