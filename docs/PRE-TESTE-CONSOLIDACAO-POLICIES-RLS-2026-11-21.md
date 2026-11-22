@@ -17,9 +17,9 @@ A policy candidata usa uma condição combinada equivalente:
 
 Nas tabelas `sales`, `sale_items` e `financial_transactions`, os `WITH CHECK` preservaram as validações de proprietário das referências a alunos, vendas e produtos. Nas tabelas `sales` e `sale_items`, a policy de SELECT redundante foi incluída na simulação de consolidação, pois a policy candidata `FOR ALL` já cobre a mesma condição de leitura.
 
-## Resultado da simulação
+## Resultado da simulação de policies e privilégios
 
-**84 asserções passaram** nas transações com dois instrutores sintéticos ativos, um instrutor temporariamente expirado e um administrador sintético:
+**84 asserções passaram** nas rodadas anteriores, com dois instrutores sintéticos ativos, um instrutor temporariamente expirado e um administrador sintético.
 
 ### Instrutores
 
@@ -39,34 +39,77 @@ Uma identidade de teste já existente no projeto isolado foi promovida temporari
 - SELECT de produtos pertencentes a outro owner retornou zero;
 - UPDATE e DELETE cruzados retornaram zero linhas nas quatro tabelas;
 - INSERT com `owner_id` de outro instrutor foi bloqueado nas quatro tabelas;
-- **nova rodada: INSERT próprio e DELETE próprio passaram em todas as quatro tabelas (8/8 asserções)**, usando registros sintéticos relacionados por aluno, venda e produto.
+- INSERT próprio e DELETE próprio passaram em todas as quatro tabelas (8/8 asserções), usando registros sintéticos relacionados por aluno, venda e produto.
 
-Todas as identidades, perfis, fixtures e mudanças temporárias de policies foram revertidas com `ROLLBACK`. Consulta posterior confirmou que nenhuma policy candidata ou fixture temporária permaneceu e que o perfil sintético voltou ao papel `instrutor`.
+## Regressão dos fluxos financeiros com policies candidatas — 22/11/2026
 
-## Limitações
+Foi executada uma bateria adicional em três transações de teste, mais uma repetição focada para confirmar o bloqueio de exclusão cruzada. **48 asserções válidas passaram**. Uma primeira verificação de existência de venda B feita sob o papel autenticado não foi contabilizada, pois a própria RLS ocultava corretamente a linha; o caso foi repetido e a existência foi conferida após `RESET ROLE`, confirmando que a venda B permaneceu intacta.
 
-- Os testes usaram `SET LOCAL ROLE authenticated` e claims simuladas; não foram chamadas HTTP/PostgREST com JWT real.
-- A matriz financeira completa de 41 verificações foi previamente executada com as policies originais, conforme o relatório `docs/TESTE-RLS-ISOLAMENTO-INSTRUTORES.md`; **ela ainda não foi repetida integralmente com as policies candidatas**.
-- O novo teste administrativo cobre INSERT e DELETE próprios nas quatro tabelas, mas não reexecuta todos os fluxos de venda, estorno, exclusão, idempotência, consumo de aulas e relações cruzadas sob a versão candidata.
-- A simulação não mede ganho de desempenho real. O objetivo foi verificar equivalência funcional e isolamento, não provar redução de latência.
-- O Advisor foi consultado após o rollback e continuou reportando 16 ocorrências de policies permissivas múltiplas, pois a consolidação não foi persistida.
-- Não foi criada nem aplicada migration nesta etapa.
+### Venda e saldo — instrutor
+
+- Venda mista com serviço e produto passou sob as policies candidatas.
+- Cinco aulas foram creditadas corretamente; os dois itens foram gravados e o lançamento de entrada de R$ 140,00 foi criado.
+- Repetir a mesma venda não duplicou itens, saldo ou venda (idempotência).
+- Venda para aluno de outro instrutor foi bloqueada com SQLSTATE `42501`.
+- Uso de produto de outro instrutor foi bloqueado com SQLSTATE `42501`, sem venda parcial.
+- INSERT direto de venda, item e transação com owner forjado foi bloqueado.
+- SELECT de produtos, vendas, itens e transações de outro owner retornou zero linhas.
+- UPDATE e DELETE cruzados em vendas, itens e transações retornaram zero linhas.
+- A tentativa de chamar RPC administrativa de estorno como instrutor foi bloqueada com SQLSTATE `P0001`.
+
+### Consumo, estorno e exclusão — administrador
+
+- Trigger de aula realizada consumiu uma aula do saldo.
+- Estorno de duas aulas gerou saída de R$ 32,00 e atualizou o saldo.
+- Estorno de uma unidade de produto gerou saída de R$ 30,00; saídas acumuladas de R$ 62,00.
+- Tentativas de devolver aulas ou produtos acima do limite foram bloqueadas com SQLSTATE `P0001`.
+- Exclusão de venda com aula já consumida e saldo insuficiente foi bloqueada.
+- Exclusão de venda sem consumo reverteu o saldo e removeu a venda.
+- Devolução parcial seguida de exclusão da venda removeu somente as aulas líquidas restantes e zerou o saldo.
+- SELECT, UPDATE e DELETE cruzados do administrador não alcançaram registros de outro owner.
+
+### Pacotes e exclusão pelo instrutor
+
+- Quantidade abaixo do mínimo e acima do máximo do pacote foram bloqueadas com SQLSTATE `22023`.
+- Quantidade válida dentro da faixa foi aceita.
+- Serviço com duas unidades de três aulas creditou seis aulas corretamente.
+- `delete_my_sale` removeu a venda própria e reverteu o saldo.
+- Tentativa do Instrutor A de excluir venda do Instrutor B retornou `P0002`; consulta posterior como proprietário confirmou que a venda B continuava existente.
+
+### Limites da bateria financeira
+
+- A bateria adicional cobre os fluxos financeiros e de isolamento acima sob as policies candidatas, mas não deve ser confundida com testes HTTP/PostgREST com JWT real.
+- Os testes usaram `SET LOCAL ROLE authenticated`, claims simuladas e fixtures sintéticas.
+- Não foram executados testes de concorrência real entre sessões independentes, pagamentos externos, conciliação bancária, SMTP ou notificações.
+- A simulação não mede ganho de desempenho real.
+- A validação funcional das RPCs continua limitada ao banco PostgreSQL isolado; não houve homologação visual do aplicativo.
+
+## Reversão confirmada
+
+Após as rodadas, consulta ao projeto isolado confirmou:
+
+- zero policies candidatas persistentes;
+- zero alunos e produtos temporários com prefixo de teste;
+- perfis A e B restaurados ao papel `instrutor`;
+- 17 policies originais presentes nas quatro tabelas avaliadas;
+- todas as alterações e fixtures foram revertidas com `ROLLBACK`.
 
 ## Advisors após rollback
 
 No projeto isolado, após confirmar o rollback:
 
 - Security Advisor: 2 avisos INFO de RLS sem policies nas tabelas backend-only `whatsapp_conversations` e `whatsapp_messages`; 2 avisos WARN de funções `SECURITY DEFINER` públicas com guards internos (`get_my_scheduled_lessons()` e `remove_student_app_access(uuid)`); e 1 aviso WARN de proteção contra senhas vazadas desabilitada.
-- Performance Advisor: 16 ocorrências WARN de múltiplas policies permissivas nas quatro tabelas avaliadas; 10 índices sem uso reportados em ambiente de baixo volume.
+- Performance Advisor: 16 ocorrências WARN de múltiplas policies permissivas nas quatro tabelas avaliadas; 10 índices INFO sem uso reportados em ambiente de baixo volume.
 - Os achados foram apenas consultados. Nenhum ajuste foi aplicado nesta rodada.
 
 ## Recomendação
 
-A consolidação tem cobertura adicional para INSERT/DELETE administrativo, mas deve continuar fora do schema persistente até:
+A equivalência funcional das policies candidatas recebeu cobertura substancial, incluindo operações próprias, bloqueios cruzados e fluxos financeiros. Antes de criar migration persistente, ainda é necessário:
 
-1. repetir a matriz financeira completa com as policies candidatas;
-2. revisar todos os caminhos de integridade e RPCs dependentes dessas tabelas;
-3. somente então preparar migration, aplicar no projeto isolado e executar novamente os Advisors;
-4. revisar os diffs finais e confirmar ausência de regressão antes de qualquer proposta de integração.
+1. fazer revisão estática final das policies e de todas as RPCs que dependem de `sales`, `sale_items`, `financial_transactions` e `products`;
+2. revisar a lista de schemas expostos pela Data API no Dashboard do projeto isolado, pois essa confirmação não foi obtida via SQL;
+3. se a revisão não encontrar divergências, preparar uma migration separada e aplicá-la somente no projeto isolado;
+4. executar novamente os Advisors e a matriz após a alteração persistente;
+5. validar por HTTP/PostgREST com JWT real antes de propor integração.
 
 Nenhuma alteração em produção ou no Supabase original foi realizada. Não houve merge nem deploy manual. Um Preview `READY` não valida login ou fluxos funcionais autenticados.
