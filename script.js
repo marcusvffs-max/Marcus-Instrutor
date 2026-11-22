@@ -3469,14 +3469,14 @@ async function carregarDadosAdminSupabase() {
 
   const dados = Object.fromEntries(resultados);
 
-  const { data: rentalCreditRows, error: rentalCreditError } = await cliente.rpc(
-    "get_student_rental_credit_availability",
-    {}
-  );
+  const { data: rentalCreditRows, error: rentalCreditError } = await cliente
+    .from("student_rental_credits")
+    .select("sale_item_id,quantity_purchased,quantity_refunded,quantity_consumed");
   if (rentalCreditError) throw new Error("Falha ao consultar os aluguéis disponíveis por compra: " + rentalCreditError.message);
   const rentalCreditAvailability = new Map((rentalCreditRows || []).map(row => [
     row.sale_item_id,
-    Number(row.quantity_available || 0)
+    Math.max(0, Number(row.quantity_purchased || 0) -
+      Number(row.quantity_refunded || 0) - Number(row.quantity_consumed || 0))
   ]));
 
   const configuracoesNuvem = dados.app_settings?.[0] || null;
