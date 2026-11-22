@@ -1297,3 +1297,12 @@ A consulta SQL não revela a lista de schemas configurada no PostgREST/API. Port
 ### Configuração Auth pendente
 
 O Security Advisor do projeto isolado ainda aponta proteção contra senhas vazadas desabilitada. A configuração não é exposta pelas consultas SQL usadas nesta auditoria e não foi alterada. Habilitar somente pelo painel de Auth do projeto de testes, após revisão da política de senha; nunca no projeto original sem autorização específica.
+
+
+### Cobertura estática ampliada
+
+O script `scripts/test-instructor-workflow.mjs` recebeu dois testes estáticos adicionais:
+- a migration de criação de venda deve validar papel/owner, persistir `aulas_contratadas`, `valor_por_aula`, `valor_liquido`, movimentação financeira e saldo do aluno;
+- a migration de índice deve declarar `students_owner_id_idx` sobre `students(owner_id)`.
+
+Os testes foram adicionados ao repositório, mas não foram executados neste ambiente. Os resultados SQL transacionais relatados nas seções anteriores permanecem evidências separadas.
