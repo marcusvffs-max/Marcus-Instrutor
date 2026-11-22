@@ -1,8 +1,8 @@
 "use strict";
 
 (function () {
-  const SUPABASE_URL = "https://ydyqagqsuqntuibzgwzd.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
+  const SUPABASE_URL = "https://voyjssflroiwdyaacthh.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9";
   const el = id => document.getElementById(id);
   const state = { supabase: null, user: null };
 
