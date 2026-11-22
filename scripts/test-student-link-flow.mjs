@@ -543,6 +543,7 @@ test("webhook rejeita phone_number_id ausente ou divergente antes de acessar o b
 
 
 const whatsappPauseMigration = read("../supabase/migrations/20261121180000_add_whatsapp_conversation_ai_pause.sql");
+const whatsappCycleMigration = read("../supabase/migrations/20261122191000_close_whatsapp_cycle_when_ai_disabled.sql");
 
 test("cliente pode encerrar e reativar a assistente com pausa de 48 horas", () => {
   assert.match(whatsappWebhook, /normalizedCustomerCommand === "encerrar"/);
@@ -679,4 +680,16 @@ test("painel permite abrir e atualizar a transcrição sem inserir conteúdo com
   assert.match(whatsappPanel, /mensagens\.map\(renderizarMensagemWhatsapp\)/);
   assert.match(whatsappPanel, /escaparHtml\(mensagem\.conteudo\)/);
   assert.match(whatsappPanel, /whatsapp-transcript/);
+});
+
+test("ciclos do WhatsApp selecionam o registro mais recente e criam novo ciclo na saudação", () => {
+  assert.match(whatsappWebhook, /\.eq\("telefone", phone\)[\s\S]{0,180}\.order\("created_at", \{ ascending: false \}\)[\s\S]{0,80}\.limit\(1\)/);
+  assert.match(whatsappWebhook, /if \(conversation && reactivationGreeting[\s\S]{0,180}\["atendimento_humano", "encerrada"\]/);
+  assert.match(whatsappWebhook, /New WhatsApp conversation cycle creation failed/);
+  assert.match(whatsappWebhook, /\.not\("status", "in", '\("atendimento_humano","encerrada"\)'\)/);
+});
+
+test("motivo de pausa por solicitação de atendimento humano é aceito pelo banco", () => {
+  assert.match(whatsappWebhook, /ai_pause_reason: "cliente_solicitou_atendimento_humano"/);
+  assert.match(whatsappCycleMigration, /'cliente_solicitou_atendimento_humano'/);
 });
