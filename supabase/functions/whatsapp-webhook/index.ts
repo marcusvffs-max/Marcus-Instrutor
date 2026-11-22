@@ -1829,6 +1829,29 @@ Deno.serve(async (req: Request) => {
 
             const echoType = String(echo.type ?? "unknown");
             if (echoType === "edit" || echoType === "revoke") continue;
+            const echoPauseUntilMs = existingConversation.ai_paused_until
+              ? new Date(existingConversation.ai_paused_until).getTime()
+              : Number.POSITIVE_INFINITY;
+            const echoConversationIsPaused =
+              ["atendimento_humano", "encerrada"].includes(String(existingConversation.status ?? "")) &&
+              echoPauseUntilMs > Date.now();
+            if (echoConversationIsPaused) {
+              // Mensagens manuais enviadas durante a pausa não entram no histórico
+              // do ciclo encerrado; apenas renovam a pausa de atendimento humano.
+              const pauseUntil = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+              const { error: pauseError } = await supabase
+                .from("whatsapp_conversations")
+                .update({
+                  status: "atendimento_humano",
+                  ai_paused_until: pauseUntil,
+                  ai_pause_reason: "instrutor_assumiu_atendimento",
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", existingConversation.id)
+                .eq("owner_id", OWNER_ID);
+              if (pauseError) console.error("Assistant pause renewal after instructor WhatsApp message failed:", pauseError.message);
+              continue;
+            }
             const echoContent = echo.text?.body ?? echo.image?.caption ?? echo.video?.caption ?? echo.document?.caption ?? null;
             const { error: echoInsertError } = await supabase
               .from("whatsapp_messages")
@@ -1862,9 +1885,6 @@ Deno.serve(async (req: Request) => {
             }
 
             const now = new Date();
-            const currentPauseMs = existingConversation.ai_paused_until
-              ? new Date(existingConversation.ai_paused_until).getTime()
-              : 0;
             // Cada mensagem enviada pelo instrutor renova a pausa por 48 horas.
             const pauseUntil = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
             const { error: pauseError } = await supabase
@@ -1961,6 +1981,51 @@ Deno.serve(async (req: Request) => {
             if (conversationError || !conversation) {
               console.error("New WhatsApp conversation cycle creation failed:", conversationError?.message);
               continue;
+            }
+          }
+
+
+          // Quando a pausa humana expira, a primeira mensagem já pertence ao
+          // próximo ciclo; não deve ser gravada no histórico que ficou pausado.
+          if (conversation && !reactivationGreeting &&
+            ["atendimento_humano", "encerrada"].includes(String(conversation.status ?? "")) &&
+            conversation.ai_paused_until) {
+            const previousPauseUntil = new Date(conversation.ai_paused_until).getTime();
+            if (Number.isFinite(previousPauseUntil) && previousPauseUntil <= Date.now()) {
+              const { data: newCycle, error: newCycleError } = await supabase
+                .from("whatsapp_conversations")
+                .insert({
+                  owner_id: OWNER_ID,
+                  telefone: phone,
+                  nome_contato: contactName,
+                  status: "aguardando_escolha",
+                  ultima_mensagem_em: messageTime,
+                  updated_at: new Date().toISOString(),
+                })
+                .select("id,status,ai_paused_until,ai_pause_reason")
+                .single();
+
+              if (newCycleError?.code === "23505") {
+                const retry = await supabase
+                  .from("whatsapp_conversations")
+                  .select("id,status,ai_paused_until,ai_pause_reason")
+                  .eq("owner_id", OWNER_ID)
+                  .eq("telefone", phone)
+                  .not("status", "in", '("atendimento_humano","encerrada")')
+                  .order("created_at", { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+                conversation = retry.data;
+                conversationError = retry.error;
+              } else {
+                conversation = newCycle;
+                conversationError = newCycleError;
+              }
+
+              if (conversationError || !conversation) {
+                console.error("Expired WhatsApp pause cycle creation failed:", conversationError?.message);
+                continue;
+              }
             }
           }
 
