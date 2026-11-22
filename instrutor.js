@@ -19,6 +19,8 @@
     productSearch: "",
     productEditingId: null,
     saleCart: [],
+    pendingSaleId: null,
+    pendingSaleFingerprint: null,
     financialSearch: "",
     studentEditingId: null,
     studentSearch: "",
