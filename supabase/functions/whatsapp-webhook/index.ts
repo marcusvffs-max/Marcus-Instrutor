@@ -158,48 +158,7 @@ async function sendInteractiveServiceMenu(
   conversationId: string,
   recipient: string,
 ) {
-  const rows = [
-    { id: "service_packages", title: "Pacotes e valores", description: "Consulte os pacotes disponíveis e seus preços." },
-    { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
-    { id: "service_registration_fee", title: "Taxa de inscrição", description: "Informações para emitir a taxa da primeira habilitação." },
-    { id: "service_medical", title: "Exame médico", description: "Informações sobre o exame médico da habilitação." },
-    { id: "service_free_theory_course", title: "Curso Gratuito", description: "de Legislação — saiba como acessar." },
-    { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
-    { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
-    { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
-  ];
-
-  const menu = {
-    type: "interactive",
-    interactive: {
-      type: "list",
-      body: {
-        text: "📋 Menu\n\nEscolha uma opção para continuar.\n\nPara encerrar e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la antes, digite Olá.",
-      },
-      footer: { text: "Digite Encerrar para pausar por 48 horas." },
-      action: {
-        button: "Ver opções",
-        sections: [{ title: "Menu", rows }],
-      },
-    },
-  };
-
-  const sent = await sendWhatsAppPayload(
-    supabase,
-    conversationId,
-    recipient,
-    menu,
-    "Menu",
-  );
-  if (!sent) {
-    const fallback = rows.map((row) => `${row.title} — ${row.description}`).join("\n");
-    await sendWhatsAppText(
-      supabase,
-      conversationId,
-      recipient,
-      `Menu:\n${fallback}\n\nResponda com o nome da opção desejada.\n\nPara encerrar a conversa e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la novamente antes, digite Olá.`,
-    );
-  }
+  await sendInitialMenuSelection(supabase, conversationId, recipient);
 }
 
 async function sendInitialMenuSelection(
@@ -216,11 +175,9 @@ async function sendInitialMenuSelection(
     { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
     { id: "service_registration_fee", title: "Taxa de inscrição", description: "Informações para emitir a taxa da primeira habilitação." },
     { id: "service_medical", title: "Exame médico", description: "Informações sobre o exame médico da habilitação." },
-    { id: "service_free_theory_course", title: "Curso Gratuito", description: "de Legislação — saiba como acessar." },
+    { id: "service_free_theory_course", title: "Curso Gratuito de Legislação", description: "Saiba como acessar o curso gratuito." },
     { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
     { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
-    { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
-    { id: "menu_close_assistant", title: "Encerrar assistente", description: "Finalize e pause a assistente por 48 horas." },
   ];
 
   const selection = {
@@ -228,7 +185,7 @@ async function sendInitialMenuSelection(
     interactive: {
       type: "list",
       body: {
-        text: "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma opção para começar. Toque em “Ver opções” para abrir o menu.\n\nA qualquer momento, digite Encerrar para finalizar e pausar a assistente por 48 horas. Para chamá-la novamente antes desse prazo, digite Olá.",
+        text: "Olá! Seja bem-vindo(a)! Como posso ajudar? Escolha uma opção abaixo:",
       },
       footer: { text: "Atendimento do Instrutor Marcus." },
       action: {
@@ -261,48 +218,7 @@ async function sendServiceContinuationMenu(
   conversationId: string,
   recipient: string,
 ) {
-  const rows = [
-    { id: "menu_talk_marcus", title: "Falar com Instrutor", description: "Solicite atendimento direto com Marcus." },
-    { id: "service_packages", title: "Pacotes e valores", description: "Consulte os pacotes disponíveis e seus preços." },
-    { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
-    { id: "service_registration_fee", title: "Taxa de inscrição", description: "Informações para emitir a taxa da primeira habilitação." },
-    { id: "service_medical", title: "Exame médico", description: "Informações sobre o exame médico da habilitação." },
-    { id: "service_free_theory_course", title: "Curso Gratuito", description: "de Legislação — saiba como acessar." },
-    { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
-    { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
-    { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
-    { id: "menu_close_assistant", title: "Encerrar assistente", description: "Finalize e pause a assistente por 48 horas." },
-  ];
-
-  const menu = {
-    type: "interactive",
-    interactive: {
-      type: "list",
-      body: { text: "O que mais você gostaria de consultar? 😊" },
-      footer: { text: "Atendimento do Instrutor Marcus." },
-      action: {
-        button: "Ver opções",
-        sections: [{ title: "Atendimento e serviços", rows }],
-      },
-    },
-  };
-
-  const sent = await sendWhatsAppPayload(
-    supabase,
-    conversationId,
-    recipient,
-    menu,
-    "Menu de continuidade do atendimento",
-  );
-  if (!sent) {
-    const fallback = rows.map((row, index) => `${index + 1}️⃣ ${row.title}`).join("\n");
-    await sendWhatsAppText(
-      supabase,
-      conversationId,
-      recipient,
-      `O que mais você gostaria de consultar? 😊\n\n${fallback}\n\nResponda com o número da opção desejada. Para encerrar, escolha "Encerrar assistente" ou digite Encerrar.`,
-    );
-  }
+  await sendInitialMenuSelection(supabase, conversationId, recipient);
 }
 
 async function sendAttendanceMenu(
@@ -310,7 +226,7 @@ async function sendAttendanceMenu(
   conversationId: string,
   recipient: string,
 ) {
-  await sendInteractiveServiceMenu(supabase, conversationId, recipient);
+  await sendInitialMenuSelection(supabase, conversationId, recipient);
 }
 
 async function sendSecondServiceMenu(
@@ -318,7 +234,7 @@ async function sendSecondServiceMenu(
   conversationId: string,
   recipient: string,
 ) {
-  await sendInteractiveServiceMenu(supabase, conversationId, recipient);
+  await sendInitialMenuSelection(supabase, conversationId, recipient);
 }
 
 async function sendReturnToMainMenu(
