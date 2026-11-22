@@ -2063,6 +2063,9 @@
       window.MarcusContractorProfile.vincular(obterCliente, obterUsuario);
     }
     await loadOwnData();
+    window.addEventListener("marcus-rentals-updated", () => {
+      loadOwnData().catch(error => console.error("Falha ao atualizar os aluguéis no cadastro dos alunos:", error));
+    });
 
     el("btnNovoAluno").addEventListener("click", () => openStudentForm());
     el("filtroBuscaAlunos").addEventListener("input", event => {
