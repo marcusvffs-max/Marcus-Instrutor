@@ -35,7 +35,7 @@
     .mx-stat span{background:#edf3f9;padding:9px 12px;border-radius:9px;font-size:13px}
     .mx-muted{color:#63758a;font-size:13px;line-height:1.5}
     .mx-message{min-height:20px;color:#a12b2b;font-size:13px;margin:8px 0}
-    @media(max-width:600px){.topbar{flex-wrap:wrap}#marcus-exam-launch{font-size:11px;padding:8px;margin-left:auto}.mx-grid{grid-template-columns:1fr}#marcus-exam-content{padding:10px}}
+    @media(max-width:600px){#marcus-exam-launch{font-size:12px;padding:10px}.mx-grid{grid-template-columns:1fr}#marcus-exam-content{padding:10px}}
   `;
   function injectStyle(){if(!$("marcus-exam-style")){const s=document.createElement("style");s.id="marcus-exam-style";s.textContent=css;document.head.append(s);}}
   function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -55,7 +55,7 @@
   }
   function escClose(e){if(e.key==="Escape")close();}
   function close(){ $("marcus-exam-overlay")?.remove();document.removeEventListener("keydown",escClose);}
-  function nav(){if($("marcus-exam-launch"))return;const top=document.querySelector(".topbar");if(!top)return;const b=document.createElement("button");b.id="marcus-exam-launch";b.type="button";b.className=role==="admin"?"secondary-button":"button button-outline";b.textContent="Exames e aluguéis";b.onclick=async()=>{selectedStudentId=null;activeTab="resumo";modal();await refresh();};top.append(b);}
+  function nav(){if($("marcus-exam-launch"))return;const actions=document.querySelector("#page-inicio .quick-actions");if(!actions)return;const b=document.createElement("button");b.id="marcus-exam-launch";b.type="button";b.className="primary-button";b.textContent="Exames e aluguéis";b.setAttribute("aria-label","Abrir exames e aluguéis");b.onclick=async()=>{selectedStudentId=null;activeTab="resumo";modal();await refresh();};actions.append(b);}
   async function init(){
     if(!window.supabase?.createClient)return;
     client=window.getMarcusSupabase?.()||window.supabase.createClient(URL,KEY,{auth:{persistSession:true,autoRefreshToken:true,storage:window.sessionStorage,detectSessionInUrl:true}});
