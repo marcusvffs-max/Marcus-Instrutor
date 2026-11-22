@@ -12,17 +12,22 @@ const ALLOWED_ORIGINS = new Set([
   "https://marcusinstrutor-ksdzg4ovx-marcusvffs-2839.vercel.app",
   "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app",
 ]);
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Vary": "Origin",
-};
+function corsHeadersFor(origin: string | null) {
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
+  };
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+  return headers;
+}
 
-function response(body: unknown, status = 200) {
+function response(body: unknown, status = 200, origin: string | null = null) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: { ...corsHeadersFor(origin), "Content-Type": "application/json" },
   });
 }
 
@@ -33,70 +38,69 @@ function escapeHtml(value: string) {
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-  if (req.method !== "POST") return response({ error: "Método não permitido." }, 405);
-
   const origin = req.headers.get("origin");
   if (origin && !ALLOWED_ORIGINS.has(origin)) {
-    return new Response("Origem não autorizada.", { status: 403, headers: corsHeaders });
+    return new Response("Origem não autorizada.", { status: 403, headers: corsHeadersFor(null) });
   }
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeadersFor(origin) });
+  }
+  if (req.method !== "POST") return response({ error: "Método não permitido." }, 405, origin);
   const requestAppUrl = (origin && ALLOWED_ORIGINS.has(origin) ? origin : APP_ORIGIN) + "/";
 
   try {
     const authorization = req.headers.get("Authorization") ?? "";
     const token = authorization.replace(/^Bearer\s+/i, "").trim();
-    if (!token) return response({ error: "Sessão não encontrada. Entre novamente." }, 401);
+    if (!token) return response({ error: "Sessão não encontrada. Entre novamente." }, 401, origin);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!supabaseUrl || !anonKey || !serviceKey) {
       console.error("Configuração interna do Supabase incompleta.");
-      return response({ error: "Serviço temporariamente indisponível." }, 500);
+      return response({ error: "Serviço temporariamente indisponível." }, 500, origin);
     }
 
     const userClient = createClient(supabaseUrl, anonKey, {
       auth: { persistSession: false, autoRefreshToken: false },
       global: { headers: { Authorization: `Bearer ${token}` } },
-    });
+    }, 200, origin);
     const { data: authData, error: authError } = await userClient.auth.getUser(token);
-    if (authError || !authData.user) return response({ error: "Sua sessão expirou. Entre novamente." }, 401);
+    if (authError || !authData.user) return response({ error: "Sua sessão expirou. Entre novamente." }, 401, origin);
 
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false, autoRefreshToken: false },
-    });
+    }, 200, origin);
     const { data: profile, error: profileError } = await admin
       .from("profiles").select("role, instructor_access_until").eq("id", authData.user.id).maybeSingle();
     if (profileError || !profile || !["admin", "instrutor", "usuario"].includes(profile.role)) {
-      return response({ error: "Seu perfil não tem permissão para esta operação." }, 403);
+      return response({ error: "Seu perfil não tem permissão para esta operação." }, 403, origin);
     }
 
     const body = await req.json().catch(() => null);
     if (!body || typeof body.action !== "string") {
-      return response({ error: "Solicitação inválida." }, 400);
+      return response({ error: "Solicitação inválida." }, 400, origin);
     }
     const isStudentLinkCompletion = body.action === "complete_student_link";
     if (profile.role === "usuario" && !isStudentLinkCompletion) {
-      return response({ error: "Seu perfil não tem permissão para esta operação." }, 403);
+      return response({ error: "Seu perfil não tem permissão para esta operação." }, 403, origin);
     }
     if (profile.role !== "usuario" && isStudentLinkCompletion) {
-      return response({ error: "Esta confirmação deve ser feita pela própria conta do aluno." }, 403);
+      return response({ error: "Esta confirmação deve ser feita pela própria conta do aluno." }, 403, origin);
     }
     if (profile.role === "instrutor") {
       const accessUntil = profile.instructor_access_until ? new Date(profile.instructor_access_until).getTime() : 0;
       if (accessUntil <= Date.now()) {
-        return response({ error: "Sua autorização de instrutor está vencida ou não foi liberada." }, 403);
+        return response({ error: "Sua autorização de instrutor está vencida ou não foi liberada." }, 403, origin);
       }
       if (body.action !== "invite_student") {
-        return response({ error: "Instrutores podem enviar somente convites de acesso para alunos." }, 403);
+        return response({ error: "Instrutores podem enviar somente convites de acesso para alunos." }, 403, origin);
       }
     }
 
     if (body.action === "list_whatsapp_conversations") {
       if (profile.role !== "admin") {
-        return response({ error: "Somente administradores podem consultar as conversas do WhatsApp." }, 403);
+        return response({ error: "Somente administradores podem consultar as conversas do WhatsApp." }, 403, origin);
       }
       const { data: conversations, error: conversationsError } = await admin
         .from("whatsapp_conversations")
@@ -105,16 +109,16 @@ Deno.serve(async (req: Request) => {
         .order("updated_at", { ascending: false })
         .limit(50);
       if (conversationsError) throw conversationsError;
-      return response({ ok: true, conversations: conversations ?? [] });
+      return response({ ok: true, conversations: conversations ?? [] }, 200, origin);
     }
 
     if (body.action === "list_whatsapp_messages") {
       if (profile.role !== "admin") {
-        return response({ error: "Somente administradores podem consultar mensagens do WhatsApp." }, 403);
+        return response({ error: "Somente administradores podem consultar mensagens do WhatsApp." }, 403, origin);
       }
       const conversationId = typeof body.conversation_id === "string" ? body.conversation_id.trim() : "";
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId)) {
-        return response({ error: "Conversa inválida." }, 400);
+        return response({ error: "Conversa inválida." }, 400, origin);
       }
 
       const { data: conversation, error: conversationError } = await admin
@@ -124,7 +128,7 @@ Deno.serve(async (req: Request) => {
         .eq("owner_id", authData.user.id)
         .maybeSingle();
       if (conversationError) throw conversationError;
-      if (!conversation) return response({ error: "Conversa não encontrada para esta conta." }, 404);
+      if (!conversation) return response({ error: "Conversa não encontrada para esta conta." }, 404, origin);
 
       const requestedOffset = Number.isInteger(body.offset) ? body.offset : 0;
       const offset = Math.max(0, Math.min(requestedOffset, 100000));
@@ -143,16 +147,16 @@ Deno.serve(async (req: Request) => {
         messages: chronologicalMessages,
         has_more: (messages ?? []).length === 100,
         next_offset: offset + (messages ?? []).length,
-      });
+      }, 200, origin);
     }
 
     if (body.action === "close_whatsapp_conversation") {
       if (profile.role !== "admin") {
-        return response({ error: "Somente administradores podem encerrar conversas do WhatsApp." }, 403);
+        return response({ error: "Somente administradores podem encerrar conversas do WhatsApp." }, 403, origin);
       }
       const conversationId = typeof body.conversation_id === "string" ? body.conversation_id.trim() : "";
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(conversationId)) {
-        return response({ error: "Conversa inválida." }, 400);
+        return response({ error: "Conversa inválida." }, 400, origin);
       }
 
       const now = new Date();
@@ -163,7 +167,7 @@ Deno.serve(async (req: Request) => {
         .eq("owner_id", authData.user.id)
         .maybeSingle();
       if (currentConversationError) throw currentConversationError;
-      if (!currentConversation) return response({ error: "Conversa não encontrada para esta conta." }, 404);
+      if (!currentConversation) return response({ error: "Conversa não encontrada para esta conta." }, 404, origin);
       const currentPauseMs = currentConversation.ai_paused_until
         ? new Date(currentConversation.ai_paused_until).getTime()
         : 0;
@@ -190,7 +194,7 @@ Deno.serve(async (req: Request) => {
         .select("id")
         .maybeSingle();
       if (closeError) throw closeError;
-      if (!closedConversation) return response({ error: "Conversa não encontrada para esta conta." }, 404);
+      if (!closedConversation) return response({ error: "Conversa não encontrada para esta conta." }, 404, origin);
 
       const { error: requestsError } = await admin
         .from("ai_requests")
@@ -202,20 +206,20 @@ Deno.serve(async (req: Request) => {
         .filter("resultado->>conversation_id", "eq", conversationId);
       if (requestsError) throw requestsError;
 
-      return response({ ok: true, ai_paused_until: pauseUntil });
+      return response({ ok: true, ai_paused_until: pauseUntil }, 200, origin);
     }
 
     if (body.action === "update_whatsapp_request_status") {
       if (profile.role !== "admin") {
-        return response({ error: "Somente administradores podem atualizar o status dos atendimentos." }, 403);
+        return response({ error: "Somente administradores podem atualizar o status dos atendimentos." }, 403, origin);
       }
       const requestId = typeof body.request_id === "string" ? body.request_id.trim() : "";
       const nextStatus = typeof body.status === "string" ? body.status.trim() : "";
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
-        return response({ error: "Atendimento inválido." }, 400);
+        return response({ error: "Atendimento inválido." }, 400, origin);
       }
       if (!["pendente", "em_atendimento", "concluido", "cancelado"].includes(nextStatus)) {
-        return response({ error: "Status de atendimento inválido." }, 400);
+        return response({ error: "Status de atendimento inválido." }, 400, origin);
       }
       const { data: requestToUpdate, error: requestLookupError } = await admin
         .from("ai_requests")
@@ -226,7 +230,7 @@ Deno.serve(async (req: Request) => {
         .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran", "intencao_compra_pacote"])
         .maybeSingle();
       if (requestLookupError) throw requestLookupError;
-      if (!requestToUpdate) return response({ error: "Atendimento não encontrado." }, 404);
+      if (!requestToUpdate) return response({ error: "Atendimento não encontrado." }, 404, origin);
 
       // A pausa de 48 horas começa quando Marcus assume o pedido (em_atendimento).
       // Concluir/cancelar o pedido não reinicia o prazo; "Olá" continua sendo uma reativação imediata.
@@ -283,16 +287,16 @@ Deno.serve(async (req: Request) => {
         .eq("canal", "whatsapp")
         .in("tipo_solicitacao", ["atendimento_humano", "duvida_outros_detran", "intencao_compra_pacote"]);
       if (updateRequestError) throw updateRequestError;
-      return response({ ok: true, ai_paused_until: conversationPauseUntil, conversation_human_reopened: conversationHumanReopened });
+      return response({ ok: true, ai_paused_until: conversationPauseUntil, conversation_human_reopened: conversationHumanReopened }, 200, origin);
     }
 
     if (isStudentLinkCompletion) {
       const attemptId = typeof body.attempt_id === "string" ? body.attempt_id.trim() : "";
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(attemptId)) {
-        return response({ error: "Código de confirmação inválido. Solicite um novo link ao instrutor." }, 400);
+        return response({ error: "Código de confirmação inválido. Solicite um novo link ao instrutor." }, 400, origin);
       }
       if (!authData.user.email || !authData.user.email_confirmed_at) {
-        return response({ error: "Confirme o e-mail desta conta antes de concluir o vínculo." }, 403);
+        return response({ error: "Confirme o e-mail desta conta antes de concluir o vínculo." }, 403, origin);
       }
       const { data: pendingStudent, error: pendingError } = await admin
         .from("students")
@@ -317,19 +321,19 @@ Deno.serve(async (req: Request) => {
           completedAttemptId: alreadyCompletedLink?.invite_attempt_id,
           completedUserId: alreadyCompletedLink?.user_id,
         }) === "already_completed" && alreadyCompletedLink) {
-          return response({ ok: true, message: "Este acesso já foi confirmado por esta conta." });
+          return response({ ok: true, message: "Este acesso já foi confirmado por esta conta." }, 200, origin);
         }
-        return response({ error: "Este link não corresponde a uma solicitação válida ou expirou. Peça ao instrutor para enviar um novo acesso." }, 409);
+        return response({ error: "Este link não corresponde a uma solicitação válida ou expirou. Peça ao instrutor para enviar um novo acesso." }, 409, origin);
       }
       if (getReservationStatus(pendingStudent.invited_at) !== "active" ||
           String(pendingStudent.email ?? "").trim().toLowerCase() !== authData.user.email.trim().toLowerCase()) {
-        return response({ error: "Este link não corresponde a uma solicitação válida ou expirou. Peça ao instrutor para enviar um novo acesso." }, 409);
+        return response({ error: "Este link não corresponde a uma solicitação válida ou expirou. Peça ao instrutor para enviar um novo acesso." }, 409, origin);
       }
       const { data: currentStudentProfile, error: currentStudentProfileError } = await admin
         .from("profiles").select("role").eq("id", authData.user.id).maybeSingle();
       if (currentStudentProfileError) throw currentStudentProfileError;
       if (!currentStudentProfile || currentStudentProfile.role !== "usuario") {
-        return response({ error: "O perfil desta conta não está autorizado como aluno. Solicite uma verificação administrativa." }, 403);
+        return response({ error: "O perfil desta conta não está autorizado como aluno. Solicite uma verificação administrativa." }, 403, origin);
       }
       const { data: completedLink, error: completeError } = await admin
         .from("students")
@@ -343,7 +347,7 @@ Deno.serve(async (req: Request) => {
         .select("id")
         .maybeSingle();
       if (completeError?.code === "23505") {
-        return response({ error: "Esta conta já está vinculada a outro cadastro de aluno. Solicite uma verificação administrativa." }, 409);
+        return response({ error: "Esta conta já está vinculada a outro cadastro de aluno. Solicite uma verificação administrativa." }, 409, origin);
       }
       if (completeError) throw completeError;
       if (!completedLink) {
@@ -361,11 +365,11 @@ Deno.serve(async (req: Request) => {
           completedAttemptId: racedCompletion?.invite_attempt_id,
           completedUserId: racedCompletion?.user_id,
         }) === "already_completed" && racedCompletion) {
-          return response({ ok: true, message: "Este acesso já foi confirmado por esta conta." });
+          return response({ ok: true, message: "Este acesso já foi confirmado por esta conta." }, 200, origin);
         }
-        return response({ error: "O vínculo já foi concluído por outra conta ou a solicitação expirou. Atualize a página ou peça um novo link ao instrutor." }, 409);
+        return response({ error: "O vínculo já foi concluído por outra conta ou a solicitação expirou. Atualize a página ou peça um novo link ao instrutor." }, 409, origin);
       }
-      return response({ ok: true, message: "Conta vinculada com sucesso." });
+      return response({ ok: true, message: "Conta vinculada com sucesso." }, 200, origin);
     }
 
     if (body.action === "list") {
@@ -409,19 +413,19 @@ Deno.serve(async (req: Request) => {
           confirmado: Boolean(user.email_confirmed_at),
         };
       });
-      return response({ ok: true, users });
+      return response({ ok: true, users }, 200, origin);
     }
 
     if (body.action === "activate_access") {
       const userId = typeof body.user_id === "string" ? body.user_id.trim() : "";
       if (!/^[0-9a-f-]{36}$/i.test(userId)) {
-        return response({ error: "Usuário inválido." }, 400);
+        return response({ error: "Usuário inválido." }, 400, origin);
       }
       const { data: targetProfile, error: targetProfileError } = await admin
         .from("profiles").select("id, role").eq("id", userId).maybeSingle();
       if (targetProfileError) throw targetProfileError;
       if (!targetProfile || targetProfile.role !== "instrutor") {
-        return response({ error: "A autorização temporária está disponível somente para instrutores." }, 400);
+        return response({ error: "A autorização temporária está disponível somente para instrutores." }, 400, origin);
       }
       const accessUntil = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
       const { error: accessError } = await admin.from("profiles")
@@ -431,48 +435,48 @@ Deno.serve(async (req: Request) => {
         ok: true,
         access_until: accessUntil,
         message: "Acesso liberado por 31 dias."
-      });
+      }, 200, origin);
     }
 
     if (body.action === "change_role") {
       const userId = typeof body.user_id === "string" ? body.user_id.trim() : "";
       const newRole = body.role;
       if (!/^[0-9a-f-]{36}$/i.test(userId)) {
-        return response({ error: "Usuário inválido." }, 400);
+        return response({ error: "Usuário inválido." }, 400, origin);
       }
       if (userId === authData.user.id) {
-        return response({ error: "Por segurança, você não pode alterar seu próprio tipo de acesso." }, 400);
+        return response({ error: "Por segurança, você não pode alterar seu próprio tipo de acesso." }, 400, origin);
       }
       if (newRole !== "instrutor" && newRole !== "usuario" && newRole !== "admin") {
-        return response({ error: "Selecione um tipo de acesso válido." }, 400);
+        return response({ error: "Selecione um tipo de acesso válido." }, 400, origin);
       }
       const { data: targetProfile, error: targetProfileError } = await admin
         .from("profiles").select("id, role").eq("id", userId).maybeSingle();
       if (targetProfileError) throw targetProfileError;
       if (!targetProfile) {
-        return response({ error: "O perfil deste usuário não foi encontrado." }, 404);
+        return response({ error: "O perfil deste usuário não foi encontrado." }, 404, origin);
       }
       if (targetProfile.role === "admin" && newRole !== "admin") {
         const { count, error: countError } = await admin
           .from("profiles").select("id", { count: "exact", head: true }).eq("role", "admin");
         if (countError) throw countError;
         if ((count ?? 0) <= 1) {
-          return response({ error: "Não é possível retirar o acesso de administrador do único administrador do sistema." }, 400);
+          return response({ error: "Não é possível retirar o acesso de administrador do único administrador do sistema." }, 400, origin);
         }
       }
       const { error: updateError } = await admin.from("profiles")
         .update({ role: newRole, instructor_access_until: null }).eq("id", userId);
       if (updateError) throw updateError;
-      return response({ ok: true, message: "Tipo de acesso alterado com sucesso." });
+      return response({ ok: true, message: "Tipo de acesso alterado com sucesso." }, 200, origin);
     }
 
     if (body.action === "delete") {
       const userId = typeof body.user_id === "string" ? body.user_id.trim() : "";
       if (!/^[0-9a-f-]{36}$/i.test(userId)) {
-        return response({ error: "Usuário inválido." }, 400);
+        return response({ error: "Usuário inválido." }, 400, origin);
       }
       if (userId === authData.user.id) {
-        return response({ error: "Você não pode excluir sua própria conta por este painel." }, 400);
+        return response({ error: "Você não pode excluir sua própria conta por este painel." }, 400, origin);
       }
       const { data: targetProfile, error: targetProfileError } = await admin
         .from("profiles").select("role").eq("id", userId).maybeSingle();
@@ -482,22 +486,22 @@ Deno.serve(async (req: Request) => {
           .from("profiles").select("id", { count: "exact", head: true }).eq("role", "admin");
         if (countError) throw countError;
         if ((count ?? 0) <= 1) {
-          return response({ error: "Não é possível excluir o único administrador do sistema." }, 400);
+          return response({ error: "Não é possível excluir o único administrador do sistema." }, 400, origin);
         }
       }
       const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
       if (deleteError) throw deleteError;
-      return response({ ok: true, message: "Usuário excluído com sucesso." });
+      return response({ ok: true, message: "Usuário excluído com sucesso." }, 200, origin);
     }
 
     if (body.action === "resend") {
       const userId = typeof body.user_id === "string" ? body.user_id.trim() : "";
       if (!/^[0-9a-f-]{36}$/i.test(userId)) {
-        return response({ error: "Usuário inválido." }, 400);
+        return response({ error: "Usuário inválido." }, 400, origin);
       }
       const { data: targetData, error: targetError } = await admin.auth.admin.getUserById(userId);
       if (targetError || !targetData.user?.email) {
-        return response({ error: "Não foi possível localizar o e-mail deste usuário." }, 404);
+        return response({ error: "Não foi possível localizar o e-mail deste usuário." }, 404, origin);
       }
       const targetEmail = targetData.user.email;
       const targetName = String(targetData.user.user_metadata?.nome ?? "Olá").slice(0, 100);
@@ -508,16 +512,16 @@ Deno.serve(async (req: Request) => {
       const smtpFrom = Deno.env.get("SMTP_FROM");
       if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom || ![465, 587].includes(smtpPort)) {
         console.error("Configuração SMTP incompleta ou inválida.");
-        return response({ error: "O envio de e-mail ainda não está configurado corretamente." }, 500);
+        return response({ error: "O envio de e-mail ainda não está configurado corretamente." }, 500, origin);
       }
       const { data: recoveryData, error: recoveryError } = await admin.auth.admin.generateLink({
         type: "recovery",
         email: targetEmail,
         options: { redirectTo: requestAppUrl },
-      });
+      }, 200, origin);
       if (recoveryError || !recoveryData.properties?.action_link) {
         console.error("Falha ao gerar link de acesso:", recoveryError?.message ?? "link ausente");
-        return response({ error: "Não foi possível gerar um novo link de acesso para este usuário." }, 400);
+        return response({ error: "Não foi possível gerar um novo link de acesso para este usuário." }, 400, origin);
       }
       const safeTargetName = escapeHtml(targetName);
       const transporter = nodemailer.createTransport({
@@ -525,7 +529,7 @@ Deno.serve(async (req: Request) => {
         port: smtpPort,
         secure: smtpPort === 465,
         auth: { user: smtpUser, pass: smtpPass },
-      });
+      }, 200, origin);
       try {
         await transporter.sendMail({
           from: smtpFrom,
@@ -540,15 +544,15 @@ Deno.serve(async (req: Request) => {
           name: err?.name ?? "Error", message: err?.message ?? "sem mensagem",
           code: err?.code ?? null, command: err?.command ?? null, responseCode: err?.responseCode ?? null,
         });
-        return response({ error: "O link foi preparado, mas o e-mail não pôde ser enviado. Confira o SMTP e tente novamente." }, 502);
+        return response({ error: "O link foi preparado, mas o e-mail não pôde ser enviado. Confira o SMTP e tente novamente." }, 502, origin);
       } finally {
         transporter.close();
       }
-      return response({ ok: true, message: "Novo link de acesso enviado com sucesso." });
+      return response({ ok: true, message: "Novo link de acesso enviado com sucesso." }, 200, origin);
     }
 
     const isStudentInvite = body.action === "invite_student";
-    if (body.action !== "invite" && !isStudentInvite) return response({ error: "Ação não reconhecida." }, 400);
+    if (body.action !== "invite" && !isStudentInvite) return response({ error: "Ação não reconhecida." }, 400, origin);
 
     let nome = typeof body.nome === "string" ? body.nome.trim() : "";
     let email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
@@ -564,7 +568,7 @@ Deno.serve(async (req: Request) => {
     if (isStudentInvite) {
       const studentId = typeof body.student_id === "string" ? body.student_id.trim() : "";
       if (!/^[0-9a-f-]{36}$/i.test(studentId)) {
-        return response({ error: "Cadastro de aluno inválido." }, 400);
+        return response({ error: "Cadastro de aluno inválido." }, 400, origin);
       }
       const { data: student, error: studentError } = await admin
         .from("students")
@@ -573,26 +577,26 @@ Deno.serve(async (req: Request) => {
         .eq("owner_id", authData.user.id)
         .maybeSingle();
       if (studentError) throw studentError;
-      if (!student) return response({ error: "Aluno não encontrado na sua lista de cadastros." }, 404);
+      if (!student) return response({ error: "Aluno não encontrado na sua lista de cadastros." }, 404, origin);
       studentInviteId = student.id;
       studentInvitePreviousInvitedAt = student.invited_at ?? null;
       nome = String(student.nome ?? "").trim();
       email = String(student.email ?? "").trim().toLowerCase();
-      if (!email) return response({ error: "Cadastre o e-mail deste aluno antes de enviar o convite." }, 400);
+      if (!email) return response({ error: "Cadastre o e-mail deste aluno antes de enviar o convite." }, 400, origin);
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-        return response({ error: "O e-mail cadastrado para este aluno é inválido. Corrija o cadastro antes de continuar." }, 400);
+        return response({ error: "O e-mail cadastrado para este aluno é inválido. Corrija o cadastro antes de continuar." }, 400, origin);
       }
       if (student.user_id) {
         const { data: existingAuth, error: existingAuthError } = await admin.auth.admin.getUserById(student.user_id);
         if (existingAuthError || !existingAuth.user?.email ||
             existingAuth.user.email.trim().toLowerCase() !== String(student.email ?? "").trim().toLowerCase()) {
-          return response({ error: "A conta vinculada não corresponde ao e-mail atual deste cadastro. Não foi feita nenhuma alteração." }, 409);
+          return response({ error: "A conta vinculada não corresponde ao e-mail atual deste cadastro. Não foi feita nenhuma alteração." }, 409, origin);
         }
         const { data: existingProfile, error: existingProfileError } = await admin
           .from("profiles").select("role").eq("id", student.user_id).maybeSingle();
         if (existingProfileError) throw existingProfileError;
         if (!existingProfile) {
-          return response({ error: "O perfil da conta vinculada não foi encontrado. Solicite uma verificação administrativa." }, 409);
+          return response({ error: "O perfil da conta vinculada não foi encontrado. Solicite uma verificação administrativa." }, 409, origin);
         }
         if (existingProfile.role === "instrutor" &&
             !existingAuth.user.email_confirmed_at &&
@@ -602,20 +606,20 @@ Deno.serve(async (req: Request) => {
             .eq("id", student.user_id).eq("role", "instrutor");
           if (repairProfileError) throw repairProfileError;
         } else if (existingProfile.role !== "usuario") {
-          return response({ error: "A conta vinculada não está no perfil de aluno. Não foi alterada por segurança." }, 409);
+          return response({ error: "A conta vinculada não está no perfil de aluno. Não foi alterada por segurança." }, 409, origin);
         }
         studentRecoveryUserId = student.user_id;
       }
       if (!student.user_id) {
         let matchingAuthUser: any = null;
         for (let page = 1; ; page += 1) {
-          const { data: usersPage, error: usersPageError } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+          const { data: usersPage, error: usersPageError } = await admin.auth.admin.listUsers({ page, perPage: 1000 }, 200, origin);
           if (usersPageError) throw usersPageError;
           const matches = (usersPage.users ?? []).filter((user: any) =>
             String(user.email ?? "").trim().toLowerCase() === String(student.email ?? "").trim().toLowerCase()
           );
           if (matches.length > 1) {
-            return response({ error: "Há mais de uma conta compatível com este e-mail. Solicite uma verificação administrativa." }, 409);
+            return response({ error: "Há mais de uma conta compatível com este e-mail. Solicite uma verificação administrativa." }, 409, origin);
           }
           if (matches.length === 1) {
             matchingAuthUser = matches[0];
@@ -625,13 +629,13 @@ Deno.serve(async (req: Request) => {
         }
         if (matchingAuthUser) {
           if (!matchingAuthUser.email_confirmed_at) {
-            return response({ error: "Já existe uma conta com este e-mail, mas ele ainda não foi confirmado. Solicite uma verificação administrativa antes de vincular." }, 409);
+            return response({ error: "Já existe uma conta com este e-mail, mas ele ainda não foi confirmado. Solicite uma verificação administrativa antes de vincular." }, 409, origin);
           }
           const { data: legacyProfile, error: legacyProfileError } = await admin
             .from("profiles").select("role").eq("id", matchingAuthUser.id).maybeSingle();
           if (legacyProfileError) throw legacyProfileError;
           if (!legacyProfile || legacyProfile.role !== "usuario") {
-            return response({ error: "Já existe uma conta com este e-mail, mas ela não está configurada como aluno. Solicite uma verificação administrativa." }, 409);
+            return response({ error: "Já existe uma conta com este e-mail, mas ela não está configurada como aluno. Solicite uma verificação administrativa." }, 409, origin);
           }
           // A conta Auth só pode estar vinculada a um cadastro de aluno.
           // Verifique antes de enviar qualquer link para evitar convite que falharia no índice UNIQUE.
@@ -641,7 +645,7 @@ Deno.serve(async (req: Request) => {
             .maybeSingle();
           if (existingStudentLinkError) throw existingStudentLinkError;
           if (existingStudentLink) {
-            return response({ error: "Esta conta já está vinculada a outro cadastro de aluno. Solicite uma verificação administrativa antes de enviar novo acesso." }, 409);
+            return response({ error: "Esta conta já está vinculada a outro cadastro de aluno. Solicite uma verificação administrativa antes de enviar novo acesso." }, 409, origin);
           }
           studentLegacyLinkUserId = matchingAuthUser.id;
         }
@@ -650,25 +654,25 @@ Deno.serve(async (req: Request) => {
       if (student.invited_at && !student.user_id) {
         const reservationIsRecent = getReservationStatus(student.invited_at) === "active";
         if (reservationIsRecent) {
-          return response({ error: "Já existe um convite em processamento para este aluno. Aguarde alguns minutos e atualize a lista." }, 409);
+          return response({ error: "Já existe um convite em processamento para este aluno. Aguarde alguns minutos e atualize a lista." }, 409, origin);
         }
       }
       studentInviteId = student.id;
       nome = String(student.nome ?? "").trim();
       email = String(student.email ?? "").trim().toLowerCase();
-      if (!email) return response({ error: "Cadastre o e-mail deste aluno antes de enviar o convite." }, 400);
+      if (!email) return response({ error: "Cadastre o e-mail deste aluno antes de enviar o convite." }, 400, origin);
     }
     if (nome.length < 2 || nome.length > 100) {
-      return response({ error: "Informe um nome entre 2 e 100 caracteres." }, 400);
+      return response({ error: "Informe um nome entre 2 e 100 caracteres." }, 400, origin);
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-      return response({ error: "Informe um endereço de e-mail válido." }, 400);
+      return response({ error: "Informe um endereço de e-mail válido." }, 400, origin);
     }
     if (role !== "instrutor" && role !== "usuario" && role !== "admin") {
-      return response({ error: "Selecione um tipo de acesso válido." }, 400);
+      return response({ error: "Selecione um tipo de acesso válido." }, 400, origin);
     }
     if (email === (authData.user.email ?? "").toLowerCase()) {
-      return response({ error: "Você já está conectado com esse e-mail." }, 400);
+      return response({ error: "Você já está conectado com esse e-mail." }, 400, origin);
     }
 
     const smtpHost = Deno.env.get("SMTP_HOST");
@@ -678,7 +682,7 @@ Deno.serve(async (req: Request) => {
     const smtpFrom = Deno.env.get("SMTP_FROM");
     if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom || ![465, 587].includes(smtpPort)) {
       console.error("Configuração SMTP incompleta ou inválida.");
-      return response({ error: "O envio de e-mail ainda não está configurado corretamente." }, 500);
+      return response({ error: "O envio de e-mail ainda não está configurado corretamente." }, 500, origin);
     }
 
     if (isStudentInvite && studentInviteId && !studentRecoveryUserId) {
@@ -707,7 +711,7 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
       if (reserveError) throw reserveError;
       if (!reservedStudent) {
-        return response({ error: "Este cadastro já está sendo processado para convite. Atualize a lista e tente novamente." }, 409);
+        return response({ error: "Este cadastro já está sendo processado para convite. Atualize a lista e tente novamente." }, 409, origin);
       }
     }
 
@@ -726,7 +730,7 @@ Deno.serve(async (req: Request) => {
           ? `${requestAppUrl}claim-student.html?attempt_id=${encodeURIComponent(studentInviteAttemptId)}`
           : requestAppUrl,
       },
-    });
+    }, 200, origin);
     if (linkError) {
       if (studentInviteId && studentInviteReservation) {
         await admin.from("students")
@@ -738,10 +742,10 @@ Deno.serve(async (req: Request) => {
       }
       const message = linkError.message.toLowerCase();
       if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
-        return response({ error: "Já existe uma conta cadastrada com esse e-mail." }, 409);
+        return response({ error: "Já existe uma conta cadastrada com esse e-mail." }, 409, origin);
       }
       console.error("Falha ao gerar convite:", linkError.message);
-      return response({ error: "Não foi possível criar o convite. Confira o e-mail e tente novamente." }, 400);
+      return response({ error: "Não foi possível criar o convite. Confira o e-mail e tente novamente." }, 400, origin);
     }
 
     const expectedExistingUserId = studentRecoveryUserId ?? studentLegacyLinkUserId;
@@ -755,7 +759,7 @@ Deno.serve(async (req: Request) => {
           .eq("invited_at", studentInviteReservation);
       }
       console.error("O Supabase retornou uma conta diferente da conta existente esperada.");
-      return response({ error: "Não foi possível confirmar a conta existente. Nenhuma conta ou vínculo foi alterado." }, 409);
+      return response({ error: "Não foi possível confirmar a conta existente. Nenhuma conta ou vínculo foi alterado." }, 409, origin);
     }
 
     const invitedUserId = linkData.user?.id ?? studentRecoveryUserId ?? studentLegacyLinkUserId;
@@ -773,7 +777,7 @@ Deno.serve(async (req: Request) => {
           .is("user_id", null).eq("invited_at", studentInviteReservation);
       }
       console.error("O Supabase não retornou os dados necessários do convite.");
-      return response({ error: "Não foi possível preparar o convite." }, 500);
+      return response({ error: "Não foi possível preparar o convite." }, 500, origin);
     }
 
     // Para conta legada, não altere nenhum dado do perfil antes da confirmação
@@ -809,7 +813,7 @@ Deno.serve(async (req: Request) => {
           .is("user_id", null).eq("invited_at", studentInviteReservation);
       }
       console.error("Falha ao confirmar o perfil do usuário:", profileErrorMessage ?? "perfil não encontrado ou papel alterado durante a operação");
-      return response({ error: "Não foi possível definir o acesso do novo usuário." }, 500);
+      return response({ error: "Não foi possível definir o acesso do novo usuário." }, 500, origin);
     }
 
     if (isStudentInvite && studentInviteId && studentInviteReservation && !studentLegacyLinkUserId) {
@@ -836,7 +840,7 @@ Deno.serve(async (req: Request) => {
           console.error("Falha ao remover conta após conflito de vínculo:", deleteError.message);
         }
         console.error("Falha ao vincular conta ao cadastro do aluno:", linkStudentError?.message ?? "cadastro já alterado");
-        return response({ error: "Não foi possível concluir o vínculo. Atualize a lista de alunos e tente novamente." }, 409);
+        return response({ error: "Não foi possível concluir o vínculo. Atualize a lista de alunos e tente novamente." }, 409, origin);
       }
     }
 
@@ -846,7 +850,7 @@ Deno.serve(async (req: Request) => {
       port: smtpPort,
       secure: smtpPort === 465,
       auth: { user: smtpUser, pass: smtpPass },
-    });
+    }, 200, origin);
 
     try {
       await transporter.sendMail({
@@ -881,14 +885,14 @@ Deno.serve(async (req: Request) => {
       } else if (deleteError) {
         console.error("Falha ao remover conta após erro SMTP:", deleteError.message);
       }
-      return response({ error: "O convite foi preparado, mas o e-mail não pôde ser enviado. Confira o SMTP e tente novamente." }, 502);
+      return response({ error: "O convite foi preparado, mas o e-mail não pôde ser enviado. Confira o SMTP e tente novamente." }, 502, origin);
     } finally {
       transporter.close();
     }
 
-    return response({ ok: true, message: studentLegacyLinkUserId ? "Link de confirmação enviado para a conta existente do aluno." : studentRecoveryUserId ? "Novo link de acesso enviado ao aluno." : "Convite enviado com sucesso." });
+    return response({ ok: true, message: studentLegacyLinkUserId ? "Link de confirmação enviado para a conta existente do aluno." : studentRecoveryUserId ? "Novo link de acesso enviado ao aluno." : "Convite enviado com sucesso." }, 200, origin);
   } catch (error) {
     console.error("Erro interno ao gerenciar usuários:", error instanceof Error ? error.message : "erro desconhecido");
-    return response({ error: "Ocorreu um erro interno. Tente novamente." }, 500);
+    return response({ error: "Ocorreu um erro interno. Tente novamente." }, 500, origin);
   }
-});
+}, 200, origin);
