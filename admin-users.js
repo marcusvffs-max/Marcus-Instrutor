@@ -153,8 +153,22 @@
     });
     if (error) {
       let detail = "";
-      try { detail = (await error.context.json()).error || ""; } catch (_) {}
-      throw new Error(detail || "Não foi possível concluir a solicitação.");
+      try {
+        const context = error.context;
+        if (context?.clone) {
+          const payload = await context.clone().json();
+          detail = payload?.error || payload?.message || "";
+        } else if (context?.json) {
+          const payload = await context.json();
+          detail = payload?.error || payload?.message || "";
+        }
+      } catch (_) {
+        try {
+          const context = error.context;
+          if (context?.clone) detail = (await context.clone().text()).trim();
+        } catch (_) {}
+      }
+      throw new Error(detail || error.message || "Não foi possível concluir a solicitação.");
     }
     if (!data?.ok) throw new Error(data?.error || "Não foi possível concluir a solicitação.");
     return data;
