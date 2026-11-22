@@ -1242,3 +1242,14 @@ No projeto isolado `voyjssflroiwdyaacthh`, foram criadas identidades Auth sinté
 - Edge Function verifica se a conta Auth já está ligada a outro cadastro, com índice único parcial `students_user_id_unique` como proteção adicional.
 
 Foram registradas 14 verificações/asserções aprovadas em transações revertidas. Isso não substitui login real, JWT emitido pelo Auth, e-mail/convite implantado ou teste HTTP. Os detalhes estão em `docs/TESTE-RLS-ISOLAMENTO-INSTRUTORES.md`.
+
+
+## Atualização: trigger de convite e remoção de acesso — 21/11/2026
+
+No projeto isolado, testes SQL transacionais confirmaram:
+
+- trigger de vínculo Auth: metadados e reserva ativa correspondentes criam o vínculo; e-mail divergente e reserva expirada não criam vínculo (3 verificações);
+- RPC `remove_student_app_access`: remove a identidade Auth do aluno da própria conta e preserva o cadastro/histórico, com limpeza do `user_id` pelo trigger;
+- tentativa de remover vínculo de aluno de outro owner é bloqueada com `P0002`, preservando a identidade Auth estrangeira (4 verificações).
+
+Tudo foi revertido. Não houve e-mail, convite persistente, chamada HTTP da Edge Function nem alteração no Supabase original.
