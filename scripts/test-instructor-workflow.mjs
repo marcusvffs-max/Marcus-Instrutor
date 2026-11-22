@@ -195,3 +195,14 @@ test("painel administrativo trata conflito de horário sem erro genérico", () =
   assert.ok(adminSource.includes("Um dos horários já foi reservado para este instrutor"));
   assert.ok(indexHtmlSource.includes("script.js?v=relatorios-instrutor9-schedule-guard"));
 });
+
+
+test("botão WhatsApp só é liberado para aluno vinculado ao Marcus", () => {
+  const whatsappVisibilityMigration = read("../supabase/migrations/20261122013000_add_marcus_student_whatsapp_visibility.sql");
+  assert.match(studentJs, /rpc\("can_show_marcus_whatsapp_assistant"\)/);
+  assert.match(whatsappVisibilityMigration, /private\.can_show_marcus_whatsapp_assistant_internal/);
+  assert.match(whatsappVisibilityMigration, /p\.role = 'usuario'/);
+  assert.match(whatsappVisibilityMigration, /s\.owner_id = '[0-9a-f-]{36}'::uuid/);
+  assert.match(whatsappVisibilityMigration, /s\.user_id = p\.id/);
+  assert.match(whatsappVisibilityMigration, /REVOKE ALL ON FUNCTION public\.can_show_marcus_whatsapp_assistant\(\) FROM PUBLIC, anon/);
+});
