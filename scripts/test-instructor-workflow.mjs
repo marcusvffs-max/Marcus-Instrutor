@@ -229,3 +229,9 @@ test("webhook valida timestamp antes de persistir mensagem", () => {
   assert.match(whatsappWebhook, /for \(const status of change\.value\.statuses/);
   assert.match(whatsappWebhook, /for \(const echo of change\.value\.message_echoes/);
 });
+
+
+test("webhook aceita Content-Length e timestamp numéricos em string", () => {
+  assert.ok(whatsappWebhook.includes('if (!/^\\d+$/.test(contentLength))'));
+  assert.ok(whatsappWebhook.includes('typeof value === "string" && /^\\d{1,12}$/.test(value)'));
+});

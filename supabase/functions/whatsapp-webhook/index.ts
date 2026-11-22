@@ -1679,7 +1679,7 @@ type LimitedBodyResult =
 async function readWebhookBody(req: Request): Promise<LimitedBodyResult> {
   const contentLength = req.headers.get("content-length");
   if (contentLength !== null) {
-    if (!/^\\d+$/.test(contentLength)) return { ok: false, status: 400, reason: "invalid_content_length" };
+    if (!/^\d+$/.test(contentLength)) return { ok: false, status: 400, reason: "invalid_content_length" };
     const declaredBytes = Number(contentLength);
     if (!Number.isSafeInteger(declaredBytes)) return { ok: false, status: 400, reason: "invalid_content_length" };
     if (declaredBytes > MAX_WEBHOOK_BODY_BYTES) return { ok: false, status: 413, reason: "payload_too_large" };
@@ -1719,7 +1719,7 @@ function parseMetaTimestamp(value: unknown, nowMs = Date.now()): { ok: true; iso
   }
   const seconds = typeof value === "number"
     ? value
-    : typeof value === "string" && /^\\d{1,12}$/.test(value)
+    : typeof value === "string" && /^\d{1,12}$/.test(value)
     ? Number(value)
     : Number.NaN;
   if (!Number.isSafeInteger(seconds) || seconds <= 0) {
