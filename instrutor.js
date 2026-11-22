@@ -514,7 +514,9 @@
     } catch (error) {
       console.error("Falha ao atualizar situação da aula:", error);
       const detail = String(error?.message || "");
-      if (detail.includes("SALDO_AULAS_INSUFICIENTE")) {
+      if (error?.code === "23505") {
+        showMessage("Já existe uma aula reservada nesse dia e horário. Escolha outro horário.");
+      } else if (detail.includes("SALDO_AULAS_INSUFICIENTE")) {
         showMessage("A aula não foi confirmada: o aluno não possui aulas restantes.");
       } else {
         showMessage("Não foi possível atualizar a aula. Tente novamente.");
@@ -716,7 +718,11 @@
       showMessage(lessons.length + " aulas agendadas com sucesso.", false);
     } catch (error) {
       console.error("Falha ao agendar várias aulas:", error);
-      showMessage("Não foi possível agendar o lote. Nenhuma aula foi confirmada; confira os horários e tente novamente.");
+      if (error?.code === "23505") {
+        showMessage("Um dos horários já foi reservado. Nenhuma aula do lote foi agendada; revise as datas e tente novamente.");
+      } else {
+        showMessage("Não foi possível agendar o lote. Nenhuma aula foi confirmada; confira os horários e tente novamente.");
+      }
     } finally {
       button.disabled = false;
       button.textContent = "Agendar todas as aulas";

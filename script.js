@@ -1035,7 +1035,7 @@ async function salvarAula(evento) {
  if(resposta.error)throw resposta.error;await sincronizarAulasAdminSupabase();
  for(const studentId of new Set([anterior?.alunoId,dados.alunoId].filter(Boolean)))await sincronizarSaldoAlunoAdminSupabase(studentId);
  aulaEditando=null;fecharModal();listarAulas();listarAlunos();atualizarSeletoresAlunos();atualizarPainel();mostrarAviso(anterior?"Aula atualizada no Supabase com sucesso!":"Aula agendada no Supabase com sucesso!");
- }catch(erro){console.error("Erro ao salvar aula no Supabase:",erro);mostrarAviso(String(erro?.message||"").includes("SALDO_AULAS_INSUFICIENTE")?"Este aluno não possui aulas disponíveis.":"Não foi possível salvar a aula na nuvem. Nenhuma alteração local foi aplicada.");}
+ }catch(erro){console.error("Erro ao salvar aula no Supabase:",erro);mostrarAviso(erro?.code==="23505"?"Já existe uma aula reservada para este instrutor nesse dia e horário. Escolha outro horário.":String(erro?.message||"").includes("SALDO_AULAS_INSUFICIENTE")?"Este aluno não possui aulas disponíveis.":"Não foi possível salvar a aula na nuvem. Nenhuma alteração local foi aplicada.");}
  finally{if(botaoSalvar){botaoSalvar.disabled=false;botaoSalvar.textContent="Salvar aula";}}
 }
 
@@ -1206,7 +1206,7 @@ async function salvarAgendamentoLote(evento) {
  novasAulas.push({owner_id:adminSupabaseUserId,student_id:alunoId,vehicle_id:veiculoId,data_aula:data,horario:horarioTelaParaBanco(horario),status:"agendada",observacoes:null});}
  const cliente=window.getMarcusSupabase?.();if(!cliente){mostrarAviso("Conexão com o Supabase indisponível. Tente novamente.");return;}if(botaoSalvar){botaoSalvar.disabled=true;botaoSalvar.textContent="Salvando...";}
  try{const {error}=await cliente.from("lessons").insert(novasAulas);if(error)throw error;await sincronizarAulasAdminSupabase();fecharModal();listarAulas();listarAlunos();atualizarSeletoresAlunos();atualizarPainel();mostrarAviso(`${novasAulas.length} aulas agendadas no Supabase com sucesso!`);}
- catch(erro){console.error("Erro ao agendar lote no Supabase:",erro);mostrarAviso("Não foi possível agendar todas as aulas na nuvem. Nenhuma aula foi confirmada.");}
+ catch(erro){console.error("Erro ao agendar lote no Supabase:",erro);mostrarAviso(erro?.code==="23505"?"Um dos horários já foi reservado para este instrutor. Nenhuma aula do lote foi agendada.":"Não foi possível agendar todas as aulas na nuvem. Nenhuma aula foi confirmada.");}
  finally{if(botaoSalvar){botaoSalvar.disabled=false;botaoSalvar.textContent="Salvar todas as aulas";}}
 }
 

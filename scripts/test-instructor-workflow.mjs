@@ -18,6 +18,10 @@ const instructorNameMigration = read("../supabase/migrations/20261121231000_move
 const saleTrackingMigration = read("../supabase/migrations/20261121270000_fix_instructor_sale_item_lesson_tracking.sql");
 const studentOwnerIndexMigration = read("../supabase/migrations/20261121280000_add_students_owner_fk_index.sql");
 const consolidatedOwnerPoliciesMigration = read("../supabase/migrations/20261122003833_consolidate_owner_policies_financial_tables.sql");
+const lessonScheduleMigration = read("../supabase/migrations/20261122010000_prevent_duplicate_active_lesson_slots.sql");
+const instructorSource = read("../instrutor.js");
+const adminSource = read("../script.js");
+const indexHtmlSource = read("../index.html");
 
 test("área de acessos lista somente alunos com conta vinculada", () => {
   assert.match(instructorHtml, /data-view="alunos-vinculados"/);
@@ -173,4 +177,21 @@ test("políticas financeiras consolidadas mantêm isolamento por proprietário",
   assert.ok(migration.includes("p.owner_id = (SELECT auth.uid())"));
   assert.ok(migration.includes("DROP POLICY IF EXISTS products_admin_"));
   assert.ok(migration.includes("DROP POLICY IF EXISTS sales_instructor_manage_own"));
+});
+
+
+test("agenda impede reservas duplicadas no mesmo horário também no banco", () => {
+  assert.ok(lessonScheduleMigration.includes("CREATE UNIQUE INDEX IF NOT EXISTS lessons_owner_active_schedule_uidx"));
+  assert.ok(lessonScheduleMigration.includes("ON public.lessons (owner_id, data_aula, horario)"));
+  assert.ok(lessonScheduleMigration.includes("WHERE lower(coalesce(status, '')) <> 'cancelada'"));
+  assert.ok(instructorSource.includes('error?.code === "23505"'));
+  assert.ok(instructorSource.includes("Já existe uma aula reservada nesse dia e horário"));
+  assert.ok(instructorSource.includes("Um dos horários já foi reservado"));
+});
+
+test("painel administrativo trata conflito de horário sem erro genérico", () => {
+  assert.ok(adminSource.includes('erro?.code==="23505"'));
+  assert.ok(adminSource.includes("Já existe uma aula reservada para este instrutor"));
+  assert.ok(adminSource.includes("Um dos horários já foi reservado para este instrutor"));
+  assert.ok(indexHtmlSource.includes("script.js?v=relatorios-instrutor9-schedule-guard"));
 });
