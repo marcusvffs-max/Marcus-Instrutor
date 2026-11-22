@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v35-student-exam-history";
+const CACHE_NAME = "marcus-instrutor-v36-whatsapp-history-cycles";
 
 const ARQUIVOS = [
   "./",
