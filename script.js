@@ -133,13 +133,17 @@ function numero(valor) {
   return Number(String(valor || "0").replace(",", ".")) || 0;
 }
 
+function textoSemLinks(mensagem) {
+  return String(mensagem ?? "").replace(/\b(?:https?:\/\/|www\.)[^\s<]+/gi, "[link ocultado]");
+}
+
 function mostrarAviso(mensagem) {
   const container = document.getElementById("toastContainer");
   if (!container) return;
 
   const aviso = document.createElement("div");
   aviso.className = "toast";
-  aviso.textContent = mensagem;
+  aviso.textContent = textoSemLinks(mensagem);
   container.appendChild(aviso);
 
   setTimeout(() => aviso.remove(), 3500);
@@ -166,7 +170,7 @@ function confirmar(mensagem) {
     titulo.textContent = "Confirmação";
     const texto = document.createElement("p");
     texto.style.whiteSpace = "pre-line";
-    texto.textContent = String(mensagem ?? "");
+    texto.textContent = textoSemLinks(mensagem);
 
     const acoes = document.createElement("div");
     acoes.className = "modal-actions";
@@ -573,7 +577,9 @@ async function salvarAluno(evento) {
       categoria: salvo.categoria || "B",
       situacao: statusAlunoParaTela(salvo.status),
       contratadas: Number(salvo.aulas_compradas || 0),
-      saldo: Number(salvo.aulas_restantes || 0)
+      saldo: Number(salvo.aulas_restantes || 0),
+      alugueisComprados: Number(alunoAnterior?.alugueisComprados || 0),
+      alugueisDisponiveis: Number(alunoAnterior?.alugueisDisponiveis || 0)
     };
 
     if (alunoAnterior) {
@@ -658,9 +664,11 @@ function listarAlunos() {
             <p>Categoria: ${escapar(a.categoria)}</p>
             <p>Situação: ${escapar(a.situacao)}</p>
             <p>Aulas restantes: <strong>${Number(a.saldo || 0)}</strong></p>
+            <p>Aluguéis de veículo disponíveis: <strong>${Number(a.alugueisDisponiveis || 0)}</strong> de ${Number(a.alugueisComprados || 0)} comprados</p>
           </div>
           <div class="record-actions">
             ${a.email ? `<button type="button" data-invite-aluno="${a.id}">${a.user_id ? "Reenviar acesso" : a.invited_at ? "Reenviar convite" : "Enviar convite"}</button>` : ""}
+            <button type="button" data-open-student-exams="${a.id}">Exames</button>
             <button type="button" data-edit-aluno="${a.id}">Editar</button>
             <button type="button" data-delete-aluno="${a.id}">Excluir</button>
           </div>
@@ -682,7 +690,7 @@ async function enviarConviteAluno(id, botao) {
   }
   const reenviarAcesso = Boolean(aluno.user_id);
   const acao = reenviarAcesso ? "Reenviar link de acesso" : "Enviar convite";
-  if (!confirm(acao + " para " + aluno.nome + " (" + aluno.email + ")?\n\nConfira se este e-mail foi informado pelo próprio aluno. O cadastro só será vinculado depois que o titular confirmar o acesso pelo link enviado.")) return;
+  if (!await confirmar(acao + " para " + aluno.nome + " (" + aluno.email + ")?\n\nConfira se este e-mail foi informado pelo próprio aluno. O cadastro só será vinculado depois que o titular confirmar o acesso pelo link enviado.")) return;
 
   const textoOriginal = botao?.textContent || "Enviar convite";
   if (botao) {
@@ -1379,34 +1387,126 @@ function atualizarFinanceiro() {
   if (elSaldo) elSaldo.textContent = moeda(entradas - saidas);
 }
 
+function imprimirReciboVendaAdmin(vendaId) {
+  const venda = db.vendas.find(item => String(item.id) === String(vendaId));
+  if (!venda) return mostrarAviso("Venda não encontrada.");
+  const aluno = db.alunos.find(item => String(item.id) === String(venda.alunoId));
+  const perfil = {
+    nome: document.getElementById("contratanteNome")?.value?.trim() || db.configuracoes?.nome || "Responsável",
+    documento: document.getElementById("contratanteDocumento")?.value?.trim() || "",
+    celular: document.getElementById("contratanteCelular")?.value?.trim() || "",
+    endereco: document.getElementById("contratanteEndereco")?.value?.trim() || ""
+  };
+  const itens = (venda.itens || []).map(item => `
+    <tr><td>${escapar(item.nome || "Item")}</td><td>${Number(item.quantidade || 1)}</td>
+    <td>${moeda(item.precoUnitario || 0)}</td><td>${moeda(item.total || 0)}</td></tr>`).join("");
+  const status = String(venda.status || "confirmada").toLowerCase();
+  const logo = db.configuracoes?.logo && /^(https?:|data:image\/)/i.test(db.configuracoes.logo)
+    ? '<img class="logo" src="' + escapar(db.configuracoes.logo) + '" alt="Logomarca">'
+    : "";
+  const popup = window.open("", "_blank", "width=820,height=900");
+  if (!popup) return mostrarAviso("Permita janelas pop-up para imprimir o recibo.");
+  popup.document.open();
+  popup.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Recibo de venda</title>
+  <style>
+    *{box-sizing:border-box}body{font:14px Arial,sans-serif;color:#17212f;margin:32px auto;max-width:760px;padding:0 24px}
+    header{display:flex;align-items:center;gap:18px;border-bottom:2px solid #1e3a5f;padding-bottom:18px;margin-bottom:24px}
+    .logo{max-width:105px;max-height:80px;object-fit:contain}h1{font-size:24px;margin:0 0 6px}h2{font-size:20px;text-align:center;letter-spacing:1px;margin:28px 0}
+    .muted{color:#596579;line-height:1.5}.box{border:1px solid #d8dee8;border-radius:10px;padding:16px;margin:16px 0}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid p{margin:4px 0}
+    table{width:100%;border-collapse:collapse;margin:18px 0}th,td{padding:10px 8px;border-bottom:1px solid #e2e7ef;text-align:left}th{background:#f3f6fa}
+    td:last-child,th:last-child{text-align:right}.total{text-align:right;font-size:21px;font-weight:700;margin:20px 0}
+    .status{padding:8px 12px;border-radius:6px;background:${status==="confirmada"?"#e8f5ed":"#fff0ed"};display:inline-block;font-weight:700}
+    .signature{margin-top:70px;text-align:center}.signature span{display:block;border-top:1px solid #333;width:260px;margin:0 auto 8px}
+    .actions{text-align:center;margin-top:28px}.actions button{padding:10px 20px;border:0;border-radius:6px;background:#1e3a5f;color:#fff;font-size:14px}
+    @media print{body{margin:0 auto;padding:0 10mm}.actions{display:none}}
+  </style></head><body>
+  <header>${logo}<div><h1>${escapar(perfil.nome)}</h1><div class="muted">${perfil.documento ? "CPF/CNPJ: "+escapar(perfil.documento)+" · " : ""}${perfil.celular ? "WhatsApp: "+escapar(perfil.celular) : ""}<br>${escapar(perfil.endereco)}</div></div></header>
+  <h2>RECIBO DE PAGAMENTO</h2>
+  <div class="box grid"><p><strong>Recebemos de:</strong><br>${escapar(aluno?.nome || venda.nomeAluno || "Aluno")}</p>
+  <p><strong>Data da venda:</strong><br>${escapar(formatarData(venda.data))}</p>
+  <p><strong>Forma de pagamento:</strong><br>${escapar(venda.formaPagamento || "Não informada")}</p>
+  <p><strong>Situação:</strong><br><span class="status">${status==="confirmada"?"CONFIRMADA":"CANCELADA"}</span></p></div>
+  <table><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Total</th></tr></thead><tbody>${itens || '<tr><td colspan="4">Itens não disponíveis.</td></tr>'}</tbody></table>
+  <div class="total">Total: ${moeda(venda.valorTotal || 0)}</div>
+  ${Number(venda.desconto || 0)>0?'<p class="muted">Desconto aplicado: '+moeda(venda.desconto)+'</p>':""}
+  ${Number(venda.valorDevolvido || 0)>0?'<p class="muted">Devoluções registradas: '+moeda(venda.valorDevolvido)+'</p>':""}
+  <p class="muted">Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
+  <div class="signature"><span></span><strong>${escapar(perfil.nome)}</strong><br><small>Responsável</small></div>
+  <div class="actions"><button onclick="window.print()">Imprimir / Salvar PDF</button></div>
+  </body></html>`);
+  popup.document.close();
+  popup.focus();
+  setTimeout(() => popup.print(), 350);
+}
+
 function listarMovimentacoes() {
   const lista = document.getElementById("listaMovimentacoes");
   if (!lista) return;
 
-  const movimentos = obterMovimentacoesFiltradas().reverse();
+  const movimentos = obterMovimentacoesFiltradas();
+  const vendasAgrupadas = new Map();
+  const avulsas = [];
 
-  lista.innerHTML = movimentos.map(m => {
-    const venda = m.vendaId
-      ? db.vendas.find(v => v.id === m.vendaId)
-      : null;
-
-    let acao = "";
-
-    if (m.tipo === "saida" && !m.vendaId) {
-      acao = `<button type="button" data-delete-despesa="${m.id}">Excluir despesa</button>`;
-    } else if (m.tipo === "entrada" && venda) {
-      acao = `<button type="button" data-delete-venda="${venda.id}">Excluir venda</button>`;
+  movimentos.forEach(movimento => {
+    if (movimento.vendaId) {
+      if (!vendasAgrupadas.has(movimento.vendaId)) vendasAgrupadas.set(movimento.vendaId, []);
+      vendasAgrupadas.get(movimento.vendaId).push(movimento);
+    } else {
+      avulsas.push(movimento);
     }
+  });
 
-    return `
-      <div class="record">
-        <strong>${escapar(m.descricao)}</strong>
-        <p>${formatarData(m.data)} • ${m.tipo === "entrada" ? "Entrada" : "Saída"}</p>
-        <strong>${moeda(m.valor)}</strong>
-        <div class="record-actions">${acao}</div>
-      </div>
-    `;
-  }).join("") || '<div class="empty-state">Nenhuma movimentação neste período.</div>';
+  const cartoesVenda = [...vendasAgrupadas.entries()].map(([vendaId, itens]) => {
+    const venda = db.vendas.find(item => String(item.id) === String(vendaId));
+    const aluno = venda ? db.alunos.find(item => String(item.id) === String(venda.alunoId)) : null;
+    const dataMaisRecente = itens.map(item => String(item.data || "")).sort().reverse()[0] || "";
+    const totalEntrada = itens.filter(item => item.tipo === "entrada").reduce((s, item) => s + Number(item.valor || 0), 0);
+    const totalDevolvido = itens.filter(item => item.tipo === "saida").reduce((s, item) => s + Number(item.valor || 0), 0);
+    const linhas = [...itens].sort((a, b) => String(b.data || "").localeCompare(String(a.data || ""))).map(item => {
+      const entrada = item.tipo === "entrada";
+      const devolucao = !entrada && /^devolu/i.test(String(item.descricao || ""));
+      return `<div class="finance-sale-line">
+        <span class="finance-line-icon ${entrada ? "finance-line-in" : "finance-line-out"}">${entrada ? "↗" : "↙"}</span>
+        <div class="finance-line-copy"><strong>${escapar(item.descricao || (entrada ? "Entrada da venda" : "Saída da venda"))}</strong><span>${escapar(formatarData(item.data))} · ${devolucao ? "Devolução" : entrada ? "Entrada" : "Saída"}</span></div>
+        <strong class="finance-line-value ${entrada ? "finance-positive" : "finance-negative"}">${entrada ? "+" : "−"}${moeda(item.valor)}</strong>
+      </div>`;
+    }).join("");
+    const possuiAluguel = (venda?.itens || []).some(item => item.fixedItemKey === "aluguel_veiculo");
+    const acao = venda && itens.some(item => item.tipo === "entrada")
+      ? `<button type="button" class="secondary-button finance-action" data-print-sale="${escapar(venda.id)}">Imprimir recibo</button>
+         ${!possuiAluguel ? `<button type="button" class="secondary-button finance-action" data-delete-venda="${escapar(venda.id)}">Excluir venda</button>` : ""}`
+      : "";
+    return {
+      data: dataMaisRecente,
+      html: `<article class="finance-sale-card">
+        <div class="finance-sale-heading">
+          <div><span class="finance-kicker">VENDA</span><h4>${escapar(aluno?.nome || "Aluno não identificado")}</h4>
+            <p>${venda ? escapar(formatarData(venda.data)) : "Venda vinculada"} ${venda?.formaPagamento ? "· " + escapar(venda.formaPagamento) : ""}</p></div>
+          <div class="finance-sale-total"><span>Valor da venda</span><strong>${moeda(venda?.valorTotal ?? totalEntrada)}</strong></div>
+        </div>
+        <div class="finance-sale-lines">${linhas}</div>
+        <div class="finance-sale-footer"><span>Entradas no período: <strong>${moeda(totalEntrada)}</strong></span><span>Devoluções no período: <strong>${moeda(totalDevolvido)}</strong></span>${acao}</div>
+      </article>`
+    };
+  });
+
+  const cartoesAvulsos = avulsas.map(item => {
+    const entrada = item.tipo === "entrada";
+    return {
+      data: String(item.data || ""),
+      html: `<article class="finance-movement-card">
+        <span class="finance-line-icon ${entrada ? "finance-line-in" : "finance-line-out"}">${entrada ? "↗" : "↙"}</span>
+        <div class="finance-line-copy"><strong>${escapar(item.descricao)}</strong><span>${escapar(formatarData(item.data))} · ${entrada ? "Entrada" : "Despesa"}</span></div>
+        <strong class="finance-line-value ${entrada ? "finance-positive" : "finance-negative"}">${entrada ? "+" : "−"}${moeda(item.valor)}</strong>
+        ${!entrada ? `<button type="button" class="secondary-button finance-action" data-delete-despesa="${escapar(item.id)}">Excluir despesa</button>` : ""}
+      </article>`
+    };
+  });
+
+  const cartoes = [...cartoesVenda, ...cartoesAvulsos].sort((a, b) => b.data.localeCompare(a.data));
+  lista.innerHTML = cartoes.map(item => item.html).join("") ||
+    '<div class="empty-state">Nenhuma movimentação neste período.</div>';
 }
 
 
@@ -1723,17 +1823,18 @@ async function excluirProduto(id) {
 ========================================= */
 
 
-function abrirVenda() {
+async function abrirVenda() {
   if (!db.alunos.length) {
     mostrarAviso("Cadastre um aluno primeiro.");
     return;
   }
 
   const produtosAtivos = db.produtos.filter(p => p.ativo !== false);
-  if (!produtosAtivos.length) {
-    mostrarAviso("Cadastre um produto ou serviço ativo primeiro.");
-    return;
-  }
+  const clientePrecos = window.getMarcusSupabase?.();
+  const { data: fx, error: fxError } = await clientePrecos.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", adminSupabaseUserId).maybeSingle();
+  if (fxError) { mostrarAviso("Não foi possível carregar os preços dos itens fixos."); return; }
+  const itensFixos = [{key:"aluguel_veiculo",nome:"Aluguel de Veículo",preco:Number(fx?.aluguel_veiculo_preco||0)},{key:"cartao_moto_pista",nome:"Cartão Moto Pista",preco:Number(fx?.cartao_moto_pista_preco||0)}].filter(x=>x.preco>0);
+  if (!produtosAtivos.length && !itensFixos.length) { mostrarAviso("Cadastre produtos/serviços ou configure os preços em Produtos e Serviços."); return; }
 
   const itensCarrinho = [];
 
@@ -1754,6 +1855,7 @@ function abrirVenda() {
         ${produtosAtivos.map(p =>
           `<option value="${p.id}">${escapar(p.nome)} — ${moeda(p.preco)}</option>`
         ).join("")}
+        ${itensFixos.map(x => `<option value="fixed:${x.key}">${x.nome} — ${moeda(x.preco)}</option>`).join("")}
       </select>
 
       <label>Quantidade</label>
@@ -1874,14 +1976,16 @@ function abrirVenda() {
   campoValorDesconto.oninput = atualizarCarrinho;
 
   document.getElementById("adicionarItemVenda").onclick = () => {
+    const fixo = campoProduto.value.startsWith("fixed:") ? itensFixos.find(x => x.key === campoProduto.value.slice(6)) : null;
     const produto = produtosAtivos.find(p => p.id === campoProduto.value);
     const quantidade = numero(campoQuantidade.value);
 
-    if (!produto || !Number.isInteger(quantidade) || quantidade < 1) {
+    if ((!produto && !fixo) || !Number.isInteger(quantidade) || quantidade < 1) {
       mostrarAviso("Selecione um item e informe uma quantidade válida.");
       return;
     }
 
+    if (fixo) { itensCarrinho.push({produtoId:null,fixedItemKey:fixo.key,nome:fixo.nome,tipo:"produto",quantidade,precoUnitario:fixo.preco,total:Math.round(fixo.preco*quantidade*100)/100,aulasContratadas:0}); campoProduto.value=""; campoQuantidade.value="1"; atualizarCarrinho(); return; }
     const tipo = produto.tipo ||
       (/pacote\s*(bronze|prata|ouro)|aula avulsa/i.test(produto.nome || "")
         ? "servico" : "produto");
@@ -1907,6 +2011,7 @@ function abrirVenda() {
 
     itensCarrinho.push({
       produtoId: produto.id,
+      fixedItemKey: null,
       nome: produto.nome,
       tipo,
       quantidade,
@@ -1971,15 +2076,11 @@ async function salvarVenda(evento, itensCarrinho) {
     const cliente = window.getMarcusSupabase?.();
     if (!cliente) throw new Error("Conexão com o Supabase indisponível.");
 
-    const { data, error } = await cliente.rpc("admin_create_sale", {
-      p_student_id: alunoId,
-      p_forma_pagamento: formaPagamento,
-      p_items: itensCarrinho.map(item => ({
-        product_id: item.produtoId,
-        quantidade: item.quantidade
-      })),
-      p_desconto_tipo: descontoTipo,
-      p_desconto_valor: descontoValor
+    const saleId = formulario.dataset.saleId || (formulario.dataset.saleId = crypto.randomUUID());
+    const { data, error } = await cliente.rpc("create_sale_with_fixed_items", {
+      p_sale_id:saleId, p_student_id:alunoId, p_payment_method:formaPagamento, p_notes:null,
+      p_items:itensCarrinho.map(item=>item.fixedItemKey?{fixed_item_key:item.fixedItemKey,quantidade:item.quantidade}:{product_id:item.produtoId,quantidade:item.quantidade}),
+      p_discount_type:descontoTipo, p_discount_value:descontoValor
     });
 
     if (error) throw error;
@@ -2010,59 +2111,51 @@ async function salvarVenda(evento, itensCarrinho) {
 ========================================= */
 
 function abrirDevolucao() {
-  const opcoes = [];
-
-  db.vendas.forEach(venda => {
-    const aluno = db.alunos.find(a => a.id === venda.alunoId);
-    (venda.itens || []).forEach(item => {
-      if (!item.saleItemId) return;
-
+  const vendasDisponiveis = db.vendas.map(venda => {
+    const aluno = db.alunos.find(item => String(item.id) === String(venda.alunoId));
+    const itens = (venda.itens || []).map(item => {
+      if (!item.saleItemId) return null;
       const tipo = item.tipo === "produto" ? "produto" : "servico";
-      const quantidadeOriginal = tipo === "produto"
-        ? Number(item.quantidade || 0)
-        : Number(item.aulasContratadas || 0);
-      const quantidadeDevolvida = tipo === "produto"
-        ? Number(item.quantidadeDevolvida || 0)
-        : Number(item.aulasDevolvidas || 0);
-      const disponiveis = Math.max(0, quantidadeOriginal - quantidadeDevolvida);
-
-      if (disponiveis <= 0) return;
-
+      const quantidadeOriginal = tipo === "produto" ? Number(item.quantidade || 0) : Number(item.aulasContratadas || 0);
+      const quantidadeDevolvida = tipo === "produto" ? Number(item.quantidadeDevolvida || 0) : Number(item.aulasDevolvidas || 0);
+      const saldoCompra = item.fixedItemKey === "aluguel_veiculo" ? Number(item.alugueisDisponiveisNaCompra || 0) : Infinity;
+      const disponiveis = Math.min(Math.max(0, quantidadeOriginal - quantidadeDevolvida), saldoCompra);
+      if (disponiveis <= 0) return null;
       const valorLiquido = Number(item.valorLiquido ?? item.total ?? 0);
       const valorUnitario = tipo === "produto"
         ? (quantidadeOriginal > 0 ? valorLiquido / quantidadeOriginal : 0)
         : Number(item.valorPorAula || 0);
+      return { valor: tipo + ":" + item.saleItemId, tipo, item, disponiveis, valorUnitario, unidade: item.fixedItemKey === "aluguel_veiculo" ? "aluguel(is)" : tipo === "produto" ? "unidade(s)" : "aula(s)" };
+    }).filter(Boolean);
+    return { venda, aluno, itens };
+  }).filter(grupo => grupo.itens.length > 0 && grupo.venda.status !== "cancelada");
 
-      opcoes.push({
-        valor: item.saleItemId,
-        tipo,
-        texto: `${aluno?.nome || "Aluno"} — ${item.nome} — ${disponiveis} ${tipo === "produto" ? "unidades" : "aulas"} disponíveis`,
-        item,
-        disponiveis,
-        valorUnitario
-      });
-    });
-  });
-
-  if (!opcoes.length) {
-    mostrarAviso("Não existem produtos ou serviços disponíveis para devolução.");
+  if (!vendasDisponiveis.length) {
+    mostrarAviso("Não existem vendas com itens disponíveis para devolução.");
     return;
   }
 
   abrirModal(`
-    <h2>Devolução de produtos e serviços</h2>
+    <h2>Devolução por venda</h2>
+    <p class="refund-modal-intro">Primeiro selecione a venda. Depois escolha somente os itens pertencentes a ela.</p>
     <form id="formDevolucao">
-      <label>Item da venda</label>
-      <select name="itemVenda" id="devolucaoItemVenda" required>
-        <option value="">Selecione</option>
-        ${opcoes.map(o => `<option value="${o.tipo}:${o.valor}">${escapar(o.texto)}</option>`).join("")}
+      <label for="devolucaoVenda">Venda</label>
+      <select name="vendaId" id="devolucaoVenda" required>
+        <option value="">Selecione uma venda</option>
+        ${vendasDisponiveis.map(grupo => {
+          const venda = grupo.venda;
+          const nome = grupo.aluno?.nome || "Aluno";
+          return `<option value="${escapar(venda.id)}">${escapar(nome)} · ${escapar(formatarData(venda.data))} · ${moeda(venda.valorTotal)} · ${grupo.itens.length} item(ns) disponíveis</option>`;
+        }).join("")}
       </select>
-      <label id="devolucaoRotuloQuantidade">Quantidade para devolver</label>
+      <div id="devolucaoResumoVenda" class="refund-sale-summary">Selecione uma venda para visualizar seus itens.</div>
+      <label for="devolucaoItemVenda">Item desta venda</label>
+      <select name="itemVenda" id="devolucaoItemVenda" required disabled>
+        <option value="">Selecione primeiro uma venda</option>
+      </select>
+      <label id="devolucaoRotuloQuantidade" for="devolucaoQuantidade">Quantidade para devolver</label>
       <input name="quantidade" id="devolucaoQuantidade" type="number" min="1" step="1" required disabled>
-      <div id="devolucaoPrevia" style="margin:14px 0;padding:12px;border:1px solid #d5dce5;border-radius:10px;background:#f7f9fc;">
-        <strong>Resumo da devolução</strong>
-        <p style="margin:8px 0 0;">Selecione um item e informe a quantidade para calcular o estorno.</p>
-      </div>
+      <div id="devolucaoPrevia" class="refund-preview"><strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p></div>
       <div class="modal-actions">
         <button type="button" class="secondary-button" data-close>Cancelar</button>
         <button type="submit" class="primary-button">Confirmar devolução</button>
@@ -2071,71 +2164,61 @@ function abrirDevolucao() {
   `);
 
   const formulario = document.getElementById("formDevolucao");
-  const seletor = formulario.elements.itemVenda;
+  const seletorVenda = formulario.elements.vendaId;
+  const seletorItem = formulario.elements.itemVenda;
   const campoQuantidade = formulario.elements.quantidade;
   const rotuloQuantidade = document.getElementById("devolucaoRotuloQuantidade");
   const previa = document.getElementById("devolucaoPrevia");
-
-  const moeda = valor => Number(valor || 0).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL"
-  });
+  const resumoVenda = document.getElementById("devolucaoResumoVenda");
+  let opcoesAtuais = [];
 
   const atualizarPrevia = () => {
-    const [tipoSelecionado, idSelecionado] = (seletor.value || ":").split(":");
-    const opcao = opcoes.find(o => o.valor === idSelecionado && o.tipo === tipoSelecionado);
-
+    const opcao = opcoesAtuais.find(item => item.valor === seletorItem.value);
     if (!opcao) {
       campoQuantidade.value = "";
       campoQuantidade.disabled = true;
       campoQuantidade.removeAttribute("max");
-      rotuloQuantidade.textContent = "Quantidade para devolver";
-      previa.innerHTML = "<strong>Resumo da devolução</strong><p style='margin:8px 0 0;'>Selecione um item e informe a quantidade para calcular o estorno.</p>";
+      previa.innerHTML = "<strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p>";
       return;
     }
-
-    const unidade = opcao.tipo === "produto" ? "unidades" : "aulas";
-    rotuloQuantidade.textContent = opcao.tipo === "produto"
-      ? "Unidades para devolver"
-      : "Aulas para devolver";
+    rotuloQuantidade.textContent = opcao.item.fixedItemKey === "aluguel_veiculo" ? "Aluguéis para devolver" : opcao.tipo === "produto" ? "Unidades para devolver" : "Aulas para devolver";
     campoQuantidade.disabled = false;
     campoQuantidade.max = String(opcao.disponiveis);
-
     const quantidade = Number(campoQuantidade.value || 0);
-    const quantidadeValida = Number.isInteger(quantidade) &&
-      quantidade >= 1 && quantidade <= opcao.disponiveis;
-    const valorLiquidoRestante = Math.max(
-      0,
-      Number(opcao.item.valorLiquido ?? opcao.item.total ?? 0) -
-      Number(opcao.item.valorDevolvido || 0)
-    );
-    const valorEstimado = quantidadeValida
-      ? Math.min(opcao.valorUnitario * quantidade, valorLiquidoRestante)
-      : 0;
-
-    previa.innerHTML = quantidadeValida
-      ? `<strong>Resumo da devolução</strong>
-         <p style="margin:8px 0 4px;">${opcao.tipo === "produto" ? "Unidades" : "Aulas"} a devolver: <strong>${quantidade}</strong> de ${opcao.disponiveis} disponíveis</p>
-         <p style="margin:0;">Valor por ${opcao.tipo === "produto" ? "unidade" : "aula"}: <strong>${moeda(opcao.valorUnitario)}</strong></p>
-         <p style="margin:6px 0 0;font-size:1.05em;">Estorno estimado: <strong>${moeda(valorEstimado)}</strong></p>`
-      : `<strong>Resumo da devolução</strong>
-         <p style="margin:8px 0 0;">Informe uma quantidade inteira entre 1 e ${opcao.disponiveis}.</p>`;
+    const valida = Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= opcao.disponiveis;
+    const restante = Math.max(0, Number(opcao.item.valorLiquido ?? opcao.item.total ?? 0) - Number(opcao.item.valorDevolvido || 0));
+    const estimado = valida ? Math.min(opcao.valorUnitario * quantidade, restante) : 0;
+    previa.innerHTML = valida
+      ? `<strong>Resumo da devolução</strong><p>${opcao.item.fixedItemKey === "aluguel_veiculo" ? "Aluguéis" : opcao.tipo === "produto" ? "Unidades" : "Aulas"}: <strong>${quantidade}</strong> de ${opcao.disponiveis} disponíveis</p><p>Valor unitário: <strong>${moeda(opcao.valorUnitario)}</strong></p><p class="refund-preview-total">Estorno estimado: <strong>${moeda(estimado)}</strong></p>`
+      : `<strong>Resumo da devolução</strong><p>Informe uma quantidade inteira entre 1 e ${opcao.disponiveis}.</p>`;
   };
 
-  seletor.addEventListener("change", atualizarPrevia);
+  seletorVenda.addEventListener("change", () => {
+    const grupo = vendasDisponiveis.find(item => String(item.venda.id) === seletorVenda.value);
+    opcoesAtuais = grupo?.itens || [];
+    seletorItem.innerHTML = '<option value="">Selecione um item desta venda</option>' +
+      opcoesAtuais.map(opcao => {
+        const unidade = opcao.unidade;
+        return `<option value="${escapar(opcao.valor)}">${escapar(opcao.item.nome)} · ${opcao.disponiveis} ${unidade}</option>`;
+      }).join("");
+    seletorItem.disabled = !opcoesAtuais.length;
+    resumoVenda.innerHTML = grupo
+      ? `<strong>${escapar(grupo.aluno?.nome || "Aluno")}</strong><span>Data: ${escapar(formatarData(grupo.venda.data))} · Pagamento: ${escapar(grupo.venda.formaPagamento || "Não informado")}</span><span>Valor original: ${moeda(grupo.venda.valorTotal)}</span>`
+      : "Selecione uma venda para visualizar seus itens.";
+    atualizarPrevia();
+  });
+  seletorItem.addEventListener("change", atualizarPrevia);
   campoQuantidade.addEventListener("input", atualizarPrevia);
-  formulario.onsubmit = evento => {
-    const [tipoSelecionado, idSelecionado] = (seletor.value || ":").split(":");
-    const opcao = opcoes.find(o => o.valor === idSelecionado && o.tipo === tipoSelecionado);
-    const quantidade = Number(campoQuantidade.value);
 
-    if (!opcao || !Number.isInteger(quantidade) ||
+  formulario.onsubmit = evento => {
+    const opcao = opcoesAtuais.find(item => item.valor === seletorItem.value);
+    const quantidade = Number(campoQuantidade.value);
+    if (!seletorVenda.value || !opcao || !Number.isInteger(quantidade) ||
         quantidade < 1 || quantidade > opcao.disponiveis) {
       evento.preventDefault();
-      mostrarAviso("Informe uma quantidade válida dentro do limite disponível.");
+      mostrarAviso("Selecione uma venda, um item dessa venda e uma quantidade válida.");
       return;
     }
-
     salvarDevolucao(evento);
   };
 }
@@ -2266,6 +2349,10 @@ function abrirDespesa() {
 async function excluirVenda(id) {
   const venda = db.vendas.find(v => v.id === id);
   if (!venda) return;
+  if ((venda.itens || []).some(item => item.fixedItemKey === "aluguel_veiculo")) {
+    mostrarAviso("Esta venda contém aluguéis de veículo e deve permanecer no histórico. Use a opção de devolução para ajustar o saldo.");
+    return;
+  }
 
   if (!(await confirmar("Excluir esta venda e seus lançamentos financeiros?"))) {
     return;
@@ -2842,33 +2929,56 @@ function importarBackup() {
 ========================================= */
 function aplicarLogo() {
   const elemento = document.querySelector(".brand-icon");
-
   if (!elemento) return;
-
-  const logo = db.configuracoes?.logo;
-
+  const logo = db.configuracoes?.logo || "";
   if (logo) {
     const imagem = document.createElement("img");
     imagem.src = logo;
-    imagem.alt = "Logo do aplicativo";
+    imagem.alt = "Logomarca da conta";
     elemento.replaceChildren(imagem);
   } else {
     elemento.textContent = "MI";
   }
-                                 }
+}
+
+function atualizarPreviewLogoAdmin(url) {
+  const preview = document.getElementById("logoEmpresaPreview");
+  const remover = document.getElementById("btnRemoverLogoEmpresa");
+  if (preview) {
+    preview.src = url || "";
+    preview.hidden = !url;
+  }
+  if (remover) remover.hidden = !url;
+}
+
+function validarArquivoLogo(arquivo) {
+  const tipos = ["image/png", "image/jpeg", "image/webp"];
+  if (!arquivo) return;
+  if (!tipos.includes(arquivo.type)) throw new Error("Use uma imagem PNG, JPG ou WEBP.");
+  if (arquivo.size > 2 * 1024 * 1024) throw new Error("A imagem deve ter no máximo 2 MB.");
+}
+
+function caminhoLogoConta(usuarioId) {
+  return String(usuarioId) + "/logo";
+}
+
 function carregarConfiguracoes() {
   const nome = document.getElementById("nomeEmpresa");
   const principal = document.getElementById("corPrincipal");
   const secundaria = document.getElementById("corSecundaria");
+  const arquivo = document.getElementById("logoEmpresa");
+  const remover = document.getElementById("btnRemoverLogoEmpresa");
 
   if (nome) nome.value = db.configuracoes.nome;
   if (principal) principal.value = db.configuracoes.corPrincipal;
   if (secundaria) secundaria.value = db.configuracoes.corSecundaria;
+  if (arquivo) arquivo.value = "";
+  atualizarPreviewLogoAdmin(db.configuracoes.logo || "");
+  if (remover) remover.onclick = removerLogoEmpresa;
 }
 
 async function salvarConfiguracoes() {
   const cliente = window.getMarcusSupabase?.();
-
   if (!cliente || !adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
     mostrarAviso("Não foi possível salvar: conexão administrativa com o Supabase indisponível.");
     return;
@@ -2878,65 +2988,77 @@ async function salvarConfiguracoes() {
   const nome = document.getElementById("nomeEmpresa").value.trim() || "Marcus Instrutor";
   const corPrincipal = document.getElementById("corPrincipal").value;
   const corSecundaria = document.getElementById("corSecundaria").value;
-  const arquivo = document.getElementById("logoEmpresa").files[0];
-
-  if (botao) {
-    botao.disabled = true;
-    botao.textContent = "Salvando...";
-  }
+  const arquivo = document.getElementById("logoEmpresa")?.files?.[0] || null;
+  if (botao) { botao.disabled = true; botao.textContent = "Salvando..."; }
 
   try {
-    let logoLocal = null;
-
+    validarArquivoLogo(arquivo);
+    let logoUrl = db.configuracoes.logo || null;
     if (arquivo) {
-      logoLocal = await new Promise((resolve, reject) => {
-        const leitor = new FileReader();
-        leitor.onload = () => resolve(leitor.result);
-        leitor.onerror = () => reject(new Error("Não foi possível ler o arquivo do logo."));
-        leitor.readAsDataURL(arquivo);
-      });
+      const caminho = caminhoLogoConta(adminSupabaseUserId);
+      const { error: uploadError } = await cliente.storage
+        .from("instructor-logos")
+        .upload(caminho, arquivo, { upsert: true, contentType: arquivo.type, cacheControl: "3600" });
+      if (uploadError) throw uploadError;
+      const { data: publicData } = cliente.storage.from("instructor-logos").getPublicUrl(caminho);
+      logoUrl = publicData?.publicUrl || null;
+      if (!logoUrl) throw new Error("Não foi possível obter o endereço da logomarca.");
     }
 
-    const { error } = await cliente
-      .from("app_settings")
-      .upsert({
-        owner_id: adminSupabaseUserId,
-        nome_empresa: nome,
-        cor_principal: corPrincipal,
-        cor_secundaria: corSecundaria
-      }, { onConflict: "owner_id" });
-
+    const { error } = await cliente.from("app_settings").upsert({
+      owner_id: adminSupabaseUserId,
+      nome_empresa: nome,
+      cor_principal: corPrincipal,
+      cor_secundaria: corSecundaria,
+      logo_url: logoUrl
+    }, { onConflict: "owner_id" });
     if (error) throw error;
 
     db.configuracoes.nome = nome;
     db.configuracoes.corPrincipal = corPrincipal;
     db.configuracoes.corSecundaria = corSecundaria;
-
-    // O arquivo de logo continua local até configurarmos o Storage.
-    if (logoLocal) db.configuracoes.logo = logoLocal;
-
+    db.configuracoes.logo = logoUrl || "";
+    db.configuracoes.logo_url = logoUrl || "";
     document.documentElement.style.setProperty("--primary", corPrincipal);
     document.documentElement.style.setProperty("--secondary", corSecundaria);
-
     const titulo = document.querySelector(".brand h1");
     if (titulo) titulo.textContent = nome;
-
     aplicarLogo();
+    atualizarPreviewLogoAdmin(logoUrl);
     salvarDados();
-
-    mostrarAviso(
-      logoLocal
-        ? "Nome e cores salvos na nuvem. O logo foi salvo somente neste navegador."
-        : "Configurações salvas na nuvem."
-    );
+    mostrarAviso("Configurações e logomarca salvas na nuvem.");
   } catch (erro) {
     console.error("Erro ao salvar configurações no Supabase:", erro);
-    mostrarAviso("Não foi possível salvar as configurações na nuvem. Nenhuma alteração foi confirmada.");
+    mostrarAviso(erro?.message || "Não foi possível salvar as configurações. Nenhuma alteração foi confirmada.");
   } finally {
-    if (botao) {
-      botao.disabled = false;
-      botao.textContent = "Salvar configurações";
-    }
+    if (botao) { botao.disabled = false; botao.textContent = "Salvar configurações"; }
+  }
+}
+
+async function removerLogoEmpresa() {
+  const cliente = window.getMarcusSupabase?.();
+  if (!cliente || !adminSupabaseUserId || !db.configuracoes.logo) return;
+  if (!(await confirmar("Deseja remover a logomarca desta conta?"))) return;
+  const botao = document.getElementById("btnRemoverLogoEmpresa");
+  if (botao) { botao.disabled = true; botao.textContent = "Removendo..."; }
+  try {
+    const caminho = caminhoLogoConta(adminSupabaseUserId);
+    const { error: storageError } = await cliente.storage.from("instructor-logos").remove([caminho]);
+    if (storageError) throw storageError;
+    const { error } = await cliente.from("app_settings")
+      .update({ logo_url: null }).eq("owner_id", adminSupabaseUserId);
+    if (error) throw error;
+    db.configuracoes.logo = "";
+    db.configuracoes.logo_url = "";
+    aplicarLogo();
+    atualizarPreviewLogoAdmin("");
+    salvarDados();
+    mostrarAviso("Logomarca removida desta conta.");
+  } catch (erro) {
+    console.error("Erro ao remover logomarca:", erro);
+    mostrarAviso("Não foi possível remover a logomarca. Tente novamente.");
+  } finally {
+    if (botao) { botao.disabled = false; botao.textContent = "Remover logomarca"; }
   }
 }
 /* =========================================
@@ -3030,6 +3152,13 @@ document.addEventListener("click", evento => {
     return;
   }
 
+  const abrirExamesAluno = evento.target.closest("[data-open-student-exams]");
+  if (abrirExamesAluno) {
+    if (window.MarcusExamsRentals?.openForStudent) window.MarcusExamsRentals.openForStudent(abrirExamesAluno.dataset.openStudentExams);
+    else mostrarAviso("O módulo de exames ainda está carregando. Atualize a página e tente novamente.");
+    return;
+  }
+
   const editarAluno = evento.target.closest("[data-edit-aluno]");
   if (editarAluno) {
     abrirFormularioAluno(editarAluno.dataset.editAluno);
@@ -3080,6 +3209,12 @@ document.addEventListener("click", evento => {
 
   if (evento.target.closest("#btnNovoProduto")) {
     editarProduto();
+    return;
+  }
+
+  const imprimirReciboBotao = evento.target.closest("[data-print-sale]");
+  if (imprimirReciboBotao) {
+    imprimirReciboVendaAdmin(imprimirReciboBotao.dataset.printSale);
     return;
   }
 
@@ -3334,11 +3469,43 @@ async function carregarDadosAdminSupabase() {
 
   const dados = Object.fromEntries(resultados);
 
+  const { data: rentalCreditRows, error: rentalCreditError } = await cliente
+    .from("student_rental_credits")
+    .select("sale_item_id,quantity_purchased,quantity_refunded,quantity_consumed");
+  if (rentalCreditError) throw new Error("Falha ao consultar os aluguéis disponíveis por compra: " + rentalCreditError.message);
+  const rentalCreditAvailability = new Map((rentalCreditRows || []).map(row => [
+    row.sale_item_id,
+    Math.max(0, Number(row.quantity_purchased || 0) -
+      Number(row.quantity_refunded || 0) - Number(row.quantity_consumed || 0))
+  ]));
+
+  const configuracoesNuvem = dados.app_settings?.[0] || null;
+  db.configuracoes = {
+    ...db.configuracoes,
+    nome: configuracoesNuvem?.nome_empresa || db.configuracoes.nome,
+    corPrincipal: configuracoesNuvem?.cor_principal || db.configuracoes.corPrincipal,
+    corSecundaria: configuracoesNuvem?.cor_secundaria || db.configuracoes.corSecundaria,
+    logo: configuracoesNuvem?.logo_url || "",
+    logo_url: configuracoesNuvem?.logo_url || ""
+  };
+  aplicarLogo();
+
   // A partir desta etapa, a lista de alunos do painel admin tem o Supabase
   // como fonte oficial. Os registros antigos do navegador permanecem
   // preservados no localStorage, mas não são misturados com os da nuvem.
   adminSupabaseUserId = usuario.id;
   adminAlunosSupabaseAtivo = true;
+
+  if (window.MarcusContractorProfile) {
+    try {
+      await window.MarcusContractorProfile.carregar(cliente, usuario.id);
+      window.MarcusContractorProfile.vincular(() => cliente, () => usuario.id);
+    } catch (erroCadastro) {
+      console.error("Não foi possível carregar o cadastro do responsável:", erroCadastro);
+      const statusCadastro = document.getElementById("statusDadosContratante");
+      if (statusCadastro) statusCadastro.textContent = "Não foi possível carregar seus dados. Confira a conexão e tente novamente.";
+    }
+  }
   db.alunos = (dados.students || []).map(a => ({
     id: a.id,
     nome: a.nome || "",
@@ -3350,6 +3517,8 @@ async function carregarDadosAdminSupabase() {
     situacao: statusAlunoParaTela(a.status),
     contratadas: Number(a.aulas_compradas || 0),
     saldo: Number(a.aulas_restantes || 0),
+    alugueisComprados: Number(a.alugueis_comprados || 0),
+    alugueisDisponiveis: Number(a.alugueis_disponiveis || 0),
     user_id: a.user_id || null,
     invited_at: a.invited_at || null
   }));
@@ -3375,6 +3544,8 @@ async function carregarDadosAdminSupabase() {
     situacao: statusAlunoParaTela(a.status),
     contratadas: Number(a.aulas_compradas || 0),
     saldo: Number(a.aulas_restantes || 0),
+    alugueisComprados: Number(a.alugueis_comprados || 0),
+    alugueisDisponiveis: Number(a.alugueis_disponiveis || 0),
     user_id: a.user_id || null,
     invited_at: a.invited_at || null
   }));
@@ -3429,6 +3600,7 @@ async function carregarDadosAdminSupabase() {
           ? "produto" : "servico");
       return {
         saleItemId: item.id,
+        fixedItemKey: item.fixed_item_key || null,
         produtoId: item.product_id,
         nome: item.descricao || produto?.nome || "Item",
         tipo,
@@ -3440,7 +3612,8 @@ async function carregarDadosAdminSupabase() {
         aulasDevolvidas: Number(item.aulas_devolvidas || 0),
         valorPorAula: Number(item.valor_por_aula || 0),
         valorDevolvido: Number(item.valor_devolvido || 0),
-        quantidadeDevolvida: Number(item.quantidade_devolvida || 0)
+        quantidadeDevolvida: Number(item.quantidade_devolvida || 0),
+        alugueisDisponiveisNaCompra: Number(rentalCreditAvailability.get(item.id) || 0)
       };
     });
     const aluno = alunos.find(a => a.id === v.student_id);
@@ -3539,6 +3712,25 @@ async function prepararDadosAdmin() {
    INICIALIZAÇÃO
 ========================================= */
 
+async function carregarPrecosItensFixos() {
+  const client=window.getMarcusSupabase?.(); if(!client||!adminSupabaseUserId)return;
+  const {data,error}=await client.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id",adminSupabaseUserId).maybeSingle();
+  const status=document.getElementById("statusPrecosFixos");
+  if(error){if(status)status.textContent="Não foi possível carregar os preços.";return;}
+  const aluguel=document.getElementById("precoAluguelFixo"),cartao=document.getElementById("precoCartaoFixo");
+  if(aluguel)aluguel.value=Number(data?.aluguel_veiculo_preco||0).toFixed(2);
+  if(cartao)cartao.value=Number(data?.cartao_moto_pista_preco||0).toFixed(2);
+}
+async function salvarPrecosItensFixos(){
+  const client=window.getMarcusSupabase?.(),aluguel=Number(document.getElementById("precoAluguelFixo")?.value),cartao=Number(document.getElementById("precoCartaoFixo")?.value);
+  const status=document.getElementById("statusPrecosFixos"),button=document.getElementById("btnSalvarPrecosFixos");
+  if(!client||!adminSupabaseUserId||!Number.isFinite(aluguel)||!Number.isFinite(cartao)||aluguel<0||cartao<0){if(status)status.textContent="Informe valores válidos.";return;}
+  if(button)button.disabled=true;
+  try{const {error}=await client.from("app_settings").upsert({owner_id:adminSupabaseUserId,aluguel_veiculo_preco:aluguel,cartao_moto_pista_preco:cartao},{onConflict:"owner_id"});if(error)throw error;if(status)status.textContent="Preços salvos nesta conta.";}
+  catch(error){console.error("Falha ao salvar preços fixos:",error);if(status)status.textContent=error.message||"Não foi possível salvar os preços.";}
+  finally{if(button)button.disabled=false;}
+}
+
 function iniciarAplicativo() {
   document.documentElement.style.setProperty(
     "--primary",
@@ -3564,6 +3756,8 @@ function iniciarAplicativo() {
   listarMovimentacoes();
   atualizarFinanceiro();
   listarProdutos();
+  carregarPrecosItensFixos();
+  document.getElementById("btnSalvarPrecosFixos")?.addEventListener("click",salvarPrecosItensFixos);
   mostrarPagina("inicio");
 
   console.log("Marcus Instrutor iniciado.");
