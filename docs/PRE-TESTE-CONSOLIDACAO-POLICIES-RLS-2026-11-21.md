@@ -102,6 +102,22 @@ No projeto isolado, após confirmar o rollback:
 - Performance Advisor: 16 ocorrências WARN de múltiplas policies permissivas nas quatro tabelas avaliadas; 10 índices INFO sem uso reportados em ambiente de baixo volume.
 - Os achados foram apenas consultados. Nenhum ajuste foi aplicado nesta rodada.
 
+
+## Revisão estática das RPCs financeiras — 22/11/2026
+
+Foram localizadas seis RPCs públicas que leem ou gravam nas tabelas avaliadas: `admin_create_sale`, `admin_delete_sale`, `admin_refund_sale_lessons`, `admin_refund_sale_product`, `create_instructor_sale` e `delete_my_sale`.
+
+A inspeção do catálogo no projeto isolado confirmou, para as seis:
+
+- `SECURITY INVOKER` (não SECURITY DEFINER), portanto as policies RLS do chamador continuam aplicáveis;
+- owner `postgres` e `search_path` vazio;
+- EXECUTE concedido a `authenticated`;
+- EXECUTE não concedido a `anon` nem a `PUBLIC`;
+- guards de papel via `private.current_app_role()` e filtros de escopo por `owner_id`;
+- as funções de criação verificam aluno/produto no escopo do chamador; as funções de estorno/exclusão verificam venda, item e aluno no escopo do chamador.
+
+Esta revisão foi estática e de catálogo, complementando os testes transacionais. Não substitui chamadas HTTP com JWT real nem revisão linha a linha de todos os demais objetos do schema.
+
 ## Recomendação
 
 A equivalência funcional das policies candidatas recebeu cobertura substancial, incluindo operações próprias, bloqueios cruzados e fluxos financeiros. Antes de criar migration persistente, ainda é necessário:
