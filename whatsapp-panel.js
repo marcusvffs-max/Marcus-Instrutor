@@ -294,6 +294,7 @@
           <button type="button" class="secondary-button" data-ver-mensagens="${escaparHtml(conversa.id)}" aria-expanded="false">Ver mensagens</button>
           <button type="button" class="secondary-button" data-excluir-conversa="${escaparHtml(conversa.id)}">Excluir registro</button>
           ${encerrada ? "" : `<button type="button" class="secondary-button" data-encerrar-conversa="${escaparHtml(conversa.id)}">Encerrar conversa (pausa 48h)</button>`}
+          <button type="button" class="secondary-button" data-assumir-conversa="${escaparHtml(conversa.id)}">${conversa.status === "atendimento_humano" ? "Renovar pausa humana (48h)" : "Assumir atendimento (pausar IA 48h)"}</button>
           <a class="whatsapp-open-link" href="https://wa.me/${String(conversa.telefone || "").replace(/\\D/g, "")}" target="_blank" rel="noopener noreferrer">Abrir conversa no WhatsApp</a>
         </div>
         <div class="whatsapp-transcript" id="historico-conversa-${escaparHtml(conversa.id)}" hidden></div>
@@ -456,6 +457,37 @@
     }
   }
 
+  async function assumirConversaWhatsapp(evento) {
+    const botao = evento.target.closest("[data-assumir-conversa]");
+    if (!botao) return;
+    const conversationId = botao.dataset.assumirConversa;
+    if (!conversationId) return;
+    const confirmacao = "Assumir o atendimento humano? A Assistente Virtual ficará pausada por 48 horas. Cada nova mensagem enviada pelo instrutor renovará esse prazo.";
+    if (typeof window.confirmar === "function") {
+      if (!await window.confirmar(confirmacao)) return;
+    } else if (!window.confirm(confirmacao)) return;
+
+    const supabase = typeof window.getMarcusSupabase === "function" ? window.getMarcusSupabase() : null;
+    if (!supabase) {
+      window.alert("Não foi possível conectar ao painel. Entre novamente no aplicativo.");
+      return;
+    }
+
+    botao.disabled = true;
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-manage-instructors", {
+        body: { action: "assume_whatsapp_conversation", conversation_id: conversationId },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Não foi possível assumir o atendimento.");
+      await carregarAtendimentosWhatsapp();
+    } catch (erro) {
+      console.error("Erro ao assumir atendimento do WhatsApp:", erro);
+      window.alert("Não foi possível assumir o atendimento. Tente novamente.");
+      botao.disabled = false;
+    }
+  }
+
   async function carregarAtendimentosWhatsapp(opcoes = {}) {
     const silencioso = opcoes.silent === true;
     const lista = document.getElementById("listaAtendimentosWhatsapp");
@@ -584,6 +616,10 @@
     const botaoMensagens = evento.target.closest("[data-ver-mensagens]");
     if (botaoMensagens) {
       carregarHistoricoConversaWhatsapp(botaoMensagens.dataset.verMensagens, botaoMensagens);
+      return;
+    }
+    if (evento.target.closest("[data-assumir-conversa]")) {
+      assumirConversaWhatsapp(evento);
       return;
     }
     if (evento.target.closest("[data-excluir-conversa]")) {
