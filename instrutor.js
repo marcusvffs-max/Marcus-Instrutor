@@ -409,14 +409,14 @@
             '<span><small>Telefone</small><strong>' + escapeHtml(student.telefone || "Não informado") + '</strong></span>' +
             '<span><small>Categoria</small><strong>' + escapeHtml(student.categoria || "Não definida") + '</strong></span>' +
             '<span><small>Aulas restantes</small><strong class="student-balance">' + escapeHtml(student.aulas_restantes ?? 0) + '</strong></span>' +
-            '<span><small>Aluguéis disponíveis</small><strong>' + escapeHtml(student.alugueis_disponiveis ?? 0) + ' de ' + escapeHtml(student.alugueis_comprados ?? 0) + '</strong></span>' +
+            '' +
           '</div>' +
           (student.email ? '<p class="student-card-email">' + escapeHtml(student.email) + '</p>' : '') +
           '<p class="student-card-email student-account-status"><small>Acesso do aluno: </small><strong class="' + accountClass + '">' + escapeHtml(accountStatus) + '</strong></p>' +
         '</div>' +
         '<div class="student-card-actions">' +
           inviteButton +
-          '<button class="button button-outline button-small" type="button" data-student-action="exams" data-student-id="' + escapeHtml(student.id) + '">Exames / aluguéis</button><button class="button button-outline button-small" type="button" data-student-action="view-link" data-student-id="' + escapeHtml(student.id) + '">Ver vínculo</button>' +
+          '<button class="button button-outline button-small" type="button" data-student-action="exams" data-student-id="' + escapeHtml(student.id) + '">Exames</button><button class="button button-outline button-small" type="button" data-student-action="view-link" data-student-id="' + escapeHtml(student.id) + '">Ver vínculo</button>' +
           '<button class="button button-outline button-small" type="button" data-student-action="edit" data-student-id="' + escapeHtml(student.id) + '">Editar</button>' +
           '<button class="button button-danger button-small" type="button" data-student-action="delete" data-student-id="' + escapeHtml(student.id) + '">Excluir</button>' +
         '</div>' +
