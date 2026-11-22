@@ -1250,7 +1250,12 @@
     const type = item.tipo_item === "produto" ? "produto" : "servico";
     const original = type === "produto" ? Number(item.quantidade || 0) : Number(item.aulas_contratadas || 0);
     const returned = type === "produto" ? Number(item.quantidade_devolvida || 0) : Number(item.aulas_devolvidas || 0);
-    const available = item.fixed_item_key === "aluguel_veiculo" ? 0 : Math.max(0, original - returned);
+    const sale = state.sales.find(entry => entry.id === item.sale_id);
+    const student = state.students.find(entry => entry.id === sale?.student_id);
+    const saleRemaining = Math.max(0, original - returned);
+    const available = item.fixed_item_key === "aluguel_veiculo"
+      ? Math.min(saleRemaining, Number(student?.alugueis_disponiveis || 0))
+      : saleRemaining;
     const netValue = Number(item.valor_liquido ?? item.subtotal ?? 0);
     const unitValue = type === "produto"
       ? (original > 0 ? netValue / original : 0)
@@ -1271,7 +1276,7 @@
       const itemSummary = items.map(item => {
         const info = refundableInstructorItem(item);
         return '<span class="sale-item-chip">' + escapeHtml(item.descricao || "Item") + ' · ' +
-          (info.type === "produto" ? info.available + " un. disponíveis" : info.available + " aulas disponíveis") + '</span>';
+          (item.fixed_item_key === "aluguel_veiculo" ? info.available + " aluguéis disponíveis" : info.type === "produto" ? info.available + " un. disponíveis" : info.available + " aulas disponíveis") + '</span>';
       }).join("");
       return '<article class="sale-history-card"><div class="sale-history-main"><strong>' + escapeHtml(studentName(sale.student_id)) +
         '</strong><span>' + escapeHtml(formatDate(sale.data_venda)) + ' · ' + escapeHtml(sale.forma_pagamento || "Pagamento não informado") +
