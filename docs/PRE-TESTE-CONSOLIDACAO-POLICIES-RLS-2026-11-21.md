@@ -46,4 +46,4 @@ A consolidação é candidata tecnicamente viável, mas deve permanecer fora do 
 2. executar novamente a matriz financeira completa;
 3. revisar os diffs finais das policies e obter resultado limpo nos Advisors aplicáveis.
 
-Nenhuma alteração em produção, Preview, Git migration ou projeto Supabase original foi realizada.
+Nenhuma alteração em produção ou no Supabase original foi realizada. O commit desta documentação acionou automaticamente a integração Git da Vercel, que gerou um Preview em estado `READY`; não foi executado deploy manual nem deploy de produção. O estado READY confirma a conclusão da implantação de Preview, não valida o login ou os fluxos funcionais autenticados.
