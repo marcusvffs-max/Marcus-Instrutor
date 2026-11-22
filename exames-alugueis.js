@@ -64,6 +64,7 @@
     const p=await client.from("profiles").select("role").eq("id",ownerId).maybeSingle();
     if(p.error||!["admin","instrutor"].includes(p.data?.role))return;
     role=p.data.role;nav();
+    $("btnPrecosItensFixos")?.addEventListener("click",()=>window.MarcusExamsRentals?.openPrices());
   }
   async function refresh(){
     say("Carregando...");
