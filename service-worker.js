@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v24-linked-student-access";
+const CACHE_NAME = "marcus-instrutor-v25-instructor-modal-forms";
 
 const ARQUIVOS = [
   "./",
@@ -8,7 +8,7 @@ const ARQUIVOS = [
   "./instrutor.html",
   "./style.css?v=admin-invite-refresh-1",
   "./instrutor.css?v=19-instructor-settings",
-  "./instrutor.js?v=29-linked-student-access",
+  "./instrutor.js?v=30-instructor-modal-forms",
   "./manifest.json"
 ];
 
