@@ -17,6 +17,7 @@
     vehicles: [],
     transactions: [],
     products: [],
+    fixedItemPrices: { aluguel: 0, cartao: 0 },
     sales: [],
     saleItems: [],
     refundSaleId: null,
@@ -1045,7 +1046,9 @@
   function updateProductSelects() {
     const options = '<option value="">Selecione um item</option>' + state.products
       .filter(product => product.ativo)
-      .map(product => '<option value="' + escapeHtml(product.id) + '">' + escapeHtml(productLabel(product)) + '</option>').join("");
+      .map(product => '<option value="' + escapeHtml(product.id) + '">' + escapeHtml(productLabel(product)) + '</option>').join("") +
+      (state.fixedItemPrices.aluguel > 0 ? '<option value="fixed:aluguel_veiculo">Aluguel de Veículo · ' + currency(state.fixedItemPrices.aluguel) + '</option>' : '') +
+      (state.fixedItemPrices.cartao > 0 ? '<option value="fixed:cartao_moto_pista">Cartão Moto Pista · ' + currency(state.fixedItemPrices.cartao) + '</option>' : '');
     el("vendaProduto").innerHTML = options;
   }
 
@@ -1160,15 +1163,22 @@
   }
 
   function addSaleCartItem() {
-    const product = state.products.find(item => item.id === el("vendaProduto").value && item.ativo);
+    const selected = el("vendaProduto").value;
+    const fixedKey = selected.startsWith("fixed:") ? selected.slice(6) : null;
+    const fixed = fixedKey === "aluguel_veiculo"
+      ? { name:"Aluguel de Veículo", price:state.fixedItemPrices.aluguel }
+      : fixedKey === "cartao_moto_pista" ? { name:"Cartão Moto Pista", price:state.fixedItemPrices.cartao } : null;
+    const product = state.products.find(item => item.id === selected && item.ativo);
     const quantity = Number(el("vendaQuantidade").value);
-    if (!product || !Number.isInteger(quantity) || quantity <= 0) {
+    if ((!product && !fixed) || !Number.isInteger(quantity) || quantity <= 0) {
       showMessage("Selecione um item ativo e informe uma quantidade válida.");
       return;
     }
-    const existing = state.saleCart.find(item => item.productId === product.id);
+    const existing = state.saleCart.find(item => fixedKey ? item.fixedItemKey === fixedKey : item.productId === product.id);
     if (existing) existing.quantity += quantity;
-    else state.saleCart.push({ productId: product.id, name: product.nome, unitPrice: Number(product.preco), quantity });
+    else state.saleCart.push(fixed
+      ? { productId:null, fixedItemKey:fixedKey, name:fixed.name, unitPrice:Number(fixed.price), quantity }
+      : { productId:product.id, fixedItemKey:null, name:product.nome, unitPrice:Number(product.preco), quantity });
     el("vendaProduto").value = "";
     el("vendaQuantidade").value = "1";
     renderSaleCart();
@@ -1181,7 +1191,7 @@
     const studentId = el("vendaAluno").value;
     if (!state.students.some(student => student.id === studentId)) { showMessage("Selecione um aluno válido."); return; }
     const button = el("btnSalvarVenda");
-    const items = state.saleCart.map(item => ({ product_id: item.productId, quantidade: item.quantity }));
+    const items = state.saleCart.map(item => item.fixedItemKey ? { fixed_item_key:item.fixedItemKey, quantidade:item.quantity } : { product_id:item.productId, quantidade:item.quantity });
     const saleRequest = {
       studentId,
       items,
@@ -1197,12 +1207,14 @@
     button.disabled = true;
     button.textContent = "Registrando...";
     try {
-      const { error } = await state.supabase.rpc("create_instructor_sale", {
+      const { error } = await state.supabase.rpc("create_sale_with_fixed_items", {
         p_sale_id: saleId,
         p_student_id: studentId,
         p_items: items,
         p_payment_method: saleRequest.paymentMethod,
-        p_notes: saleRequest.notes
+        p_notes: saleRequest.notes,
+        p_discount_type: "valor",
+        p_discount_value: 0
       });
       if (error) throw error;
 
@@ -1231,18 +1243,34 @@
     }
   }
 
+  async function saveFixedItemPrices() {
+    const aluguel=Number(el("precoAluguelFixoInstrutor").value),cartao=Number(el("precoCartaoFixoInstrutor").value);
+    const status=el("statusPrecosFixosInstrutor"),button=el("btnSalvarPrecosFixosInstrutor");
+    if(!Number.isFinite(aluguel)||!Number.isFinite(cartao)||aluguel<0||cartao<0){status.textContent="Informe valores válidos.";return;}
+    button.disabled=true;
+    try{const {error}=await state.supabase.from("app_settings").upsert({owner_id:state.user.id,aluguel_veiculo_preco:aluguel,cartao_moto_pista_preco:cartao},{onConflict:"owner_id"});if(error)throw error;state.fixedItemPrices={aluguel,cartao};updateProductSelects();status.textContent="Preços salvos nesta conta.";}
+    catch(error){console.error("Falha ao salvar preços fixos:",error);status.textContent=error.message||"Não foi possível salvar os preços.";}
+    finally{button.disabled=false;}
+  }
+
   async function loadProductsAndSales() {
-    const [productsResult, salesResult, saleItemsResult] = await Promise.all([
+    const [productsResult, salesResult, saleItemsResult, fixedPricesResult] = await Promise.all([
       state.supabase.from("products").select("id,nome,tipo,descricao,preco,quantidade_aulas,ativo").order("nome", { ascending: true }),
       state.supabase.from("sales").select("id,student_id,data_venda,total,forma_pagamento,status,observacoes,created_at").order("data_venda", { ascending: false }).order("created_at", { ascending: false }),
-      state.supabase.from("sale_items").select("id,sale_id,descricao,quantidade,tipo_item,aulas_contratadas,aulas_devolvidas,valor_por_aula,valor_liquido,valor_devolvido,quantidade_devolvida,subtotal,valor_unitario,fixed_item_key").eq("owner_id", state.user.id)
+      state.supabase.from("sale_items").select("id,sale_id,descricao,quantidade,tipo_item,aulas_contratadas,aulas_devolvidas,valor_por_aula,valor_liquido,valor_devolvido,quantidade_devolvida,subtotal,valor_unitario,fixed_item_key").eq("owner_id", state.user.id),
+      state.supabase.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", state.user.id).maybeSingle()
     ]);
     if (productsResult.error) throw productsResult.error;
     if (salesResult.error) throw salesResult.error;
     if (saleItemsResult.error) throw saleItemsResult.error;
+    if (fixedPricesResult.error) throw fixedPricesResult.error;
     state.products = productsResult.data || [];
     state.sales = salesResult.data || [];
     state.saleItems = saleItemsResult.data || [];
+    state.fixedItemPrices = { aluguel:Number(fixedPricesResult.data?.aluguel_veiculo_preco||0), cartao:Number(fixedPricesResult.data?.cartao_moto_pista_preco||0) };
+    const aluguelInput=el("precoAluguelFixoInstrutor"),cartaoInput=el("precoCartaoFixoInstrutor");
+    if(aluguelInput)aluguelInput.value=state.fixedItemPrices.aluguel.toFixed(2);
+    if(cartaoInput)cartaoInput.value=state.fixedItemPrices.cartao.toFixed(2);
     renderProducts();
     updateProductSelects();
     renderSales();
@@ -2266,6 +2294,7 @@
       el("vendaAluno").focus();
     });
     el("btnAdicionarItemVenda").addEventListener("click", addSaleCartItem);
+    el("btnSalvarPrecosFixosInstrutor")?.addEventListener("click", saveFixedItemPrices);
     el("itensCarrinhoVenda").addEventListener("click", event => {
       const button = event.target.closest("[data-cart-remove]");
       if (!button) return;
