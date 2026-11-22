@@ -304,7 +304,7 @@ Para as tabelas `sales`, `sale_items` e `financial_transactions`, sob instrutor 
 - INSERT de item associado à venda/produto do instrutor B: bloqueado por RLS (`42501`).
 - INSERT de transação associada a venda/aluno do instrutor B: bloqueado por RLS (`42501`).
 
-Resultado: **39 verificações de fluxo financeiro aprovadas após a correção**, somando os cenários de venda, idempotência, exclusão, consumo de aula, devoluções, limites e isolamento cruzado descritos acima. Todos os dados e mudanças de papel foram revertidos.
+Resultado: **41 verificações de fluxo financeiro aprovadas após a correção**, somando os cenários de venda, idempotência, exclusão, consumo de aula, devoluções, limites e isolamento cruzado descritos acima. Todos os dados e mudanças de papel foram revertidos.
 
 ### Limitações
 
@@ -321,7 +321,7 @@ Resultado: **39 verificações de fluxo financeiro aprovadas após a correção*
 - Quantidade abaixo do mínimo do pacote foi bloqueada com SQLSTATE `22023`.
 - Chamada direta de `delete_my_sale` por Instrutor A usando ID de venda de Instrutor B foi bloqueada com `P0002`, sem apagar a venda de B.
 
-Esses quatro casos completam o total de **39 verificações aprovadas** após a correção.
+Esses quatro casos completam o total de **41 verificações aprovadas** após a correção.
 
 
 ## Agenda do aluno e vínculo Auth — 21/11/2026
@@ -402,3 +402,13 @@ A função `admin-manage-instructors`:
 - não faz fallback para gravar vínculo fora do fluxo controlado pelo trigger/ação de confirmação.
 
 Esta é revisão estática do código. Não houve execução da Edge Function, chamada HTTP com JWT real, envio SMTP ou clique em link de e-mail.
+
+
+### Expiração da autorização na RPC de venda — aprovado
+
+Com o perfil de instrutor temporariamente expirado dentro de uma transação:
+
+- chamada direta a `create_instructor_sale`: bloqueada com `42501`;
+- nenhuma venda foi criada.
+
+Resultado: **2 verificações aprovadas**. A expiração temporária foi revertida.
