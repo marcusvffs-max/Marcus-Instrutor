@@ -307,8 +307,10 @@
           <div class="student-form-actions"><button id="btnSalvarVenda" class="button button-primary" type="submit" disabled>Confirmar venda</button></div>
         </form>
         <form id="formDevolucaoInstrutor" class="student-form" hidden>
-          <h4 id="tituloDevolucaoInstrutor">Devolução da venda</h4>
-          <div id="resumoVendaDevolucaoInstrutor" class="refund-sale-summary">Dados da venda selecionada.</div>
+          <h4 id="tituloDevolucaoInstrutor">Devolução de produtos e serviços</h4>
+          <label for="devolucaoVendaInstrutor">Venda *</label>
+          <select id="devolucaoVendaInstrutor" required><option value="">Selecione uma venda</option></select>
+          <div id="resumoVendaDevolucaoInstrutor" class="refund-sale-summary">Selecione uma venda para visualizar os itens disponíveis.</div>
           <label for="devolucaoItemInstrutor">Item desta venda *</label>
           <select id="devolucaoItemInstrutor" required><option value="">Selecione um item</option></select>
           <label for="devolucaoQuantidadeInstrutor">Quantidade para devolver *</label>
@@ -329,7 +331,10 @@
             <h3>Meu financeiro</h3>
             <p>Acompanhe suas entradas, despesas e saldo. Os dados são exclusivos da sua conta.</p>
           </div>
-          <button id="btnNovaMovimentacao" class="button button-primary" type="button">+ Nova movimentação</button>
+          <div class="finance-actions">
+            <button id="btnDevolucaoFinanceiro" class="button button-outline" type="button">↩ Devolução</button>
+            <button id="btnNovaMovimentacao" class="button button-primary" type="button">+ Nova movimentação</button>
+          </div>
         </div>
         <div class="finance-summary">
           <article class="finance-summary-card"><span>Entradas</span><strong id="financeEntradas">R$ 0,00</strong></article>
