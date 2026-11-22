@@ -1,8 +1,9 @@
 "use strict";
 
 (function () {
-  const SUPABASE_URL = "https://ydyqagqsuqntuibzgwzd.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
+  const USAR_SUPABASE_QA = ["marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app","marcusinstrutor-h80yg0tyd-marcusvffs-2839.vercel.app"].includes(window.location.hostname);
+  const SUPABASE_URL = USAR_SUPABASE_QA ? "https://voyjssflroiwdyaacthh.supabase.co" : "https://ydyqagqsuqntuibzgwzd.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = USAR_SUPABASE_QA ? "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9" : "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
   const el = id => document.getElementById(id);
   const state = { supabase: null, user: null };
 
