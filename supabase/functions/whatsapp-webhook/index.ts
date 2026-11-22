@@ -274,6 +274,7 @@ function readMenuChoice(message: any, content: unknown): string | null {
     ? content.trim().toLowerCase().replace(/[️⃣︎]/g, "").replace(/^\d+\s*/, "").trim()
     : "";
   if (/^(olá|ola|continuar|continuar com ia|continuar com o assistente|assistente virtual)$/i.test(text)) return "ia";
+  if (/^encerrar assistente$/i.test(text)) return "encerrar";
   if (/^(falar com instrutor|falar com marcus|atendimento humano)$/i.test(text)) return "humano";
   if (/^(menu|menu do detran|abrir menu do detran|ver segundo menu|segundo menu|mais opções|mais opcoes|voltar ao menu principal|menu principal)$/i.test(text)) return "menu_second";
   if (/^(menu do instrutor|abrir menu do instrutor|voltar ao menu principal|menu principal|voltar ao início|voltar ao inicio)$/i.test(text)) return "menu_main";
