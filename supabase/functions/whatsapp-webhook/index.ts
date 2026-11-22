@@ -1698,6 +1698,11 @@ Deno.serve(async (req: Request) => {
             const pauseUntil = alreadyPausedForTakeover
               ? existingConversation.ai_paused_until
               : new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
+            console.log("WhatsApp Business App message echo received; pausing AI for manual instructor service.", {
+              conversationId: existingConversation.id,
+              echoType,
+              pauseUntil,
+            });
             const { error: pauseError } = await supabase
               .from("whatsapp_conversations")
               .update({
