@@ -753,3 +753,6 @@ body.instructor-modal-open { overflow: hidden; }
   .sale-history-card .sale-state { grid-column:1; }
   .sale-history-actions { grid-column:1 / -1; justify-content:flex-start; }
 }
+
+.finance-actions { display:flex; flex-wrap:wrap; gap:8px; }
+@media (max-width:760px) { .finance-actions { width:100%; } .finance-actions .button { flex:1 1 auto; } }
