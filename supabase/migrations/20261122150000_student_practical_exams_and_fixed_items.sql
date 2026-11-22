@@ -45,7 +45,7 @@ BEGIN
  RETURN jsonb_build_object('exam_id',v_exam.id,'student_id',v_student.id,'resultado',p_resultado,'alugueis_disponiveis',v_student.alugueis_disponiveis-1);
 END; $function$;
 CREATE OR REPLACE FUNCTION public.cancel_student_practical_exam(p_exam_id uuid)
-RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $function$$
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $function$
 DECLARE v_uid uuid:=auth.uid(); v_exam public.student_practical_exams%rowtype;
 BEGIN
  IF v_uid IS NULL OR private.current_app_role() NOT IN ('admin','instrutor') THEN RAISE EXCEPTION 'Acesso permitido somente ao administrador ou instrutor.'; END IF;
