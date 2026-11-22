@@ -20,6 +20,7 @@
     fixedItemPrices: { aluguel: 0, cartao: 0 },
     sales: [],
     saleItems: [],
+    rentalCreditAvailability: new Map(),
     refundSaleId: null,
     productSearch: "",
     productEditingId: null,
@@ -1254,19 +1255,24 @@
   }
 
   async function loadProductsAndSales() {
-    const [productsResult, salesResult, saleItemsResult, fixedPricesResult] = await Promise.all([
+    const [productsResult, salesResult, saleItemsResult, fixedPricesResult, rentalCreditsResult] = await Promise.all([
       state.supabase.from("products").select("id,nome,tipo,descricao,preco,quantidade_aulas,ativo").order("nome", { ascending: true }),
       state.supabase.from("sales").select("id,student_id,data_venda,total,forma_pagamento,status,observacoes,created_at").order("data_venda", { ascending: false }).order("created_at", { ascending: false }),
       state.supabase.from("sale_items").select("id,sale_id,descricao,quantidade,tipo_item,aulas_contratadas,aulas_devolvidas,valor_por_aula,valor_liquido,valor_devolvido,quantidade_devolvida,subtotal,valor_unitario,fixed_item_key").eq("owner_id", state.user.id),
-      state.supabase.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", state.user.id).maybeSingle()
+      state.supabase.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", state.user.id).maybeSingle(),
+      state.supabase.rpc("get_student_rental_credit_availability", {})
     ]);
     if (productsResult.error) throw productsResult.error;
     if (salesResult.error) throw salesResult.error;
     if (saleItemsResult.error) throw saleItemsResult.error;
     if (fixedPricesResult.error) throw fixedPricesResult.error;
+    if (rentalCreditsResult.error) throw rentalCreditsResult.error;
     state.products = productsResult.data || [];
     state.sales = salesResult.data || [];
     state.saleItems = saleItemsResult.data || [];
+    state.rentalCreditAvailability = new Map((rentalCreditsResult.data || []).map(row => [
+      row.sale_item_id, Number(row.quantity_available || 0)
+    ]));
     state.fixedItemPrices = { aluguel:Number(fixedPricesResult.data?.aluguel_veiculo_preco||0), cartao:Number(fixedPricesResult.data?.cartao_moto_pista_preco||0) };
     const aluguelInput=el("precoAluguelFixoInstrutor"),cartaoInput=el("precoCartaoFixoInstrutor");
     if(aluguelInput)aluguelInput.value=state.fixedItemPrices.aluguel.toFixed(2);
@@ -1284,7 +1290,7 @@
     const student = state.students.find(entry => entry.id === sale?.student_id);
     const saleRemaining = Math.max(0, original - returned);
     const available = item.fixed_item_key === "aluguel_veiculo"
-      ? Math.min(saleRemaining, Number(student?.alugueis_disponiveis || 0))
+      ? Math.min(saleRemaining, Number(state.rentalCreditAvailability.get(item.id) || 0))
       : saleRemaining;
     const netValue = Number(item.valor_liquido ?? item.subtotal ?? 0);
     const unitValue = type === "produto"
