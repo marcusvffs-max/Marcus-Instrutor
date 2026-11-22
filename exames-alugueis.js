@@ -4,7 +4,7 @@
   const KEY = "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
   const $ = id => document.getElementById(id);
   let client, ownerId, role, students = [], exams = [], settings = {};
-  let activeTab = "resumo";
+  let activeTab = "historico";
   let selectedStudentId = null;
   let pendingFixedSaleId = null, pendingFixedSaleFingerprint = null;
 
@@ -47,7 +47,7 @@
     if($("marcus-exam-overlay"))return;
     injectStyle();
     const overlay=document.createElement("div");overlay.id="marcus-exam-overlay";
-    overlay.innerHTML='<section id="marcus-exam-dialog" role="dialog" aria-modal="true" aria-labelledby="mx-title"><header><h2 id="mx-title">Exames e aluguéis</h2><button id="marcus-exam-close" aria-label="Fechar">×</button></header><div id="marcus-exam-content"></div></section>';
+    overlay.innerHTML='<section id="marcus-exam-dialog" role="dialog" aria-modal="true" aria-labelledby="mx-title"><header><h2 id="mx-title">Exames</h2><button id="marcus-exam-close" aria-label="Fechar">×</button></header><div id="marcus-exam-content"></div></section>';
     document.body.append(overlay);
     $("marcus-exam-close").onclick=close;
     overlay.addEventListener("click",e=>{if(e.target===overlay)close();});
@@ -56,7 +56,7 @@
   }
   function escClose(e){if(e.key==="Escape")close();}
   function close(){ $("marcus-exam-overlay")?.remove();document.removeEventListener("keydown",escClose);}
-  function nav(){if($("marcus-exam-launch"))return;const actions=document.querySelector("#page-inicio .quick-actions");if(!actions)return;const b=document.createElement("button");b.id="marcus-exam-launch";b.type="button";b.className="primary-button";b.textContent="Exames e aluguéis";b.setAttribute("aria-label","Abrir exames e aluguéis");b.onclick=async()=>{selectedStudentId=null;activeTab="resumo";modal();await refresh();};actions.append(b);}
+  function nav(){if($("marcus-exam-launch"))return;const actions=document.querySelector("#page-inicio .quick-actions");if(!actions)return;const b=document.createElement("button");b.id="marcus-exam-launch";b.type="button";b.className="primary-button";b.textContent="Exames";b.setAttribute("aria-label","Abrir Exames");b.onclick=async()=>{selectedStudentId=null;activeTab="historico";modal();await refresh();};actions.append(b);}
   async function init(){
     if(!window.supabase?.createClient)return;
     client=window.getMarcusSupabase?.()||window.supabase.createClient(URL,KEY,{auth:{persistSession:true,autoRefreshToken:true,storage:window.sessionStorage,detectSessionInUrl:true}});
@@ -65,7 +65,6 @@
     const p=await client.from("profiles").select("role").eq("id",ownerId).maybeSingle();
     if(p.error||!["admin","instrutor"].includes(p.data?.role))return;
     role=p.data.role;nav();
-    $("btnPrecosItensFixos")?.addEventListener("click",()=>window.MarcusExamsRentals?.openPrices());
   }
   async function refresh(){
     say("Carregando...");
@@ -81,8 +80,7 @@
   function studentOptions(selected=selectedStudentId||""){return '<option value="">Selecione o aluno</option>'+students.map(s=>'<option value="'+esc(s.id)+'" '+(s.id===selected?'selected':'')+'>'+esc(s.nome)+'</option>').join("");}
   function render(){
     const host=$("marcus-exam-content");if(!host)return;
-    const tabs=[["resumo","Resumo"],["venda","Vender item"],["agendar","Agendar exame"],["historico","Histórico"],["precos","Preços"]];
-    if(selectedStudentId)tabs.push(["aluno","Aluno"]);
+    const tabs=[["historico","Histórico"],["agendar","Agendar exame"]];
     let body="";
     if(activeTab==="resumo"){
       body='<div class="mx-card"><h3>Saldo de aluguéis por aluno</h3><p class="mx-muted">Cada resultado de exame (aprovado ou reprovado) consome um aluguel. Agendamentos e cancelamentos não consomem.</p><div class="mx-scroll"><table class="mx-table"><thead><tr><th>Aluno</th><th>Comprados</th><th>Disponíveis</th><th>Exames</th></tr></thead><tbody>'+
@@ -164,9 +162,9 @@
     catch(e){say(e.message||"Não foi possível salvar os valores.");}finally{btn.disabled=false;}
   }
   window.MarcusExamsRentals={
-    open:async()=>{selectedStudentId=null;activeTab="resumo";modal();await refresh();},
+    open:async()=>{selectedStudentId=null;activeTab="historico";modal();await refresh();},
     openPrices:async()=>{selectedStudentId=null;activeTab="precos";modal();await refresh();},
-    openForStudent:async id=>{selectedStudentId=String(id);activeTab="aluno";modal();await refresh();}
+    openForStudent:async id=>{selectedStudentId=String(id);activeTab="historico";modal();await refresh();}
   };
   document.addEventListener("DOMContentLoaded",()=>{init().catch(e=>console.error("Módulo de exames e aluguéis:",e));});
   if(document.readyState!=="loading")init().catch(e=>console.error("Módulo de exames e aluguéis:",e));
