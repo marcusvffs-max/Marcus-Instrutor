@@ -166,27 +166,31 @@ async function sendInitialMenuSelection(
   conversationId: string,
   recipient: string,
 ) {
-  // Uma única mensagem interativa reúne o atendimento humano e todas as opções.
-  // Assim, o cliente abre "Ver opções" na própria saudação, sem receber outra
-  // mensagem de menu após tocar em um botão separado.
+  // Saudação e menu aprovados: manter o texto e as nove opções exatamente como
+  // apresentados ao aluno na versão de referência do WhatsApp.
   const rows = [
     { id: "menu_talk_marcus", title: "Falar com Instrutor", description: "Solicite atendimento direto com Marcus." },
     { id: "service_packages", title: "Pacotes e valores", description: "Consulte os pacotes disponíveis e seus preços." },
     { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
     { id: "service_registration_fee", title: "Taxa de inscrição", description: "Informações para emitir a taxa da primeira habilitação." },
     { id: "service_medical", title: "Exame médico", description: "Informações sobre o exame médico da habilitação." },
-    { id: "service_free_theory_course", title: "Curso Gratuito de Legislação", description: "Saiba como acessar o curso gratuito." },
+    { id: "service_free_theory_course", title: "Curso Gratuito", description: "de Legislação — saiba como acessar." },
     { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
     { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
+    { id: "menu_close_assistant", title: "Encerrar assistente", description: "Finalize e pause a assistente por 48 horas." },
   ];
+
+  const greeting =
+    "Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\\n\\n" +
+    "Escolha uma opção para começar. Toque em “Ver opções” para abrir o menu.\\n\\n" +
+    "A qualquer momento, digite Encerrar para finalizar e pausar a assistente por 48 horas. " +
+    "Para chamá-la novamente antes desse prazo, digite Olá.";
 
   const selection = {
     type: "interactive",
     interactive: {
       type: "list",
-      body: {
-        text: "Olá! Seja bem-vindo(a)! Como posso ajudar? Escolha uma opção abaixo:",
-      },
+      body: { text: greeting },
       footer: { text: "Atendimento do Instrutor Marcus." },
       action: {
         button: "Ver opções",
@@ -207,7 +211,7 @@ async function sendInitialMenuSelection(
       supabase,
       conversationId,
       recipient,
-      `Olá! Seja bem-vindo(a)! Como posso ajudar? Escolha uma opção abaixo:\n${rows.map((row) => `• ${row.title}`).join("\n")}\n\nResponda com o nome da opção desejada.`,
+      `${greeting}\n\n${rows.map((row) => `• ${row.title}`).join("\n")}`,
     );
   }
 }
