@@ -101,6 +101,14 @@
     host.querySelectorAll("[data-result]").forEach(b=>b.onclick=()=>recordResult(b.dataset.result,b.dataset.value));
     host.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>cancelExam(b.dataset.cancel));
   }
+  async function syncParentApp(){
+    if(role==="admin" && typeof carregarDadosAdminSupabase==="function"){
+      try{await carregarDadosAdminSupabase();if(typeof listarAlunos==="function")listarAlunos();if(typeof atualizarPainel==="function")atualizarPainel();}
+      catch(error){console.warn("Não foi possível atualizar o painel administrativo após a operação:",error);}
+    }else{
+      window.dispatchEvent(new Event("marcus-rentals-updated"));
+    }
+  }
   async function sell(ev){
     ev.preventDefault();const f=ev.currentTarget;const qty=Number(f.quantity.value);
     if(!Number.isInteger(qty)||qty<1||qty>100){say("Informe uma quantidade entre 1 e 100.");return;}
@@ -113,7 +121,7 @@
       const {error}=await client.rpc("register_fixed_item_sale",{p_sale_id:pendingFixedSaleId,p_student_id:request.student,p_fixed_item_key:request.item,p_quantity:qty,p_payment_method:request.payment,p_notes:request.notes});
       if(error)throw error;
       pendingFixedSaleId=null;pendingFixedSaleFingerprint=null;
-      try{await refresh();tab("resumo");say("Venda registrada com sucesso. "+(request.item==="aluguel_veiculo"?"O saldo de aluguéis foi atualizado.":"O Cartão Moto Pista foi lançado sem alterar o saldo."),false);}
+      try{await refresh();await syncParentApp();tab("resumo");say("Venda registrada com sucesso. "+(request.item==="aluguel_veiculo"?"O saldo de aluguéis foi atualizado.":"O Cartão Moto Pista foi lançado sem alterar o saldo."),false);}
       catch(refreshError){console.error("Venda fixa confirmada, mas houve falha ao atualizar a tela:",refreshError);say("A venda foi registrada. Atualize a tela para conferir os saldos.",false);}
     }catch(e){say(e.message||"Não foi possível registrar a venda. Você pode tentar novamente sem duplicar o lançamento.");}
     finally{btn.disabled=false;}
@@ -129,7 +137,7 @@
   async function recordResult(id,result){
     const label=result==="aprovado"?"APROVADO":"REPROVADO";
     if(!window.confirm("Confirmar resultado "+label+"? Esta ação consumirá 1 Aluguel de Veículo e não poderá ser desfeita."))return;
-    try{const {error}=await client.rpc("record_student_practical_exam_result",{p_exam_id:id,p_resultado:result});if(error)throw error;await refresh();tab("historico");say("Resultado registrado. Um aluguel foi consumido.",false);}
+    try{const {error}=await client.rpc("record_student_practical_exam_result",{p_exam_id:id,p_resultado:result});if(error)throw error;await refresh();await syncParentApp();tab("historico");say("Resultado registrado. Um aluguel foi consumido.",false);}
     catch(e){say(e.message||"Não foi possível registrar o resultado.");}
   }
   async function cancelExam(id){
