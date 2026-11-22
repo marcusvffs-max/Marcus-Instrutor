@@ -496,7 +496,7 @@
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("./service-worker.js?v=admin-contractor-profile-2", { updateViaCache: "none" })
+        navigator.serviceWorker.register("./service-worker.js?v=qa-preview-isolated-1", { updateViaCache: "none" })
           .then(function (registro) {
             return registro.update();
           })
@@ -511,8 +511,9 @@
   <script>
     (function () {
       "use strict";
-      const SUPABASE_URL = "https://ydyqagqsuqntuibzgwzd.supabase.co";
-      const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
+      const USAR_SUPABASE_QA = ["marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app","marcusinstrutor-h80yg0tyd-marcusvffs-2839.vercel.app"].includes(window.location.hostname);
+      const SUPABASE_URL = USAR_SUPABASE_QA ? "https://voyjssflroiwdyaacthh.supabase.co" : "https://ydyqagqsuqntuibzgwzd.supabase.co";
+      const SUPABASE_PUBLISHABLE_KEY = USAR_SUPABASE_QA ? "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9" : "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
       const formularioLogin = document.getElementById("formLogin");
       const campoEmail = document.getElementById("loginEmail");
       const campoSenha = document.getElementById("loginSenha");
@@ -545,7 +546,7 @@
       async function carregarPainelAdmin() {
         if (painelAdminCarregado) return;
         await carregarScript("contratante-perfil.js?v=2-cellphone");
-        await carregarScript("script.js?v=admin-student-exams-2");
+        await carregarScript("script.js?v=qa-preview-isolated-1");
         await carregarScript("exames-alugueis.js?v=2-student-history");
         await carregarScript("contratos.js?v=contratos33-profile-cell");
         await carregarScript("whatsapp-panel.js?v=whatsapp-history-delete-cycles-2");
