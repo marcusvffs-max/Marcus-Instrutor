@@ -1383,30 +1383,67 @@ function listarMovimentacoes() {
   const lista = document.getElementById("listaMovimentacoes");
   if (!lista) return;
 
-  const movimentos = obterMovimentacoesFiltradas().reverse();
+  const movimentos = obterMovimentacoesFiltradas();
+  const vendasAgrupadas = new Map();
+  const avulsas = [];
 
-  lista.innerHTML = movimentos.map(m => {
-    const venda = m.vendaId
-      ? db.vendas.find(v => v.id === m.vendaId)
-      : null;
-
-    let acao = "";
-
-    if (m.tipo === "saida" && !m.vendaId) {
-      acao = `<button type="button" data-delete-despesa="${m.id}">Excluir despesa</button>`;
-    } else if (m.tipo === "entrada" && venda) {
-      acao = `<button type="button" data-delete-venda="${venda.id}">Excluir venda</button>`;
+  movimentos.forEach(movimento => {
+    if (movimento.vendaId) {
+      if (!vendasAgrupadas.has(movimento.vendaId)) vendasAgrupadas.set(movimento.vendaId, []);
+      vendasAgrupadas.get(movimento.vendaId).push(movimento);
+    } else {
+      avulsas.push(movimento);
     }
+  });
 
-    return `
-      <div class="record">
-        <strong>${escapar(m.descricao)}</strong>
-        <p>${formatarData(m.data)} • ${m.tipo === "entrada" ? "Entrada" : "Saída"}</p>
-        <strong>${moeda(m.valor)}</strong>
-        <div class="record-actions">${acao}</div>
-      </div>
-    `;
-  }).join("") || '<div class="empty-state">Nenhuma movimentação neste período.</div>';
+  const cartoesVenda = [...vendasAgrupadas.entries()].map(([vendaId, itens]) => {
+    const venda = db.vendas.find(item => String(item.id) === String(vendaId));
+    const aluno = venda ? db.alunos.find(item => String(item.id) === String(venda.alunoId)) : null;
+    const dataMaisRecente = itens.map(item => String(item.data || "")).sort().reverse()[0] || "";
+    const totalEntrada = itens.filter(item => item.tipo === "entrada").reduce((s, item) => s + Number(item.valor || 0), 0);
+    const totalDevolvido = itens.filter(item => item.tipo === "saida").reduce((s, item) => s + Number(item.valor || 0), 0);
+    const linhas = [...itens].sort((a, b) => String(b.data || "").localeCompare(String(a.data || ""))).map(item => {
+      const entrada = item.tipo === "entrada";
+      const devolucao = !entrada && /^devolu/i.test(String(item.descricao || ""));
+      return `<div class="finance-sale-line">
+        <span class="finance-line-icon ${entrada ? "finance-line-in" : "finance-line-out"}">${entrada ? "↗" : "↙"}</span>
+        <div class="finance-line-copy"><strong>${escapar(item.descricao || (entrada ? "Entrada da venda" : "Saída da venda"))}</strong><span>${escapar(formatarData(item.data))} · ${devolucao ? "Devolução" : entrada ? "Entrada" : "Saída"}</span></div>
+        <strong class="finance-line-value ${entrada ? "finance-positive" : "finance-negative"}">${entrada ? "+" : "−"}${moeda(item.valor)}</strong>
+      </div>`;
+    }).join("");
+    const acao = venda && itens.some(item => item.tipo === "entrada")
+      ? `<button type="button" class="secondary-button finance-action" data-delete-venda="${escapar(venda.id)}">Excluir venda</button>`
+      : "";
+    return {
+      data: dataMaisRecente,
+      html: `<article class="finance-sale-card">
+        <div class="finance-sale-heading">
+          <div><span class="finance-kicker">VENDA</span><h4>${escapar(aluno?.nome || "Aluno não identificado")}</h4>
+            <p>${venda ? escapar(formatarData(venda.data)) : "Venda vinculada"} ${venda?.formaPagamento ? "· " + escapar(venda.formaPagamento) : ""}</p></div>
+          <div class="finance-sale-total"><span>Valor da venda</span><strong>${moeda(venda?.valorTotal ?? totalEntrada)}</strong></div>
+        </div>
+        <div class="finance-sale-lines">${linhas}</div>
+        <div class="finance-sale-footer"><span>Entradas no período: <strong>${moeda(totalEntrada)}</strong></span><span>Devoluções no período: <strong>${moeda(totalDevolvido)}</strong></span>${acao}</div>
+      </article>`
+    };
+  });
+
+  const cartoesAvulsos = avulsas.map(item => {
+    const entrada = item.tipo === "entrada";
+    return {
+      data: String(item.data || ""),
+      html: `<article class="finance-movement-card">
+        <span class="finance-line-icon ${entrada ? "finance-line-in" : "finance-line-out"}">${entrada ? "↗" : "↙"}</span>
+        <div class="finance-line-copy"><strong>${escapar(item.descricao)}</strong><span>${escapar(formatarData(item.data))} · ${entrada ? "Entrada" : "Despesa"}</span></div>
+        <strong class="finance-line-value ${entrada ? "finance-positive" : "finance-negative"}">${entrada ? "+" : "−"}${moeda(item.valor)}</strong>
+        ${!entrada ? `<button type="button" class="secondary-button finance-action" data-delete-despesa="${escapar(item.id)}">Excluir despesa</button>` : ""}
+      </article>`
+    };
+  });
+
+  const cartoes = [...cartoesVenda, ...cartoesAvulsos].sort((a, b) => b.data.localeCompare(a.data));
+  lista.innerHTML = cartoes.map(item => item.html).join("") ||
+    '<div class="empty-state">Nenhuma movimentação neste período.</div>';
 }
 
 
@@ -2010,59 +2047,50 @@ async function salvarVenda(evento, itensCarrinho) {
 ========================================= */
 
 function abrirDevolucao() {
-  const opcoes = [];
-
-  db.vendas.forEach(venda => {
-    const aluno = db.alunos.find(a => a.id === venda.alunoId);
-    (venda.itens || []).forEach(item => {
-      if (!item.saleItemId) return;
-
+  const vendasDisponiveis = db.vendas.map(venda => {
+    const aluno = db.alunos.find(item => String(item.id) === String(venda.alunoId));
+    const itens = (venda.itens || []).map(item => {
+      if (!item.saleItemId) return null;
       const tipo = item.tipo === "produto" ? "produto" : "servico";
-      const quantidadeOriginal = tipo === "produto"
-        ? Number(item.quantidade || 0)
-        : Number(item.aulasContratadas || 0);
-      const quantidadeDevolvida = tipo === "produto"
-        ? Number(item.quantidadeDevolvida || 0)
-        : Number(item.aulasDevolvidas || 0);
+      const quantidadeOriginal = tipo === "produto" ? Number(item.quantidade || 0) : Number(item.aulasContratadas || 0);
+      const quantidadeDevolvida = tipo === "produto" ? Number(item.quantidadeDevolvida || 0) : Number(item.aulasDevolvidas || 0);
       const disponiveis = Math.max(0, quantidadeOriginal - quantidadeDevolvida);
-
-      if (disponiveis <= 0) return;
-
+      if (disponiveis <= 0) return null;
       const valorLiquido = Number(item.valorLiquido ?? item.total ?? 0);
       const valorUnitario = tipo === "produto"
         ? (quantidadeOriginal > 0 ? valorLiquido / quantidadeOriginal : 0)
         : Number(item.valorPorAula || 0);
+      return { valor: item.saleItemId, tipo, item, disponiveis, valorUnitario };
+    }).filter(Boolean);
+    return { venda, aluno, itens };
+  }).filter(grupo => grupo.itens.length > 0 && grupo.venda.status !== "cancelada");
 
-      opcoes.push({
-        valor: item.saleItemId,
-        tipo,
-        texto: `${aluno?.nome || "Aluno"} — ${item.nome} — ${disponiveis} ${tipo === "produto" ? "unidades" : "aulas"} disponíveis`,
-        item,
-        disponiveis,
-        valorUnitario
-      });
-    });
-  });
-
-  if (!opcoes.length) {
-    mostrarAviso("Não existem produtos ou serviços disponíveis para devolução.");
+  if (!vendasDisponiveis.length) {
+    mostrarAviso("Não existem vendas com itens disponíveis para devolução.");
     return;
   }
 
   abrirModal(`
-    <h2>Devolução de produtos e serviços</h2>
+    <h2>Devolução por venda</h2>
+    <p class="refund-modal-intro">Primeiro selecione a venda. Depois escolha somente os itens pertencentes a ela.</p>
     <form id="formDevolucao">
-      <label>Item da venda</label>
-      <select name="itemVenda" id="devolucaoItemVenda" required>
-        <option value="">Selecione</option>
-        ${opcoes.map(o => `<option value="${o.tipo}:${o.valor}">${escapar(o.texto)}</option>`).join("")}
+      <label for="devolucaoVenda">Venda</label>
+      <select name="vendaId" id="devolucaoVenda" required>
+        <option value="">Selecione uma venda</option>
+        ${vendasDisponiveis.map(grupo => {
+          const venda = grupo.venda;
+          const nome = grupo.aluno?.nome || "Aluno";
+          return `<option value="${escapar(venda.id)}">${escapar(nome)} · ${escapar(formatarData(venda.data))} · ${moeda(venda.valorTotal)} · ${grupo.itens.length} item(ns) disponíveis</option>`;
+        }).join("")}
       </select>
-      <label id="devolucaoRotuloQuantidade">Quantidade para devolver</label>
+      <div id="devolucaoResumoVenda" class="refund-sale-summary">Selecione uma venda para visualizar seus itens.</div>
+      <label for="devolucaoItemVenda">Item desta venda</label>
+      <select name="itemVenda" id="devolucaoItemVenda" required disabled>
+        <option value="">Selecione primeiro uma venda</option>
+      </select>
+      <label id="devolucaoRotuloQuantidade" for="devolucaoQuantidade">Quantidade para devolver</label>
       <input name="quantidade" id="devolucaoQuantidade" type="number" min="1" step="1" required disabled>
-      <div id="devolucaoPrevia" style="margin:14px 0;padding:12px;border:1px solid #d5dce5;border-radius:10px;background:#f7f9fc;">
-        <strong>Resumo da devolução</strong>
-        <p style="margin:8px 0 0;">Selecione um item e informe a quantidade para calcular o estorno.</p>
-      </div>
+      <div id="devolucaoPrevia" class="refund-preview"><strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p></div>
       <div class="modal-actions">
         <button type="button" class="secondary-button" data-close>Cancelar</button>
         <button type="submit" class="primary-button">Confirmar devolução</button>
@@ -2071,71 +2099,61 @@ function abrirDevolucao() {
   `);
 
   const formulario = document.getElementById("formDevolucao");
-  const seletor = formulario.elements.itemVenda;
+  const seletorVenda = formulario.elements.vendaId;
+  const seletorItem = formulario.elements.itemVenda;
   const campoQuantidade = formulario.elements.quantidade;
   const rotuloQuantidade = document.getElementById("devolucaoRotuloQuantidade");
   const previa = document.getElementById("devolucaoPrevia");
-
-  const moeda = valor => Number(valor || 0).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL"
-  });
+  const resumoVenda = document.getElementById("devolucaoResumoVenda");
+  let opcoesAtuais = [];
 
   const atualizarPrevia = () => {
-    const [tipoSelecionado, idSelecionado] = (seletor.value || ":").split(":");
-    const opcao = opcoes.find(o => o.valor === idSelecionado && o.tipo === tipoSelecionado);
-
+    const opcao = opcoesAtuais.find(item => item.valor === seletorItem.value);
     if (!opcao) {
       campoQuantidade.value = "";
       campoQuantidade.disabled = true;
       campoQuantidade.removeAttribute("max");
-      rotuloQuantidade.textContent = "Quantidade para devolver";
-      previa.innerHTML = "<strong>Resumo da devolução</strong><p style='margin:8px 0 0;'>Selecione um item e informe a quantidade para calcular o estorno.</p>";
+      previa.innerHTML = "<strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p>";
       return;
     }
-
-    const unidade = opcao.tipo === "produto" ? "unidades" : "aulas";
-    rotuloQuantidade.textContent = opcao.tipo === "produto"
-      ? "Unidades para devolver"
-      : "Aulas para devolver";
+    rotuloQuantidade.textContent = opcao.tipo === "produto" ? "Unidades para devolver" : "Aulas para devolver";
     campoQuantidade.disabled = false;
     campoQuantidade.max = String(opcao.disponiveis);
-
     const quantidade = Number(campoQuantidade.value || 0);
-    const quantidadeValida = Number.isInteger(quantidade) &&
-      quantidade >= 1 && quantidade <= opcao.disponiveis;
-    const valorLiquidoRestante = Math.max(
-      0,
-      Number(opcao.item.valorLiquido ?? opcao.item.total ?? 0) -
-      Number(opcao.item.valorDevolvido || 0)
-    );
-    const valorEstimado = quantidadeValida
-      ? Math.min(opcao.valorUnitario * quantidade, valorLiquidoRestante)
-      : 0;
-
-    previa.innerHTML = quantidadeValida
-      ? `<strong>Resumo da devolução</strong>
-         <p style="margin:8px 0 4px;">${opcao.tipo === "produto" ? "Unidades" : "Aulas"} a devolver: <strong>${quantidade}</strong> de ${opcao.disponiveis} disponíveis</p>
-         <p style="margin:0;">Valor por ${opcao.tipo === "produto" ? "unidade" : "aula"}: <strong>${moeda(opcao.valorUnitario)}</strong></p>
-         <p style="margin:6px 0 0;font-size:1.05em;">Estorno estimado: <strong>${moeda(valorEstimado)}</strong></p>`
-      : `<strong>Resumo da devolução</strong>
-         <p style="margin:8px 0 0;">Informe uma quantidade inteira entre 1 e ${opcao.disponiveis}.</p>`;
+    const valida = Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= opcao.disponiveis;
+    const restante = Math.max(0, Number(opcao.item.valorLiquido ?? opcao.item.total ?? 0) - Number(opcao.item.valorDevolvido || 0));
+    const estimado = valida ? Math.min(opcao.valorUnitario * quantidade, restante) : 0;
+    previa.innerHTML = valida
+      ? `<strong>Resumo da devolução</strong><p>${opcao.tipo === "produto" ? "Unidades" : "Aulas"}: <strong>${quantidade}</strong> de ${opcao.disponiveis} disponíveis</p><p>Valor unitário: <strong>${moeda(opcao.valorUnitario)}</strong></p><p class="refund-preview-total">Estorno estimado: <strong>${moeda(estimado)}</strong></p>`
+      : `<strong>Resumo da devolução</strong><p>Informe uma quantidade inteira entre 1 e ${opcao.disponiveis}.</p>`;
   };
 
-  seletor.addEventListener("change", atualizarPrevia);
+  seletorVenda.addEventListener("change", () => {
+    const grupo = vendasDisponiveis.find(item => String(item.venda.id) === seletorVenda.value);
+    opcoesAtuais = grupo?.itens || [];
+    seletorItem.innerHTML = '<option value="">Selecione um item desta venda</option>' +
+      opcoesAtuais.map(opcao => {
+        const unidade = opcao.tipo === "produto" ? "unidade(s)" : "aula(s)";
+        return `<option value="${escapar(opcao.valor)}">${escapar(opcao.item.nome)} · ${opcao.disponiveis} ${unidade}</option>`;
+      }).join("");
+    seletorItem.disabled = !opcoesAtuais.length;
+    resumoVenda.innerHTML = grupo
+      ? `<strong>${escapar(grupo.aluno?.nome || "Aluno")}</strong><span>Data: ${escapar(formatarData(grupo.venda.data))} · Pagamento: ${escapar(grupo.venda.formaPagamento || "Não informado")}</span><span>Valor original: ${moeda(grupo.venda.valorTotal)}</span>`
+      : "Selecione uma venda para visualizar seus itens.";
+    atualizarPrevia();
+  });
+  seletorItem.addEventListener("change", atualizarPrevia);
   campoQuantidade.addEventListener("input", atualizarPrevia);
-  formulario.onsubmit = evento => {
-    const [tipoSelecionado, idSelecionado] = (seletor.value || ":").split(":");
-    const opcao = opcoes.find(o => o.valor === idSelecionado && o.tipo === tipoSelecionado);
-    const quantidade = Number(campoQuantidade.value);
 
-    if (!opcao || !Number.isInteger(quantidade) ||
+  formulario.onsubmit = evento => {
+    const opcao = opcoesAtuais.find(item => item.valor === seletorItem.value);
+    const quantidade = Number(campoQuantidade.value);
+    if (!seletorVenda.value || !opcao || !Number.isInteger(quantidade) ||
         quantidade < 1 || quantidade > opcao.disponiveis) {
       evento.preventDefault();
-      mostrarAviso("Informe uma quantidade válida dentro do limite disponível.");
+      mostrarAviso("Selecione uma venda, um item dessa venda e uma quantidade válida.");
       return;
     }
-
     salvarDevolucao(evento);
   };
 }
