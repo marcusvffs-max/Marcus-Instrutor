@@ -228,6 +228,17 @@
           </button>
         </div>
 
+        <div class="panel" id="precosItensFixosProdutos">
+          <h3>Preços de itens fixos</h3>
+          <p>Aluguel de Veículo e Cartão Moto Pista aparecem junto com os demais itens na hora de fazer uma venda.</p>
+          <div class="form-grid">
+            <div><label for="precoAluguelFixo">Aluguel de Veículo (R$)</label><input id="precoAluguelFixo" type="number" min="0" step="0.01"></div>
+            <div><label for="precoCartaoFixo">Cartão Moto Pista (R$)</label><input id="precoCartaoFixo" type="number" min="0" step="0.01"></div>
+          </div>
+          <button id="btnSalvarPrecosFixos" class="secondary-button" type="button">Salvar preços</button>
+          <p id="statusPrecosFixos" class="form-hint" role="status"></p>
+        </div>
+
         <input
           id="buscaProdutos"
           class="search-input"
@@ -362,12 +373,6 @@
           <button id="btnSalvarConfiguracoes" class="primary-button" type="button">
             Salvar configurações
           </button>
-        </div>
-
-        <div class="panel">
-          <h3>Itens fixos: aluguel e Cartão Moto Pista</h3>
-          <p>Configure os valores cobrados nesta conta. Esses itens não aparecem no catálogo comum de produtos.</p>
-          <button id="btnPrecosItensFixos" class="secondary-button" type="button">Configurar preços</button>
         </div>
 
         <div class="panel">
