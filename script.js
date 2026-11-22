@@ -577,7 +577,9 @@ async function salvarAluno(evento) {
       categoria: salvo.categoria || "B",
       situacao: statusAlunoParaTela(salvo.status),
       contratadas: Number(salvo.aulas_compradas || 0),
-      saldo: Number(salvo.aulas_restantes || 0)
+      saldo: Number(salvo.aulas_restantes || 0),
+      alugueisComprados: Number(alunoAnterior?.alugueisComprados || 0),
+      alugueisDisponiveis: Number(alunoAnterior?.alugueisDisponiveis || 0)
     };
 
     if (alunoAnterior) {
@@ -662,6 +664,7 @@ function listarAlunos() {
             <p>Categoria: ${escapar(a.categoria)}</p>
             <p>Situação: ${escapar(a.situacao)}</p>
             <p>Aulas restantes: <strong>${Number(a.saldo || 0)}</strong></p>
+            <p>Aluguéis de veículo disponíveis: <strong>${Number(a.alugueisDisponiveis || 0)}</strong> de ${Number(a.alugueisComprados || 0)} comprados</p>
           </div>
           <div class="record-actions">
             ${a.email ? `<button type="button" data-invite-aluno="${a.id}">${a.user_id ? "Reenviar acesso" : a.invited_at ? "Reenviar convite" : "Enviar convite"}</button>` : ""}
@@ -3489,6 +3492,8 @@ async function carregarDadosAdminSupabase() {
     situacao: statusAlunoParaTela(a.status),
     contratadas: Number(a.aulas_compradas || 0),
     saldo: Number(a.aulas_restantes || 0),
+    alugueisComprados: Number(a.alugueis_comprados || 0),
+    alugueisDisponiveis: Number(a.alugueis_disponiveis || 0),
     user_id: a.user_id || null,
     invited_at: a.invited_at || null
   }));
