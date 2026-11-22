@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v29-confirm-dialog-links";
+const CACHE_NAME = "marcus-instrutor-v30-individual-logos";
 
 const ARQUIVOS = [
   "./",
@@ -9,7 +9,7 @@ const ARQUIVOS = [
   "./style.css?v=admin-finance-refunds-2",
   "./admin-visual.css?v=admin-visual-1",
   "./instrutor.css?v=21-finance-refunds",
-  "./instrutor.js?v=32-no-link-toasts",
+  "./instrutor.js?v=33-instructor-logo",
   "./manifest.json"
 ];
 
