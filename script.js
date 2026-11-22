@@ -133,13 +133,13 @@ function numero(valor) {
   return Number(String(valor || "0").replace(",", ".")) || 0;
 }
 
-function mostrarAviso(mensagem) {
+function textoSemLinks(mensagem) {\n  return String(mensagem ?? "").replace(/\\b(?:https?:\\/\\/|www\\.)[^\\s<]+/gi, "[link ocultado]");\n}\n\nfunction mostrarAviso(mensagem) {
   const container = document.getElementById("toastContainer");
   if (!container) return;
 
   const aviso = document.createElement("div");
   aviso.className = "toast";
-  aviso.textContent = mensagem;
+  aviso.textContent = textoSemLinks(mensagem);
   container.appendChild(aviso);
 
   setTimeout(() => aviso.remove(), 3500);
@@ -166,7 +166,7 @@ function confirmar(mensagem) {
     titulo.textContent = "Confirmação";
     const texto = document.createElement("p");
     texto.style.whiteSpace = "pre-line";
-    texto.textContent = String(mensagem ?? "");
+    texto.textContent = textoSemLinks(mensagem);
 
     const acoes = document.createElement("div");
     acoes.className = "modal-actions";
@@ -682,7 +682,7 @@ async function enviarConviteAluno(id, botao) {
   }
   const reenviarAcesso = Boolean(aluno.user_id);
   const acao = reenviarAcesso ? "Reenviar link de acesso" : "Enviar convite";
-  if (!confirm(acao + " para " + aluno.nome + " (" + aluno.email + ")?\n\nConfira se este e-mail foi informado pelo próprio aluno. O cadastro só será vinculado depois que o titular confirmar o acesso pelo link enviado.")) return;
+  if (!await confirmar(acao + " para " + aluno.nome + " (" + aluno.email + ")?\n\nConfira se este e-mail foi informado pelo próprio aluno. O cadastro só será vinculado depois que o titular confirmar o acesso pelo link enviado.")) return;
 
   const textoOriginal = botao?.textContent || "Enviar convite";
   if (botao) {
