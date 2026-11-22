@@ -172,9 +172,7 @@ A confirmação de `private` na lista de schemas expostos da Data API continua p
 
 A equivalência funcional das policies candidatas recebeu cobertura transacional, a migration foi aplicada no projeto isolado e os smoke tests pós-aplicação passaram. Antes de qualquer integração com a branch principal, ainda é necessário:
 
-1. fazer revisão estática final das policies e de todas as RPCs que dependem de `sales`, `sale_items`, `financial_transactions` e `products`;
-2. revisar a lista de schemas expostos pela Data API no Dashboard do projeto isolado, pois essa confirmação não foi obtida via SQL;
-3. confirmar no Dashboard se o schema `private` está fora da lista de schemas expostos;
-4. validar por HTTP/PostgREST com JWT real e realizar homologação funcional antes de propor integração.
+1. confirmar no Dashboard do projeto isolado que o schema `private` não está na lista de schemas expostos pela Data API;
+2. validar por HTTP/PostgREST com JWT real e realizar homologação funcional do aplicativo antes de propor integração.
 
 Nenhuma alteração em produção ou no Supabase original foi realizada. Não houve merge nem deploy manual. Um Preview `READY` não valida login ou fluxos funcionais autenticados.
