@@ -308,6 +308,31 @@
         </div>
       </section>
 
+      <section id="page-cadastro" class="page">
+        <div class="page-heading">
+          <div><span class="eyebrow">IDENTIFICAÇÃO</span><h2>Meu cadastro</h2><p>Seus dados serão usados automaticamente nos contratos e no contato do WhatsApp dos alunos vinculados.</p></div>
+        </div>
+        <div class="panel">
+          <h3>Dados do administrador / responsável</h3>
+          <label for="contratanteNome">Nome completo / razão social *</label>
+          <input id="contratanteNome" type="text" maxlength="160" autocomplete="name">
+          <label for="contratanteDocumento">CPF / CNPJ *</label>
+          <input id="contratanteDocumento" type="text" maxlength="24" inputmode="numeric" autocomplete="off">
+          <label for="contratanteCelular">Celular / WhatsApp *</label>
+          <input id="contratanteCelular" type="tel" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="(00) 00000-0000">
+          <label for="contratanteNacionalidade">Nacionalidade</label>
+          <input id="contratanteNacionalidade" type="text" maxlength="80">
+          <label for="contratanteCivil">Estado civil</label>
+          <input id="contratanteCivil" type="text" maxlength="80">
+          <label for="contratanteProfissao">Profissão</label>
+          <input id="contratanteProfissao" type="text" maxlength="100">
+          <label for="contratanteEndereco">Endereço completo</label>
+          <textarea id="contratanteEndereco" rows="2" maxlength="300"></textarea>
+          <button id="btnSalvarDadosContratante" class="primary-button" type="button">Salvar cadastro</button>
+          <p id="statusDadosContratante" class="form-hint" role="status" aria-live="polite">Esses dados serão usados nos contratos e no WhatsApp dos alunos vinculados.</p>
+        </div>
+      </section>
+
       <section id="page-configuracoes" class="page">
         <div class="page-heading">
           <div>
@@ -353,17 +378,7 @@
         <div class="panel">
           <h3 id="tituloTipoContrato">Contrato de cliente</h3>
           <div class="contrato-tipos"><button type="button" class="primary-button active" data-tipo-contrato="cliente" onclick="try{if(typeof tipoC!=='function')throw new Error('A função tipoC não foi carregada');tipoC('cliente')}catch(e){document.getElementById('tituloTipoContrato').textContent='ERRO: '+e.message;console.error(e)}">Cliente</button><button type="button" class="secondary-button" data-tipo-contrato="parceiro" onclick="try{if(typeof tipoC!=='function')throw new Error('A função tipoC não foi carregada');tipoC('parceiro')}catch(e){document.getElementById('tituloTipoContrato').textContent='ERRO: '+e.message;console.error(e)}">Parceiro</button></div>
-          <div class="contrato-dados-contratante">
-            <h4>Dados do instrutor / contratante</h4>
-            <label for="contratanteNome">Nome completo</label><input id="contratanteNome" type="text" autocomplete="name">
-            <label for="contratanteDocumento">CPF / CNPJ</label><input id="contratanteDocumento" type="text" inputmode="numeric" autocomplete="off">
-            <label for="contratanteNacionalidade">Nacionalidade (necessária no contrato de parceria)</label><input id="contratanteNacionalidade" type="text">
-            <label for="contratanteCivil">Estado civil (necessário no contrato de parceria)</label><input id="contratanteCivil" type="text">
-            <label for="contratanteProfissao">Profissão (necessária no contrato de parceria)</label><input id="contratanteProfissao" type="text">
-            <label for="contratanteEndereco">Endereço completo (necessário no contrato de parceria)</label><textarea id="contratanteEndereco" rows="2"></textarea>
-            <button id="btnSalvarDadosContratante" class="secondary-button" type="button">Salvar meus dados</button>
-            <p id="statusDadosContratante" class="form-hint" role="status" aria-live="polite">Seus dados serão guardados na sua conta.</p>
-          </div>
+          <p class="form-hint">Os dados do responsável são preenchidos automaticamente pelo cadastro em <strong>Meu cadastro</strong>. Confira as informações antes de gerar o contrato.</p>
           <div id="formContratoCliente">
             <label for="contratoAluno">Usar aluno cadastrado</label><select id="contratoAluno"><option value="">Preencher manualmente</option></select>
             <label for="clienteNome">Nome completo</label><input id="clienteNome" type="text">
@@ -417,6 +432,7 @@
         <span>Relatórios</span>
       </button>
       <button type="button" data-page="contratos" class="menu-item"><span class="menu-icon">▧</span><span>Contratos</span></button>
+      <button type="button" data-page="cadastro" class="menu-item"><span class="menu-icon">♙</span><span>Meu cadastro</span></button>
       <button type="button" data-page="backup" class="menu-item">
         <span class="menu-icon">⇧</span>
         <span>Backup</span>
@@ -522,9 +538,9 @@
       }
       async function carregarPainelAdmin() {
         if (painelAdminCarregado) return;
-        await carregarScript("script.js?v=admin-logo-storage-1");
-        await carregarScript("contratante-perfil.js?v=1");
-        await carregarScript("contratos.js?v=contratos32-logo");
+        await carregarScript("script.js?v=admin-contractor-profile-2");
+        await carregarScript("contratante-perfil.js?v=2-cellphone");
+        await carregarScript("contratos.js?v=contratos33-profile-cell");
         await carregarScript("whatsapp-panel.js?v=whatsapp-no-confirm-links-1");
         await carregarScript("admin-users.js?v=admin-users-v6-no-links");
         painelAdminCarregado = true;
