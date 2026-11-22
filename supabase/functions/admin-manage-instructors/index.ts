@@ -287,9 +287,9 @@ Deno.serve(async (req: Request) => {
         const { data: reopenedConversation, error: reopenError } = await admin
           .from("whatsapp_conversations")
           .update({
-            status: "aguardando_escolha",
+            status: "encerrada",
             ai_paused_until: null,
-            ai_pause_reason: null,
+            ai_pause_reason: "instrutor_reativou_ia",
             quote_state: null,
             updated_at: new Date().toISOString(),
           })
