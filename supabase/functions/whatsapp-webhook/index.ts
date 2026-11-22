@@ -1694,15 +1694,8 @@ Deno.serve(async (req: Request) => {
             // Human-sent WhatsApp Business App messages are deliberately not
             // appended to the AI transcript. They only pause the assistant.
             const now = new Date();
-            const currentPauseMs = existingConversation.ai_paused_until
-              ? new Date(existingConversation.ai_paused_until).getTime()
-              : 0;
-            const alreadyPausedForTakeover =
-              existingConversation.status === "atendimento_humano" &&
-              currentPauseMs > now.getTime();
-            const pauseUntil = alreadyPausedForTakeover
-              ? existingConversation.ai_paused_until
-              : new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
+            // Cada mensagem enviada pelo instrutor renova a pausa por 48 horas.
+            const pauseUntil = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
             console.log("WhatsApp Business App message echo received; pausing AI for manual instructor service.", {
               conversationId: existingConversation.id,
               echoType,
@@ -1713,9 +1706,7 @@ Deno.serve(async (req: Request) => {
               .update({
                 status: "atendimento_humano",
                 ai_paused_until: pauseUntil,
-                ai_pause_reason: alreadyPausedForTakeover
-                  ? existingConversation.ai_pause_reason
-                  : "instrutor_assumiu_atendimento",
+                ai_pause_reason: "instrutor_assumiu_atendimento",
                 updated_at: now.toISOString(),
               })
               .eq("id", existingConversation.id)
@@ -1764,6 +1755,28 @@ Deno.serve(async (req: Request) => {
           ).toISOString();
           const reactivationGreeting = typeof content === "string" &&
             /^(olá|ola)$/i.test(content.normalize("NFKC").trim());
+
+          // Menus permanecem acessíveis durante pausas humanas/encerramentos,
+          // sem gravar a mensagem no histórico e sem reativar a IA.
+          if (
+            conversation &&
+            ["atendimento_humano", "encerrada"].includes(String(conversation.status)) &&
+            (menuChoice === "menu_main" || menuChoice === "menu_second")
+          ) {
+            const pauseDeadline = conversation.ai_paused_until
+              ? new Date(conversation.ai_paused_until).getTime()
+              : Number.POSITIVE_INFINITY;
+            const globallyDisabled = String(conversation.ai_pause_reason ?? "") === "ia_desativada_global";
+            if (pauseDeadline > Date.now() || globallyDisabled) {
+              if (menuChoice === "menu_main") {
+                await sendAttendanceMenu(supabase, conversation.id, phone);
+              } else {
+                await sendSecondServiceMenu(supabase, conversation.id, phone);
+              }
+              menusSent++;
+              continue;
+            }
+          }
 
           // While the global assistant is disabled, do not add incoming messages
           // to any AI transcript. Mark the current cycle as inactive so the next
@@ -1975,20 +1988,6 @@ Deno.serve(async (req: Request) => {
             });
             await sendInitialMenuSelection(supabase, conversation.id, phone);
             menusSent++;
-            continue;
-          }
-
-          // Durante atendimento humano, somente "Olá" pode reativar a Assistente Virtual.
-          // A mensagem "Menu" não deve interromper a conversa assumida pelo instrutor.
-          if (
-            conversationStatus === "atendimento_humano" &&
-            (menuChoice === "menu_main" || menuChoice === "menu_second")
-          ) {
-            await updateMessageMetadata(supabase, providerId, {
-              ai_status: "paused_for_human",
-              human_handoff: true,
-              ignored_command: "menu_during_human_handoff",
-            });
             continue;
           }
 
