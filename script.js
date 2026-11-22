@@ -3392,16 +3392,15 @@ async function carregarDadosAdminSupabase() {
   const dados = Object.fromEntries(resultados);
 
   const configuracoesNuvem = dados.app_settings?.[0] || null;
-  if (configuracoesNuvem) {
-    db.configuracoes = {
-      ...db.configuracoes,
-      nome: configuracoesNuvem.nome_empresa || db.configuracoes.nome,
-      corPrincipal: configuracoesNuvem.cor_principal || db.configuracoes.corPrincipal,
-      corSecundaria: configuracoesNuvem.cor_secundaria || db.configuracoes.corSecundaria,
-      logo: configuracoesNuvem.logo_url || "",
-      logo_url: configuracoesNuvem.logo_url || ""
-    };
-  }
+  db.configuracoes = {
+    ...db.configuracoes,
+    nome: configuracoesNuvem?.nome_empresa || db.configuracoes.nome,
+    corPrincipal: configuracoesNuvem?.cor_principal || db.configuracoes.corPrincipal,
+    corSecundaria: configuracoesNuvem?.cor_secundaria || db.configuracoes.corSecundaria,
+    logo: configuracoesNuvem?.logo_url || "",
+    logo_url: configuracoesNuvem?.logo_url || ""
+  };
+  aplicarLogo();
 
   // A partir desta etapa, a lista de alunos do painel admin tem o Supabase
   // como fonte oficial. Os registros antigos do navegador permanecem
