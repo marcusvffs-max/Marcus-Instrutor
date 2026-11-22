@@ -133,14 +133,48 @@ A inspeção do catálogo no projeto isolado confirmou, para as seis:
 
 Esta revisão foi estática e de catálogo, complementando os testes transacionais. Não substitui chamadas HTTP com JWT real nem revisão linha a linha de todos os demais objetos do schema.
 
+
+## Aplicação controlada no projeto isolado — 22/11/2026
+
+Após a bateria de regressão e a revisão estática, a migration foi criada na branch e aplicada **somente** no projeto isolado `voyjssflroiwdyaacthh`.
+
+- Migration registrada no Supabase: versão `20261122003833`, nome `consolidate_owner_policies_financial_tables`.
+- Arquivo versionado na branch: `supabase/migrations/20261122003833_consolidate_owner_policies_financial_tables.sql`.
+- O arquivo foi alinhado ao número de versão gerado pelo registro de migrations do Supabase, evitando divergência entre o histórico do projeto isolado e o nome do arquivo no repositório.
+- As quatro tabelas agora têm uma policy `FOR ALL` por owner: `products_owner_access`, `sales_owner_access`, `sale_items_owner_access` e `financial_transactions_owner_access`.
+- A consulta pós-aplicação confirmou exatamente quatro policies nessas tabelas, sem policies candidatas temporárias.
+- Nenhuma alteração foi feita no Supabase original.
+
+### Smoke tests após a aplicação persistente
+
+Foram executados **9/9 testes aprovados** em nova transação com claims simuladas e rollback dos dados:
+
+- instrutor cria venda e credita saldo;
+- venda para aluno de outro owner bloqueada;
+- uso de produto de outro owner bloqueado;
+- UPDATE de relação para aluno de outro owner bloqueado;
+- instrutor não visualiza vendas de outro owner;
+- administrador cria venda;
+- administrador devolve aulas e registra saída financeira;
+- excesso de devolução bloqueado;
+- administrador exclui venda e reverte saldo.
+
+### Advisors após a migration
+
+- Performance Advisor: as **16 ocorrências de múltiplas policies permissivas desapareceram** das quatro tabelas consolidadas.
+- Permanecem 10 avisos INFO de índices sem uso em ambiente de baixo volume.
+- Security Advisor permanece com os mesmos achados anteriores: duas tabelas internas de WhatsApp com RLS sem policies (INFO), duas RPCs públicas `SECURITY DEFINER` com guards internos (WARN) e proteção contra senhas vazadas desabilitada (WARN).
+- Não foi feita alteração para tratar esses avisos nesta etapa.
+
+A confirmação de `private` na lista de schemas expostos da Data API continua pendente de inspeção no Dashboard do projeto isolado. Também continuam pendentes testes HTTP/PostgREST com JWT real e homologação funcional do aplicativo.
+
 ## Recomendação
 
-A equivalência funcional das policies candidatas recebeu cobertura substancial, incluindo operações próprias, bloqueios cruzados e fluxos financeiros. Antes de criar migration persistente, ainda é necessário:
+A equivalência funcional das policies candidatas recebeu cobertura transacional, a migration foi aplicada no projeto isolado e os smoke tests pós-aplicação passaram. Antes de qualquer integração com a branch principal, ainda é necessário:
 
 1. fazer revisão estática final das policies e de todas as RPCs que dependem de `sales`, `sale_items`, `financial_transactions` e `products`;
 2. revisar a lista de schemas expostos pela Data API no Dashboard do projeto isolado, pois essa confirmação não foi obtida via SQL;
-3. se a revisão não encontrar divergências, preparar uma migration separada e aplicá-la somente no projeto isolado;
-4. executar novamente os Advisors e a matriz após a alteração persistente;
-5. validar por HTTP/PostgREST com JWT real antes de propor integração.
+3. confirmar no Dashboard se o schema `private` está fora da lista de schemas expostos;
+4. validar por HTTP/PostgREST com JWT real e realizar homologação funcional antes de propor integração.
 
 Nenhuma alteração em produção ou no Supabase original foi realizada. Não houve merge nem deploy manual. Um Preview `READY` não valida login ou fluxos funcionais autenticados.
