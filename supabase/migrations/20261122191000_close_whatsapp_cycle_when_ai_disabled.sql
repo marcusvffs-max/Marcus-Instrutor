@@ -20,7 +20,7 @@ create or replace function public.close_whatsapp_cycles_when_ai_disabled()
 returns trigger
 language plpgsql
 security definer
-set search_path = pg_catalog, public
+set search_path = ''
 as $$
 begin
   if old.enabled is distinct from new.enabled and new.enabled = false then
