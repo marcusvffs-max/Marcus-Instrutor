@@ -1,14 +1,14 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v25-instructor-modal-forms";
+const CACHE_NAME = "marcus-instrutor-v26-finance-refunds";
 
 const ARQUIVOS = [
   "./",
   "./index.html",
   "./instrutor.html",
-  "./style.css?v=admin-invite-refresh-1",
-  "./instrutor.css?v=19-instructor-settings",
-  "./instrutor.js?v=30-instructor-modal-forms",
+  "./style.css?v=admin-finance-refunds",
+  "./instrutor.css?v=21-finance-refunds",
+  "./instrutor.js?v=31-sale-refunds",
   "./manifest.json"
 ];
 
