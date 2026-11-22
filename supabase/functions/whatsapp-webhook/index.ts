@@ -207,7 +207,7 @@ async function sendInitialMenuSelection(
       supabase,
       conversationId,
       recipient,
-      `Olá! 👋 Sou a Assistente Virtual do Instrutor Marcus.\n\nEscolha uma opção:\n${fallback}\n\nResponda com o número da opção desejada.\n\nPara encerrar e pausar a assistente por 48 horas, digite Encerrar. Para chamá-la novamente antes desse prazo, digite Olá.`,
+      `Olá! Seja bem-vindo(a)! Como posso ajudar? Escolha uma opção abaixo:\n${rows.map((row) => `• ${row.title}`).join("\n")}\n\nResponda com o nome da opção desejada.`,
     );
   }
 }
