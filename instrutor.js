@@ -410,7 +410,7 @@
             '<span><small>Telefone</small><strong>' + escapeHtml(student.telefone || "Não informado") + '</strong></span>' +
             '<span><small>Categoria</small><strong>' + escapeHtml(student.categoria || "Não definida") + '</strong></span>' +
             '<span><small>Aulas restantes</small><strong class="student-balance">' + escapeHtml(student.aulas_restantes ?? 0) + '</strong></span>' +
-            '' +
+            '<span><small>Aluguéis disponíveis</small><strong>' + escapeHtml(student.alugueis_disponiveis ?? 0) + ' de ' + escapeHtml(student.alugueis_comprados ?? 0) + '</strong></span>' +
           '</div>' +
           (student.email ? '<p class="student-card-email">' + escapeHtml(student.email) + '</p>' : '') +
           '<p class="student-card-email student-account-status"><small>Acesso do aluno: </small><strong class="' + accountClass + '">' + escapeHtml(accountStatus) + '</strong></p>' +
