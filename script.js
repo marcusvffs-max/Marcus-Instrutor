@@ -2111,7 +2111,7 @@ function abrirDevolucao() {
   const vendasDisponiveis = db.vendas.map(venda => {
     const aluno = db.alunos.find(item => String(item.id) === String(venda.alunoId));
     const itens = (venda.itens || []).map(item => {
-      if (!item.saleItemId) return null;
+      if (!item.saleItemId || item.fixedItemKey === "aluguel_veiculo") return null;
       const tipo = item.tipo === "produto" ? "produto" : "servico";
       const quantidadeOriginal = tipo === "produto" ? Number(item.quantidade || 0) : Number(item.aulasContratadas || 0);
       const quantidadeDevolvida = tipo === "produto" ? Number(item.quantidadeDevolvida || 0) : Number(item.aulasDevolvidas || 0);
@@ -3573,6 +3573,7 @@ async function carregarDadosAdminSupabase() {
           ? "produto" : "servico");
       return {
         saleItemId: item.id,
+        fixedItemKey: item.fixed_item_key || null,
         produtoId: item.product_id,
         nome: item.descricao || produto?.nome || "Item",
         tipo,
