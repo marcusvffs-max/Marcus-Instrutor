@@ -171,7 +171,7 @@ test("resultado do exame consome crédito FIFO e vincula o exame à compra", () 
   assert.match(rentalCreditMigration, /SET quantity_consumed = quantity_consumed \+ 1/i);
   assert.match(rentalCreditMigration, /rental_credit_id = v_credit\.id/i);
   assert.match(rentalCreditMigration, /scheduled_at > now\(\)/i);
-  assert.match(rentalCreditMigration, /status = 'agendado'/i);
+  assert.match(rentalCreditMigration, /v_exam\.status <> 'agendado'/i);
 });
 
 test("devolução não ultrapassa os créditos não consumidos da própria compra", () => {
