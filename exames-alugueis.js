@@ -131,18 +131,18 @@
     if(!f.student.value||!f.date.value||!f.time.value){say("Informe aluno, data e horário.");return;}
     const scheduled=new Date(local);if(!Number.isFinite(scheduled.getTime())){say("Data ou horário inválido.");return;}
     const btn=f.querySelector("button[type=submit]");btn.disabled=true;
-    try{const {error}=await client.from("student_practical_exams").insert({owner_id:ownerId,student_id:f.student.value,scheduled_at:scheduled.toISOString(),status:"agendado",observacoes:f.notes.value.trim()||null});if(error)throw error;await refresh();tab("historico");say("Exame agendado. Nenhum aluguel foi descontado.",false);}
+    try{const {error}=await client.from("student_practical_exams").insert({owner_id:ownerId,student_id:f.student.value,scheduled_at:scheduled.toISOString(),status:"agendado",observacoes:f.notes.value.trim()||null});if(error)throw error;try{await refresh();}catch(refreshError){console.warn("Agendamento confirmado, mas a tela não foi atualizada:",refreshError);say("Exame agendado. Atualize a tela para conferir.",false);return;}tab("historico");say("Exame agendado. Nenhum aluguel foi descontado.",false);}
     catch(e){say(e.message||"Não foi possível agendar o exame.");}finally{btn.disabled=false;}
   }
   async function recordResult(id,result){
     const label=result==="aprovado"?"APROVADO":"REPROVADO";
     if(!window.confirm("Confirmar resultado "+label+"? Esta ação consumirá 1 Aluguel de Veículo e não poderá ser desfeita."))return;
-    try{const {error}=await client.rpc("record_student_practical_exam_result",{p_exam_id:id,p_resultado:result});if(error)throw error;await refresh();await syncParentApp();tab("historico");say("Resultado registrado. Um aluguel foi consumido.",false);}
+    try{const {error}=await client.rpc("record_student_practical_exam_result",{p_exam_id:id,p_resultado:result});if(error)throw error;try{await refresh();await syncParentApp();}catch(refreshError){console.warn("Resultado confirmado, mas a tela não foi atualizada:",refreshError);say("Resultado registrado e aluguel consumido. Atualize a tela para conferir.",false);return;}tab("historico");say("Resultado registrado. Um aluguel foi consumido.",false);}
     catch(e){say(e.message||"Não foi possível registrar o resultado.");}
   }
   async function cancelExam(id){
     if(!window.confirm("Cancelar este agendamento? Nenhum aluguel será consumido."))return;
-    try{const {error}=await client.rpc("cancel_student_practical_exam",{p_exam_id:id});if(error)throw error;await refresh();tab("historico");say("Exame cancelado sem consumir aluguel.",false);}
+    try{const {error}=await client.rpc("cancel_student_practical_exam",{p_exam_id:id});if(error)throw error;try{await refresh();}catch(refreshError){console.warn("Cancelamento confirmado, mas a tela não foi atualizada:",refreshError);say("Exame cancelado. Atualize a tela para conferir.",false);return;}tab("historico");say("Exame cancelado sem consumir aluguel.",false);}
     catch(e){say(e.message||"Não foi possível cancelar o exame.");}
   }
   async function savePrices(ev){
