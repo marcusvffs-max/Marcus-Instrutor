@@ -1306,3 +1306,8 @@ O script `scripts/test-instructor-workflow.mjs` recebeu dois testes estáticos a
 - a migration de índice deve declarar `students_owner_id_idx` sobre `students(owner_id)`.
 
 Os testes foram adicionados ao repositório, mas não foram executados neste ambiente. Os resultados SQL transacionais relatados nas seções anteriores permanecem evidências separadas.
+
+
+### Correção da matriz de acesso a produtos e configurações
+
+A matriz de testes foi alinhada ao comportamento observado: `products` e `app_settings` permitem leitura por owner, de modo que instrutor A e B visualizam somente seus próprios registros. A expectativa anterior de negar leitura a instrutores foi removida. O resultado cobre leitura isolada com fixtures; escritas cruzadas nessas tabelas ainda precisam de teste.
