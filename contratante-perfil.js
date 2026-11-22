@@ -57,7 +57,11 @@
     if (repeticao.error) throw repeticao.error;
   }
 
+  let cadastroVinculado = false;
+
   function vincular(obterCliente, obterUsuarioId) {
+    if (cadastroVinculado) return;
+    cadastroVinculado = true;
     const status = document.getElementById("statusDadosContratante");
     const botao = document.getElementById("btnSalvarDadosContratante");
     const salvar = () => {
