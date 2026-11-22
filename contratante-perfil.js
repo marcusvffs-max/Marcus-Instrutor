@@ -4,6 +4,7 @@
   const CAMPOS = [
     ["contratanteNome", "contratante_nome"],
     ["contratanteDocumento", "contratante_documento"],
+    ["contratanteCelular", "contratante_celular"],
     ["contratanteNacionalidade", "contratante_nacionalidade"],
     ["contratanteCivil", "contratante_estado_civil"],
     ["contratanteProfissao", "contratante_profissao"],
@@ -77,7 +78,7 @@
         } finally {
           if (botao) {
             botao.disabled = false;
-            botao.textContent = "Salvar meus dados";
+            botao.textContent = "Salvar cadastro";
           }
         }
       });
