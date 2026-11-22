@@ -3,7 +3,7 @@
   const $ = id => document.getElementById(id);
   let client, ownerId, role, students = [], exams = [];
   let activeTab = "historico";
-  let selectedStudentId = null;
+  let selectedStudentId = null;\n  let selectedStatus = "todos";
 
   const css = `
     #marcus-exam-launch{margin-left:8px;white-space:nowrap}
@@ -84,14 +84,14 @@
     if(activeTab==="agendar"){
       body='<div class="mx-card"><h3>Agendar exame prático</h3><p class="mx-muted">O agendamento não desconta aluguel. O saldo será conferido e consumido somente quando o resultado for registrado.</p><form id="mx-exam-form"><label>Aluno</label><select name="student" required>'+studentOptions()+'</select><div class="mx-grid"><div><label>Data</label><input name="date" type="date" required></div><div><label>Horário</label><input name="time" type="time" required></div></div><label>Observações</label><textarea name="notes" rows="2" maxlength="500"></textarea><button class="mx-btn" type="submit">Salvar agendamento</button></form></div>';
     }else{
-      const rows=exams.filter(x=>!selectedStudentId||String(x.student_id)===String(selectedStudentId)).map(x=>{
+      const rows=exams.filter(x=>(!selectedStudentId||String(x.student_id)===String(selectedStudentId))&&(selectedStatus==="todos"||x.status===selectedStatus)).map(x=>{
         const st=students.find(s=>s.id===x.student_id);
         return '<tr><td>'+esc(st?.nome||"Aluno")+'</td><td>'+date(x.scheduled_at)+'</td><td>'+({agendado:"Agendado",realizado:"Realizado",cancelado:"Cancelado"}[x.status]||x.status)+'</td><td>'+({aprovado:"Aprovado",reprovado:"Reprovado"}[x.resultado]||"—")+'</td><td>'+(x.aluguel_consumido?"Sim":"Não")+'</td><td>'+(x.status==="agendado"?'<button class="mx-btn" data-result="'+esc(x.id)+'" data-value="aprovado">Aprovado</button><button class="mx-btn alt" data-result="'+esc(x.id)+'" data-value="reprovado">Reprovado</button><button class="mx-btn danger" data-cancel="'+esc(x.id)+'">Cancelar</button>':"—")+'</td></tr>';
       }).join("");
-      body='<div class="mx-card"><h3>Histórico de exames</h3><p class="mx-muted">O histórico é preservado após a realização ou cancelamento. Registre o resultado apenas após o exame acontecer.</p><div class="mx-scroll"><table class="mx-table"><thead><tr><th>Aluno</th><th>Data</th><th>Status</th><th>Resultado</th><th>Consumiu aluguel</th><th>Ação</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6">Nenhum exame registrado.</td></tr>')+'</tbody></table></div></div>';
+      body='<div class="mx-card"><h3>Histórico de exames</h3><p class="mx-muted">O histórico é preservado após a realização ou cancelamento. Registre o resultado apenas após o exame acontecer.</p><div class="mx-filter"><label for="mx-status-filter">Filtrar por status</label><select id="mx-status-filter"><option value="todos" ${selectedStatus==="todos"?"selected":""}>Todos os status</option><option value="agendado" ${selectedStatus==="agendado"?"selected":""}>Agendados</option><option value="realizado" ${selectedStatus==="realizado"?"selected":""}>Realizados</option><option value="cancelado" ${selectedStatus==="cancelado"?"selected":""}>Cancelados</option></select></div><div class="mx-scroll"><table class="mx-table"><thead><tr><th>Aluno</th><th>Data</th><th>Status</th><th>Resultado</th><th>Consumiu aluguel</th><th>Ação</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6">Nenhum exame registrado.</td></tr>')+'</tbody></table></div></div>';
     }
     host.innerHTML='<nav class="mx-tabs">'+tabs.map(t=>'<button type="button" data-tab="'+t[0]+'" class="'+(activeTab===t[0]?'active':'')+'">'+t[1]+'</button>').join("")+'</nav>'+body+'<p id="mx-message" class="mx-message" role="status" aria-live="polite"></p>';
-    host.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>tab(b.dataset.tab));
+    host.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>tab(b.dataset.tab));\n    $("mx-status-filter")?.addEventListener("change",e=>{selectedStatus=e.target.value;render();});
     $("mx-exam-form")?.addEventListener("submit",schedule);
     host.querySelectorAll("[data-result]").forEach(b=>b.onclick=()=>recordResult(b.dataset.result,b.dataset.value));
     host.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>cancelExam(b.dataset.cancel));
@@ -124,8 +124,8 @@
     catch(e){say(e.message||"Não foi possível cancelar o exame.");}
   }
   window.MarcusExamsRentals={
-    open:async()=>{selectedStudentId=null;activeTab="historico";modal();await refresh();},
-    openForStudent:async id=>{selectedStudentId=String(id);activeTab="historico";modal();await refresh();}
+    open:async()=>{selectedStudentId=null;selectedStatus="todos";activeTab="historico";modal();await refresh();},
+    openForStudent:async id=>{selectedStudentId=String(id);selectedStatus="todos";activeTab="historico";modal();await refresh();}
   };
   document.addEventListener("DOMContentLoaded",()=>{init().catch(e=>console.error("Módulo de exames e aluguéis:",e));});
   if(document.readyState!=="loading")init().catch(e=>console.error("Módulo de exames e aluguéis:",e));
