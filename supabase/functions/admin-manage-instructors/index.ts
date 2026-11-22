@@ -64,13 +64,13 @@ Deno.serve(async (req: Request) => {
     const userClient = createClient(supabaseUrl, anonKey, {
       auth: { persistSession: false, autoRefreshToken: false },
       global: { headers: { Authorization: `Bearer ${token}` } },
-    }, 200, origin);
+    });
     const { data: authData, error: authError } = await userClient.auth.getUser(token);
     if (authError || !authData.user) return response({ error: "Sua sessão expirou. Entre novamente." }, 401, origin);
 
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { persistSession: false, autoRefreshToken: false },
-    }, 200, origin);
+    });
     const { data: profile, error: profileError } = await admin
       .from("profiles").select("role, instructor_access_until").eq("id", authData.user.id).maybeSingle();
     if (profileError || !profile || !["admin", "instrutor", "usuario"].includes(profile.role)) {
@@ -518,7 +518,7 @@ Deno.serve(async (req: Request) => {
         type: "recovery",
         email: targetEmail,
         options: { redirectTo: requestAppUrl },
-      }, 200, origin);
+      });
       if (recoveryError || !recoveryData.properties?.action_link) {
         console.error("Falha ao gerar link de acesso:", recoveryError?.message ?? "link ausente");
         return response({ error: "Não foi possível gerar um novo link de acesso para este usuário." }, 400, origin);
@@ -529,7 +529,7 @@ Deno.serve(async (req: Request) => {
         port: smtpPort,
         secure: smtpPort === 465,
         auth: { user: smtpUser, pass: smtpPass },
-      }, 200, origin);
+      });
       try {
         await transporter.sendMail({
           from: smtpFrom,
@@ -613,7 +613,7 @@ Deno.serve(async (req: Request) => {
       if (!student.user_id) {
         let matchingAuthUser: any = null;
         for (let page = 1; ; page += 1) {
-          const { data: usersPage, error: usersPageError } = await admin.auth.admin.listUsers({ page, perPage: 1000 }, 200, origin);
+          const { data: usersPage, error: usersPageError } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
           if (usersPageError) throw usersPageError;
           const matches = (usersPage.users ?? []).filter((user: any) =>
             String(user.email ?? "").trim().toLowerCase() === String(student.email ?? "").trim().toLowerCase()
@@ -730,7 +730,7 @@ Deno.serve(async (req: Request) => {
           ? `${requestAppUrl}claim-student.html?attempt_id=${encodeURIComponent(studentInviteAttemptId)}`
           : requestAppUrl,
       },
-    }, 200, origin);
+    });
     if (linkError) {
       if (studentInviteId && studentInviteReservation) {
         await admin.from("students")
@@ -850,7 +850,7 @@ Deno.serve(async (req: Request) => {
       port: smtpPort,
       secure: smtpPort === 465,
       auth: { user: smtpUser, pass: smtpPass },
-    }, 200, origin);
+    });
 
     try {
       await transporter.sendMail({
@@ -895,4 +895,4 @@ Deno.serve(async (req: Request) => {
     console.error("Erro interno ao gerenciar usuários:", error instanceof Error ? error.message : "erro desconhecido");
     return response({ error: "Ocorreu um erro interno. Tente novamente." }, 500, origin);
   }
-}, 200, origin);
+});
