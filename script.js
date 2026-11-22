@@ -2060,7 +2060,7 @@ function abrirDevolucao() {
       const valorUnitario = tipo === "produto"
         ? (quantidadeOriginal > 0 ? valorLiquido / quantidadeOriginal : 0)
         : Number(item.valorPorAula || 0);
-      return { valor: item.saleItemId, tipo, item, disponiveis, valorUnitario };
+      return { valor: tipo + ":" + item.saleItemId, tipo, item, disponiveis, valorUnitario };
     }).filter(Boolean);
     return { venda, aluno, itens };
   }).filter(grupo => grupo.itens.length > 0 && grupo.venda.status !== "cancelada");
