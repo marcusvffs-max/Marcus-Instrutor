@@ -17,6 +17,7 @@ const instructorManagementMigration = read("../supabase/migrations/2026112123000
 const instructorNameMigration = read("../supabase/migrations/20261121231000_move_instructor_name_lookup_to_private_helper.sql");
 const saleTrackingMigration = read("../supabase/migrations/20261121270000_fix_instructor_sale_item_lesson_tracking.sql");
 const studentOwnerIndexMigration = read("../supabase/migrations/20261121280000_add_students_owner_fk_index.sql");
+const consolidatedOwnerPoliciesMigration = read("../supabase/migrations/20261122003833_consolidate_owner_policies_financial_tables.sql");
 
 test("área de acessos lista somente alunos com conta vinculada", () => {
   assert.match(instructorHtml, /data-view="alunos-vinculados"/);
@@ -157,4 +158,19 @@ test("configuração Supabase carrega antes dos scripts de área", () => {
   assert.ok(instructorHtml.indexOf("supabase-config.js") < instructorHtml.indexOf("instrutor.js"));
   assert.ok(studentHtml.indexOf("supabase-config.js") < studentHtml.indexOf("usuario.js"));
   assert.ok(indexHtml.indexOf("supabase-config.js") < indexHtml.indexOf("createClient"));
+});
+
+
+test("políticas financeiras consolidadas mantêm isolamento por proprietário", () => {
+  const migration = consolidatedOwnerPoliciesMigration;
+  for (const table of ["products", "sales", "sale_items", "financial_transactions"]) {
+    assert.ok(migration.includes("CREATE POLICY " + table + "_owner_access"));
+    assert.ok(migration.includes("ON public." + table));
+  }
+  assert.ok(migration.includes("owner_id = (SELECT auth.uid())"));
+  assert.ok(migration.includes("private.current_app_role() IN ('admin', 'instrutor')"));
+  assert.ok(migration.includes("s.owner_id = (SELECT auth.uid())"));
+  assert.ok(migration.includes("p.owner_id = (SELECT auth.uid())"));
+  assert.ok(migration.includes("DROP POLICY IF EXISTS products_admin_"));
+  assert.ok(migration.includes("DROP POLICY IF EXISTS sales_instructor_manage_own"));
 });
