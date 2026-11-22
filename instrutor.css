@@ -735,3 +735,21 @@ body.instructor-modal-open { overflow: hidden; }
 .instructor-modal-form .student-form-actions { padding-top:8px; }
 @media(max-width:620px){.instructor-modal-overlay{align-items:flex-start;padding:10px}.instructor-modal-dialog{max-height:calc(100dvh - 20px);padding:17px 14px;border-radius:15px}.instructor-modal-form .student-form-actions{flex-direction:column-reverse}.instructor-modal-form .student-form-actions .button{width:100%}}
 @media print{.instructor-modal-overlay{display:none!important}}
+
+
+/* Histórico de vendas e devoluções */
+.sale-history-card { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:start; gap:12px; }
+.sale-history-main { min-width:0; }
+.sale-history-items { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+.sale-item-chip { display:inline-flex; padding:5px 8px; border-radius:8px; color:var(--muted); background:#f1f5f9; font-size:11px; }
+.sale-history-total { white-space:nowrap; }
+.sale-history-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:7px; grid-column:1 / -1; }
+.refund-sale-summary, .refund-preview { display:grid; gap:6px; margin:13px 0; padding:13px; border:1px solid var(--border); border-radius:11px; background:#f7f9fc; color:var(--text); font-size:13px; }
+.refund-sale-summary span { color:var(--muted); font-size:12px; }
+.refund-preview p { margin:0; color:var(--muted); }
+.refund-preview-total { padding-top:7px; border-top:1px solid var(--border); color:var(--primary) !important; }
+@media (max-width:760px) {
+  .sale-history-card { grid-template-columns:minmax(0,1fr) auto; }
+  .sale-history-card .sale-state { grid-column:1; }
+  .sale-history-actions { grid-column:1 / -1; justify-content:flex-start; }
+}
