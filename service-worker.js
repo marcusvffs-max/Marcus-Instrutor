@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v32-sale-receipts";
+const CACHE_NAME = "marcus-instrutor-v33-fixed-exams";
 
 const ARQUIVOS = [
   "./",
@@ -10,6 +10,7 @@ const ARQUIVOS = [
   "./admin-visual.css?v=admin-visual-1",
   "./instrutor.css?v=21-finance-refunds",
   "./instrutor.js?v=35-sale-receipts",
+  "./exames-alugueis.js?v=1-fixed-exams",
   "./usuario.html",
   "./usuario.js?v=7-instructor-whatsapp",
   "./manifest.json"
@@ -20,7 +21,8 @@ const ARQUIVOS_ADMINISTRATIVOS = [
   "/contratos.js",
   "/contratante-perfil.js",
   "/whatsapp-panel.js",
-  "/admin-users.js"
+  "/admin-users.js",
+  "/exames-alugueis.js"
 ];
 
 self.addEventListener("install", event => {
