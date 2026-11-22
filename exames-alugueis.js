@@ -3,7 +3,8 @@
   const $ = id => document.getElementById(id);
   let client, ownerId, role, students = [], exams = [];
   let activeTab = "historico";
-  let selectedStudentId = null;\n  let selectedStatus = "todos";
+  let selectedStudentId = null;
+  let selectedStatus = "todos";
 
   const css = `
     #marcus-exam-launch{margin-left:8px;white-space:nowrap}
@@ -91,7 +92,8 @@
       body='<div class="mx-card"><h3>Histórico de exames</h3><p class="mx-muted">O histórico é preservado após a realização ou cancelamento. Registre o resultado apenas após o exame acontecer.</p><div class="mx-filter"><label for="mx-status-filter">Filtrar por status</label><select id="mx-status-filter"><option value="todos" ${selectedStatus==="todos"?"selected":""}>Todos os status</option><option value="agendado" ${selectedStatus==="agendado"?"selected":""}>Agendados</option><option value="realizado" ${selectedStatus==="realizado"?"selected":""}>Realizados</option><option value="cancelado" ${selectedStatus==="cancelado"?"selected":""}>Cancelados</option></select></div><div class="mx-scroll"><table class="mx-table"><thead><tr><th>Aluno</th><th>Data</th><th>Status</th><th>Resultado</th><th>Consumiu aluguel</th><th>Ação</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6">Nenhum exame registrado.</td></tr>')+'</tbody></table></div></div>';
     }
     host.innerHTML='<nav class="mx-tabs">'+tabs.map(t=>'<button type="button" data-tab="'+t[0]+'" class="'+(activeTab===t[0]?'active':'')+'">'+t[1]+'</button>').join("")+'</nav>'+body+'<p id="mx-message" class="mx-message" role="status" aria-live="polite"></p>';
-    host.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>tab(b.dataset.tab));\n    $("mx-status-filter")?.addEventListener("change",e=>{selectedStatus=e.target.value;render();});
+    host.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>tab(b.dataset.tab));
+    $("mx-status-filter")?.addEventListener("change",e=>{selectedStatus=e.target.value;render();});
     $("mx-exam-form")?.addEventListener("submit",schedule);
     host.querySelectorAll("[data-result]").forEach(b=>b.onclick=()=>recordResult(b.dataset.result,b.dataset.value));
     host.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>cancelExam(b.dataset.cancel));
