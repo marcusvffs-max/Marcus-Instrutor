@@ -31,7 +31,7 @@ function safeEqual(a: string, b: string): boolean {
   return result === 0;
 }
 
-async function verifyMetaSignature(rawBody: string, signature: string | null) {
+async function verifyMetaSignature(rawBody: Uint8Array, signature: string | null) {
   if (!APP_SECRET || !signature?.startsWith("sha256=")) return false;
   const key = await crypto.subtle.importKey(
     "raw",
@@ -43,7 +43,7 @@ async function verifyMetaSignature(rawBody: string, signature: string | null) {
   const digest = new Uint8Array(await crypto.subtle.sign(
     "HMAC",
     key,
-    new TextEncoder().encode(rawBody),
+    rawBody,
   ));
   const hex = Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");
   return safeEqual(hex, signature.slice(7).toLowerCase());
@@ -1669,6 +1669,106 @@ async function processIncomingMessage(
   }
 }
 
+const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
+const MAX_FUTURE_TIMESTAMP_SKEW_SECONDS = 5 * 60;
+
+type LimitedBodyResult =
+  | { ok: true; bytes: Uint8Array }
+  | { ok: false; status: 400 | 413 | 500; reason: string };
+
+async function readWebhookBody(req: Request): Promise<LimitedBodyResult> {
+  const contentLength = req.headers.get("content-length");
+  if (contentLength !== null) {
+    if (!/^\\d+$/.test(contentLength)) return { ok: false, status: 400, reason: "invalid_content_length" };
+    const declaredBytes = Number(contentLength);
+    if (!Number.isSafeInteger(declaredBytes)) return { ok: false, status: 400, reason: "invalid_content_length" };
+    if (declaredBytes > MAX_WEBHOOK_BODY_BYTES) return { ok: false, status: 413, reason: "payload_too_large" };
+  }
+
+  if (!req.body) return { ok: true, bytes: new Uint8Array() };
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_WEBHOOK_BODY_BYTES) {
+        await reader.cancel("Webhook payload exceeds the configured limit").catch(() => {});
+        return { ok: false, status: 413, reason: "payload_too_large" };
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return { ok: false, status: 400, reason: "body_read_failed" };
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return { ok: true, bytes };
+}
+
+function parseMetaTimestamp(value: unknown, nowMs = Date.now()): { ok: true; iso: string } | { ok: false; reason: string } {
+  if (value === undefined || value === null || value === "") {
+    return { ok: true, iso: new Date(nowMs).toISOString() };
+  }
+  const seconds = typeof value === "number"
+    ? value
+    : typeof value === "string" && /^\\d{1,12}$/.test(value)
+    ? Number(value)
+    : Number.NaN;
+  if (!Number.isSafeInteger(seconds) || seconds <= 0) {
+    return { ok: false, reason: "invalid_timestamp" };
+  }
+  const timestampMs = seconds * 1000;
+  if (!Number.isFinite(timestampMs) || !Number.isFinite(new Date(timestampMs).getTime())) {
+    return { ok: false, reason: "invalid_timestamp" };
+  }
+  if (timestampMs > nowMs + MAX_FUTURE_TIMESTAMP_SKEW_SECONDS * 1000) {
+    return { ok: false, reason: "future_timestamp" };
+  }
+  return { ok: true, iso: new Date(timestampMs).toISOString() };
+}
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function validateMetaPayload(payload: unknown): string | null {
+  if (!isRecord(payload)) return "payload_not_object";
+  if (payload.object !== "whatsapp_business_account") return null;
+  if (!Array.isArray(payload.entry)) return "entry_not_array";
+  for (const entry of payload.entry) {
+    if (!isRecord(entry) || !Array.isArray(entry.changes)) return "entry_changes_invalid";
+    for (const change of entry.changes) {
+      if (!isRecord(change) || typeof change.field !== "string" || !isRecord(change.value)) {
+        return "change_structure_invalid";
+      }
+      for (const key of ["messages", "statuses", "message_echoes", "contacts"] as const) {
+        const collection = change.value[key];
+        if (collection !== undefined && !Array.isArray(collection)) return `${key}_not_array`;
+        if (Array.isArray(collection) && collection.some((item) => !isRecord(item))) {
+          return `${key}_item_invalid`;
+        }
+      }
+      for (const message of change.value.messages ?? []) {
+        const parsed = parseMetaTimestamp(message.timestamp);
+        if (!parsed.ok) return parsed.reason;
+      }
+      for (const echo of change.value.message_echoes ?? []) {
+        const parsed = parseMetaTimestamp(echo.timestamp);
+        if (!parsed.ok) return parsed.reason;
+      }
+    }
+  }
+  return null;
+}
+
 Deno.serve(async (req: Request) => {
   const url = new URL(req.url);
 
@@ -1687,17 +1787,28 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   if (!APP_SECRET) return json({ error: "Webhook signature verification is not configured." }, 503);
 
-  const rawBody = await req.text();
-  const valid = await verifyMetaSignature(rawBody, req.headers.get("x-hub-signature-256"));
+  const bodyResult = await readWebhookBody(req);
+  if (!bodyResult.ok) {
+    console.warn("WhatsApp webhook request body rejected:", bodyResult.reason);
+    return json({ error: bodyResult.reason }, bodyResult.status);
+  }
+  const valid = await verifyMetaSignature(bodyResult.bytes, req.headers.get("x-hub-signature-256"));
   if (!valid) return json({ error: "Invalid webhook signature." }, 401);
 
+  let rawBody: string;
   let payload: any;
   try {
+    rawBody = new TextDecoder("utf-8", { fatal: true }).decode(bodyResult.bytes);
     payload = JSON.parse(rawBody);
   } catch {
-    return json({ error: "Invalid JSON payload." }, 400);
+    return json({ error: "Invalid JSON or UTF-8 payload." }, 400);
   }
 
+  const payloadError = validateMetaPayload(payload);
+  if (payloadError) {
+    console.warn("WhatsApp webhook payload rejected:", payloadError);
+    return json({ error: "Invalid webhook payload structure." }, 400);
+  }
   if (payload.object !== "whatsapp_business_account") return json({ received: true });
 
   // Reject unrelated or unconfigured phone-number events before creating a privileged client
@@ -1851,9 +1962,12 @@ Deno.serve(async (req: Request) => {
             continue;
           }
 
-          const messageTime = new Date(
-            Number(message.timestamp ?? Date.now() / 1000) * 1000,
-          ).toISOString();
+          const parsedMessageTime = parseMetaTimestamp(message.timestamp);
+          if (!parsedMessageTime.ok) {
+            console.warn("Ignoring WhatsApp message with invalid timestamp:", parsedMessageTime.reason);
+            continue;
+          }
+          const messageTime = parsedMessageTime.iso;
 
           if (!conversation) {
             const { data: created, error: createError } = await supabase

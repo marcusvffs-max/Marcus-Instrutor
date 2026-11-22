@@ -21,6 +21,7 @@ const consolidatedOwnerPoliciesMigration = read("../supabase/migrations/20261122
 const lessonScheduleMigration = read("../supabase/migrations/20261122011223_prevent_duplicate_active_lesson_slots.sql");
 const instructorSource = read("../instrutor.js");
 const adminSource = read("../script.js");
+const whatsappWebhook = read("../supabase/functions/whatsapp-webhook/index.ts");
 const indexHtmlSource = read("../index.html");
 
 test("área de acessos lista somente alunos com conta vinculada", () => {
@@ -205,4 +206,25 @@ test("botão WhatsApp só é liberado para aluno vinculado ao Marcus", () => {
   assert.match(whatsappVisibilityMigration, /s\.owner_id = '[0-9a-f-]{36}'::uuid/);
   assert.match(whatsappVisibilityMigration, /s\.user_id = p\.id/);
   assert.match(whatsappVisibilityMigration, /REVOKE ALL ON FUNCTION public\.can_show_marcus_whatsapp_assistant\(\) FROM PUBLIC, anon/);
+});
+
+
+test("webhook limita corpo, valida assinatura sobre bytes e rejeita payload malformado", () => {
+  assert.match(whatsappWebhook, /MAX_WEBHOOK_BODY_BYTES = 1024 \* 1024/);
+  assert.match(whatsappWebhook, /req\.body\.getReader\(\)/);
+  assert.match(whatsappWebhook, /totalBytes > MAX_WEBHOOK_BODY_BYTES/);
+  assert.match(whatsappWebhook, /status: 413/);
+  assert.match(whatsappWebhook, /verifyMetaSignature\(bodyResult\.bytes/);
+  assert.match(whatsappWebhook, /new TextDecoder\("utf-8", \{ fatal: true \}\)/);
+  assert.match(whatsappWebhook, /validateMetaPayload\(payload\)/);
+  assert.match(whatsappWebhook, /entry_changes_invalid/);
+});
+
+test("webhook valida timestamp antes de persistir mensagem", () => {
+  assert.match(whatsappWebhook, /function parseMetaTimestamp\(value: unknown/);
+  assert.match(whatsappWebhook, /Number\.isSafeInteger\(seconds\)/);
+  assert.match(whatsappWebhook, /MAX_FUTURE_TIMESTAMP_SKEW_SECONDS/);
+  assert.match(whatsappWebhook, /const parsedMessageTime = parseMetaTimestamp\(message\.timestamp\)/);
+  assert.match(whatsappWebhook, /if \(!parsedMessageTime\.ok\)\s*\{[\s\S]*?continue;/);
+  assert.match(whatsappWebhook, /for \(const echo of change\.value\.message_echoes/);
 });
