@@ -31,7 +31,8 @@
     lessonEditingId: null,
     lessonSearch: "",
     lessonStatusFilter: "",
-    logoUrl: ""
+    logoUrl: "",
+    contractorProfile: null
   };
 
   function escapeHtml(value) {
@@ -206,12 +207,13 @@
   async function loadInstructorSettings() {
     const { data, error } = await state.supabase
       .from("app_settings")
-      .select("nome_empresa,cor_principal,cor_secundaria,logo_url")
+      .select("nome_empresa,cor_principal,cor_secundaria,logo_url,contratante_nome,contratante_documento,contratante_celular,contratante_endereco")
       .eq("owner_id", state.user.id)
       .maybeSingle();
     if (error) throw error;
 
-    const name = state.profile?.nome || state.user.email || "Instrutor";
+    state.contractorProfile = data || {};
+    const name = data?.contratante_nome || data?.nome_empresa || state.profile?.nome || state.user.email || "Instrutor";
     const primary = data?.cor_principal || "#12345a";
     const secondary = data?.cor_secundaria || "#f3f6fa";
     el("nomePerfilInstrutor").value = name;
@@ -1275,9 +1277,61 @@
         '</span><div class="sale-history-items">' + itemSummary + '</div></div><strong class="sale-history-total">' + currency(sale.total) +
         '</strong><span class="sale-state ' + (sale.status === "confirmada" ? "product-active" : "product-inactive") + '">' +
         (sale.status === "confirmada" ? "Confirmada" : "Cancelada") + '</span><div class="sale-history-actions">' +
+        '<button class="button button-outline button-small" type="button" data-sale-print="' + escapeHtml(sale.id) + '">Imprimir recibo</button>' +
         (canRefund ? '<button class="button button-outline button-small" type="button" data-sale-refund="' + escapeHtml(sale.id) + '">↩ Devolver itens</button>' : '') +
         '<button class="button button-danger button-small" type="button" data-sale-delete="' + escapeHtml(sale.id) + '">Excluir venda</button></div></article>';
     }).join("");
+  }
+
+  function printInstructorSaleReceipt(saleId) {
+    const sale = state.sales.find(item => String(item.id) === String(saleId));
+    if (!sale) return showMessage("Venda não encontrada.");
+    const items = state.saleItems.filter(item => item.sale_id === sale.id);
+    const profile = state.contractorProfile || {};
+    const responsible = profile.contratante_nome || profile.nome_empresa || state.profile?.nome || "Instrutor";
+    const lines = items.map(item => {
+      const info = refundableInstructorItem(item);
+      const quantity = info.type === "produto" ? Number(item.quantidade || 0) : Number(item.aulas_contratadas || 0);
+      const unit = info.type === "produto"
+        ? (quantity ? Number(item.subtotal || item.valor_liquido || 0) / quantity : 0)
+        : Number(item.valor_por_aula || 0);
+      return '<tr><td>' + escapeHtml(item.descricao || "Item") + '</td><td>' + quantity +
+        '</td><td>' + currency(unit) + '</td><td>' + currency(item.subtotal ?? item.valor_liquido ?? 0) + '</td></tr>';
+    }).join("");
+    const logo = state.logoUrl && /^(https?:|data:image\/)/i.test(state.logoUrl)
+      ? '<img class="logo" src="' + escapeHtml(state.logoUrl) + '" alt="Logomarca">' : "";
+    const popup = window.open("", "_blank", "width=820,height=900");
+    if (!popup) return showMessage("Permita janelas pop-up para imprimir o recibo.");
+    const cancelled = sale.status !== "confirmada";
+    popup.document.open();
+    popup.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Recibo de venda</title>
+      <style>*{box-sizing:border-box}body{font:14px Arial,sans-serif;color:#17212f;max-width:760px;margin:32px auto;padding:0 24px}
+      header{display:flex;align-items:center;gap:18px;border-bottom:2px solid #1e3a5f;padding-bottom:18px;margin-bottom:24px}
+      .logo{max-width:105px;max-height:80px;object-fit:contain}h1{font-size:24px;margin:0 0 6px}h2{text-align:center;margin:28px 0}
+      .muted{color:#596579;line-height:1.5}.box{border:1px solid #d8dee8;border-radius:10px;padding:16px;margin:16px 0}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid p{margin:4px 0}
+      table{width:100%;border-collapse:collapse;margin:18px 0}th,td{padding:10px 8px;border-bottom:1px solid #e2e7ef;text-align:left}
+      th{background:#f3f6fa}td:last-child,th:last-child{text-align:right}.total{text-align:right;font-size:21px;font-weight:700;margin:20px 0}
+      .status{display:inline-block;padding:8px 12px;border-radius:6px;background:${cancelled?"#fff0ed":"#e8f5ed"};font-weight:700}
+      .signature{margin-top:70px;text-align:center}.signature span{display:block;border-top:1px solid #333;width:260px;margin:0 auto 8px}
+      .actions{text-align:center;margin-top:28px}.actions button{padding:10px 20px;border:0;border-radius:6px;background:#1e3a5f;color:#fff}
+      @media print{body{margin:0 auto;padding:0 10mm}.actions{display:none}}</style></head><body>
+      <header>${logo}<div><h1>${escapeHtml(responsible)}</h1>
+      <div class="muted">${profile.contratante_documento?"CPF/CNPJ: "+escapeHtml(profile.contratante_documento)+" · ":""}${profile.contratante_celular?"WhatsApp: "+escapeHtml(profile.contratante_celular):""}<br>${escapeHtml(profile.contratante_endereco||"")}</div></div></header>
+      <h2>RECIBO DE PAGAMENTO</h2><div class="box grid">
+      <p><strong>Recebemos de:</strong><br>${escapeHtml(studentName(sale.student_id))}</p>
+      <p><strong>Data da venda:</strong><br>${escapeHtml(formatDate(sale.data_venda))}</p>
+      <p><strong>Forma de pagamento:</strong><br>${escapeHtml(sale.forma_pagamento||"Não informada")}</p>
+      <p><strong>Situação:</strong><br><span class="status">${cancelled?"CANCELADA":"CONFIRMADA"}</span></p></div>
+      <table><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Total</th></tr></thead><tbody>${lines||'<tr><td colspan="4">Itens não disponíveis.</td></tr>'}</tbody></table>
+      <div class="total">Total: ${currency(sale.total)}</div>
+      ${Number(sale.observacoes||0)?'<p class="muted">'+escapeHtml(sale.observacoes)+'</p>':""}
+      <p class="muted">Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
+      <div class="signature"><span></span><strong>${escapeHtml(responsible)}</strong><br><small>Responsável</small></div>
+      <div class="actions"><button onclick="window.print()">Imprimir / Salvar PDF</button></div></body></html>`);
+    popup.document.close();
+    popup.focus();
+    setTimeout(() => popup.print(), 350);
   }
 
   function openInstructorRefundForm(saleId = null) {
@@ -2147,6 +2201,11 @@
     });
     el("formMovimentacao").addEventListener("submit", saveFinancialTransaction);
     el("listaVendas").addEventListener("click", event => {
+      const printButton = event.target.closest("[data-sale-print]");
+      if (printButton) {
+        printInstructorSaleReceipt(printButton.dataset.salePrint);
+        return;
+      }
       const refundButton = event.target.closest("[data-sale-refund]");
       if (refundButton) {
         openInstructorRefundForm(refundButton.dataset.saleRefund);
