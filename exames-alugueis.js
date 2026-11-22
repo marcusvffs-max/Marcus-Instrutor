@@ -104,11 +104,11 @@
     ev.preventDefault();const f=ev.currentTarget;const qty=Number(f.quantity.value);
     if(!Number.isInteger(qty)||qty<1||qty>100){say("Informe uma quantidade entre 1 e 100.");return;}
     const btn=f.querySelector("button[type=submit]");btn.disabled=true;
-    try{const {data,error}=await client.rpc("register_fixed_item_sale",{p_sale_id:crypto.randomUUID(),p_student_id:f.student.value,p_fixed_item_key:f.item.value,p_quantity:qty,p_payment_method:f.payment.value||null,p_notes:f.notes.value.trim()||null});if(error)throw error;await refresh();tab("resumo");say("Venda registrada com sucesso. "+(f.item.value==="aluguel_veiculo"?"O saldo de aluguéis foi atualizado.":"O Cartão Moto Pista foi lançado sem alterar o saldo."),false);}
+    try{const {data,error}=await client.rpc("register_fixed_item_sale",{p_sale_id:crypto.randomUUID(),p_student_id:f.student.value,p_fixed_item_key:f.elements["item"].value,p_quantity:qty,p_payment_method:f.payment.value||null,p_notes:f.notes.value.trim()||null});if(error)throw error;await refresh();tab("resumo");say("Venda registrada com sucesso. "+(f.item.value==="aluguel_veiculo"?"O saldo de aluguéis foi atualizado.":"O Cartão Moto Pista foi lançado sem alterar o saldo."),false);}
     catch(e){say(e.message||"Não foi possível registrar a venda.");}finally{btn.disabled=false;}
   }
   async function schedule(ev){
-    ev.preventDefault();const f=ev.currentTarget;const local=f.date.value+"T"+f.time.value;
+    ev.preventDefault();const f=ev.currentTarget;const local=f.elements["date"].value+"T"+f.elements["time"].value;
     if(!f.student.value||!f.date.value||!f.time.value){say("Informe aluno, data e horário.");return;}
     const scheduled=new Date(local);if(!Number.isFinite(scheduled.getTime())){say("Data ou horário inválido.");return;}
     const btn=f.querySelector("button[type=submit]");btn.disabled=true;
