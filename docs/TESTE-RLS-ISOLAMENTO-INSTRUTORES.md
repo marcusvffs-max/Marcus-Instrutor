@@ -377,3 +377,28 @@ Resultado: **4 verificações aprovadas**. A exclusão de Auth e a limpeza do v�
 ### Limitações
 
 A validação acima executou triggers diretamente por inserção SQL em `auth.users` e RPCs no PostgreSQL isolado. Não substitui o fluxo real de convite, confirmação de e-mail, navegação pelo `claim-student.html`, SMTP ou chamadas HTTP autenticadas à Edge Function.
+
+
+### RPC do nome do instrutor — aprovado
+
+Com dois usuários-aluno sintéticos ligados a owners diferentes:
+
+- Aluno A recebeu somente o nome do instrutor A.
+- Aluno B recebeu somente o nome do instrutor B.
+- Instrutor tentando chamar a RPC exclusiva do aluno recebeu bloqueio por papel.
+
+Resultado: **3 verificações aprovadas**.
+
+### Revisão estática da Edge Function de convite
+
+A função `admin-manage-instructors`:
+- valida o bearer token por `auth.getUser(token)`;
+- carrega o papel do perfil do próprio chamador;
+- exige autorização não expirada para instrutor e restringe o instrutor à ação `invite_student`;
+- permite `complete_student_link` somente para perfil `usuario`, com e-mail confirmado;
+- filtra o cadastro de aluno por `student_id` e `owner_id = authData.user.id`;
+- reserva o convite com atualização condicional de `user_id`/ `invited_at` e attempt ID;
+- confirma e-mail, papel e reserva antes de completar vínculo; trata concorrência e repetição idempotente;
+- não faz fallback para gravar vínculo fora do fluxo controlado pelo trigger/ação de confirmação.
+
+Esta é revisão estática do código. Não houve execução da Edge Function, chamada HTTP com JWT real, envio SMTP ou clique em link de e-mail.
