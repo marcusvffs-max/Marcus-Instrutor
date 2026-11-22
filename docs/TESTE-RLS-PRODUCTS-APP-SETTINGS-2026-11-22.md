@@ -1,4 +1,4 @@
-# Teste de escrita cruzada em products e app_settings — 22/11/2026
+# Testes de CRUD próprio e escrita cruzada em products e app_settings — 22/11/2026
 
 ## Ambiente e escopo
 
@@ -10,31 +10,38 @@ Foram usados dois perfis sintéticos de instrutor com autorização ativa:
 
 O projeto original `ydyqagqsuqntuibzgwzd` não foi acessado nem alterado nesta rodada.
 
-Antes do teste, a inspeção de catálogo confirmou as policies:
+A inspeção de catálogo confirmou as policies:
 
 - `products`: admin e instrutor podem gerenciar somente linhas com `owner_id = auth.uid()`.
 - `app_settings`: admin e instrutor podem selecionar/inserir/atualizar/excluir somente linhas com `owner_id = auth.uid()`.
 
 ## Procedimento
 
-Foram inseridas linhas de fixture temporárias para A e B em ambas as tabelas, em uma transação SQL. Em seguida, com `SET LOCAL ROLE authenticated`, foram aplicadas claims JWT simuladas alternando a identidade A/B.
+Os testes foram executados em transações SQL com `SET LOCAL ROLE authenticated`, claims JWT simuladas alternando a identidade A/B e fixtures temporárias. O bloco PL/pgSQL interromperia a execução com erro caso qualquer condição esperada falhasse.
 
-Para cada conta e tabela, foram testados:
+### A. CRUD próprio — 12 verificações
 
-1. UPDATE de linha pertencente ao outro owner;
-2. DELETE de linha pertencente ao outro owner;
-3. INSERT declarando o `owner_id` do outro owner.
+Para cada instrutor e em cada tabela, foram executados INSERT, UPDATE e DELETE em uma linha pertencente ao próprio `owner_id`. Cada operação deveria afetar exatamente uma linha.
 
-As operações de UPDATE/DELETE cruzadas deveriam afetar zero linhas. Os INSERTs forjados deveriam falhar com `42501`. O bloco PL/pgSQL interromperia a execução com erro caso qualquer condição de segurança falhasse.
+### B. Escrita cruzada — 12 verificações
+
+Para cada instrutor e tabela, foram testados:
+
+1. UPDATE de linha pertencente ao outro owner — esperado: zero linhas afetadas;
+2. DELETE de linha pertencente ao outro owner — esperado: zero linhas afetadas;
+3. INSERT declarando o `owner_id` do outro owner — esperado: bloqueio com SQLSTATE `42501`.
 
 ## Resultado
 
-**12/12 verificações aprovadas.**
+<text></text>
+**24/24 verificações aprovadas.**
 
-| Tabela | A → B: UPDATE | A → B: DELETE | A: INSERT com owner B | B → A: UPDATE | B → A: DELETE | B: INSERT com owner A |
-|---|---:|---:|---:|---:|---:|---:|
-| `products` | 0 linhas | 0 linhas | Bloqueado | 0 linhas | 0 linhas | Bloqueado |
-| `app_settings` | 0 linhas | 0 linhas | Bloqueado | 0 linhas | 0 linhas | Bloqueado |
+| Tabela | CRUD próprio A | CRUD próprio B | Escrita cruzada A → B | Escrita cruzada B → A |
+|---|---:|---:|---:|---:|
+| `products` | 3/3 | 3/3 | 3/3 bloqueios | 3/3 bloqueios |
+| `app_settings` | 3/3 | 3/3 | 3/3 bloqueios | 3/3 bloqueios |
+
+As 12 operações próprias foram aceitas com uma linha afetada cada. As 12 tentativas cruzadas foram impedidas conforme esperado.
 
 Todas as fixtures e operações foram revertidas com `ROLLBACK`; nenhuma linha de teste permaneceu no banco.
 
@@ -42,9 +49,9 @@ Todas as fixtures e operações foram revertidas com `ROLLBACK`; nenhuma linha d
 
 - São testes SQL transacionais com `SET LOCAL ROLE authenticated` e claims simuladas, não chamadas HTTP/PostgREST com JWT real emitido pelo Auth.
 - Não validam a interface do aplicativo nem os fluxos completos de criação/edição.
-- O resultado comprova somente as seis tentativas por tabela descritas acima, para os dois perfis sintéticos ativos.
+- O resultado comprova somente as operações descritas acima, para os dois perfis sintéticos ativos.
 - Não altera a avaliação dos avisos de múltiplas policies permissivas: a duplicidade de policies de admin/instrutor continua como oportunidade de otimização, sem alteração de semântica nesta etapa.
 
 ## Atualização da matriz
 
-O caso SEC-017 passa a ter cobertura de leitura e de escrita cruzada para `products` e `app_settings`, no escopo limitado descrito neste relatório. Não marcar os demais casos SEC como concluídos por consequência deste teste.
+O caso SEC-017 passa a ter cobertura de leitura, CRUD próprio e bloqueio de escrita cruzada para `products` e `app_settings`, no escopo limitado descrito neste relatório. Não marcar os demais casos SEC como concluídos por consequência destes testes.
