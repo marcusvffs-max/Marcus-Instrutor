@@ -29,7 +29,7 @@ CREATE POLICY student_practical_exams_owner_insert ON public.student_practical_e
  AND status='agendado' AND resultado IS NULL AND aluguel_consumido=false);
 CREATE POLICY student_practical_exams_owner_delete ON public.student_practical_exams FOR DELETE TO authenticated USING (owner_id=(SELECT auth.uid()) AND private.current_app_role() IN ('admin','instrutor'));
 CREATE OR REPLACE FUNCTION public.record_student_practical_exam_result(p_exam_id uuid,p_resultado text)
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $function$
 DECLARE v_uid uuid:=auth.uid(); v_exam public.student_practical_exams%rowtype; v_student public.students%rowtype;
 BEGIN
  IF v_uid IS NULL OR private.current_app_role() NOT IN ('admin','instrutor') THEN RAISE EXCEPTION 'Acesso permitido somente ao administrador ou instrutor.'; END IF;
@@ -43,9 +43,9 @@ BEGIN
  UPDATE public.students SET alugueis_disponiveis=alugueis_disponiveis-1 WHERE id=v_student.id AND owner_id=v_uid;
  UPDATE public.student_practical_exams SET status='realizado',resultado=p_resultado,aluguel_consumido=true,updated_at=now() WHERE id=v_exam.id AND owner_id=v_uid;
  RETURN jsonb_build_object('exam_id',v_exam.id,'student_id',v_student.id,'resultado',p_resultado,'alugueis_disponiveis',v_student.alugueis_disponiveis-1);
-END; $$;
+END; $function$;
 CREATE OR REPLACE FUNCTION public.cancel_student_practical_exam(p_exam_id uuid)
-RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $$
+RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $function$$
 DECLARE v_uid uuid:=auth.uid(); v_exam public.student_practical_exams%rowtype;
 BEGIN
  IF v_uid IS NULL OR private.current_app_role() NOT IN ('admin','instrutor') THEN RAISE EXCEPTION 'Acesso permitido somente ao administrador ou instrutor.'; END IF;
@@ -54,7 +54,7 @@ BEGIN
  IF v_exam.status<>'agendado' THEN RAISE EXCEPTION 'Somente exames agendados podem ser cancelados.'; END IF;
  UPDATE public.student_practical_exams SET status='cancelado',updated_at=now() WHERE id=v_exam.id AND owner_id=v_uid;
  RETURN jsonb_build_object('exam_id',v_exam.id,'status','cancelado','aluguel_consumido',false);
-END; $$;
+END; $function$;
 REVOKE ALL ON FUNCTION public.record_student_practical_exam_result(uuid,text) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.record_student_practical_exam_result(uuid,text) TO authenticated;
 REVOKE ALL ON FUNCTION public.cancel_student_practical_exam(uuid) FROM PUBLIC,anon;
