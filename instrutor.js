@@ -1548,6 +1548,7 @@
   function generateInstructorContract() {
     const contratanteNome = el("contratanteNome").value.trim();
     const contratanteDocumento = el("contratanteDocumento").value.trim();
+    const contratanteCelular = el("contratanteCelular").value.trim();
     const contratanteNacionalidade = el("contratanteNacionalidade").value.trim();
     const contratanteCivil = el("contratanteCivil").value.trim();
     const contratanteProfissao = el("contratanteProfissao").value.trim();
@@ -1558,8 +1559,8 @@
     const aulas = Number(el("contratoQuantidadeAulas").value);
     const valor = Number(el("contratoValor").value);
     const pagamento = el("contratoPagamento").value.trim();
-    if (!contratanteNome || !contratanteDocumento) {
-      showMessage("Preencha e salve seu nome e CPF/CNPJ na identificação do instrutor antes de gerar o contrato.");
+    if (!contratanteNome || !contratanteDocumento || !contratanteCelular) {
+      showMessage("Preencha nome, CPF/CNPJ e celular no menu Meu cadastro antes de gerar o contrato.");
       return;
     }
     if (!nome || !cpf || !categoria || !Number.isInteger(aulas) || aulas < 1 ||
@@ -1609,7 +1610,7 @@
 
     el("contratoPreviewInstrutor").innerHTML =
       '<article class="contract-sheet"><header>' + (state.logoUrl ? '<img src="' + safe(state.logoUrl) + '" alt="Logomarca do instrutor" style="display:block;max-width:110px;max-height:85px;object-fit:contain;margin:0 auto 12px;">' : '') + '<h2>' + safe(instructor) + '</h2><p>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</p></header>' +
-      '<main><p><strong>CONTRATADO(A) / INSTRUTOR(A):</strong> ' + safe(instructor) + '</p><p><strong>CPF/CNPJ:</strong> ' + safe(contratanteDocumento) + '</p>' +
+      '<main><p><strong>CONTRATADO(A) / INSTRUTOR(A):</strong> ' + safe(instructor) + '</p><p><strong>CPF/CNPJ:</strong> ' + safe(contratanteDocumento) + '</p><p><strong>CELULAR / WHATSAPP:</strong> ' + safe(contratanteCelular) + '</p>' +
       (contratanteNacionalidade || contratanteCivil || contratanteProfissao || contratanteEndereco ? '<p><strong>Identificação:</strong> ' + safe([contratanteNacionalidade, contratanteCivil, contratanteProfissao, contratanteEndereco].filter(Boolean).join(", ")) + '</p>' : "") +
       '<p><strong>CONTRATANTE / ALUNO(A):</strong> ' + safe(nome) + '</p><p><strong>CPF:</strong> ' + safe(cpf) + '</p>' +
       clauses.join("") +
