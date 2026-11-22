@@ -10,7 +10,8 @@ alter table public.whatsapp_conversations
       'instrutor_mensagem_manual',
       'instrutor_assumiu_atendimento',
       'ia_desativada_global',
-      'instrutor_reativou_ia'
+      'instrutor_reativou_ia',
+      'cliente_solicitou_atendimento_humano'
     )
   );
 
