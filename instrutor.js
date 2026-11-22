@@ -1107,8 +1107,19 @@
     const studentId = el("vendaAluno").value;
     if (!state.students.some(student => student.id === studentId)) { showMessage("Selecione um aluno válido."); return; }
     const button = el("btnSalvarVenda");
-    const saleId = crypto.randomUUID();
     const items = state.saleCart.map(item => ({ product_id: item.productId, quantidade: item.quantity }));
+    const saleRequest = {
+      studentId,
+      items,
+      paymentMethod: el("vendaPagamento").value || null,
+      notes: el("vendaObservacoes").value.trim() || null
+    };
+    const saleFingerprint = JSON.stringify(saleRequest);
+    if (state.pendingSaleFingerprint !== saleFingerprint || !state.pendingSaleId) {
+      state.pendingSaleId = crypto.randomUUID();
+      state.pendingSaleFingerprint = saleFingerprint;
+    }
+    const saleId = state.pendingSaleId;
     button.disabled = true;
     button.textContent = "Registrando...";
     try {
@@ -1116,8 +1127,8 @@
         p_sale_id: saleId,
         p_student_id: studentId,
         p_items: items,
-        p_payment_method: el("vendaPagamento").value || null,
-        p_notes: el("vendaObservacoes").value.trim() || null
+        p_payment_method: saleRequest.paymentMethod,
+        p_notes: saleRequest.notes
       });
       if (error) throw error;
 
@@ -1126,6 +1137,8 @@
       el("formVenda").reset();
       el("vendaQuantidade").value = "1";
       state.saleCart = [];
+      state.pendingSaleId = null;
+      state.pendingSaleFingerprint = null;
       renderSaleCart();
 
       try {
