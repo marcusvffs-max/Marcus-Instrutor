@@ -1253,3 +1253,10 @@ No projeto isolado, testes SQL transacionais confirmaram:
 - tentativa de remover vínculo de aluno de outro owner é bloqueada com `P0002`, preservando a identidade Auth estrangeira (4 verificações).
 
 Tudo foi revertido. Não houve e-mail, convite persistente, chamada HTTP da Edge Function nem alteração no Supabase original.
+
+
+Complemento da área do aluno:
+- RPC de nome do instrutor: aluno A recebeu nome do owner A, aluno B recebeu nome do owner B; instrutor foi bloqueado ao chamar a RPC exclusiva do aluno (3 verificações).
+- Revisão estática de `admin-manage-instructors` confirmou validação de bearer token, papel do chamador, validade do acesso de instrutor, owner scope do cadastro, reserva/attempt ID e confirmação de e-mail. Sem execução HTTP ou SMTP.
+
+O conjunto de testes SQL da área de aluno, vínculo, convite e remoção soma 24 verificações/asserções aprovadas, todas com dados sintéticos e rollback. Não é homologação HTTP com JWT real.
