@@ -54,7 +54,7 @@
   }
   function escClose(e){if(e.key==="Escape")close();}
   function close(){ $("marcus-exam-overlay")?.remove();document.removeEventListener("keydown",escClose);}
-  function nav(){if($("marcus-exam-launch"))return;const actions=document.querySelector("#page-inicio .quick-actions");if(!actions)return;const b=document.createElement("button");b.id="marcus-exam-launch";b.type="button";b.className="primary-button";b.textContent="Exames";b.setAttribute("aria-label","Abrir Exames");b.onclick=async()=>{selectedStudentId=null;activeTab="historico";modal();await refresh();};actions.append(b);}
+  function nav(){if($("marcus-exam-launch"))return;const actions=document.querySelector("#page-inicio .quick-actions")||document.querySelector(".intro[data-view=\"inicio\"]");if(!actions)return;const b=document.createElement("button");b.id="marcus-exam-launch";b.type="button";b.className=actions.matches(".intro")?"button button-primary":"primary-button";b.textContent="Exames";b.setAttribute("aria-label","Abrir Exames");b.onclick=async()=>{selectedStudentId=null;activeTab="historico";modal();await refresh();};actions.append(b);}
   async function init(){
     if(!window.supabase?.createClient)return;
     const getClient=window.getMarcusSupabase;

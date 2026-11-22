@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#12345a">
   <meta name="description" content="Área do instrutor - Marcus Instrutor">
   <title>Área do Instrutor | Marcus Instrutor</title>
-  <link rel="stylesheet" href="instrutor.css?v=19-instructor-settings">
+  <link rel="stylesheet" href="instrutor.css?v=21-finance-refunds">
 </head>
 <body>
   <div class="app-shell">
@@ -113,6 +113,21 @@
         <div class="list-toolbar"><div class="list-toolbar-copy"><strong>Seus alunos</strong><span id="contadorAlunos">0 cadastrados</span></div><label class="search-field" for="filtroBuscaAlunos"><span>⌕</span><input id="filtroBuscaAlunos" type="search" placeholder="Buscar por nome, telefone, CPF ou categoria" autocomplete="off"></label></div>
         <div id="listaAlunos" class="student-cards">
           <div class="empty-state">Carregando seus alunos...</div>
+        </div>
+      </section>
+
+      <section class="panel students-panel" data-view="alunos-vinculados">
+        <div class="section-heading">
+          <div>
+            <h3>Alunos com acesso ao aplicativo</h3>
+            <p>Somente alunos que já possuem uma conta vinculada ao seu acesso de instrutor. Remover o acesso não apaga o cadastro nem o histórico.</p>
+          </div>
+        </div>
+        <div class="list-toolbar">
+          <div class="list-toolbar-copy"><strong>Contas vinculadas</strong><span id="contadorAlunosVinculados">0 contas</span></div>
+        </div>
+        <div id="listaAlunosVinculados" class="student-cards">
+          <div class="empty-state">Carregando alunos vinculados...</div>
         </div>
       </section>
 
@@ -272,12 +287,23 @@
           <div class="student-form-actions"><button id="btnCancelarProduto" class="button button-outline" type="button">Cancelar</button><button id="btnSalvarProduto" class="button button-primary" type="submit">Salvar item</button></div>
         </form>
         <div class="list-toolbar"><div class="list-toolbar-copy"><strong>Seus produtos e serviços</strong><span id="contadorProdutos">0 itens</span></div><label class="search-field" for="filtroBuscaProdutos"><span>⌕</span><input id="filtroBuscaProdutos" type="search" placeholder="Buscar produto ou serviço"></label></div>
+        <div class="panel fixed-item-prices">
+          <h4>Preços de itens fixos</h4>
+          <p>Aluguel e Cartão Moto Pista são vendidos junto com os demais produtos e serviços.</p>
+          <div class="student-form-grid">
+            <div><label for="precoAluguelFixoInstrutor">Aluguel de Veículo (R$)</label><input id="precoAluguelFixoInstrutor" type="number" min="0" step="0.01"></div>
+            <div><label for="precoCartaoFixoInstrutor">Cartão Moto Pista (R$)</label><input id="precoCartaoFixoInstrutor" type="number" min="0" step="0.01"></div>
+          </div>
+          <button id="btnSalvarPrecosFixosInstrutor" class="button button-outline" type="button">Salvar preços</button>
+          <p id="statusPrecosFixosInstrutor" role="status"></p>
+        </div>
         <div id="listaProdutos" class="product-cards"><div class="empty-state">Carregando produtos...</div></div>
       </section>
 
       <section class="panel sales-panel" data-view="vendas">
-        <div class="section-heading"><div><h3>Registrar venda</h3><p>Selecione o aluno, adicione os itens e confirme. A entrada financeira e o saldo de aulas serão atualizados automaticamente.</p></div></div>
-        <form id="formVenda" class="student-form">
+        <div class="section-heading"><div><h3>Vendas</h3><p>Registre novas vendas e acompanhe o histórico. A entrada financeira e o saldo de aulas são atualizados automaticamente.</p></div><button id="btnNovaVenda" class="button button-primary" type="button">+ Nova venda</button></div>
+        <form id="formVenda" class="student-form" hidden>
+          <h4>Registrar venda</h4>
           <div class="student-form-grid">
             <div><label for="vendaAluno">Aluno *</label><select id="vendaAluno" required><option value="">Selecione um aluno</option></select></div>
             <div><label for="vendaPagamento">Forma de pagamento</label><select id="vendaPagamento"><option value="">Não informado</option><option>Dinheiro</option><option>Pix</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option><option>Outro</option></select></div>
@@ -290,6 +316,21 @@
           <div><label for="vendaObservacoes">Observações</label><input id="vendaObservacoes" maxlength="500" placeholder="Observações opcionais"></div>
           <div class="student-form-actions"><button id="btnSalvarVenda" class="button button-primary" type="submit" disabled>Confirmar venda</button></div>
         </form>
+        <form id="formDevolucaoInstrutor" class="student-form" hidden>
+          <h4 id="tituloDevolucaoInstrutor">Devolução de produtos e serviços</h4>
+          <label for="devolucaoVendaInstrutor">Venda *</label>
+          <select id="devolucaoVendaInstrutor" required><option value="">Selecione uma venda</option></select>
+          <div id="resumoVendaDevolucaoInstrutor" class="refund-sale-summary">Selecione uma venda para visualizar os itens disponíveis.</div>
+          <label for="devolucaoItemInstrutor">Item desta venda *</label>
+          <select id="devolucaoItemInstrutor" required><option value="">Selecione um item</option></select>
+          <label for="devolucaoQuantidadeInstrutor">Quantidade para devolver *</label>
+          <input id="devolucaoQuantidadeInstrutor" type="number" min="1" step="1" required disabled>
+          <div id="devolucaoPreviaInstrutor" class="refund-preview"><strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p></div>
+          <div class="student-form-actions">
+            <button id="btnCancelarDevolucaoInstrutor" class="button button-outline" type="button">Cancelar</button>
+            <button id="btnConfirmarDevolucaoInstrutor" class="button button-primary" type="submit">Confirmar devolução</button>
+          </div>
+        </form>
         <div class="list-toolbar"><div class="list-toolbar-copy"><strong>Histórico de vendas</strong><span id="contadorVendas">0 vendas</span></div></div>
         <div id="listaVendas" class="sales-list"><div class="empty-state">Carregando vendas...</div></div>
       </section>
@@ -300,13 +341,17 @@
             <h3>Meu financeiro</h3>
             <p>Acompanhe suas entradas, despesas e saldo. Os dados são exclusivos da sua conta.</p>
           </div>
+          <div class="finance-actions">
+            <button id="btnDevolucaoFinanceiro" class="button button-outline" type="button">↩ Devolução</button>
+            <button id="btnNovaMovimentacao" class="button button-primary" type="button">+ Nova movimentação</button>
+          </div>
         </div>
         <div class="finance-summary">
           <article class="finance-summary-card"><span>Entradas</span><strong id="financeEntradas">R$ 0,00</strong></article>
           <article class="finance-summary-card"><span>Despesas</span><strong id="financeDespesas">R$ 0,00</strong></article>
           <article class="finance-summary-card finance-balance-card"><span>Saldo</span><strong id="financeSaldo">R$ 0,00</strong></article>
         </div>
-        <form id="formMovimentacao" class="student-form">
+        <form id="formMovimentacao" class="student-form" hidden>
           <h4>Registrar movimentação</h4>
           <div class="student-form-grid">
             <div><label for="movimentoTipo">Tipo *</label><select id="movimentoTipo" required><option value="entrada">Entrada</option><option value="saida">Despesa</option></select></div>
@@ -323,6 +368,27 @@
         <div id="listaMovimentacoes" class="finance-list"><div class="empty-state">Carregando movimentações...</div></div>
       </section>
 
+      <section class="panel settings-panel" data-view="cadastro">
+        <div class="section-heading">
+          <div><h3>Meu cadastro</h3><p>Seus dados pessoais e de contato serão utilizados automaticamente nos contratos e no WhatsApp dos seus alunos.</p></div>
+        </div>
+        <div class="student-form">
+          <div class="student-form-grid">
+            <div><label for="contratanteNome">Nome completo / razão social *</label><input id="contratanteNome" maxlength="160" autocomplete="name"></div>
+            <div><label for="contratanteDocumento">CPF / CNPJ *</label><input id="contratanteDocumento" maxlength="24" inputmode="numeric" autocomplete="off"></div>
+            <div><label for="contratanteCelular">Celular / WhatsApp *</label><input id="contratanteCelular" type="tel" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="(00) 00000-0000"></div>
+            <div><label for="contratanteNacionalidade">Nacionalidade</label><input id="contratanteNacionalidade" maxlength="80"></div>
+            <div><label for="contratanteCivil">Estado civil</label><input id="contratanteCivil" maxlength="80"></div>
+            <div><label for="contratanteProfissao">Profissão</label><input id="contratanteProfissao" maxlength="100"></div>
+            <div class="form-full"><label for="contratanteEndereco">Endereço completo</label><textarea id="contratanteEndereco" rows="2" maxlength="300"></textarea></div>
+          </div>
+          <div class="student-form-actions">
+            <button id="btnSalvarDadosContratante" class="button button-primary" type="button">Salvar cadastro</button>
+            <p id="statusDadosContratante" class="contract-note" role="status" aria-live="polite">Esses dados serão usados nos seus contratos e no contato do WhatsApp dos alunos vinculados.</p>
+          </div>
+        </div>
+      </section>
+
       <section class="panel settings-panel" data-view="configuracoes">
         <div class="section-heading">
           <div><h3>Meu perfil e aparência</h3><p>Altere seu nome e personalize as cores da sua própria área de instrutor.</p></div>
@@ -335,6 +401,13 @@
             </div>
             <div><label for="corPrincipalInstrutor">Cor principal</label><input id="corPrincipalInstrutor" type="color" value="#12345a"></div>
             <div><label for="corSecundariaInstrutor">Cor de fundo</label><input id="corSecundariaInstrutor" type="color" value="#f3f6fa"></div>
+            <div class="form-full">
+              <label for="logoInstrutorArquivo">Sua logomarca</label>
+              <input id="logoInstrutorArquivo" type="file" accept="image/png,image/jpeg,image/webp">
+              <small>PNG, JPG ou WEBP · máximo 2 MB. Ela aparecerá nos seus contratos e na área dos seus alunos vinculados.</small>
+              <img id="logoInstrutorPreview" alt="Prévia da sua logomarca" hidden style="max-width:180px;max-height:110px;object-fit:contain;margin:12px 0;border-radius:10px;">
+              <button id="btnRemoverLogoInstrutor" class="button button-outline" type="button" hidden>Remover logomarca</button>
+            </div>
           </div>
           <div class="student-form-actions">
             <button id="btnSalvarConfiguracoesInstrutor" class="button button-primary" type="button">Salvar alterações</button>
@@ -376,19 +449,7 @@
           <div><h3>Contrato de prestação de serviços</h3><p>Gere um contrato com os dados dos seus alunos e a sua identificação de instrutor.</p></div>
         </div>
         <div class="student-form contract-form">
-          <h4>Seus dados de identificação (contratado / instrutor)</h4>
-          <div class="student-form-grid">
-            <div><label for="contratanteNome">Nome completo *</label><input id="contratanteNome" maxlength="160" autocomplete="name"></div>
-            <div><label for="contratanteDocumento">CPF / CNPJ *</label><input id="contratanteDocumento" maxlength="24" inputmode="numeric" autocomplete="off"></div>
-            <div><label for="contratanteNacionalidade">Nacionalidade</label><input id="contratanteNacionalidade" maxlength="80"></div>
-            <div><label for="contratanteCivil">Estado civil</label><input id="contratanteCivil" maxlength="80"></div>
-            <div><label for="contratanteProfissao">Profissão</label><input id="contratanteProfissao" maxlength="100"></div>
-            <div class="form-full"><label for="contratanteEndereco">Endereço completo</label><textarea id="contratanteEndereco" rows="2" maxlength="300"></textarea></div>
-          </div>
-          <div class="student-form-actions">
-            <button id="btnSalvarDadosContratante" class="button button-outline" type="button">Salvar meus dados</button>
-            <p id="statusDadosContratante" class="contract-note" role="status" aria-live="polite">Seus dados serão guardados na sua conta.</p>
-          </div>
+          <p>Os dados do instrutor são preenchidos automaticamente pelo cadastro em <strong>Meu cadastro</strong>. Confira as informações antes de gerar o documento.</p>
           <h4>Dados do contrato do aluno</h4>
           <div class="student-form-grid">
             <div class="form-full">
@@ -421,6 +482,7 @@
     <nav class="bottom-menu" aria-label="Menu principal do instrutor">
       <button type="button" data-instructor-page="inicio" class="menu-item active"><span class="menu-icon">⌂</span><span>Início</span></button>
       <button type="button" data-instructor-page="alunos" class="menu-item"><span class="menu-icon">♙</span><span>Alunos</span></button>
+      <button type="button" data-instructor-page="alunos-vinculados" class="menu-item"><span class="menu-icon">♧</span><span>Acessos</span></button>
       <button type="button" data-instructor-page="veiculos" class="menu-item"><span class="menu-icon">▣</span><span>Veículos</span></button>
       <button type="button" data-instructor-page="aulas" class="menu-item"><span class="menu-icon">▦</span><span>Aulas</span></button>
       <button type="button" data-instructor-page="produtos" class="menu-item"><span class="menu-icon">▧</span><span>Produtos</span></button>
@@ -428,13 +490,15 @@
       <button type="button" data-instructor-page="financeiro" class="menu-item"><span class="menu-icon">＄</span><span>Financeiro</span></button>
       <button type="button" data-instructor-page="relatorios" class="menu-item"><span class="menu-icon">▤</span><span>Relatórios</span></button>
       <button type="button" data-instructor-page="contratos" class="menu-item"><span class="menu-icon">▧</span><span>Contratos</span></button>
+      <button type="button" data-instructor-page="cadastro" class="menu-item"><span class="menu-icon">♙</span><span>Meu cadastro</span></button>
       <button type="button" data-instructor-page="configuracoes" class="menu-item"><span class="menu-icon">⚙</span><span>Ajustes</span></button>
     </nav>
     <footer>Marcus Instrutor · Área restrita</footer>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="contratante-perfil.js?v=1"></script>
-  <script src="instrutor.js?v=28-safe-confirm"></script>
+  <script src="contratante-perfil.js?v=2-cellphone"></script>
+  <script src="instrutor.js?v=unified-fixed-items-4"></script>
+  <script src="exames-alugueis.js?v=exams-status-filter-1"></script>
 </body>
 </html>

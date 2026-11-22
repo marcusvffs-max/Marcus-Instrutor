@@ -15,10 +15,16 @@
     vehicles: [],
     transactions: [],
     products: [],
+    fixedItemPrices: { aluguel: 0, cartao: 0 },
     sales: [],
+    saleItems: [],
+    rentalCreditAvailability: new Map(),
+    refundSaleId: null,
     productSearch: "",
     productEditingId: null,
     saleCart: [],
+    pendingSaleId: null,
+    pendingSaleFingerprint: null,
     financialSearch: "",
     studentEditingId: null,
     studentSearch: "",
@@ -26,7 +32,9 @@
     vehicleSearch: "",
     lessonEditingId: null,
     lessonSearch: "",
-    lessonStatusFilter: ""
+    lessonStatusFilter: "",
+    logoUrl: "",
+    contractorProfile: null
   };
 
   function escapeHtml(value) {
@@ -35,10 +43,68 @@
     })[char]);
   }
 
+  let activeInstructorModal = null;
+
+  function openInstructorModal(formId) {
+    const form = el(formId);
+    if (!form) return;
+    if (activeInstructorModal) closeInstructorModal();
+    const placeholder = document.createComment("form-" + formId);
+    form.parentNode.insertBefore(placeholder, form);
+    const overlay = document.createElement("div");
+    overlay.className = "instructor-modal-overlay";
+    const dialog = document.createElement("section");
+    dialog.className = "instructor-modal-dialog";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    const header = document.createElement("div");
+    header.className = "instructor-modal-header";
+    const title = document.createElement("h2");
+    title.textContent = form.querySelector("h4")?.textContent || "Cadastro";
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "instructor-modal-close";
+    close.setAttribute("aria-label", "Fechar");
+    close.textContent = "×";
+    header.append(title, close);
+    dialog.append(header, form);
+    overlay.append(dialog);
+    document.body.append(overlay);
+    form.hidden = false;
+    form.classList.add("instructor-modal-form");
+    document.body.classList.add("instructor-modal-open");
+    const onKeyDown = event => { if (event.key === "Escape") closeInstructorModal(formId); };
+    activeInstructorModal = { form, placeholder, overlay, onKeyDown };
+    close.addEventListener("click", () => closeInstructorModal(formId));
+    overlay.addEventListener("click", event => {
+      if (event.target === overlay) closeInstructorModal(formId);
+    });
+    document.addEventListener("keydown", onKeyDown);
+  }
+
+  function closeInstructorModal(formId = null) {
+    const modal = activeInstructorModal;
+    if (!modal || (formId && modal.form.id !== formId)) return;
+    document.removeEventListener("keydown", modal.onKeyDown);
+    if (modal.placeholder.parentNode) {
+      modal.placeholder.parentNode.insertBefore(modal.form, modal.placeholder);
+      modal.placeholder.remove();
+    }
+    modal.form.classList.remove("instructor-modal-form");
+    modal.form.hidden = true;
+    modal.overlay.remove();
+    document.body.classList.remove("instructor-modal-open");
+    activeInstructorModal = null;
+  }
+
+  function semLinksIndesejados(message) {
+    return String(message ?? "").replace(/\b(?:https?:\/\/|www\.)[^\s<]+/gi, "[link ocultado]");
+  }
+
   function showMessage(message, isError = true) {
     const target = el("mensagem");
     if (!target) return;
-    target.textContent = message || "";
+    target.textContent = semLinksIndesejados(message);
     target.style.color = isError ? "#a12b2b" : "#16794b";
   }
 
@@ -72,7 +138,7 @@
       title.id = "marcusConfirmTitle";
       title.textContent = "Confirmação";
       const text = document.createElement("p");
-      text.textContent = String(message ?? "");
+      text.textContent = semLinksIndesejados(message);
       const actions = document.createElement("div");
       actions.className = "marcus-confirm-actions";
       const cancel = document.createElement("button");
@@ -121,21 +187,42 @@
     document.documentElement.style.setProperty("--background", backgroundColor);
   }
 
+  function validateInstructorLogo(file) {
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      throw new Error("Use uma imagem PNG, JPG ou WEBP.");
+    }
+    if (file.size > 2 * 1024 * 1024) throw new Error("A imagem deve ter no máximo 2 MB.");
+  }
+
+  function renderInstructorLogo(url) {
+    const preview = el("logoInstrutorPreview");
+    const removeButton = el("btnRemoverLogoInstrutor");
+    if (preview) {
+      preview.src = url || "";
+      preview.hidden = !url;
+    }
+    if (removeButton) removeButton.hidden = !url;
+    state.logoUrl = url || "";
+  }
+
   async function loadInstructorSettings() {
     const { data, error } = await state.supabase
       .from("app_settings")
-      .select("nome_empresa,cor_principal,cor_secundaria")
+      .select("nome_empresa,cor_principal,cor_secundaria,logo_url,contratante_nome,contratante_documento,contratante_celular,contratante_endereco")
       .eq("owner_id", state.user.id)
       .maybeSingle();
     if (error) throw error;
 
-    const name = state.profile?.nome || state.user.email || "Instrutor";
+    state.contractorProfile = data || {};
+    const name = data?.contratante_nome || data?.nome_empresa || state.profile?.nome || state.user.email || "Instrutor";
     const primary = data?.cor_principal || "#12345a";
     const secondary = data?.cor_secundaria || "#f3f6fa";
     el("nomePerfilInstrutor").value = name;
     el("corPrincipalInstrutor").value = primary;
     el("corSecundariaInstrutor").value = secondary;
     el("nomeInstrutor").textContent = name;
+    renderInstructorLogo(data?.logo_url || "");
     applyInstructorTheme(primary, secondary);
   }
 
@@ -144,6 +231,7 @@
     const name = el("nomePerfilInstrutor").value.trim();
     const primary = el("corPrincipalInstrutor").value;
     const secondary = el("corSecundariaInstrutor").value;
+    const file = el("logoInstrutorArquivo")?.files?.[0] || null;
     if (!name) {
       showMessage("Informe seu nome para salvar as configurações.");
       el("nomePerfilInstrutor").focus();
@@ -154,6 +242,19 @@
     button.textContent = "Salvando...";
     showMessage("");
     try {
+      validateInstructorLogo(file);
+      let logoUrl = state.logoUrl || null;
+      if (file) {
+        const path = state.user.id + "/logo";
+        const { error: uploadError } = await state.supabase.storage
+          .from("instructor-logos")
+          .upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
+        if (uploadError) throw uploadError;
+        const { data: publicData } = state.supabase.storage.from("instructor-logos").getPublicUrl(path);
+        logoUrl = publicData?.publicUrl || null;
+        if (!logoUrl) throw new Error("Não foi possível obter o endereço da logomarca.");
+      }
+
       const { error: profileError } = await state.supabase
         .from("profiles")
         .update({ nome: name })
@@ -166,20 +267,46 @@
           owner_id: state.user.id,
           nome_empresa: name,
           cor_principal: primary,
-          cor_secundaria: secondary
+          cor_secundaria: secondary,
+          logo_url: logoUrl
         }, { onConflict: "owner_id" });
       if (settingsError) throw settingsError;
 
       state.profile.nome = name;
       el("nomeInstrutor").textContent = name;
+      renderInstructorLogo(logoUrl);
       applyInstructorTheme(primary, secondary);
-      showMessage("Seu nome e as cores do aplicativo foram salvos.", false);
+      showMessage("Seu perfil, cores e logomarca foram salvos.", false);
     } catch (error) {
       console.error("Falha ao salvar perfil e aparência do instrutor:", error);
-      showMessage("Não foi possível salvar as configurações. Confira sua conexão e tente novamente.");
+      showMessage(error?.message || "Não foi possível salvar as configurações. Confira sua conexão e tente novamente.");
     } finally {
       button.disabled = false;
       button.textContent = "Salvar alterações";
+    }
+  }
+
+  async function removeInstructorLogo() {
+    if (!state.logoUrl) return;
+    if (!(await confirmAction("Deseja remover a logomarca desta conta?"))) return;
+    const button = el("btnRemoverLogoInstrutor");
+    if (button) { button.disabled = true; button.textContent = "Removendo..."; }
+    try {
+      const path = state.user.id + "/logo";
+      const { error: storageError } = await state.supabase.storage.from("instructor-logos").remove([path]);
+      if (storageError) throw storageError;
+      const { error } = await state.supabase.from("app_settings")
+        .update({ logo_url: null }).eq("owner_id", state.user.id);
+      if (error) throw error;
+      renderInstructorLogo("");
+      const input = el("logoInstrutorArquivo");
+      if (input) input.value = "";
+      showMessage("Logomarca removida desta conta.", false);
+    } catch (error) {
+      console.error("Falha ao remover logomarca do instrutor:", error);
+      showMessage("Não foi possível remover a logomarca. Tente novamente.");
+    } finally {
+      if (button) { button.disabled = false; button.textContent = "Remover logomarca"; }
     }
   }
 
@@ -282,18 +409,75 @@
             '<span><small>Telefone</small><strong>' + escapeHtml(student.telefone || "Não informado") + '</strong></span>' +
             '<span><small>Categoria</small><strong>' + escapeHtml(student.categoria || "Não definida") + '</strong></span>' +
             '<span><small>Aulas restantes</small><strong class="student-balance">' + escapeHtml(student.aulas_restantes ?? 0) + '</strong></span>' +
+            '<span><small>Aluguéis disponíveis</small><strong>' + escapeHtml(student.alugueis_disponiveis ?? 0) + ' de ' + escapeHtml(student.alugueis_comprados ?? 0) + '</strong></span>' +
           '</div>' +
           (student.email ? '<p class="student-card-email">' + escapeHtml(student.email) + '</p>' : '') +
           '<p class="student-card-email student-account-status"><small>Acesso do aluno: </small><strong class="' + accountClass + '">' + escapeHtml(accountStatus) + '</strong></p>' +
         '</div>' +
         '<div class="student-card-actions">' +
           inviteButton +
-          '<button class="button button-outline button-small" type="button" data-student-action="view-link" data-student-id="' + escapeHtml(student.id) + '">Ver vínculo</button>' +
+          '<button class="button button-outline button-small" type="button" data-student-action="exams" data-student-id="' + escapeHtml(student.id) + '">Exames</button><button class="button button-outline button-small" type="button" data-student-action="view-link" data-student-id="' + escapeHtml(student.id) + '">Ver vínculo</button>' +
           '<button class="button button-outline button-small" type="button" data-student-action="edit" data-student-id="' + escapeHtml(student.id) + '">Editar</button>' +
           '<button class="button button-danger button-small" type="button" data-student-action="delete" data-student-id="' + escapeHtml(student.id) + '">Excluir</button>' +
         '</div>' +
       '</article>';
     }).join("");
+  }
+
+
+  function renderLinkedStudents() {
+    const container = el("listaAlunosVinculados");
+    const counter = el("contadorAlunosVinculados");
+    if (!container || !counter) return;
+    const linked = state.students.filter(student => Boolean(student.user_id));
+    counter.textContent = linked.length + (linked.length === 1 ? " conta vinculada" : " contas vinculadas");
+    if (!state.studentLinkFieldsAvailable) {
+      container.innerHTML = '<div class="empty-state">A atualização dos vínculos ainda não está disponível. Tente novamente após atualizar o aplicativo.</div>';
+      return;
+    }
+    if (!linked.length) {
+      container.innerHTML = '<div class="empty-state">Nenhum aluno possui acesso vinculado à sua conta de instrutor.</div>';
+      return;
+    }
+    container.innerHTML = linked.map(student => {
+      const waiting = Boolean(student.invited_at);
+      return '<article class="student-card">' +
+        '<div class="student-card-main">' +
+          '<div class="student-card-heading"><h4>' + escapeHtml(student.nome) + '</h4>' +
+            '<span class="student-status student-status-approved">Acesso vinculado</span></div>' +
+          '<div class="student-card-details">' +
+            '<span><small>E-mail</small><strong>' + escapeHtml(student.email || "Não informado") + '</strong></span>' +
+            '<span><small>Telefone</small><strong>' + escapeHtml(student.telefone || "Não informado") + '</strong></span>' +
+            '<span><small>Conta</small><strong>' + (waiting ? "Aguardando primeiro acesso" : "Ativa") + '</strong></span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="student-card-actions">' +
+          '<button class="button button-danger button-small" type="button" data-linked-student-action="remove" data-student-id="' + escapeHtml(student.id) + '">Remover acesso</button>' +
+        '</div>' +
+      '</article>';
+    }).join("");
+  }
+
+  async function removeStudentAppAccess(studentId) {
+    const student = state.students.find(item => item.id === studentId);
+    if (!student || !student.user_id) return;
+    const confirmed = await confirmAction(
+      'Remover o acesso ao aplicativo de "' + student.nome + '"?\n\nA conta do aluno será desativada e ele não poderá mais entrar. O cadastro, as aulas, vendas e todo o histórico permanecerão salvos na sua conta de instrutor.'
+    );
+    if (!confirmed) return;
+    const container = el("listaAlunosVinculados");
+    const button = container?.querySelector('[data-student-id="' + CSS.escape(studentId) + '"]');
+    if (button) { button.disabled = true; button.textContent = "Removendo..."; }
+    try {
+      const { error } = await state.supabase.rpc("remove_student_app_access", { p_student_id: studentId });
+      if (error) throw error;
+      await loadOwnData();
+      showMessage("Acesso do aluno removido. O cadastro e o histórico foram preservados.", false);
+    } catch (error) {
+      console.error("Falha ao remover acesso do aluno:", error);
+      if (button) { button.disabled = false; button.textContent = "Remover acesso"; }
+      showMessage("Não foi possível remover o acesso. Confira se a atualização de segurança do banco já foi aplicada.");
+    }
   }
 
   function vehicleLabel(vehicle) {
@@ -407,12 +591,14 @@
     const container = el("proximasAulas");
     if (!container) return;
 
+    const today = localToday();
     const scheduled = sortLessons(state.lessons.filter(lesson =>
-      String(lesson.status || "").toLowerCase() === "agendada"
+      String(lesson.status || "").toLowerCase() === "agendada" &&
+      String(lesson.data_aula || "").slice(0, 10) === today
     ));
 
     if (!scheduled.length) {
-      container.innerHTML = '<div class="empty-state">Você não possui aulas agendadas.</div>';
+      container.innerHTML = '<div class="empty-state">Você não possui aulas agendadas para hoje.</div>';
       return;
     }
 
@@ -523,6 +709,7 @@
     el("formAula").reset();
     el("tituloFormAula").textContent = "Agendar aula";
     el("btnSalvarAula").textContent = "Salvar aula";
+    closeInstructorModal("formAula");
     el("formAula").hidden = true;
     updateLessonBalanceHint();
   }
@@ -547,6 +734,7 @@
     }
 
     el("formAula").hidden = false;
+    openInstructorModal("formAula");
     updateLessonBalanceHint();
     el("aulaAluno").focus();
   }
@@ -561,12 +749,14 @@
     el("loteQuantidade").value = "4";
     el("loteIntervaloDias").value = "7";
     el("formAulasLote").hidden = false;
+    openInstructorModal("formAulasLote");
     generateBatchLessonRows();
     el("loteAluno").focus();
   }
 
   function resetBatchLessonForm() {
     el("formAulasLote").reset();
+    closeInstructorModal("formAulasLote");
     el("formAulasLote").hidden = true;
     el("listaDatasAulasLote").innerHTML = "";
   }
@@ -763,6 +953,7 @@
     el("formVeiculo").reset();
     el("tituloFormVeiculo").textContent = "Cadastrar veículo";
     el("btnSalvarVeiculo").textContent = "Salvar veículo";
+    closeInstructorModal("formVeiculo");
     el("formVeiculo").hidden = true;
   }
 
@@ -778,6 +969,7 @@
       el("veiculoNome").value = vehicle.nome || "";
     }
     el("formVeiculo").hidden = false;
+    openInstructorModal("formVeiculo");
     el("veiculoTipo").focus();
   }
 
@@ -853,7 +1045,9 @@
   function updateProductSelects() {
     const options = '<option value="">Selecione um item</option>' + state.products
       .filter(product => product.ativo)
-      .map(product => '<option value="' + escapeHtml(product.id) + '">' + escapeHtml(productLabel(product)) + '</option>').join("");
+      .map(product => '<option value="' + escapeHtml(product.id) + '">' + escapeHtml(productLabel(product)) + '</option>').join("") +
+      (state.fixedItemPrices.aluguel > 0 ? '<option value="fixed:aluguel_veiculo">Aluguel de Veículo · ' + currency(state.fixedItemPrices.aluguel) + '</option>' : '') +
+      (state.fixedItemPrices.cartao > 0 ? '<option value="fixed:cartao_moto_pista">Cartão Moto Pista · ' + currency(state.fixedItemPrices.cartao) + '</option>' : '');
     el("vendaProduto").innerHTML = options;
   }
 
@@ -880,6 +1074,7 @@
     el("tituloFormProduto").textContent = "Cadastrar produto ou serviço";
     el("btnSalvarProduto").textContent = "Salvar item";
     el("produtoAtivo").value = "true";
+    closeInstructorModal("formProduto");
     el("formProduto").hidden = true;
   }
 
@@ -899,6 +1094,7 @@
       el("produtoAtivo").value = "true";
     }
     el("formProduto").hidden = false;
+    openInstructorModal("formProduto");
     el("produtoNome").focus();
   }
 
@@ -966,15 +1162,22 @@
   }
 
   function addSaleCartItem() {
-    const product = state.products.find(item => item.id === el("vendaProduto").value && item.ativo);
+    const selected = el("vendaProduto").value;
+    const fixedKey = selected.startsWith("fixed:") ? selected.slice(6) : null;
+    const fixed = fixedKey === "aluguel_veiculo"
+      ? { name:"Aluguel de Veículo", price:state.fixedItemPrices.aluguel }
+      : fixedKey === "cartao_moto_pista" ? { name:"Cartão Moto Pista", price:state.fixedItemPrices.cartao } : null;
+    const product = state.products.find(item => item.id === selected && item.ativo);
     const quantity = Number(el("vendaQuantidade").value);
-    if (!product || !Number.isInteger(quantity) || quantity <= 0) {
+    if ((!product && !fixed) || !Number.isInteger(quantity) || quantity <= 0) {
       showMessage("Selecione um item ativo e informe uma quantidade válida.");
       return;
     }
-    const existing = state.saleCart.find(item => item.productId === product.id);
+    const existing = state.saleCart.find(item => fixedKey ? item.fixedItemKey === fixedKey : item.productId === product.id);
     if (existing) existing.quantity += quantity;
-    else state.saleCart.push({ productId: product.id, name: product.nome, unitPrice: Number(product.preco), quantity });
+    else state.saleCart.push(fixed
+      ? { productId:null, fixedItemKey:fixedKey, name:fixed.name, unitPrice:Number(fixed.price), quantity }
+      : { productId:product.id, fixedItemKey:null, name:product.nome, unitPrice:Number(product.preco), quantity });
     el("vendaProduto").value = "";
     el("vendaQuantidade").value = "1";
     renderSaleCart();
@@ -987,24 +1190,40 @@
     const studentId = el("vendaAluno").value;
     if (!state.students.some(student => student.id === studentId)) { showMessage("Selecione um aluno válido."); return; }
     const button = el("btnSalvarVenda");
-    const saleId = crypto.randomUUID();
-    const items = state.saleCart.map(item => ({ product_id: item.productId, quantidade: item.quantity }));
+    const items = state.saleCart.map(item => item.fixedItemKey ? { fixed_item_key:item.fixedItemKey, quantidade:item.quantity } : { product_id:item.productId, quantidade:item.quantity });
+    const saleRequest = {
+      studentId,
+      items,
+      paymentMethod: el("vendaPagamento").value || null,
+      notes: el("vendaObservacoes").value.trim() || null
+    };
+    const saleFingerprint = JSON.stringify(saleRequest);
+    if (state.pendingSaleFingerprint !== saleFingerprint || !state.pendingSaleId) {
+      state.pendingSaleId = crypto.randomUUID();
+      state.pendingSaleFingerprint = saleFingerprint;
+    }
+    const saleId = state.pendingSaleId;
     button.disabled = true;
     button.textContent = "Registrando...";
     try {
-      const { error } = await state.supabase.rpc("create_instructor_sale", {
+      const { error } = await state.supabase.rpc("create_sale_with_fixed_items", {
         p_sale_id: saleId,
         p_student_id: studentId,
         p_items: items,
-        p_payment_method: el("vendaPagamento").value || null,
-        p_notes: el("vendaObservacoes").value.trim() || null
+        p_payment_method: saleRequest.paymentMethod,
+        p_notes: saleRequest.notes,
+        p_discount_type: "valor",
+        p_discount_value: 0
       });
       if (error) throw error;
 
       // A transação foi confirmada no banco; limpar o carrinho antes de atualizar as listas.
+      closeInstructorModal("formVenda");
       el("formVenda").reset();
       el("vendaQuantidade").value = "1";
       state.saleCart = [];
+      state.pendingSaleId = null;
+      state.pendingSaleFingerprint = null;
       renderSaleCart();
 
       try {
@@ -1023,18 +1242,60 @@
     }
   }
 
+  async function saveFixedItemPrices() {
+    const aluguel=Number(el("precoAluguelFixoInstrutor").value),cartao=Number(el("precoCartaoFixoInstrutor").value);
+    const status=el("statusPrecosFixosInstrutor"),button=el("btnSalvarPrecosFixosInstrutor");
+    if(!Number.isFinite(aluguel)||!Number.isFinite(cartao)||aluguel<0||cartao<0){status.textContent="Informe valores válidos.";return;}
+    button.disabled=true;
+    try{const {error}=await state.supabase.from("app_settings").upsert({owner_id:state.user.id,aluguel_veiculo_preco:aluguel,cartao_moto_pista_preco:cartao},{onConflict:"owner_id"});if(error)throw error;state.fixedItemPrices={aluguel,cartao};updateProductSelects();status.textContent="Preços salvos nesta conta.";}
+    catch(error){console.error("Falha ao salvar preços fixos:",error);status.textContent=error.message||"Não foi possível salvar os preços.";}
+    finally{button.disabled=false;}
+  }
+
   async function loadProductsAndSales() {
-    const [productsResult, salesResult] = await Promise.all([
+    const [productsResult, salesResult, saleItemsResult, fixedPricesResult, rentalCreditsResult] = await Promise.all([
       state.supabase.from("products").select("id,nome,tipo,descricao,preco,quantidade_aulas,ativo").order("nome", { ascending: true }),
-      state.supabase.from("sales").select("id,student_id,data_venda,total,forma_pagamento,status,observacoes,created_at").order("data_venda", { ascending: false }).order("created_at", { ascending: false })
+      state.supabase.from("sales").select("id,student_id,data_venda,total,forma_pagamento,status,observacoes,created_at").order("data_venda", { ascending: false }).order("created_at", { ascending: false }),
+      state.supabase.from("sale_items").select("id,sale_id,descricao,quantidade,tipo_item,aulas_contratadas,aulas_devolvidas,valor_por_aula,valor_liquido,valor_devolvido,quantidade_devolvida,subtotal,valor_unitario,fixed_item_key").eq("owner_id", state.user.id),
+      state.supabase.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", state.user.id).maybeSingle(),
+      state.supabase.from("student_rental_credits")
+        .select("sale_item_id,quantity_purchased,quantity_refunded,quantity_consumed")
     ]);
     if (productsResult.error) throw productsResult.error;
     if (salesResult.error) throw salesResult.error;
+    if (saleItemsResult.error) throw saleItemsResult.error;
+    if (fixedPricesResult.error) throw fixedPricesResult.error;
+    if (rentalCreditsResult.error) throw rentalCreditsResult.error;
     state.products = productsResult.data || [];
     state.sales = salesResult.data || [];
+    state.saleItems = saleItemsResult.data || [];
+    state.rentalCreditAvailability = new Map((rentalCreditsResult.data || []).map(row => [
+      row.sale_item_id,
+      Math.max(0, Number(row.quantity_purchased || 0) -
+        Number(row.quantity_refunded || 0) - Number(row.quantity_consumed || 0))
+    ]));
+    state.fixedItemPrices = { aluguel:Number(fixedPricesResult.data?.aluguel_veiculo_preco||0), cartao:Number(fixedPricesResult.data?.cartao_moto_pista_preco||0) };
+    const aluguelInput=el("precoAluguelFixoInstrutor"),cartaoInput=el("precoCartaoFixoInstrutor");
+    if(aluguelInput)aluguelInput.value=state.fixedItemPrices.aluguel.toFixed(2);
+    if(cartaoInput)cartaoInput.value=state.fixedItemPrices.cartao.toFixed(2);
     renderProducts();
     updateProductSelects();
     renderSales();
+  }
+
+  function refundableInstructorItem(item) {
+    const type = item.tipo_item === "produto" ? "produto" : "servico";
+    const original = type === "produto" ? Number(item.quantidade || 0) : Number(item.aulas_contratadas || 0);
+    const returned = type === "produto" ? Number(item.quantidade_devolvida || 0) : Number(item.aulas_devolvidas || 0);
+    const saleRemaining = Math.max(0, original - returned);
+    const available = item.fixed_item_key === "aluguel_veiculo"
+      ? Math.min(saleRemaining, Number(state.rentalCreditAvailability.get(item.id) || 0))
+      : saleRemaining;
+    const netValue = Number(item.valor_liquido ?? item.subtotal ?? 0);
+    const unitValue = type === "produto"
+      ? (original > 0 ? netValue / original : 0)
+      : Number(item.valor_por_aula || 0);
+    return { type, original, returned, available, netValue, unitValue };
   }
 
   function renderSales() {
@@ -1044,14 +1305,202 @@
       list.innerHTML = '<div class="empty-state">Nenhuma venda registrada ainda.</div>';
       return;
     }
-    list.innerHTML = state.sales.map(sale =>
-      '<article class="sale-history-card"><div><strong>' + escapeHtml(studentName(sale.student_id)) + '</strong><span>' + escapeHtml(formatDate(sale.data_venda)) + ' · ' + escapeHtml(sale.forma_pagamento || "Pagamento não informado") + '</span></div><strong>' + currency(sale.total) + '</strong><span class="sale-state ' + (sale.status === "confirmada" ? "product-active" : "product-inactive") + '">' + (sale.status === "confirmada" ? "Confirmada" : "Cancelada") + '</span><button class="button button-danger button-small" type="button" data-sale-delete="' + escapeHtml(sale.id) + '">Excluir venda</button></article>'
-    ).join("");
+    list.innerHTML = state.sales.map(sale => {
+      const items = state.saleItems.filter(item => item.sale_id === sale.id);
+      const canRefund = sale.status === "confirmada" && items.some(item => refundableInstructorItem(item).available > 0);
+      const containsRental = items.some(item => item.fixed_item_key === "aluguel_veiculo");
+      const itemSummary = items.map(item => {
+        const info = refundableInstructorItem(item);
+        return '<span class="sale-item-chip">' + escapeHtml(item.descricao || "Item") + ' · ' +
+          (item.fixed_item_key === "aluguel_veiculo" ? info.available + " aluguéis disponíveis" : info.type === "produto" ? info.available + " un. disponíveis" : info.available + " aulas disponíveis") + '</span>';
+      }).join("");
+      return '<article class="sale-history-card"><div class="sale-history-main"><strong>' + escapeHtml(studentName(sale.student_id)) +
+        '</strong><span>' + escapeHtml(formatDate(sale.data_venda)) + ' · ' + escapeHtml(sale.forma_pagamento || "Pagamento não informado") +
+        '</span><div class="sale-history-items">' + itemSummary + '</div></div><strong class="sale-history-total">' + currency(sale.total) +
+        '</strong><span class="sale-state ' + (sale.status === "confirmada" ? "product-active" : "product-inactive") + '">' +
+        (sale.status === "confirmada" ? "Confirmada" : "Cancelada") + '</span><div class="sale-history-actions">' +
+        '<button class="button button-outline button-small" type="button" data-sale-print="' + escapeHtml(sale.id) + '">Imprimir recibo</button>' +
+        (canRefund ? '<button class="button button-outline button-small" type="button" data-sale-refund="' + escapeHtml(sale.id) + '">↩ Devolver itens</button>' : '') +
+        (containsRental ? "" : '<button class="button button-danger button-small" type="button" data-sale-delete="' + escapeHtml(sale.id) + '">Excluir venda</button>') + '</div></article>';
+    }).join("");
+  }
+
+  function printInstructorSaleReceipt(saleId) {
+    const sale = state.sales.find(item => String(item.id) === String(saleId));
+    if (!sale) return showMessage("Venda não encontrada.");
+    const items = state.saleItems.filter(item => item.sale_id === sale.id);
+    const profile = state.contractorProfile || {};
+    const responsible = profile.contratante_nome || profile.nome_empresa || state.profile?.nome || "Instrutor";
+    const lines = items.map(item => {
+      const info = refundableInstructorItem(item);
+      const quantity = info.type === "produto" ? Number(item.quantidade || 0) : Number(item.aulas_contratadas || 0);
+      const unit = info.type === "produto"
+        ? (quantity ? Number(item.subtotal || item.valor_liquido || 0) / quantity : 0)
+        : Number(item.valor_por_aula || 0);
+      return '<tr><td>' + escapeHtml(item.descricao || "Item") + '</td><td>' + quantity +
+        '</td><td>' + currency(unit) + '</td><td>' + currency(item.subtotal ?? item.valor_liquido ?? 0) + '</td></tr>';
+    }).join("");
+    const logo = state.logoUrl && /^(https?:|data:image\/)/i.test(state.logoUrl)
+      ? '<img class="logo" src="' + escapeHtml(state.logoUrl) + '" alt="Logomarca">' : "";
+    const popup = window.open("", "_blank", "width=820,height=900");
+    if (!popup) return showMessage("Permita janelas pop-up para imprimir o recibo.");
+    const cancelled = sale.status !== "confirmada";
+    popup.document.open();
+    popup.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Recibo de venda</title>
+      <style>*{box-sizing:border-box}body{font:14px Arial,sans-serif;color:#17212f;max-width:760px;margin:32px auto;padding:0 24px}
+      header{display:flex;align-items:center;gap:18px;border-bottom:2px solid #1e3a5f;padding-bottom:18px;margin-bottom:24px}
+      .logo{max-width:105px;max-height:80px;object-fit:contain}h1{font-size:24px;margin:0 0 6px}h2{text-align:center;margin:28px 0}
+      .muted{color:#596579;line-height:1.5}.box{border:1px solid #d8dee8;border-radius:10px;padding:16px;margin:16px 0}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid p{margin:4px 0}
+      table{width:100%;border-collapse:collapse;margin:18px 0}th,td{padding:10px 8px;border-bottom:1px solid #e2e7ef;text-align:left}
+      th{background:#f3f6fa}td:last-child,th:last-child{text-align:right}.total{text-align:right;font-size:21px;font-weight:700;margin:20px 0}
+      .status{display:inline-block;padding:8px 12px;border-radius:6px;background:${cancelled?"#fff0ed":"#e8f5ed"};font-weight:700}
+      .signature{margin-top:70px;text-align:center}.signature span{display:block;border-top:1px solid #333;width:260px;margin:0 auto 8px}
+      .actions{text-align:center;margin-top:28px}.actions button{padding:10px 20px;border:0;border-radius:6px;background:#1e3a5f;color:#fff}
+      @media print{body{margin:0 auto;padding:0 10mm}.actions{display:none}}</style></head><body>
+      <header>${logo}<div><h1>${escapeHtml(responsible)}</h1>
+      <div class="muted">${profile.contratante_documento?"CPF/CNPJ: "+escapeHtml(profile.contratante_documento)+" · ":""}${profile.contratante_celular?"WhatsApp: "+escapeHtml(profile.contratante_celular):""}<br>${escapeHtml(profile.contratante_endereco||"")}</div></div></header>
+      <h2>RECIBO DE PAGAMENTO</h2><div class="box grid">
+      <p><strong>Recebemos de:</strong><br>${escapeHtml(studentName(sale.student_id))}</p>
+      <p><strong>Data da venda:</strong><br>${escapeHtml(formatDate(sale.data_venda))}</p>
+      <p><strong>Forma de pagamento:</strong><br>${escapeHtml(sale.forma_pagamento||"Não informada")}</p>
+      <p><strong>Situação:</strong><br><span class="status">${cancelled?"CANCELADA":"CONFIRMADA"}</span></p></div>
+      <table><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Total</th></tr></thead><tbody>${lines||'<tr><td colspan="4">Itens não disponíveis.</td></tr>'}</tbody></table>
+      <div class="total">Total: ${currency(sale.total)}</div>
+      ${sale.observacoes?'<p class="muted">Observações: '+escapeHtml(sale.observacoes)+'</p>':""}
+      <p class="muted">Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
+      <div class="signature"><span></span><strong>${escapeHtml(responsible)}</strong><br><small>Responsável</small></div>
+      <div class="actions"><button onclick="window.print()">Imprimir / Salvar PDF</button></div></body></html>`);
+    popup.document.close();
+    popup.focus();
+    setTimeout(() => popup.print(), 350);
+  }
+
+  function openInstructorRefundForm(saleId = null) {
+    const availableSales = state.sales.map(sale => ({
+      sale,
+      items: state.saleItems.filter(item => item.sale_id === sale.id)
+        .map(item => ({ item, ...refundableInstructorItem(item) }))
+        .filter(entry => entry.available > 0)
+    })).filter(group => group.sale.status === "confirmada" && group.items.length > 0);
+
+    if (!availableSales.length) {
+      showMessage("Não existem vendas confirmadas com itens disponíveis para devolução.");
+      return;
+    }
+
+    el("formDevolucaoInstrutor").reset();
+    el("tituloDevolucaoInstrutor").textContent = "Devolução de produtos e serviços";
+    el("devolucaoVendaInstrutor").innerHTML = '<option value="">Selecione uma venda</option>' +
+      availableSales.map(group => '<option value="' + escapeHtml(group.sale.id) + '">' +
+        escapeHtml(studentName(group.sale.student_id)) + ' · ' + escapeHtml(formatDate(group.sale.data_venda)) +
+        ' · ' + currency(group.sale.total) + '</option>').join("");
+    el("devolucaoVendaInstrutor").value = saleId && availableSales.some(group => group.sale.id === saleId) ? saleId : "";
+    state.refundSaleId = null;
+    el("resumoVendaDevolucaoInstrutor").textContent = "Selecione uma venda para visualizar os itens disponíveis.";
+    el("devolucaoItemInstrutor").innerHTML = '<option value="">Selecione primeiro uma venda</option>';
+    el("devolucaoItemInstrutor").disabled = true;
+    el("devolucaoQuantidadeInstrutor").value = "";
+    el("devolucaoQuantidadeInstrutor").disabled = true;
+    el("devolucaoQuantidadeInstrutor").removeAttribute("max");
+    el("devolucaoPreviaInstrutor").innerHTML = "<strong>Resumo da devolução</strong><p>Escolha uma venda e um item.</p>";
+    el("formDevolucaoInstrutor").onsubmit = saveInstructorRefund;
+    openInstructorModal("formDevolucaoInstrutor");
+    if (el("devolucaoVendaInstrutor").value) updateInstructorRefundSaleSelection();
+  }
+
+  function updateInstructorRefundSaleSelection() {
+    const saleId = el("devolucaoVendaInstrutor").value;
+    const sale = state.sales.find(item => item.id === saleId && item.status === "confirmada");
+    state.refundSaleId = sale?.id || null;
+    const items = sale ? state.saleItems.filter(item => item.sale_id === sale.id)
+      .map(item => ({ item, ...refundableInstructorItem(item) }))
+      .filter(entry => entry.available > 0) : [];
+
+    el("resumoVendaDevolucaoInstrutor").innerHTML = sale
+      ? '<strong>' + escapeHtml(studentName(sale.student_id)) + '</strong><span>' +
+        escapeHtml(formatDate(sale.data_venda)) + ' · ' + escapeHtml(sale.forma_pagamento || "Pagamento não informado") +
+        '</span><span>Valor da venda: ' + currency(sale.total) + '</span>'
+      : "Selecione uma venda para visualizar os itens disponíveis.";
+    el("devolucaoItemInstrutor").innerHTML = '<option value="">Selecione um item desta venda</option>' +
+      items.map(entry => '<option value="' + escapeHtml(entry.item.id) + '">' + escapeHtml(entry.item.descricao || "Item") +
+        ' · ' + entry.available + (entry.item.fixed_item_key === "aluguel_veiculo" ? " aluguel(is)" : entry.type === "produto" ? " unidade(s)" : " aula(s)") + ' disponíveis</option>').join("");
+    el("devolucaoItemInstrutor").disabled = !items.length;
+    el("devolucaoItemInstrutor").value = "";
+    el("devolucaoQuantidadeInstrutor").value = "";
+    el("devolucaoQuantidadeInstrutor").disabled = true;
+    el("devolucaoQuantidadeInstrutor").removeAttribute("max");
+    el("devolucaoPreviaInstrutor").innerHTML = "<strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p>";
+  }
+
+  function updateInstructorRefundPreview() {
+    const itemId = el("devolucaoItemInstrutor").value;
+    const entry = state.saleItems.filter(item => item.sale_id === state.refundSaleId)
+      .map(item => ({ item, ...refundableInstructorItem(item) }))
+      .find(candidate => candidate.item.id === itemId);
+    const field = el("devolucaoQuantidadeInstrutor");
+    const preview = el("devolucaoPreviaInstrutor");
+    if (!entry || entry.available <= 0) {
+      field.disabled = true;
+      field.value = "";
+      field.removeAttribute("max");
+      preview.innerHTML = "<strong>Resumo da devolução</strong><p>Escolha um item disponível.</p>";
+      return;
+    }
+    field.disabled = false;
+    field.max = String(entry.available);
+    const quantity = Number(field.value || 0);
+    const valid = Number.isInteger(quantity) && quantity >= 1 && quantity <= entry.available;
+    const remainingValue = Math.max(0, entry.netValue - Number(entry.item.valor_devolvido || 0));
+    const refund = valid ? Math.min(entry.unitValue * quantity, remainingValue) : 0;
+    preview.innerHTML = valid
+      ? '<strong>Resumo da devolução</strong><p>' + (entry.item.fixed_item_key === "aluguel_veiculo" ? "Aluguéis" : entry.type === "produto" ? "Unidades" : "Aulas") + ': <strong>' + quantity +
+        '</strong> de ' + entry.available + ' disponíveis</p><p>Valor unitário: <strong>' + currency(entry.unitValue) +
+        '</strong></p><p class="refund-preview-total">Estorno estimado: <strong>' + currency(refund) + '</strong></p>'
+      : '<strong>Resumo da devolução</strong><p>Informe uma quantidade inteira entre 1 e ' + entry.available + '.</p>';
+  }
+
+  async function saveInstructorRefund(event) {
+    event.preventDefault();
+    const sale = state.sales.find(item => item.id === state.refundSaleId && item.status === "confirmada");
+    const itemId = el("devolucaoItemInstrutor").value;
+    const quantity = Number(el("devolucaoQuantidadeInstrutor").value);
+    const entry = state.saleItems.filter(item => item.sale_id === state.refundSaleId)
+      .map(item => ({ item, ...refundableInstructorItem(item) }))
+      .find(candidate => candidate.item.id === itemId);
+    if (!sale || !entry || !Number.isInteger(quantity) || quantity < 1 || quantity > entry.available) {
+      showMessage("Selecione um item desta venda e informe uma quantidade válida.");
+      return;
+    }
+    const button = el("btnConfirmarDevolucaoInstrutor");
+    button.disabled = true;
+    button.textContent = "Registrando...";
+    try {
+      const { error } = await state.supabase.rpc("instructor_refund_sale_item", {
+        p_sale_item_id: itemId,
+        p_quantidade: quantity
+      });
+      if (error) throw error;
+      closeInstructorModal("formDevolucaoInstrutor");
+      el("formDevolucaoInstrutor").reset();
+      state.refundSaleId = null;
+      await loadOwnData();
+      showMessage("Devolução registrada. O estorno financeiro e o saldo do aluno foram atualizados.", false);
+    } catch (error) {
+      console.error("Falha ao registrar devolução do instrutor:", error);
+      showMessage(error.message || "Não foi possível registrar a devolução. Confira as quantidades disponíveis.");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Confirmar devolução";
+    }
   }
 
   async function deleteInstructorSale(id) {
     const sale = state.sales.find(item => item.id === id);
     if (!sale) return;
+    if (state.saleItems.some(item => item.sale_id === id && item.fixed_item_key === "aluguel_veiculo")) {
+      return showMessage("Esta venda contém aluguéis de veículo e deve permanecer no histórico. Use a opção de devolução para ajustar o saldo.");
+    }
     if (!await confirmAction("Deseja excluir esta venda? O saldo de aulas será ajustado. Se alguma aula deste pacote já tiver sido utilizada, a exclusão será bloqueada.")) return;
     try {
       const { error } = await state.supabase.rpc("delete_my_sale", { p_sale_id: id });
@@ -1120,6 +1569,7 @@
     try {
       const { error } = await state.supabase.from("financial_transactions").insert(transaction);
       if (error) throw error;
+      closeInstructorModal("formMovimentacao");
       el("formMovimentacao").reset();
       el("movimentoData").value = localToday();
       await loadFinancialData();
@@ -1197,6 +1647,7 @@
   function generateInstructorContract() {
     const contratanteNome = el("contratanteNome").value.trim();
     const contratanteDocumento = el("contratanteDocumento").value.trim();
+    const contratanteCelular = el("contratanteCelular").value.trim();
     const contratanteNacionalidade = el("contratanteNacionalidade").value.trim();
     const contratanteCivil = el("contratanteCivil").value.trim();
     const contratanteProfissao = el("contratanteProfissao").value.trim();
@@ -1207,8 +1658,8 @@
     const aulas = Number(el("contratoQuantidadeAulas").value);
     const valor = Number(el("contratoValor").value);
     const pagamento = el("contratoPagamento").value.trim();
-    if (!contratanteNome || !contratanteDocumento) {
-      showMessage("Preencha e salve seu nome e CPF/CNPJ na identificação do instrutor antes de gerar o contrato.");
+    if (!contratanteNome || !contratanteDocumento || !contratanteCelular) {
+      showMessage("Preencha nome, CPF/CNPJ e celular no menu Meu cadastro antes de gerar o contrato.");
       return;
     }
     if (!nome || !cpf || !categoria || !Number.isInteger(aulas) || aulas < 1 ||
@@ -1257,8 +1708,8 @@
     ];
 
     el("contratoPreviewInstrutor").innerHTML =
-      '<article class="contract-sheet"><header><h2>' + safe(instructor) + '</h2><p>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</p></header>' +
-      '<main><p><strong>CONTRATADO(A) / INSTRUTOR(A):</strong> ' + safe(instructor) + '</p><p><strong>CPF/CNPJ:</strong> ' + safe(contratanteDocumento) + '</p>' +
+      '<article class="contract-sheet"><header>' + (state.logoUrl ? '<img src="' + safe(state.logoUrl) + '" alt="Logomarca do instrutor" style="display:block;max-width:110px;max-height:85px;object-fit:contain;margin:0 auto 12px;">' : '') + '<h2>' + safe(instructor) + '</h2><p>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</p></header>' +
+      '<main><p><strong>CONTRATADO(A) / INSTRUTOR(A):</strong> ' + safe(instructor) + '</p><p><strong>CPF/CNPJ:</strong> ' + safe(contratanteDocumento) + '</p><p><strong>CELULAR / WHATSAPP:</strong> ' + safe(contratanteCelular) + '</p>' +
       (contratanteNacionalidade || contratanteCivil || contratanteProfissao || contratanteEndereco ? '<p><strong>Identificação:</strong> ' + safe([contratanteNacionalidade, contratanteCivil, contratanteProfissao, contratanteEndereco].filter(Boolean).join(", ")) + '</p>' : "") +
       '<p><strong>CONTRATANTE / ALUNO(A):</strong> ' + safe(nome) + '</p><p><strong>CPF:</strong> ' + safe(cpf) + '</p>' +
       clauses.join("") +
@@ -1281,7 +1732,7 @@
   async function loadOwnData() {
     const [studentsResult, lessonsResult, vehiclesResult] = await Promise.all([
       state.supabase.from("students")
-        .select("id,nome,email,telefone,cpf,endereco,categoria,status,aulas_compradas,aulas_restantes")
+        .select("id,nome,email,telefone,cpf,endereco,categoria,status,aulas_compradas,aulas_restantes,alugueis_comprados,alugueis_disponiveis")
         .order("nome", { ascending: true }),
       state.supabase.from("lessons")
         .select("id,student_id,data_aula,horario,numero_aula,status,vehicle_id,observacoes")
@@ -1330,6 +1781,7 @@
     ).length;
 
     renderStudents();
+    renderLinkedStudents();
     renderVehicles();
     renderLessons();
     renderUpcomingLessons();
@@ -1348,6 +1800,7 @@
     el("formAluno").reset();
     el("tituloFormAluno").textContent = "Cadastrar aluno";
     el("btnSalvarAluno").textContent = "Salvar aluno";
+    closeInstructorModal("formAluno");
     el("formAluno").hidden = true;
   }
 
@@ -1369,6 +1822,7 @@
     }
 
     el("formAluno").hidden = false;
+    openInstructorModal("formAluno");
     el("alunoNome").focus();
   }
 
@@ -1609,6 +2063,8 @@
     state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage }
     });
+    // Compartilha o cliente autenticado e o ambiente (QA/produção) com os módulos auxiliares.
+    window.getMarcusSupabase = () => state.supabase;
 
     const { data: sessionData, error: sessionError } = await state.supabase.auth.getSession();
     if (sessionError || !sessionData.session) {
@@ -1653,6 +2109,9 @@
       window.MarcusContractorProfile.vincular(obterCliente, obterUsuario);
     }
     await loadOwnData();
+    window.addEventListener("marcus-rentals-updated", () => {
+      loadOwnData().catch(error => console.error("Falha ao atualizar os aluguéis no cadastro dos alunos:", error));
+    });
 
     el("btnNovoAluno").addEventListener("click", () => openStudentForm());
     el("filtroBuscaAlunos").addEventListener("input", event => {
@@ -1661,12 +2120,24 @@
     });
     el("btnCancelarAluno").addEventListener("click", resetStudentForm);
     el("formAluno").addEventListener("submit", saveStudent);
+    el("listaAlunosVinculados").addEventListener("click", event => {
+      const button = event.target.closest("[data-linked-student-action]");
+      if (!button) return;
+      if (button.dataset.linkedStudentAction === "remove") {
+        removeStudentAppAccess(button.dataset.studentId);
+      }
+    });
     el("listaAlunos").addEventListener("click", async event => {
       const button = event.target.closest("[data-student-action]");
       if (!button) return;
       const id = button.dataset.studentId;
       const student = state.students.find(item => item.id === id);
       if (!student) return;
+      if (button.dataset.studentAction === "exams") {
+        if (window.MarcusExamsRentals?.openForStudent) await window.MarcusExamsRentals.openForStudent(id);
+        else showMessage("O módulo de exames ainda está carregando. Atualize a página e tente novamente.");
+        return;
+      }
       if (button.dataset.studentAction === "edit") openStudentForm(student);
       if (button.dataset.studentAction === "delete") deleteStudent(id);
       if (button.dataset.studentAction === "view-link") {
@@ -1747,6 +2218,7 @@
     el("btnCancelarAulasLote").addEventListener("click", resetBatchLessonForm);
     el("formAulasLote").addEventListener("submit", saveBatchLessons);
     el("btnSalvarConfiguracoesInstrutor").addEventListener("click", saveInstructorSettings);
+    el("btnRemoverLogoInstrutor").addEventListener("click", removeInstructorLogo);
     el("btnAgendarInicio").addEventListener("click", () => {
       navigateInstructorPage("aulas");
       openLessonForm();
@@ -1776,10 +2248,35 @@
       if (button.dataset.lessonAction === "delete") deleteLesson(id);
     });
 
+    el("btnNovaMovimentacao").addEventListener("click", () => {
+      el("formMovimentacao").reset();
+      el("movimentoData").value = localToday();
+      openInstructorModal("formMovimentacao");
+      el("movimentoTipo").focus();
+    });
     el("formMovimentacao").addEventListener("submit", saveFinancialTransaction);
     el("listaVendas").addEventListener("click", event => {
-      const button = event.target.closest("[data-sale-delete]");
-      if (button) deleteInstructorSale(button.dataset.saleDelete);
+      const printButton = event.target.closest("[data-sale-print]");
+      if (printButton) {
+        printInstructorSaleReceipt(printButton.dataset.salePrint);
+        return;
+      }
+      const refundButton = event.target.closest("[data-sale-refund]");
+      if (refundButton) {
+        openInstructorRefundForm(refundButton.dataset.saleRefund);
+        return;
+      }
+      const deleteButton = event.target.closest("[data-sale-delete]");
+      if (deleteButton) deleteInstructorSale(deleteButton.dataset.saleDelete);
+    });
+    el("btnDevolucaoFinanceiro").addEventListener("click", () => openInstructorRefundForm());
+    el("devolucaoVendaInstrutor").addEventListener("change", updateInstructorRefundSaleSelection);
+    el("devolucaoItemInstrutor").addEventListener("change", updateInstructorRefundPreview);
+    el("devolucaoQuantidadeInstrutor").addEventListener("input", updateInstructorRefundPreview);
+    el("btnCancelarDevolucaoInstrutor").addEventListener("click", () => {
+      closeInstructorModal("formDevolucaoInstrutor");
+      el("formDevolucaoInstrutor").reset();
+      state.refundSaleId = null;
     });
     el("listaMovimentacoes").addEventListener("click", event => {
       const button = event.target.closest("[data-expense-delete]");
@@ -1796,7 +2293,15 @@
       if (button.dataset.productAction === "edit" && product) openProductForm(product);
       if (button.dataset.productAction === "toggle") toggleProduct(button.dataset.productId);
     });
+    el("btnNovaVenda").addEventListener("click", () => {
+      el("formVenda").reset();
+      state.saleCart = [];
+      renderSaleCart();
+      openInstructorModal("formVenda");
+      el("vendaAluno").focus();
+    });
     el("btnAdicionarItemVenda").addEventListener("click", addSaleCartItem);
+    el("btnSalvarPrecosFixosInstrutor")?.addEventListener("click", saveFixedItemPrices);
     el("itensCarrinhoVenda").addEventListener("click", event => {
       const button = event.target.closest("[data-cart-remove]");
       if (!button) return;

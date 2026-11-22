@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v24-official-finance-exams";
+const CACHE_NAME = "marcus-instrutor-v25-official-instructor-finance-branding";
 
 const ARQUIVOS = [
   "./",
@@ -9,8 +9,8 @@ const ARQUIVOS = [
   "./style.css?v=admin-invite-refresh-1",
   "./admin-visual.css?v=admin-visual-1",
   "./exames-alugueis.js?v=exams-status-filter-1",
-  "./instrutor.css?v=19-instructor-settings",
-  "./instrutor.js?v=28-safe-confirm",
+  "./instrutor.css?v=21-finance-refunds",
+  "./instrutor.js?v=unified-fixed-items-4",
   "./script.js?v=official-finance-refunds-1",
   "./manifest.json"
 ];

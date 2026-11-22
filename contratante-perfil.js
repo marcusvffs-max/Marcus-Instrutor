@@ -4,6 +4,7 @@
   const CAMPOS = [
     ["contratanteNome", "contratante_nome"],
     ["contratanteDocumento", "contratante_documento"],
+    ["contratanteCelular", "contratante_celular"],
     ["contratanteNacionalidade", "contratante_nacionalidade"],
     ["contratanteCivil", "contratante_estado_civil"],
     ["contratanteProfissao", "contratante_profissao"],
@@ -56,7 +57,11 @@
     if (repeticao.error) throw repeticao.error;
   }
 
+  let cadastroVinculado = false;
+
   function vincular(obterCliente, obterUsuarioId) {
+    if (cadastroVinculado) return;
+    cadastroVinculado = true;
     const status = document.getElementById("statusDadosContratante");
     const botao = document.getElementById("btnSalvarDadosContratante");
     const salvar = () => {
@@ -77,7 +82,7 @@
         } finally {
           if (botao) {
             botao.disabled = false;
-            botao.textContent = "Salvar meus dados";
+            botao.textContent = "Salvar cadastro";
           }
         }
       });
