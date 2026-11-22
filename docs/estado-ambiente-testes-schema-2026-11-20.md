@@ -1260,3 +1260,14 @@ Complemento da área do aluno:
 - Revisão estática de `admin-manage-instructors` confirmou validação de bearer token, papel do chamador, validade do acesso de instrutor, owner scope do cadastro, reserva/attempt ID e confirmação de e-mail. Sem execução HTTP ou SMTP.
 
 O conjunto de testes SQL da área de aluno, vínculo, convite e remoção soma 24 verificações/asserções aprovadas, todas com dados sintéticos e rollback. Não é homologação HTTP com JWT real.
+
+
+## Atualização: índice de cobertura da FK de alunos — 21/11/2026
+
+O Performance Advisor identificou que `students.owner_id` não tinha índice próprio para cobrir a FK para `auth.users`. Foi criada e aplicada somente no banco isolado a migration:
+
+`20261121280000_add_students_owner_fk_index.sql`
+
+O índice `students_owner_id_idx` foi confirmado no catálogo. A recomendação `unindexed_foreign_keys` deixou de aparecer no Performance Advisor. O índice aparece como ainda não utilizado porque o banco de testes tem pouco volume; manter a decisão para revisão quando houver carga representativa.
+
+O conjunto versionado passa a ter 22 migrations implantáveis. Os avisos de políticas permissivas sobrepostas continuam sem alteração para evitar mudança de semântica RLS sem testes CRUD completos.
