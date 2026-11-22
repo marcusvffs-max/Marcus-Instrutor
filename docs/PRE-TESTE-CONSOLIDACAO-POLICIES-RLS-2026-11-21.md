@@ -103,6 +103,21 @@ No projeto isolado, após confirmar o rollback:
 - Os achados foram apenas consultados. Nenhum ajuste foi aplicado nesta rodada.
 
 
+
+### Validação adicional de UPDATE das relações — 22/11/2026
+
+Com as policies candidatas novamente ativas dentro de transação, foram testadas tentativas de alterar referências de registros próprios para entidades de outro owner. Os cinco cenários foram repetidos como instrutor e como administrador:
+
+- `sales.student_id` apontando para aluno de outro owner;
+- `sale_items.sale_id` apontando para venda de outro owner;
+- `sale_items.product_id` apontando para produto de outro owner;
+- `financial_transactions.student_id` apontando para aluno de outro owner;
+- `financial_transactions.sale_id` apontando para venda de outro owner.
+
+Resultado: **10/10 bloqueios aprovados**, todos com SQLSTATE `42501`. Nenhuma referência cruzada foi gravada.
+
+Com essa bateria adicional, o conjunto de regressão sob policies candidatas soma **58 asserções válidas aprovadas**: 48 dos fluxos financeiros/isolamento e 10 dos testes de UPDATE relacional. As transações foram revertidas.
+
 ## Revisão estática das RPCs financeiras — 22/11/2026
 
 Foram localizadas seis RPCs públicas que leem ou gravam nas tabelas avaliadas: `admin_create_sale`, `admin_delete_sale`, `admin_refund_sale_lessons`, `admin_refund_sale_product`, `create_instructor_sale` e `delete_my_sale`.
