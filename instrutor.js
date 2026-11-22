@@ -1233,7 +1233,7 @@
     const [productsResult, salesResult, saleItemsResult] = await Promise.all([
       state.supabase.from("products").select("id,nome,tipo,descricao,preco,quantidade_aulas,ativo").order("nome", { ascending: true }),
       state.supabase.from("sales").select("id,student_id,data_venda,total,forma_pagamento,status,observacoes,created_at").order("data_venda", { ascending: false }).order("created_at", { ascending: false }),
-      state.supabase.from("sale_items").select("id,sale_id,descricao,quantidade,tipo_item,aulas_contratadas,aulas_devolvidas,valor_por_aula,valor_liquido,valor_devolvido,quantidade_devolvida,subtotal,valor_unitario").eq("owner_id", state.user.id)
+      state.supabase.from("sale_items").select("id,sale_id,descricao,quantidade,tipo_item,aulas_contratadas,aulas_devolvidas,valor_por_aula,valor_liquido,valor_devolvido,quantidade_devolvida,subtotal,valor_unitario,fixed_item_key").eq("owner_id", state.user.id)
     ]);
     if (productsResult.error) throw productsResult.error;
     if (salesResult.error) throw salesResult.error;
@@ -1250,7 +1250,7 @@
     const type = item.tipo_item === "produto" ? "produto" : "servico";
     const original = type === "produto" ? Number(item.quantidade || 0) : Number(item.aulas_contratadas || 0);
     const returned = type === "produto" ? Number(item.quantidade_devolvida || 0) : Number(item.aulas_devolvidas || 0);
-    const available = Math.max(0, original - returned);
+    const available = item.fixed_item_key === "aluguel_veiculo" ? 0 : Math.max(0, original - returned);
     const netValue = Number(item.valor_liquido ?? item.subtotal ?? 0);
     const unitValue = type === "produto"
       ? (original > 0 ? netValue / original : 0)
