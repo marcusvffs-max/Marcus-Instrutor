@@ -9,6 +9,7 @@ const studentHtml = read("../usuario.html");
 const studentJs = read("../usuario.js");
 const adminJs = read("../script.js");
 const serviceWorker = read("../service-worker.js");
+const examsModule = read("../exames-alugueis.js");
 const accessMigration = read("../supabase/migrations/20261121190000_remove_student_app_access.sql");
 const instructorManagementMigration = read("../supabase/migrations/20261121230000_harden_instructor_sale_delete_role_check.sql");
 const instructorNameMigration = read("../supabase/migrations/20261121231000_move_instructor_name_lookup_to_private_helper.sql");
@@ -114,4 +115,12 @@ test("venda do instrutor grava aulas contratadas e valor líquido por aula", () 
 test("índice da FK students.owner_id é versionado em migration própria", () => {
   assert.match(studentOwnerIndexMigration, /create index if not exists students_owner_id_idx/i);
   assert.match(studentOwnerIndexMigration, /on public\.students\s*\(owner_id\)/i);
+});
+
+
+test("módulo de exames reutiliza o cliente autenticado do ambiente atual", () => {
+  assert.match(instructorJs, /window\.getMarcusSupabase\s*=\s*\(\)\s*=>\s*state\.supabase/);
+  assert.match(examsModule, /client\s*=\s*getClient\(\)/);
+  assert.doesNotMatch(examsModule, /createClient\(URL,KEY/);
+  assert.doesNotMatch(examsModule, /ydyqagqsuqntuibzgwzd\.supabase\.co/);
 });
