@@ -3,10 +3,9 @@
   const URL = "https://ydyqagqsuqntuibzgwzd.supabase.co";
   const KEY = "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
   const $ = id => document.getElementById(id);
-  let client, ownerId, role, students = [], exams = [], settings = {};
+  let client, ownerId, role, students = [], exams = [];
   let activeTab = "historico";
   let selectedStudentId = null;
-  let pendingFixedSaleId = null, pendingFixedSaleFingerprint = null;
 
   const css = `
     #marcus-exam-launch{margin-left:8px;white-space:nowrap}
@@ -68,13 +67,12 @@
   }
   async function refresh(){
     say("Carregando...");
-    const [s,e,a]=await Promise.all([
-      client.from("students").select("id,nome,alugueis_comprados,alugueis_disponiveis").eq("owner_id",ownerId).order("nome"),
-      client.from("student_practical_exams").select("id,student_id,scheduled_at,status,resultado,aluguel_consumido,observacoes").eq("owner_id",ownerId).order("scheduled_at",{ascending:false}),
-      client.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id",ownerId).maybeSingle()
+    const [s,e]=await Promise.all([
+      client.from("students").select("id,nome").eq("owner_id",ownerId).order("nome"),
+      client.from("student_practical_exams").select("id,student_id,scheduled_at,status,resultado,aluguel_consumido,observacoes").eq("owner_id",ownerId).order("scheduled_at",{ascending:false})
     ]);
-    const err=s.error||e.error||a.error;if(err){say("Não foi possível carregar os dados: "+err.message);return;}
-    students=s.data||[];exams=e.data||[];settings=a.data||{};
+    const err=s.error||e.error;if(err){say("Não foi possível carregar os dados: "+err.message);return;}
+    students=s.data||[];exams=e.data||[];
     render();say("");
   }
   function studentOptions(selected=selectedStudentId||""){return '<option value="">Selecione o aluno</option>'+students.map(s=>'<option value="'+esc(s.id)+'" '+(s.id===selected?'selected':'')+'>'+esc(s.nome)+'</option>').join("");}
@@ -105,23 +103,6 @@
       window.dispatchEvent(new Event("marcus-rentals-updated"));
     }
   }
-  async function sell(ev){
-    ev.preventDefault();const f=ev.currentTarget;const qty=Number(f.quantity.value);
-    if(!Number.isInteger(qty)||qty<1||qty>100){say("Informe uma quantidade entre 1 e 100.");return;}
-    const btn=f.querySelector("button[type=submit]");
-    const request={student:f.student.value,item:f.elements["item"].value,quantity:qty,payment:f.payment.value||null,notes:f.notes.value.trim()||null};
-    const fingerprint=JSON.stringify(request);
-    if(!pendingFixedSaleId||pendingFixedSaleFingerprint!==fingerprint){pendingFixedSaleId=crypto.randomUUID();pendingFixedSaleFingerprint=fingerprint;}
-    btn.disabled=true;
-    try{
-      const {error}=await client.rpc("register_fixed_item_sale",{p_sale_id:pendingFixedSaleId,p_student_id:request.student,p_fixed_item_key:request.item,p_quantity:qty,p_payment_method:request.payment,p_notes:request.notes});
-      if(error)throw error;
-      pendingFixedSaleId=null;pendingFixedSaleFingerprint=null;
-      try{await refresh();await syncParentApp();tab("resumo");say("Venda registrada com sucesso. "+(request.item==="aluguel_veiculo"?"O saldo de aluguéis foi atualizado.":"O Cartão Moto Pista foi lançado sem alterar o saldo."),false);}
-      catch(refreshError){console.error("Venda fixa confirmada, mas houve falha ao atualizar a tela:",refreshError);say("A venda foi registrada. Atualize a tela para conferir os saldos.",false);}
-    }catch(e){say(e.message||"Não foi possível registrar a venda. Você pode tentar novamente sem duplicar o lançamento.");}
-    finally{btn.disabled=false;}
-  }
   async function schedule(ev){
     ev.preventDefault();const f=ev.currentTarget;const local=f.elements["date"].value+"T"+f.elements["time"].value;
     if(!f.student.value||!f.date.value||!f.time.value){say("Informe aluno, data e horário.");return;}
@@ -140,13 +121,6 @@
     if(!window.confirm("Cancelar este agendamento? Nenhum aluguel será consumido."))return;
     try{const {error}=await client.rpc("cancel_student_practical_exam",{p_exam_id:id});if(error)throw error;try{await refresh();}catch(refreshError){console.warn("Cancelamento confirmado, mas a tela não foi atualizada:",refreshError);say("Exame cancelado. Atualize a tela para conferir.",false);return;}tab("historico");say("Exame cancelado sem consumir aluguel.",false);}
     catch(e){say(e.message||"Não foi possível cancelar o exame.");}
-  }
-  async function savePrices(ev){
-    ev.preventDefault();const f=ev.currentTarget;const aluguel=Number(f.aluguel.value),cartao=Number(f.cartao.value);
-    if(!Number.isFinite(aluguel)||!Number.isFinite(cartao)||aluguel<0||cartao<0){say("Informe valores válidos.");return;}
-    const btn=f.querySelector("button[type=submit]");btn.disabled=true;
-    try{const {error}=await client.from("app_settings").upsert({owner_id:ownerId,aluguel_veiculo_preco:aluguel,cartao_moto_pista_preco:cartao},{onConflict:"owner_id"});if(error)throw error;await refresh();tab("precos");say("Valores salvos somente nesta conta.",false);}
-    catch(e){say(e.message||"Não foi possível salvar os valores.");}finally{btn.disabled=false;}
   }
   window.MarcusExamsRentals={
     open:async()=>{selectedStudentId=null;activeTab="historico";modal();await refresh();},
