@@ -699,6 +699,16 @@ test("mensagens manuais durante pausa não são acrescentadas ao histórico anti
   assert.match(whatsappWebhook, /if \(echoConversationIsPaused\)[\s\S]{0,1100}continue;/);
 });
 
+test("respostas automáticas entregues durante a pausa não entram no histórico", () => {
+  const sender = whatsappWebhook.slice(
+    whatsappWebhook.indexOf("async function sendWhatsAppPayload"),
+    whatsappWebhook.indexOf("async function sendWhatsAppText")
+  );
+  assert.match(sender, /const assistantIsPaused/);
+  assert.match(sender, /else if \(!assistantIsPaused\)/);
+  assert.match(sender, /Outgoing WhatsApp log skipped because conversation state could not be verified/);
+});
+
 test("primeira mensagem após expirar a pausa inicia um novo ciclo", () => {
   assert.match(whatsappWebhook, /previousPauseUntil <= Date\.now\(\)/);
   assert.match(whatsappWebhook, /Expired WhatsApp pause cycle creation failed/);
