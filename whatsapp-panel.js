@@ -395,7 +395,9 @@
     if (!botao) return;
     const conversationId = botao.dataset.encerrarConversa;
     if (!conversationId) return;
-    if (!window.confirm("Encerrar esta conversa? A Assistente Virtual ficará pausada por 48 horas. O cliente poderá reativá-la enviando “Olá”.")) return;
+    if (typeof window.confirmar === "function") {
+      if (!await window.confirmar("Encerrar esta conversa? A Assistente Virtual ficará pausada por 48 horas. O cliente poderá reativá-la enviando “Olá”.")) return;
+    } else if (!window.confirm("Encerrar esta conversa? A Assistente Virtual ficará pausada por 48 horas. O cliente poderá reativá-la enviando “Olá”.")) return;
 
     const supabase = typeof window.getMarcusSupabase === "function"
       ? window.getMarcusSupabase()
