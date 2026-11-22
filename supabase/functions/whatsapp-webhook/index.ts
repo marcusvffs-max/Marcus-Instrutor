@@ -203,7 +203,6 @@ async function sendInitialMenuSelection(
     "Saudação com menu de atendimento e serviços",
   );
   if (!sent) {
-    const fallback = rows.map((row, index) => `${index + 1}️⃣ ${row.title}`).join("\n");
     await sendWhatsAppText(
       supabase,
       conversationId,
