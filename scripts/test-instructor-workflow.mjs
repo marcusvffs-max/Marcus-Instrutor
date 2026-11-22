@@ -26,7 +26,7 @@ test("área de acessos lista somente alunos com conta vinculada", () => {
 });
 
 test("remover acesso exige instrutor autenticado e aluno da própria conta", () => {
-  assert.match(accessMigration, /current_user_id := auth\.uid\(\)/);
+  assert.match(accessMigration, /current_user_id uuid := auth\.uid\(\)/);
   assert.match(accessMigration, /p\.role = 'instrutor'/);
   assert.match(accessMigration, /s\.id = p_student_id[\s\S]*s\.owner_id = current_user_id/);
   assert.match(accessMigration, /DELETE FROM auth\.users/);
@@ -38,7 +38,7 @@ test("confirmações são texto simples e não transformam conteúdo em links", 
   const end = instructorJs.indexOf("function localToday()", start);
   assert.ok(start >= 0 && end > start);
   const dialog = instructorJs.slice(start, end);
-  assert.match(dialog, /text\.textContent = String\(message/);
+  assert.match(dialog, /text\.textContent = semLinksIndesejados\(message\)/);
   assert.doesNotMatch(dialog, /innerHTML/);
 });
 
