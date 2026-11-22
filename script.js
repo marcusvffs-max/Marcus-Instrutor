@@ -3701,6 +3701,25 @@ async function prepararDadosAdmin() {
    INICIALIZAÇÃO
 ========================================= */
 
+async function carregarPrecosItensFixos() {
+  const client=window.getMarcusSupabase?.(); if(!client||!adminSupabaseUserId)return;
+  const {data,error}=await client.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id",adminSupabaseUserId).maybeSingle();
+  const status=document.getElementById("statusPrecosFixos");
+  if(error){if(status)status.textContent="Não foi possível carregar os preços.";return;}
+  const aluguel=document.getElementById("precoAluguelFixo"),cartao=document.getElementById("precoCartaoFixo");
+  if(aluguel)aluguel.value=Number(data?.aluguel_veiculo_preco||0).toFixed(2);
+  if(cartao)cartao.value=Number(data?.cartao_moto_pista_preco||0).toFixed(2);
+}
+async function salvarPrecosItensFixos(){
+  const client=window.getMarcusSupabase?.(),aluguel=Number(document.getElementById("precoAluguelFixo")?.value),cartao=Number(document.getElementById("precoCartaoFixo")?.value);
+  const status=document.getElementById("statusPrecosFixos"),button=document.getElementById("btnSalvarPrecosFixos");
+  if(!client||!adminSupabaseUserId||!Number.isFinite(aluguel)||!Number.isFinite(cartao)||aluguel<0||cartao<0){if(status)status.textContent="Informe valores válidos.";return;}
+  if(button)button.disabled=true;
+  try{const {error}=await client.from("app_settings").upsert({owner_id:adminSupabaseUserId,aluguel_veiculo_preco:aluguel,cartao_moto_pista_preco:cartao},{onConflict:"owner_id"});if(error)throw error;if(status)status.textContent="Preços salvos nesta conta.";}
+  catch(error){console.error("Falha ao salvar preços fixos:",error);if(status)status.textContent=error.message||"Não foi possível salvar os preços.";}
+  finally{if(button)button.disabled=false;}
+}
+
 function iniciarAplicativo() {
   document.documentElement.style.setProperty(
     "--primary",
@@ -3726,6 +3745,8 @@ function iniciarAplicativo() {
   listarMovimentacoes();
   atualizarFinanceiro();
   listarProdutos();
+  carregarPrecosItensFixos();
+  document.getElementById("btnSalvarPrecosFixos")?.addEventListener("click",salvarPrecosItensFixos);
   mostrarPagina("inicio");
 
   console.log("Marcus Instrutor iniciado.");
