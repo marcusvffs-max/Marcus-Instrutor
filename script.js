@@ -1383,6 +1383,59 @@ function atualizarFinanceiro() {
   if (elSaldo) elSaldo.textContent = moeda(entradas - saidas);
 }
 
+function imprimirReciboVendaAdmin(vendaId) {
+  const venda = db.vendas.find(item => String(item.id) === String(vendaId));
+  if (!venda) return mostrarAviso("Venda não encontrada.");
+  const aluno = db.alunos.find(item => String(item.id) === String(venda.alunoId));
+  const perfil = {
+    nome: document.getElementById("contratanteNome")?.value?.trim() || db.configuracoes?.nome || "Responsável",
+    documento: document.getElementById("contratanteDocumento")?.value?.trim() || "",
+    celular: document.getElementById("contratanteCelular")?.value?.trim() || "",
+    endereco: document.getElementById("contratanteEndereco")?.value?.trim() || ""
+  };
+  const itens = (venda.itens || []).map(item => `
+    <tr><td>${escapar(item.nome || "Item")}</td><td>${Number(item.quantidade || 1)}</td>
+    <td>${moeda(item.precoUnitario || 0)}</td><td>${moeda(item.total || 0)}</td></tr>`).join("");
+  const status = String(venda.status || "confirmada").toLowerCase();
+  const logo = db.configuracoes?.logo && /^(https?:|data:image\/)/i.test(db.configuracoes.logo)
+    ? '<img class="logo" src="' + escapar(db.configuracoes.logo) + '" alt="Logomarca">'
+    : "";
+  const popup = window.open("", "_blank", "width=820,height=900");
+  if (!popup) return mostrarAviso("Permita janelas pop-up para imprimir o recibo.");
+  popup.document.open();
+  popup.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Recibo de venda</title>
+  <style>
+    *{box-sizing:border-box}body{font:14px Arial,sans-serif;color:#17212f;margin:32px auto;max-width:760px;padding:0 24px}
+    header{display:flex;align-items:center;gap:18px;border-bottom:2px solid #1e3a5f;padding-bottom:18px;margin-bottom:24px}
+    .logo{max-width:105px;max-height:80px;object-fit:contain}h1{font-size:24px;margin:0 0 6px}h2{font-size:20px;text-align:center;letter-spacing:1px;margin:28px 0}
+    .muted{color:#596579;line-height:1.5}.box{border:1px solid #d8dee8;border-radius:10px;padding:16px;margin:16px 0}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid p{margin:4px 0}
+    table{width:100%;border-collapse:collapse;margin:18px 0}th,td{padding:10px 8px;border-bottom:1px solid #e2e7ef;text-align:left}th{background:#f3f6fa}
+    td:last-child,th:last-child{text-align:right}.total{text-align:right;font-size:21px;font-weight:700;margin:20px 0}
+    .status{padding:8px 12px;border-radius:6px;background:${status==="confirmada"?"#e8f5ed":"#fff0ed"};display:inline-block;font-weight:700}
+    .signature{margin-top:70px;text-align:center}.signature span{display:block;border-top:1px solid #333;width:260px;margin:0 auto 8px}
+    .actions{text-align:center;margin-top:28px}.actions button{padding:10px 20px;border:0;border-radius:6px;background:#1e3a5f;color:#fff;font-size:14px}
+    @media print{body{margin:0 auto;padding:0 10mm}.actions{display:none}}
+  </style></head><body>
+  <header>${logo}<div><h1>${escapar(perfil.nome)}</h1><div class="muted">${perfil.documento ? "CPF/CNPJ: "+escapar(perfil.documento)+" · " : ""}${perfil.celular ? "WhatsApp: "+escapar(perfil.celular) : ""}<br>${escapar(perfil.endereco)}</div></div></header>
+  <h2>RECIBO DE PAGAMENTO</h2>
+  <div class="box grid"><p><strong>Recebemos de:</strong><br>${escapar(aluno?.nome || venda.nomeAluno || "Aluno")}</p>
+  <p><strong>Data da venda:</strong><br>${escapar(formatarData(venda.data))}</p>
+  <p><strong>Forma de pagamento:</strong><br>${escapar(venda.formaPagamento || "Não informada")}</p>
+  <p><strong>Situação:</strong><br><span class="status">${status==="confirmada"?"CONFIRMADA":"CANCELADA"}</span></p></div>
+  <table><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Total</th></tr></thead><tbody>${itens || '<tr><td colspan="4">Itens não disponíveis.</td></tr>'}</tbody></table>
+  <div class="total">Total: ${moeda(venda.valorTotal || 0)}</div>
+  ${Number(venda.desconto || 0)>0?'<p class="muted">Desconto aplicado: '+moeda(venda.desconto)+'</p>':""}
+  ${Number(venda.valorDevolvido || 0)>0?'<p class="muted">Devoluções registradas: '+moeda(venda.valorDevolvido)+'</p>':""}
+  <p class="muted">Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
+  <div class="signature"><span></span><strong>${escapar(perfil.nome)}</strong><br><small>Responsável</small></div>
+  <div class="actions"><button onclick="window.print()">Imprimir / Salvar PDF</button></div>
+  </body></html>`);
+  popup.document.close();
+  popup.focus();
+  setTimeout(() => popup.print(), 350);
+}
+
 function listarMovimentacoes() {
   const lista = document.getElementById("listaMovimentacoes");
   if (!lista) return;
@@ -1416,7 +1469,8 @@ function listarMovimentacoes() {
       </div>`;
     }).join("");
     const acao = venda && itens.some(item => item.tipo === "entrada")
-      ? `<button type="button" class="secondary-button finance-action" data-delete-venda="${escapar(venda.id)}">Excluir venda</button>`
+      ? `<button type="button" class="secondary-button finance-action" data-print-sale="${escapar(venda.id)}">Imprimir recibo</button>
+         <button type="button" class="secondary-button finance-action" data-delete-venda="${escapar(venda.id)}">Excluir venda</button>`
       : "";
     return {
       data: dataMaisRecente,
@@ -3137,6 +3191,12 @@ document.addEventListener("click", evento => {
 
   if (evento.target.closest("#btnNovoProduto")) {
     editarProduto();
+    return;
+  }
+
+  const imprimirReciboBotao = evento.target.closest("[data-print-sale]");
+  if (imprimirReciboBotao) {
+    imprimirReciboVendaAdmin(imprimirReciboBotao.dataset.printSale);
     return;
   }
 
