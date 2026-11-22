@@ -668,6 +668,7 @@ function listarAlunos() {
           </div>
           <div class="record-actions">
             ${a.email ? `<button type="button" data-invite-aluno="${a.id}">${a.user_id ? "Reenviar acesso" : a.invited_at ? "Reenviar convite" : "Enviar convite"}</button>` : ""}
+            <button type="button" data-open-student-exams="${a.id}">Exames / aluguéis</button>
             <button type="button" data-edit-aluno="${a.id}">Editar</button>
             <button type="button" data-delete-aluno="${a.id}">Excluir</button>
           </div>
@@ -3147,6 +3148,13 @@ document.addEventListener("click", evento => {
   const convidarAluno = evento.target.closest("[data-invite-aluno]");
   if (convidarAluno) {
     enviarConviteAluno(convidarAluno.dataset.inviteAluno, convidarAluno);
+    return;
+  }
+
+  const abrirExamesAluno = evento.target.closest("[data-open-student-exams]");
+  if (abrirExamesAluno) {
+    if (window.MarcusExamsRentals?.openForStudent) window.MarcusExamsRentals.openForStudent(abrirExamesAluno.dataset.openStudentExams);
+    else mostrarAviso("O módulo de exames ainda está carregando. Atualize a página e tente novamente.");
     return;
   }
 
