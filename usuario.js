@@ -1,8 +1,6 @@
 "use strict";
 
 (function () {
-  const SUPABASE_URL = "https://ydyqagqsuqntuibzgwzd.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
   const el = id => document.getElementById(id);
   const state = { supabase: null, user: null };
 
@@ -142,11 +140,15 @@
   }
 
   async function initialize() {
+    const supabaseConfig = window.MARCUS_SUPABASE_CONFIG;
+    if (!supabaseConfig) {
+      throw new Error("Este endereço não está configurado para acessar o aplicativo. Use o endereço oficial ou o Preview autorizado.");
+    }
     if (!window.supabase || typeof window.supabase.createClient !== "function") {
       throw new Error("Não foi possível carregar o serviço de autenticação.");
     }
 
-    state.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    state.supabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.publishableKey, {
       auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage }
     });
 

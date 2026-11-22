@@ -25,6 +25,7 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
+  <script src="./supabase-config.js?v=1"></script>
   <script>
     (async function () {
       const status = document.getElementById("claimStatus");
@@ -45,9 +46,15 @@
         return;
       }
 
+      const supabaseConfig = window.MARCUS_SUPABASE_CONFIG;
+      if (!supabaseConfig) {
+        fail("Este endereço não está autorizado a confirmar acessos. Abra o link no endereço correto do aplicativo.");
+        return;
+      }
+
       const client = window.supabase.createClient(
-        "https://ydyqagqsuqntuibzgwzd.supabase.co",
-        "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU",
+        supabaseConfig.url,
+        supabaseConfig.publishableKey,
         { auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage } }
       );
 

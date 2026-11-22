@@ -9,6 +9,9 @@ const studentHtml = read("../usuario.html");
 const studentJs = read("../usuario.js");
 const adminJs = read("../script.js");
 const serviceWorker = read("../service-worker.js");
+const supabaseConfigSource = read("../supabase-config.js");
+const adminManagementFunction = read("../supabase/functions/admin-manage-instructors/index.ts");
+const indexHtml = read("../index.html");
 const accessMigration = read("../supabase/migrations/20261121190000_remove_student_app_access.sql");
 const instructorManagementMigration = read("../supabase/migrations/20261121230000_harden_instructor_sale_delete_role_check.sql");
 const instructorNameMigration = read("../supabase/migrations/20261121231000_move_instructor_name_lookup_to_private_helper.sql");
@@ -23,7 +26,7 @@ test("área de acessos lista somente alunos com conta vinculada", () => {
 });
 
 test("remover acesso exige instrutor autenticado e aluno da própria conta", () => {
-  assert.match(accessMigration, /current_user_id := auth\.uid\(\)/);
+  assert.match(accessMigration, /current_user_id uuid := auth\.uid\(\)/);
   assert.match(accessMigration, /p\.role = 'instrutor'/);
   assert.match(accessMigration, /s\.id = p_student_id[\s\S]*s\.owner_id = current_user_id/);
   assert.match(accessMigration, /DELETE FROM auth\.users/);
@@ -94,7 +97,7 @@ test("service worker usa a mesma versão de instrutor.js declarada no HTML", () 
   const cachedVersion = serviceWorker.match(/"\.\/instrutor\.js\?v=([^"]+)"/)?.[1];
   assert.ok(htmlVersion);
   assert.equal(cachedVersion, htmlVersion);
-  assert.match(serviceWorker, /marcus-instrutor-v24-linked-student-access/);
+  assert.match(serviceWorker, /marcus-instrutor-v25-supabase-env-isolation/);
 });
 
 
@@ -114,4 +117,44 @@ test("venda do instrutor grava aulas contratadas e valor líquido por aula", () 
 test("índice da FK students.owner_id é versionado em migration própria", () => {
   assert.match(studentOwnerIndexMigration, /create index if not exists students_owner_id_idx/i);
   assert.match(studentOwnerIndexMigration, /on public\.students\s*\(owner_id\)/i);
+});
+
+
+test("configuração Supabase separa produção, Preview e hosts desconhecidos", () => {
+  const resolveConfig = new Function("window", "console", supabaseConfigSource + "; return window.MARCUS_SUPABASE_CONFIG;");
+  const production = resolveConfig({ location: { hostname: "marcusinstrutor.vercel.app" } }, { info() {}, error() {} });
+  const preview = resolveConfig({ location: { hostname: "marcusinstrutor-git-fix-preview-supabase-isolation-abc123-marcusvffs-2839.vercel.app" } }, { info() {}, error() {} });
+  const deploymentPreview = resolveConfig({ location: { hostname: "marcusinstrutor-ufbrcpul1-marcusvffs-2839.vercel.app" } }, { info() {}, error() {} });
+  const unknown = resolveConfig({ location: { hostname: "localhost" } }, { info() {}, error() {} });
+  assert.equal(production.environment, "production");
+  assert.match(production.url, /ydyqagqsuqntuibzgwzd/);
+  assert.equal(preview.environment, "preview");
+  assert.match(preview.url, /voyjssflroiwdyaacthh/);
+  assert.equal(deploymentPreview.environment, "preview");
+  assert.equal(unknown, null);
+});
+
+test("callbacks de recuperação usam a origem atual, sem Preview antigo fixo", () => {
+  assert.ok(indexHtml.includes('redirectTo: window.location.origin + "/"'));
+  assert.doesNotMatch(indexHtml, /feature-relatorios-i-bc78ff/);
+});
+
+test("Edge Function aceita somente produção e hosts Preview do projeto", () => {
+  const patternStart = adminManagementFunction.indexOf("const PREVIEW_ORIGIN_PATTERN = ");
+  const patternEnd = adminManagementFunction.indexOf(";", patternStart);
+  assert.ok(patternStart >= 0 && patternEnd > patternStart);
+  const patternSource = adminManagementFunction.slice(patternStart, patternEnd).split(" = ")[1];
+  const previewOriginPattern = new Function("return " + patternSource)();
+  assert.ok(previewOriginPattern.test("https://marcusinstrutor-ufbrcpul1-marcusvffs-2839.vercel.app"));
+  assert.ok(previewOriginPattern.test("https://marcusinstrutor-git-fix-preview-supabase-isolation-abc123-marcusvffs-2839.vercel.app"));
+  assert.equal(previewOriginPattern.test("https://evil.example.com"), false);
+  assert.ok(adminManagementFunction.includes("function isAllowedOrigin(origin: string | null)"));
+  assert.ok(adminManagementFunction.includes("if (origin && !isAllowedOrigin(origin))"));
+  assert.doesNotMatch(adminManagementFunction, /feature-relatorios-i-bc78ff/);
+});
+
+test("configuração Supabase carrega antes dos scripts de área", () => {
+  assert.ok(instructorHtml.indexOf("supabase-config.js") < instructorHtml.indexOf("instrutor.js"));
+  assert.ok(studentHtml.indexOf("supabase-config.js") < studentHtml.indexOf("usuario.js"));
+  assert.ok(indexHtml.indexOf("supabase-config.js") < indexHtml.indexOf("createClient"));
 });

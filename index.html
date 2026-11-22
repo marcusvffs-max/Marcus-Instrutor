@@ -466,12 +466,13 @@
   </section>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
+  <script src="./supabase-config.js?v=1"></script>
   <!-- O painel administrativo só será carregado após validar role=admin. -->
 
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("./service-worker.js?v=instrutor-corrections-1", { updateViaCache: "none" })
+        navigator.serviceWorker.register("./service-worker.js?v=supabase-env-isolation-1", { updateViaCache: "none" })
           .then(function (registro) {
             return registro.update();
           })
@@ -486,8 +487,6 @@
   <script>
     (function () {
       "use strict";
-      const SUPABASE_URL = "https://ydyqagqsuqntuibzgwzd.supabase.co";
-      const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
       const formularioLogin = document.getElementById("formLogin");
       const campoEmail = document.getElementById("loginEmail");
       const campoSenha = document.getElementById("loginSenha");
@@ -549,11 +548,16 @@
         if (mensagemLogin) mensagemLogin.textContent = "";
         window.dispatchEvent(new Event("marcus-authenticated"));
       }
+      const supabaseConfig = window.MARCUS_SUPABASE_CONFIG;
+      if (!supabaseConfig) {
+        mostrarLogin("Este endereço não está configurado para acessar o aplicativo. Use o endereço oficial ou o Preview autorizado.");
+        return;
+      }
       if (!window.supabase || typeof window.supabase.createClient !== "function") {
         mostrarLogin("Não foi possível carregar a autenticação. Verifique sua conexão e atualize a página.");
         return;
       }
-      const clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      const clienteSupabase = window.supabase.createClient(supabaseConfig.url, supabaseConfig.publishableKey, {
         auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage }
       });
       window.getMarcusSupabase = function () { return clienteSupabase; };
@@ -665,7 +669,7 @@
         mensagemRecuperacao.textContent = "";
         try {
           const { error } = await clienteSupabase.auth.resetPasswordForEmail(email, {
-            redirectTo: "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app/"
+            redirectTo: window.location.origin + "/"
           });
           if (error) throw error;
           mensagemRecuperacao.textContent = "Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha. Verifique também o spam.";

@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v24-linked-student-access";
+const CACHE_NAME = "marcus-instrutor-v25-supabase-env-isolation";
 
 const ARQUIVOS = [
   "./",
@@ -8,8 +8,9 @@ const ARQUIVOS = [
   "./instrutor.html",
   "./style.css?v=admin-invite-refresh-1",
   "./instrutor.css?v=19-instructor-settings",
-  "./instrutor.js?v=29-linked-student-access",
-  "./manifest.json"
+  "./instrutor.js?v=30-supabase-env-isolation",
+  "./manifest.json",
+  "./supabase-config.js?v=1"
 ];
 
 const ARQUIVOS_ADMINISTRATIVOS = [
