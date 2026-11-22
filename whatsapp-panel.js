@@ -292,6 +292,7 @@
         </div>
         <div class="whatsapp-request-actions">
           <button type="button" class="secondary-button" data-ver-mensagens="${escaparHtml(conversa.id)}" aria-expanded="false">Ver mensagens</button>
+          <button type="button" class="secondary-button" data-excluir-conversa="${escaparHtml(conversa.id)}">Excluir registro</button>
           ${encerrada ? "" : `<button type="button" class="secondary-button" data-encerrar-conversa="${escaparHtml(conversa.id)}">Encerrar conversa (pausa 48h)</button>`}
           <a class="whatsapp-open-link" href="https://wa.me/${String(conversa.telefone || "").replace(/\\D/g, "")}" target="_blank" rel="noopener noreferrer">Abrir conversa no WhatsApp</a>
         </div>
@@ -387,6 +388,39 @@
         if (botaoPaginacao) botaoPaginacao.disabled = false;
         window.alert("Não foi possível carregar as mensagens anteriores. Tente novamente.");
       }
+    }
+  }
+
+  async function excluirConversaWhatsapp(evento) {
+    const botao = evento.target.closest("[data-excluir-conversa]");
+    if (!botao) return;
+    const conversationId = botao.dataset.excluirConversa;
+    if (!conversationId) return;
+    const mensagemConfirmacao = "Excluir definitivamente este registro de conversa e todas as mensagens armazenadas somente nele? Isso não apaga mensagens do WhatsApp do aluno nem de outros registros.";
+    if (typeof window.confirmar === "function") {
+      if (!await window.confirmar(mensagemConfirmacao)) return;
+    } else if (!window.confirm(mensagemConfirmacao)) return;
+
+    const supabase = typeof window.getMarcusSupabase === "function"
+      ? window.getMarcusSupabase()
+      : null;
+    if (!supabase) {
+      window.alert("Não foi possível conectar ao painel. Entre novamente no aplicativo.");
+      return;
+    }
+
+    botao.disabled = true;
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-manage-instructors", {
+        body: { action: "delete_whatsapp_conversation", conversation_id: conversationId },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Não foi possível excluir o registro.");
+      await carregarAtendimentosWhatsapp();
+    } catch (erro) {
+      console.error("Erro ao excluir registro de conversa do WhatsApp:", erro);
+      window.alert("Não foi possível excluir o registro. Tente novamente.");
+      botao.disabled = false;
     }
   }
 
@@ -550,6 +584,10 @@
     const botaoMensagens = evento.target.closest("[data-ver-mensagens]");
     if (botaoMensagens) {
       carregarHistoricoConversaWhatsapp(botaoMensagens.dataset.verMensagens, botaoMensagens);
+      return;
+    }
+    if (evento.target.closest("[data-excluir-conversa]")) {
+      excluirConversaWhatsapp(evento);
       return;
     }
     encerrarConversaWhatsapp(evento);
