@@ -27,10 +27,9 @@ CREATE POLICY student_practical_exams_owner_insert ON public.student_practical_e
  owner_id=(SELECT auth.uid()) AND private.current_app_role() IN ('admin','instrutor')
  AND EXISTS(SELECT 1 FROM public.students s WHERE s.id=student_id AND s.owner_id=(SELECT auth.uid()))
  AND status='agendado' AND resultado IS NULL AND aluguel_consumido=false);
-CREATE POLICY student_practical_exams_owner_update ON public.student_practical_exams FOR UPDATE TO authenticated USING (owner_id=(SELECT auth.uid()) AND private.current_app_role() IN ('admin','instrutor')) WITH CHECK (owner_id=(SELECT auth.uid()) AND private.current_app_role() IN ('admin','instrutor'));
 CREATE POLICY student_practical_exams_owner_delete ON public.student_practical_exams FOR DELETE TO authenticated USING (owner_id=(SELECT auth.uid()) AND private.current_app_role() IN ('admin','instrutor'));
 CREATE OR REPLACE FUNCTION public.record_student_practical_exam_result(p_exam_id uuid,p_resultado text)
-RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $$
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $
 DECLARE v_uid uuid:=auth.uid(); v_exam public.student_practical_exams%rowtype; v_student public.students%rowtype;
 BEGIN
  IF v_uid IS NULL OR private.current_app_role() NOT IN ('admin','instrutor') THEN RAISE EXCEPTION 'Acesso permitido somente ao administrador ou instrutor.'; END IF;
