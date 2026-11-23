@@ -3,3 +3,11 @@
 # inside the handler, not with a Supabase user JWT.
 [functions.whatsapp-webhook]
 verify_jwt = false
+
+# Both partner endpoints require a valid Supabase user JWT and perform an
+# additional role/ownership check inside the handler.
+[functions.admin-manage-partners]
+verify_jwt = true
+
+[functions.partner-portal]
+verify_jwt = true
