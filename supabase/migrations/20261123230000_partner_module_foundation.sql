@@ -204,7 +204,7 @@ begin
     where id=v_commission_id and owner_id=v_owner_id;
   if tg_op='DELETE' then return old; else return new; end if;
 end;
-$;
+$$;
 
 drop trigger if exists trg_sync_partner_commission_progress
   on public.partner_commission_lessons;
@@ -326,7 +326,7 @@ begin
   end if;
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists trg_create_partner_commission_for_service on public.sale_items;
 create trigger trg_create_partner_commission_for_service
