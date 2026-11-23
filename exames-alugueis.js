@@ -75,7 +75,7 @@
     ]);
     const err=s.error||e.error;if(err){say("Não foi possível carregar os dados: "+err.message);return;}
     students=s.data||[];exams=e.data||[];
-    render();say("");
+    render();renderDashboard();say("");
   }
   function studentOptions(selected=selectedStudentId||""){return '<option value="">Selecione o aluno</option>'+students.map(s=>'<option value="'+esc(s.id)+'" '+(s.id===selected?'selected':'')+'>'+esc(s.nome)+'</option>').join("");}
   function ensureDashboardPanel(){
