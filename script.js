@@ -461,6 +461,12 @@ function abrirFormularioAluno(id = null) {
         ${opcoes(["Em aberto", "Finalizado", "Aprovado"], aluno.situacao || "Em aberto")}
       </select>
 
+      <label>Parceiro indicador (opcional)</label>
+      <select name="partner_id" id="alunoParceiroIndicador">
+        <option value="">Sem parceiro</option>
+      </select>
+      <small>O parceiro aprovado receberá comissão somente sobre serviços vendidos a este aluno.</small>
+
       <div class="panel">
         <strong>Controle de aulas</strong>
         <p>As quantidades serão controladas automaticamente pelas vendas, devoluções e aulas realizadas.</p>
@@ -475,6 +481,25 @@ function abrirFormularioAluno(id = null) {
   `);
 
   document.getElementById("formAluno").onsubmit = salvarAluno;
+  carregarParceirosParaAluno(aluno.partnerId || "");
+}
+
+async function carregarParceirosParaAluno(selectedId = "") {
+  const select = document.getElementById("alunoParceiroIndicador");
+  const cliente = window.getMarcusSupabase?.();
+  if (!select || !cliente || !adminSupabaseUserId) return;
+  try {
+    const { data, error } = await cliente.from("partners")
+      .select("id,nome").eq("owner_id", adminSupabaseUserId)
+      .eq("status", "aprovado").order("nome");
+    if (error) throw error;
+    select.innerHTML = '<option value="">Sem parceiro</option>' +
+      (data || []).map(p => '<option value="' + escapar(p.id) + '">' + escapar(p.nome) + '</option>').join("");
+    select.value = selectedId || "";
+  } catch (error) {
+    console.warn("Não foi possível carregar os parceiros aprovados:", error);
+    select.innerHTML = '<option value="">Não foi possível carregar parceiros</option>';
+  }
 }
 
 
@@ -530,6 +555,7 @@ async function salvarAluno(evento) {
     telefone: dados.telefone?.trim() || null,
     cpf: dados.cpf?.trim() || null,
     endereco: dados.endereco?.trim() || null,
+    partner_id: dados.partner_id || null,
     categoria: dados.categoria || "B",
     status: ({
       "Em aberto": "em_aberto",
@@ -574,6 +600,7 @@ async function salvarAluno(evento) {
       telefone: salvo.telefone || "",
       cpf: salvo.cpf || "",
       endereco: salvo.endereco || "",
+      partnerId: salvo.partner_id || null,
       categoria: salvo.categoria || "B",
       situacao: statusAlunoParaTela(salvo.status),
       contratadas: Number(salvo.aulas_compradas || 0),
@@ -3510,6 +3537,7 @@ async function carregarDadosAdminSupabase() {
     telefone: a.telefone || "",
     cpf: a.cpf || "",
     endereco: a.endereco || "",
+    partnerId: a.partner_id || null,
     categoria: a.categoria || "B",
     situacao: statusAlunoParaTela(a.status),
     contratadas: Number(a.aulas_compradas || 0),
