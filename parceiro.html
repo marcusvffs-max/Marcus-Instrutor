@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#12345a"><title>Área do Parceiro | Central do Instrutor</title>
+<link rel="stylesheet" href="style.css?v=central-logo-1">
+<style>
+body{background:#f3f6fa;color:#172536}.partner-wrap{max-width:1040px;margin:0 auto;padding:18px 14px 40px}.partner-top{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#12345a;color:white;padding:15px 18px;border-radius:15px}.partner-top img{max-width:180px;max-height:54px;object-fit:contain}.partner-top button,.partner-btn{border:0;border-radius:9px;padding:10px 14px;background:#fff;color:#12345a;font-weight:700}.partner-title{margin:20px 0}.partner-title h1{margin:0 0 5px}.partner-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.partner-card{background:white;border:1px solid #dce4ed;border-radius:14px;padding:15px;margin:12px 0;min-width:0}.partner-stat{font-size:13px;color:#64748b}.partner-value{display:block;font-size:1.4rem;font-weight:800;margin-top:6px}.partner-table-wrap{overflow:auto}.partner-table{width:100%;border-collapse:collapse;min-width:620px}.partner-table th,.partner-table td{text-align:left;padding:10px;border-bottom:1px solid #e5ebf1;font-size:13px}.partner-muted{color:#64748b;font-size:13px}.partner-card input{width:100%;max-width:520px;padding:11px;border:1px solid #cbd5e1;border-radius:8px;margin:7px 0}.partner-btn{background:#12345a;color:white}.partner-message{border:1px solid #dce4ed;border-radius:10px;padding:12px;margin:10px 0}.partner-message.unread{border-left:4px solid #2563eb}.partner-message h3{margin:0 0 5px}.partner-message p{white-space:pre-wrap}.partner-status{min-height:22px;color:#166534}.partner-empty{color:#64748b;padding:12px 0}@media(max-width:650px){.partner-grid{grid-template-columns:1fr}.partner-top img{max-width:145px}.partner-wrap{padding:10px}}
+</style>
+</head>
+<body>
+<div class="partner-wrap">
+<header class="partner-top"><img src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Central do Instrutor"><button id="partner-logout" type="button">Sair</button></header>
+<section class="partner-title"><h1>Minha área de parceiro</h1><p id="partner-welcome" class="partner-muted">Carregando seus dados...</p></section>
+<p id="partner-status" class="partner-status" role="status" aria-live="polite"></p>
+<section class="partner-grid">
+<article class="partner-card"><span class="partner-stat">Comissões pendentes</span><strong id="partner-pending" class="partner-value">R$ 0,00</strong></article>
+<article class="partner-card"><span class="partner-stat">Disponíveis para receber</span><strong id="partner-available" class="partner-value">R$ 0,00</strong></article>
+<article class="partner-card"><span class="partner-stat">Comissões pagas</span><strong id="partner-paid" class="partner-value">R$ 0,00</strong></article>
+</section>
+<section class="partner-card"><h2>Meus dados</h2><p id="partner-contact" class="partner-muted"></p><label for="partner-pix">Minha chave PIX</label><input id="partner-pix" maxlength="120" placeholder="Informe sua chave PIX"><br><button id="partner-save-pix" class="partner-btn" type="button">Salvar chave PIX</button></section>
+<section class="partner-card"><h2>Alunos indicados</h2><div id="partner-students" class="partner-table-wrap"></div></section>
+<section class="partner-card"><h2>Minhas comissões</h2><div id="partner-commissions" class="partner-table-wrap"></div></section>
+<section class="partner-card"><h2>Histórico de pagamentos</h2><div id="partner-payouts" class="partner-table-wrap"></div></section>
+<section class="partner-card"><h2>Mensagens do proprietário</h2><div id="partner-messages"></div></section>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
+<script src="partner.js?v=partner-portal-1"></script>
+</body></html>
