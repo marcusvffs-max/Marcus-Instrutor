@@ -379,6 +379,9 @@
           <button id="btnUsuarios" class="primary-button" type="button">
             Gerenciar usuários
           </button>
+          <button id="btnParceiros" class="secondary-button" type="button">
+            Gerenciar parceiros
+          </button>
         </div>
       </section>
 
@@ -555,6 +558,7 @@
         await carregarScript("whatsapp-panel.js?v=whatsapp-panel-v12-message-delete");
         await carregarScript("exames-alugueis.js?v=exams-status-filter-1");
         await carregarScript("admin-users.js?v=admin-users-v3-safe-confirm");
+        await carregarScript("partners-admin.js?v=partners-admin-1");
         painelAdminCarregado = true;
       }
       async function mostrarAplicativo(usuario) {
@@ -612,6 +616,10 @@
         }
         if (perfil.role === "instrutor") {
           window.location.replace("instrutor.html");
+          return false;
+        }
+        if (perfil.role === "parceiro") {
+          window.location.replace("parceiro.html");
           return false;
         }
         if (perfil.role !== "admin") {
