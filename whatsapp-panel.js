@@ -300,7 +300,7 @@
     `;
   }
 
-  function renderizarMensagemWhatsapp(mensagem) {
+  function renderizarMensagemWhatsapp(mensagem, conversationId) {
     const enviada = mensagem.direcao === "saida";
     const tipo = String(mensagem.tipo_mensagem || "mensagem");
     const conteudo = typeof mensagem.conteudo === "string" && mensagem.conteudo.trim()
@@ -317,14 +317,43 @@
       ? `<small class="whatsapp-message-status">Status: ${escaparHtml(mensagem.status_provedor)}</small>`
       : "";
     return `
-      <div class="whatsapp-message ${enviada ? "whatsapp-message-out" : "whatsapp-message-in"}">
+      <div class="whatsapp-message ${enviada ? "whatsapp-message-out" : "whatsapp-message-in"}" data-message-id="${escaparHtml(mensagem.id)}">
         <div class="whatsapp-message-bubble">
           <small>${enviada ? "Instrutor" : "Cliente"} · ${escaparHtml(formatarData(mensagem.created_at))}</small>
           <div>${conteudo}</div>
           ${status}
+          <button type="button" class="secondary-button whatsapp-delete-message" data-excluir-mensagem="${escaparHtml(mensagem.id)}" data-conversation-id="${escaparHtml(conversationId)}">Excluir registro</button>
         </div>
       </div>
     `;
+  }
+
+  async function excluirMensagemWhatsapp(botao) {
+    const messageId = botao.dataset.excluirMensagem;
+    const conversationId = botao.dataset.conversationId;
+    if (!messageId || !conversationId) return;
+    if (!window.confirm("Excluir somente este registro do histórico interno? Esta ação não apaga a mensagem do WhatsApp externo nem afeta outras mensagens ou conversas.")) return;
+    const supabase = typeof window.getMarcusSupabase === "function" ? window.getMarcusSupabase() : null;
+    if (!supabase) { window.alert("Entre novamente no aplicativo para excluir este registro."); return; }
+    botao.disabled = true;
+    botao.textContent = "Excluindo...";
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-manage-instructors", {
+        body: { action: "delete_whatsapp_message", conversation_id: conversationId, message_id: messageId },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Não foi possível excluir o registro.");
+      const area = document.getElementById("historico-conversa-" + conversationId);
+      const row = area?.querySelector('[data-message-id="' + CSS.escape(messageId) + '"]');
+      row?.remove();
+      const list = area?.querySelector("[data-lista-mensagens]");
+      if (list && !list.querySelector("[data-message-id]")) list.innerHTML = '<div class="empty-state">Ainda não há mensagens registradas nesta conversa.</div>';
+    } catch (error) {
+      console.error("Erro ao excluir registro individual do histórico:", error);
+      window.alert("Não foi possível excluir este registro. Tente novamente.");
+      botao.disabled = false;
+      botao.textContent = "Excluir registro";
+    }
   }
 
   async function carregarHistoricoConversaWhatsapp(conversationId, botao, offset = 0, carregarAnteriores = false) {
@@ -363,7 +392,7 @@
         area.innerHTML = mensagens.length
           ? `<div class="whatsapp-transcript-heading">Histórico de mensagens · ${mensagens.length} mais recentes</div>
              ${data.has_more ? `<button type="button" class="secondary-button whatsapp-load-older" data-carregar-anteriores="${escaparHtml(conversationId)}" data-offset="${Number(data.next_offset) || 0}">Carregar mensagens anteriores</button>` : ""}
-             <div data-lista-mensagens>${mensagens.map(renderizarMensagemWhatsapp).join("")}</div>`
+             <div data-lista-mensagens>${mensagens.map(mensagem => renderizarMensagemWhatsapp(mensagem, conversationId)).join("")}</div>`
           : '<div class="empty-state">Ainda não há mensagens registradas nesta conversa.</div>';
       } else {
         const listaMensagens = area.querySelector("[data-lista-mensagens]");
@@ -540,6 +569,11 @@
   }
   if (historico) historico.addEventListener("change", alterarStatusAtendimento);
   if (conversas) conversas.addEventListener("click", function (evento) {
+    const botaoExcluir = evento.target.closest("[data-excluir-mensagem]");
+    if (botaoExcluir) {
+      excluirMensagemWhatsapp(botaoExcluir);
+      return;
+    }
     const botaoAntigas = evento.target.closest("[data-carregar-anteriores]");
     if (botaoAntigas) {
       carregarHistoricoConversaWhatsapp(botaoAntigas.dataset.carregarAnteriores, botaoAntigas, Number(botaoAntigas.dataset.offset) || 0, true);
