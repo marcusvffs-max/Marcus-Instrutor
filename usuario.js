@@ -116,6 +116,24 @@
     }
   }
 
+  async function configureInstructorWhatsAppButton() {
+    const button = el("btnWhatsAppInstrutor");
+    if (!button) return;
+    button.hidden = true;
+    try {
+      const { data, error } = await state.supabase.rpc("get_my_instructor_whatsapp");
+      if (error) throw error;
+      let phone = String(data || "").replace(/\\D/g, "");
+      if (phone.length === 10 || phone.length === 11) phone = "55" + phone;
+      if (!/^55\\d{10,11}$/.test(phone)) return;
+      button.href = "https://wa.me/" + phone + "?text=" + encodeURIComponent("Olá! Gostaria de falar com meu instrutor.");
+      button.hidden = false;
+    } catch (error) {
+      console.warn("Não foi possível consultar o WhatsApp do instrutor responsável.", error);
+      button.hidden = true;
+    }
+  }
+
   async function configureWhatsAppAssistantButton() {
     const button = el("btnWhatsAppAssistente");
     if (!button) return;
@@ -179,6 +197,7 @@
     await loadInstructorName();
     await loadLessons();
     await configureWhatsAppAssistantButton();
+    await configureInstructorWhatsAppButton();
   }
 
   initialize().catch(error => {
