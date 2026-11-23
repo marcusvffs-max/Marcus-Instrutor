@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v28-contracts-reports-fixes";
+const CACHE_NAME = "marcus-instrutor-v29-central-do-instrutor-brand";
 
 const ARQUIVOS = [
   "./",
