@@ -284,9 +284,14 @@ begin
   select p.* into v_partner
     from public.students s
     join public.partners p on p.id=s.partner_id and p.owner_id=s.owner_id
-    where s.id=v_sale.student_id and s.owner_id=new.owner_id
-      and p.status='aprovado';
+    where s.id=v_sale.student_id and s.owner_id=new.owner_id;
   if not found or v_partner.commission_percent<=0 then return new; end if;
+  if v_partner.status<>'aprovado' and not exists (
+    select 1 from public.partner_commissions c
+    where c.sale_item_id=new.id and c.owner_id=new.owner_id
+  ) then
+    return new;
+  end if;
   v_base := greatest(0,coalesce(new.valor_liquido,new.subtotal,0));
   v_required := greatest(0,coalesce(new.aulas_contratadas,0)-coalesce(new.aulas_devolvidas,0));
   v_amount := round(v_base*v_partner.commission_percent/100,2);
