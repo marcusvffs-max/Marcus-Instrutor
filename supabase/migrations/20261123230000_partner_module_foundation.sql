@@ -356,7 +356,7 @@ using (
     join public.partners p on p.id=c.partner_id and p.owner_id=c.owner_id
     where c.id=partner_commission_lessons.commission_id
       and c.owner_id=partner_commission_lessons.owner_id
-      and p.user_id=(select auth.uid()))
+      and p.user_id=(select auth.uid()) and p.status='aprovado')
 );
 
 drop policy if exists partner_messages_owner_or_recipient_select on public.partner_messages;
@@ -368,7 +368,7 @@ using (
     join public.partners p on p.id=r.partner_id and p.owner_id=r.owner_id
     where r.message_id=partner_messages.id
       and r.owner_id=partner_messages.owner_id
-      and p.user_id=(select auth.uid()))
+      and p.user_id=(select auth.uid()) and p.status='aprovado')
 );
 
 drop policy if exists partner_message_recipients_owner_or_self_select on public.partner_message_recipients;
@@ -388,7 +388,7 @@ for update to authenticated
 using (exists(select 1 from public.partners p
   where p.id=partner_message_recipients.partner_id
     and p.owner_id=partner_message_recipients.owner_id
-    and p.user_id=(select auth.uid())))
+    and p.user_id=(select auth.uid()) and p.status='aprovado'))
 with check (exists(select 1 from public.partners p
   where p.id=partner_message_recipients.partner_id
     and p.owner_id=partner_message_recipients.owner_id
