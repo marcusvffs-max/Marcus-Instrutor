@@ -1,7 +1,7 @@
 "use strict";
 
 /* =========================================
-   MARCUS INSTRUTOR
+   CENTRAL DO INSTRUTOR
 ========================================= */
 
 const STORAGE_KEY = "marcus_instrutor_novo_v1";
@@ -31,7 +31,7 @@ const estadoInicial = {
   vendas: [],
   movimentacoes: [],
   configuracoes: {
-    nome: "Marcus Instrutor",
+    nome: "Central do Instrutor",
     corPrincipal: "#12345a",
     corSecundaria: "#e8edf3",
     logo: ""
@@ -2565,7 +2565,7 @@ function mostrarRelatorio(conteudo) {
   }
 
   const nomeEmpresa = escapar(
-    db.configuracoes.nome || "Marcus Instrutor"
+    db.configuracoes.nome || "Central do Instrutor"
   );
 
   const logoEmpresa = db.configuracoes?.logo || "";
@@ -2985,7 +2985,7 @@ async function salvarConfiguracoes() {
   }
 
   const botao = document.getElementById("btnSalvarConfiguracoes");
-  const nome = document.getElementById("nomeEmpresa").value.trim() || "Marcus Instrutor";
+  const nome = document.getElementById("nomeEmpresa").value.trim() || "Central do Instrutor";
   const corPrincipal = document.getElementById("corPrincipal").value;
   const corSecundaria = document.getElementById("corSecundaria").value;
   const arquivo = document.getElementById("logoEmpresa")?.files?.[0] || null;
@@ -3649,7 +3649,7 @@ async function carregarDadosAdminSupabase() {
 
   const configuracao = dados.app_settings[0];
   const configuracoes = configuracao ? {
-    nome: configuracao.nome_empresa || "Marcus Instrutor",
+    nome: configuracao.nome_empresa || "Central do Instrutor",
     corPrincipal: configuracao.cor_principal || "#12345a",
     corSecundaria: configuracao.cor_secundaria || "#e8edf3",
     // Preserva o logo local existente enquanto o Storage não é configurado.
@@ -3757,7 +3757,7 @@ function iniciarAplicativo() {
   document.getElementById("btnSalvarPrecosFixos")?.addEventListener("click",salvarPrecosItensFixos);
   mostrarPagina("inicio");
 
-  console.log("Marcus Instrutor iniciado.");
+  console.log("Central do Instrutor iniciado.");
           }
 
 prepararDadosAdmin().finally(() => iniciarAplicativo());
