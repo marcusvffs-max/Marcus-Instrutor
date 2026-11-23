@@ -37,6 +37,17 @@ Deno.serve(async (req: Request) => {
     if (partner.status !== "aprovado") return response({ error: "Seu acesso está aguardando aprovação ou encontra-se suspenso." }, 403);
     const body = await req.json().catch(() => ({}));
 
+    if (body.action === "update_pix_key") {
+      const pixKey = typeof body.pix_key === "string" ? body.pix_key.trim() : "";
+      if (pixKey.length > 120) return response({ error: "A chave PIX deve ter até 120 caracteres." }, 400);
+      const { data, error } = await db.from("partners").update({ pix_key: pixKey || null, updated_at: new Date().toISOString() })
+        .eq("id", partner.id).eq("owner_id", partner.owner_id).eq("user_id", auth.user.id)
+        .select("id,pix_key").maybeSingle();
+      if (error) throw error;
+      if (!data) return response({ error: "Não foi possível atualizar sua chave PIX." }, 409);
+      return response({ ok: true, pix_key: data.pix_key });
+    }
+
     if (body.action === "mark_read") {
       if (!uuid(body.recipient_id)) return response({ error: "Mensagem inválida." }, 400);
       const { data, error } = await db.from("partner_message_recipients")
