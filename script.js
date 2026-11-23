@@ -3469,12 +3469,15 @@ async function carregarDadosAdminSupabase() {
 
   const dados = Object.fromEntries(resultados);
 
-  // O saldo oficial de aluguel é controlado em students.alugueis_disponiveis.
-  // A devolução por item usa a quantidade ainda não devolvida; a RPC valida
-  // o saldo real e bloqueia qualquer aluguel já consumido em exame.
-  const rentalCreditAvailability = new Map((dados.sale_items || [])
-    .filter(item => item.fixed_item_key === "aluguel_veiculo")
-    .map(item => [item.id, Math.max(0, Number(item.quantidade || 0) - Number(item.quantidade_devolvida || 0))]));
+  const { data: rentalCreditRows, error: rentalCreditError } = await cliente
+    .from("student_rental_credits")
+    .select("sale_item_id,quantity_purchased,quantity_refunded,quantity_consumed");
+  if (rentalCreditError) throw new Error("Falha ao consultar os aluguéis disponíveis por compra: " + rentalCreditError.message);
+  const rentalCreditAvailability = new Map((rentalCreditRows || []).map(row => [
+    row.sale_item_id,
+    Math.max(0, Number(row.quantity_purchased || 0) -
+      Number(row.quantity_refunded || 0) - Number(row.quantity_consumed || 0))
+  ]));
 
   const configuracoesNuvem = dados.app_settings?.[0] || null;
   db.configuracoes = {

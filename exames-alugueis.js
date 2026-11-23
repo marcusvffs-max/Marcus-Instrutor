@@ -54,7 +54,7 @@
   }
   function escClose(e){if(e.key==="Escape")close();}
   function close(){ $("marcus-exam-overlay")?.remove();document.removeEventListener("keydown",escClose);}
-  function nav(){if($("marcus-exam-launch"))return;const actions=document.querySelector("#page-inicio .quick-actions")||document.querySelector(".intro[data-view=\"inicio\"]");if(!actions)return;const b=document.createElement("button");b.id="marcus-exam-launch";b.type="button";b.className=actions.matches(".intro")?"button button-primary":"primary-button";b.textContent="Exames";b.setAttribute("aria-label","Abrir Exames");b.onclick=async()=>{selectedStudentId=null;activeTab="historico";modal();await refresh();};actions.append(b);}
+  function nav(){if($("marcus-exam-launch"))return;const actions=document.querySelector("#page-inicio .quick-actions");if(!actions)return;const b=document.createElement("button");b.id="marcus-exam-launch";b.type="button";b.className="primary-button";b.textContent="Exames";b.setAttribute("aria-label","Abrir Exames");b.onclick=async()=>{selectedStudentId=null;activeTab="historico";modal();await refresh();};actions.append(b);}
   async function init(){
     if(!window.supabase?.createClient)return;
     const getClient=window.getMarcusSupabase;
@@ -93,8 +93,7 @@
     }
     host.innerHTML='<nav class="mx-tabs">'+tabs.map(t=>'<button type="button" data-tab="'+t[0]+'" class="'+(activeTab===t[0]?'active':'')+'">'+t[1]+'</button>').join("")+'</nav>'+body+'<p id="mx-message" class="mx-message" role="status" aria-live="polite"></p>';
     host.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>tab(b.dataset.tab));
-    const statusFilter=$("mx-status-filter");
-    if(statusFilter){statusFilter.value=selectedStatus;statusFilter.addEventListener("change",e=>{selectedStatus=e.target.value;render();});}
+    $("mx-status-filter")?.addEventListener("change",e=>{selectedStatus=e.target.value;render();});
     $("mx-exam-form")?.addEventListener("submit",schedule);
     host.querySelectorAll("[data-result]").forEach(b=>b.onclick=()=>recordResult(b.dataset.result,b.dataset.value));
     host.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>cancelExam(b.dataset.cancel));
