@@ -89,6 +89,13 @@ Deno.serve(async (req: Request) => {
       if (!uuid(body.partner_id) || !["pendente", "aprovado", "reprovado", "suspenso"].includes(body.status)) {
         return response({ error: "Parceiro ou situação inválidos." }, 400);
       }
+      if (body.status === "aprovado") {
+        const { data: target, error: targetError } = await db.from("partners")
+          .select("id,user_id").eq("id", body.partner_id).eq("owner_id", ownerId).maybeSingle();
+        if (targetError) throw targetError;
+        if (!target) return response({ error: "Parceiro não encontrado." }, 404);
+        if (!target.user_id) return response({ error: "O parceiro precisa ter uma conta vinculada antes da aprovação." }, 409);
+      }
       const patch: Record<string, unknown> = { status: body.status, updated_at: new Date().toISOString() };
       if (body.status === "aprovado") { patch.approved_at = new Date().toISOString(); patch.rejected_at = null; }
       if (body.status === "reprovado") patch.rejected_at = new Date().toISOString();
