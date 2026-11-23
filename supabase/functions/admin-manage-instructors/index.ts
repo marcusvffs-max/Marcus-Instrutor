@@ -142,6 +142,39 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    if (body.action === "delete_whatsapp_message") {
+      if (profile.role !== "admin") {
+        return response({ error: "Somente administradores podem excluir registros do histórico WhatsApp." }, 403);
+      }
+      const conversationId = typeof body.conversation_id === "string" ? body.conversation_id.trim() : "";
+      const messageId = typeof body.message_id === "string" ? body.message_id.trim() : "";
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidPattern.test(conversationId) || !uuidPattern.test(messageId)) {
+        return response({ error: "Registro ou conversa inválidos." }, 400);
+      }
+
+      const { data: conversation, error: conversationError } = await admin
+        .from("whatsapp_conversations")
+        .select("id")
+        .eq("id", conversationId)
+        .eq("owner_id", authData.user.id)
+        .maybeSingle();
+      if (conversationError) throw conversationError;
+      if (!conversation) return response({ error: "Conversa não encontrada para esta conta." }, 404);
+
+      const { data: deletedMessage, error: deleteError } = await admin
+        .from("whatsapp_messages")
+        .delete()
+        .eq("id", messageId)
+        .eq("conversation_id", conversationId)
+        .eq("owner_id", authData.user.id)
+        .select("id")
+        .maybeSingle();
+      if (deleteError) throw deleteError;
+      if (!deletedMessage) return response({ error: "Registro não encontrado nesta conversa." }, 404);
+      return response({ ok: true, deleted_message_id: deletedMessage.id });
+    }
+
     if (body.action === "close_whatsapp_conversation") {
       if (profile.role !== "admin") {
         return response({ error: "Somente administradores podem encerrar conversas do WhatsApp." }, 403);
