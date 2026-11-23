@@ -219,12 +219,13 @@
     list.append(loading);
     try {
       const result = await call("list");
+      const visibleUsers = (result.users || []).filter((user) => user.role !== "parceiro");
       loading.remove();
-      if (!result.users.length) {
+      if (!visibleUsers.length) {
         list.append(create("p", {}, "Nenhum usuário encontrado."));
         return;
       }
-      result.users.forEach((user) => {
+      visibleUsers.forEach((user) => {
         const item = create("div", { class: "users-item", "data-role": user.role || "sem-perfil" });
         const info = create("div", { class: "users-item-info" });
         info.append(create("strong", {}, user.nome || "Sem nome"));
