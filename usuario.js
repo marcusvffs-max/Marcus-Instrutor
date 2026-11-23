@@ -1,8 +1,10 @@
 "use strict";
 
 (function () {
-  const SUPABASE_URL = "https://ydyqagqsuqntuibzgwzd.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
+  const hostPreview = window.location.hostname;
+      const USAR_SUPABASE_QA = hostPreview === "marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app" || /^marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(hostPreview);
+  const SUPABASE_URL = USAR_SUPABASE_QA ? "https://voyjssflroiwdyaacthh.supabase.co" : "https://ydyqagqsuqntuibzgwzd.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = USAR_SUPABASE_QA ? "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9" : "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
   const el = id => document.getElementById(id);
   const state = { supabase: null, user: null };
 
@@ -75,12 +77,32 @@
 
   async function loadInstructorName() {
     try {
-      const { data, error } = await state.supabase.rpc("get_my_instructor_name");
+      const { data, error } = await state.supabase.rpc("get_my_instructor_branding");
       if (error) throw error;
-      el("nomeInstrutorResponsavel").textContent = data || "Aguardando vínculo do instrutor";
+      const branding = Array.isArray(data) ? data[0] : data;
+      const name = branding?.instructor_name || "";
+      configureInstructorWhatsAppButton(branding?.instructor_cellphone);
+      el("nomeInstrutorResponsavel").textContent = name || "Aguardando vínculo do instrutor";
+      const heading = el("nomeEmpresaInstrutor");
+      if (heading && name) heading.textContent = name;
+      const logo = el("logoInstrutorResponsavel");
+      if (logo && branding?.logo_url) {
+        const image = document.createElement("img");
+        image.src = branding.logo_url;
+        image.alt = "Logomarca do instrutor responsável";
+        image.style.width = "100%";
+        image.style.height = "100%";
+        image.style.objectFit = "contain";
+        logo.replaceChildren(image);
+      }
     } catch (error) {
-      console.warn("Não foi possível consultar o instrutor responsável:", error);
-      el("nomeInstrutorResponsavel").textContent = "Não disponível no momento";
+      console.warn("Não foi possível consultar a identidade visual do instrutor responsável:", error);
+      try {
+        const { data } = await state.supabase.rpc("get_my_instructor_name");
+        el("nomeInstrutorResponsavel").textContent = data || "Aguardando vínculo do instrutor";
+      } catch (_) {
+        el("nomeInstrutorResponsavel").textContent = "Não disponível no momento";
+      }
     }
   }
 
@@ -116,42 +138,22 @@
     }
   }
 
-  async function configureInstructorWhatsAppButton() {
-    const button = el("btnWhatsAppInstrutor");
-    if (!button) return;
-    button.hidden = true;
-    try {
-      const { data, error } = await state.supabase.rpc("get_my_instructor_whatsapp");
-      if (error) throw error;
-      let phone = String(data || "").replace(/\D/g, "");
-      if (phone.length === 10 || phone.length === 11) phone = "55" + phone;
-      if (!/^55\d{10,11}$/.test(phone)) return;
-      button.href = "https://wa.me/" + phone + "?text=" + encodeURIComponent("Olá! Gostaria de falar com meu instrutor.");
-      button.hidden = false;
-    } catch (error) {
-      console.warn("Não foi possível consultar o WhatsApp do instrutor responsável.", error);
-      button.hidden = true;
-    }
-  }
-
-  async function configureWhatsAppAssistantButton() {
+  function configureInstructorWhatsAppButton(cellphone) {
     const button = el("btnWhatsAppAssistente");
     if (!button) return;
-
-    try {
-      const { data, error } = await state.supabase.rpc("can_show_marcus_whatsapp_assistant");
-      if (error) throw error;
-
-      if (data === true) {
-        const message = encodeURIComponent("Olá");
-        button.href = "https://wa.me/5533997092835?text=" + message;
-        button.hidden = false;
-      }
-    } catch (error) {
-      // Em caso de falha na validação, o botão permanece oculto por segurança.
-      console.warn("Não foi possível validar o acesso ao WhatsApp da assistente.", error);
+    const digits = String(cellphone || "").replace(/\D/g, "");
+    const number = digits.length === 10 || digits.length === 11 ? "55" + digits : digits;
+    if (!/^55[1-9][0-9]{9,10}$/.test(number)) {
       button.hidden = true;
+      button.removeAttribute("href");
+      return;
     }
+    button.href = "https://wa.me/" + number + "?text=" + encodeURIComponent("Olá! Sou aluno e gostaria de falar com meu instrutor.");
+    button.hidden = false;
+    button.setAttribute("aria-label", "Falar com meu instrutor pelo WhatsApp");
+    button.title = "Falar com meu instrutor";
+    const label = button.querySelector("span");
+    if (label) label.textContent = "Falar com instrutor";
   }
 
   async function signOut() {
@@ -196,8 +198,7 @@
     });
     await loadInstructorName();
     await loadLessons();
-    await configureWhatsAppAssistantButton();
-    await configureInstructorWhatsAppButton();
+
   }
 
   initialize().catch(error => {

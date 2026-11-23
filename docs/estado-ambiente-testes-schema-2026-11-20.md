@@ -1081,3 +1081,233 @@ Os testes estáticos de isolamento do cache foram acrescentados a `scripts/test-
 
 A comparação read-only confirmou que a função `admin-manage-instructors` atualmente implantada no Supabase original ainda não contém a ação `update_whatsapp_request_status` nem a verificação de conta já vinculada adicionadas na branch. Portanto, o novo painel e a Edge Function da branch precisam ser publicados juntos em um futuro deploy autorizado; não se deve publicar apenas o frontend.
 Nenhuma publicação foi feita nesta rodada.
+
+
+## Atualização de validação das migrations mais recentes — 21/11/2026
+
+Esta rodada foi executada exclusivamente no projeto isolado `voyjssflroiwdyaacthh` (PostgreSQL 17.12). O projeto original `ydyqagqsuqntuibzgwzd` não foi consultado nem alterado nesta etapa.
+
+### Migrations aplicadas no projeto isolado
+
+Foram aplicadas, em sequência, as migrations versionadas na branch:
+
+- `20261121170000_add_contractor_identity_to_app_settings.sql` — operação idempotente; as colunas já existiam no schema de teste.
+- `20261121190000_remove_student_app_access.sql`.
+- `20261121210000_add_fk_indexes_and_rls_initplan.sql`.
+- `20261121220000_instructor_profile_and_sale_management.sql`.
+- `20261121230000_harden_instructor_sale_delete_role_check.sql`.
+- `20261121231000_move_instructor_name_lookup_to_private_helper.sql`.
+
+Todas retornaram sucesso. A migration de identificação do contratante foi registrada novamente no histórico de teste porque a estrutura já estava presente, mas não havia registro correspondente com o nome/versão da branch. Nenhuma dessas migrations foi aplicada ao projeto original.
+
+### Verificações SQL transacionais
+
+Com identidades sintéticas e transações revertidas:
+
+- Instrutor autenticado tentou remover acesso de um UUID de aluno sem vínculo: a RPC rejeitou com `P0002`.
+- Instrutor autenticado tentou excluir uma venda inexistente: a função passou pela verificação de papel e rejeitou a busca fora do próprio `owner_id`.
+- Instrutor tentou consultar o nome do instrutor pela RPC de aluno: rejeitado por papel incompatível.
+- Instrutor tentou consultar a agenda pela RPC de aluno: rejeitado por papel incompatível.
+- Em teste positivo, uma identidade sintética foi temporariamente colocada como `usuario` e vinculada a um cadastro sintético; `get_my_instructor_name()` retornou o nome do instrutor responsável. A transação foi revertida.
+
+Resultado: **4 verificações de bloqueio por papel/escopo e 1 verificação positiva do nome do instrutor passaram** no PostgreSQL isolado. Não houve exclusão persistente de conta, venda, aluno ou histórico.
+
+### ACLs e Advisors após as migrations
+
+Consulta de catálogo confirmou:
+
+- `remove_student_app_access`: SECURITY DEFINER, owner `postgres`, `search_path` vazio; sem EXECUTE para `anon`, com EXECUTE para `authenticated`, conforme o fluxo da tela de Acessos.
+- `delete_my_sale` e `get_my_instructor_name`: SECURITY INVOKER, owner `postgres`, `search_path` vazio; EXECUTE apenas para `authenticated`.
+- `private.get_my_instructor_name_internal`: SECURITY DEFINER, owner `postgres`, `search_path` vazio; EXECUTE para `authenticated`, necessário ao wrapper público. A exposição do schema `private` pela Data API ainda deve ser confirmada nas configurações do projeto.
+- Os dez índices previstos na migration `20261121210000` foram encontrados no catálogo.
+
+Security Advisors no ambiente isolado:
+- INFO: `whatsapp_conversations` e `whatsapp_messages` com RLS sem policies; desenho backend-only, sem grants para clientes.
+- WARN: `get_my_scheduled_lessons()` e `remove_student_app_access()` são RPCs públicas SECURITY DEFINER executáveis por authenticated. Ambas validam identidade/papel/escopo internamente; manter como itens de revisão e considerar wrappers SECURITY INVOKER com helpers privados em uma etapa posterior.
+- WARN: proteção contra senhas vazadas desabilitada; não alterada.
+
+Performance Advisors:
+- Restou 1 FK sem índice de cobertura: `students_owner_id_fkey`.
+- Os índices recém-criados aparecem como não utilizados porque o banco de teste tem pouco volume e não representa carga real; não remover com base apenas nesse Advisor.
+- Permanecem alertas de múltiplas policies permissivas em tabelas com políticas distintas para admin e instrutor; revisar otimização sem enfraquecer o isolamento.
+
+### Limites desta rodada
+
+- As verificações foram SQL dentro do banco de teste, com claims simuladas e rollback; não são chamadas HTTP/PostgREST com JWT real.
+- Não houve teste de exclusão real de conta Auth vinculada, envio de convite/e-mail ou teste concorrente.
+- Não foram executados os scripts Node completos nem os testes Deno.
+- O Preview da Vercel continua associado ao commit `fb3ae47c165c03774e5c62acc8149b03e44b1ee1` e READY; isso confirma build/publicação, não validação funcional autenticada.
+- A PR #5 continua draft, baseada em `feature/relatorios-instrutor-app`. Essa branch permanece divergente de `main` (567 commits à frente e 4 atrás, na comparação consultada); não fazer merge direto sem plano de consolidação.
+- Nenhuma ação foi executada em produção, no Supabase original, na branch `main` ou em deploy de produção. Nenhuma ação paga foi realizada.
+
+
+## Separação de fixtures e migrations implantáveis — 21/11/2026
+
+As sete migrations de reconstrução do banco isolado foram movidas integralmente para `test-fixtures/supabase-migrations/`, fora de `supabase/migrations/`. Os arquivos originais foram preservados, e o teste estático `scripts/test-student-link-flow.mjs` foi atualizado para ler a fixture do novo caminho. A pasta contém um README com a proibição explícita de usar essas fixtures em produção.
+
+Objetivo: impedir que `supabase db push` trate scripts de reconstrução do ambiente descartável como migrations implantáveis. As migrations reais de evolução do produto permanecem em `supabase/migrations/`.
+
+A separação é uma proteção de organização do repositório, não uma autorização para executar `db push`. Antes de qualquer implantação, ainda será necessário revisar a cadeia completa de migrations contra o histórico real do projeto de destino e validar o diff em ambiente isolado.
+
+
+## Atualização: isolamento autenticado parcial e hardening de perfis — 21/11/2026
+
+Projeto de testes isolado: `voyjssflroiwdyaacthh`. Nenhuma alteração foi feita no projeto original.
+
+### Testes transacionais com duas contas de instrutor
+
+Com duas identidades sintéticas, `SET LOCAL ROLE authenticated` e claims simuladas:
+
+- RLS de leitura aprovado em `students`, `vehicles`, `lessons`, `sales`, `sale_items` e `financial_transactions`: cada conta visualizou somente linhas do próprio owner. As três tabelas financeiras/comerciais estavam vazias, portanto não houve teste positivo com registros reais de venda.
+- Tentativas de UPDATE/DELETE de aluno, veículo e aula de outro owner não afetaram linhas.
+- INSERT de aluno/veículo com owner alheio e INSERT de aula ligada a aluno/veículo de outro owner foram bloqueados com SQLSTATE `42501`.
+- Fixtures temporárias de `products` e `app_settings` provaram que cada instrutor vê uma linha própria e zero linhas do outro owner.
+- Um instrutor temporariamente expirado não visualizou registros operacionais em nenhuma das seis tabelas consultadas.
+
+Todas as operações foram feitas em transações com `ROLLBACK`. Claims simuladas não equivalem a autenticação HTTP/PostgREST com JWT real.
+
+### RPCs
+
+- `remove_student_app_access(uuid)` e `delete_my_sale(uuid)`: instrutor expirado bloqueado com `42501`; instrutor ativo passou pelo guard de papel/validade e chegou à validação do registro inexistente (`P0002`).
+- `admin_create_sale`, `admin_delete_sale`, `admin_refund_sale_lessons` e `admin_refund_sale_product`: chamadas diretas por instrutor foram bloqueadas pelo guard administrativo com a mensagem `Acesso administrativo obrigatório.`.
+
+### Privilégios de profiles
+
+A migration `20261121260000_restrict_profile_insert_delete.sql` foi aplicada no projeto de testes. `authenticated` agora mantém SELECT e UPDATE somente de `profiles.nome`; INSERT e DELETE foram revogados em nível de tabela/coluna. Teste transacional confirmou atualização do próprio nome e bloqueio de INSERT/DELETE.
+
+### Estado versionado
+
+Na branch `feature/acessos-alunos-instrutor`:
+
+- 20 migrations implantáveis em `supabase/migrations`;
+- sete fixtures SQL mantidas em `test-fixtures/supabase-migrations`;
+- nenhum arquivo `restore_*` ou `reconcile_financial_rpc_definitions` permanece em `supabase/migrations`;
+- PR #5 continua aberta, draft e sem merge.
+
+### Pendências que continuam explícitas
+
+- JWT real via HTTP/PostgREST, fluxo completo de aluno e RPC de agenda;
+- teste com registros sintéticos de venda/itens/transações para cenários positivos, cruzamento e estorno;
+- testes reais de Admin/Edge Functions;
+- confirmação da lista de schemas expostos pela Data API (em especial `private`);
+- habilitar proteção contra senhas vazadas após validação administrativa;
+- revisar warnings intencionais de RPCs SECURITY DEFINER públicas, sem remover os guards necessários.
+
+Não houve deploy, merge, operação paga, envio de convite ou alteração no Supabase original.
+
+
+## Atualização: correção de venda e testes financeiros — 21/11/2026
+
+Foi identificada uma inconsistência na RPC `create_instructor_sale`: o saldo de aulas aumentava, mas os campos de aulas e valores do item da venda não eram preenchidos. Isso fazia com que a exclusão da venda não devolvesse as aulas ao saldo e impedia a base correta para devolução administrativa.
+
+Migration criada e aplicada somente no projeto isolado `voyjssflroiwdyaacthh`:
+
+`20261121270000_fix_instructor_sale_item_lesson_tracking.sql`
+
+A função agora grava `tipo_item`, `aulas_contratadas`, `aulas_devolvidas`, `valor_por_aula`, `valor_devolvido` e `valor_liquido`, e valida preço/limites do produto. O cálculo de aulas contratadas segue as regras já usadas pela RPC administrativa de vendas.
+
+### Evidências transacionais posteriores à correção
+
+- Venda própria adiciona cinco aulas e persiste cinco aulas contratadas no item.
+- Exclusão de venda não utilizada devolve o saldo a zero e remove venda/lançamento.
+- Repetição da chamada com o mesmo ID não duplica itens nem saldo.
+- Venda não pode ser excluída depois que uma aula vinculada foi realizada.
+- Devolução de duas aulas em venda de R$ 80,00 gerou R$ 32,00 de saída e reduziu saldo de cinco para três.
+- Devolução de uma unidade de produto de R$ 30,00 gerou R$ 30,00 de saída.
+- Excesso de devolução de aulas ou produtos foi bloqueado sem alteração persistente.
+- UPDATE/DELETE de vendas, itens e transações de outra conta afetaram zero linhas; INSERTs cruzados foram bloqueados por RLS.
+
+Foram registradas 41 verificações aprovadas após a correção, todas em transações revertidas com claims simuladas. A lista detalhada e as limitações estão em `docs/TESTE-RLS-ISOLAMENTO-INSTRUTORES.md`.
+
+A migration eleva o conjunto para 21 migrations implantáveis. O projeto original continua intocado. Não houve teste HTTP com JWT real, validação de UI, merge ou deploy.
+
+
+Complemento da validação financeira:
+- pacote com faixa mínima/máxima e serviço de múltiplas aulas: 12 aulas adicionadas e persistidas corretamente;
+- quantidade abaixo do mínimo do pacote: bloqueada;
+- chamada de `delete_my_sale` para venda de outro owner: bloqueada com `P0002`.
+
+
+## Atualização: agenda do aluno e proteção do vínculo — 21/11/2026
+
+No projeto isolado `voyjssflroiwdyaacthh`, foram criadas identidades Auth sintéticas e dois cadastros de aluno, cada um ligado a um instrutor diferente. Com claims simuladas:
+
+- cada aluno recebeu somente sua própria aula agendada, nome e veículo corretos;
+- nenhum dos dois viu a aula do outro;
+- usuário sem vínculo recebeu `P0002 / CONTA_SEM_VINCULO`;
+- instrutor foi bloqueado ao chamar a RPC exclusiva do aluno;
+- aluno não obteve linhas por SELECT direto em `students` ou `lessons`, mas recebeu a agenda pela RPC;
+- a RPC limpou a reserva `invited_at`/`invite_attempt_id`;
+- trigger bloqueou alteração ou inserção direta de vínculo Auth por instrutor (`42501`);
+- Edge Function verifica se a conta Auth já está ligada a outro cadastro, com índice único parcial `students_user_id_unique` como proteção adicional.
+
+Foram registradas 14 verificações/asserções aprovadas em transações revertidas. Isso não substitui login real, JWT emitido pelo Auth, e-mail/convite implantado ou teste HTTP. Os detalhes estão em `docs/TESTE-RLS-ISOLAMENTO-INSTRUTORES.md`.
+
+
+## Atualização: trigger de convite e remoção de acesso — 21/11/2026
+
+No projeto isolado, testes SQL transacionais confirmaram:
+
+- trigger de vínculo Auth: metadados e reserva ativa correspondentes criam o vínculo; e-mail divergente e reserva expirada não criam vínculo (3 verificações);
+- RPC `remove_student_app_access`: remove a identidade Auth do aluno da própria conta e preserva o cadastro/histórico, com limpeza do `user_id` pelo trigger;
+- tentativa de remover vínculo de aluno de outro owner é bloqueada com `P0002`, preservando a identidade Auth estrangeira (4 verificações).
+
+Tudo foi revertido. Não houve e-mail, convite persistente, chamada HTTP da Edge Function nem alteração no Supabase original.
+
+
+Complemento da área do aluno:
+- RPC de nome do instrutor: aluno A recebeu nome do owner A, aluno B recebeu nome do owner B; instrutor foi bloqueado ao chamar a RPC exclusiva do aluno (3 verificações).
+- Revisão estática de `admin-manage-instructors` confirmou validação de bearer token, papel do chamador, validade do acesso de instrutor, owner scope do cadastro, reserva/attempt ID e confirmação de e-mail. Sem execução HTTP ou SMTP.
+
+O conjunto de testes SQL da área de aluno, vínculo, convite e remoção soma 24 verificações/asserções aprovadas, todas com dados sintéticos e rollback. Não é homologação HTTP com JWT real.
+
+
+## Atualização: índice de cobertura da FK de alunos — 21/11/2026
+
+O Performance Advisor identificou que `students.owner_id` não tinha índice próprio para cobrir a FK para `auth.users`. Foi criada e aplicada somente no banco isolado a migration:
+
+`20261121280000_add_students_owner_fk_index.sql`
+
+O índice `students_owner_id_idx` foi confirmado no catálogo. A recomendação `unindexed_foreign_keys` deixou de aparecer no Performance Advisor. O índice aparece como ainda não utilizado porque o banco de testes tem pouco volume; manter a decisão para revisão quando houver carga representativa.
+
+O conjunto versionado passa a ter 22 migrations implantáveis. Os avisos de políticas permissivas sobrepostas continuam sem alteração para evitar mudança de semântica RLS sem testes CRUD completos.
+
+
+## Atualização: revisão de API, permissões do schema private e CI — 21/11/2026
+
+### Schema `private`
+
+No projeto isolado, a consulta de privilégios confirmou:
+- `anon`: sem USAGE no schema `private`;
+- `authenticated`: com USAGE no schema `private`;
+- `service_role`: sem USAGE;
+- `private.get_my_scheduled_lessons_internal()`: sem EXECUTE direto para anon/authenticated;
+- `private.current_app_role()`: EXECUTE para authenticated, usada por RPCs públicas SECURITY INVOKER de autorização;
+- `public.get_my_scheduled_lessons()` e `public.remove_student_app_access(uuid)`: SECURITY DEFINER, sem EXECUTE para anon e com EXECUTE para authenticated; ambas têm `search_path` vazio e guards internos testados.
+
+A consulta SQL não revela a lista de schemas configurada no PostgREST/API. Portanto, **não foi possível confirmar pelo banco se `private` está exposto na Data API**. Não revogar USAGE nem mudar as funções neste passo: várias RPCs públicas SECURITY INVOKER dependem de `private.current_app_role()`. A confirmação da lista de schemas deve ser feita em Project Settings → API → Exposed schemas, somente no projeto isolado. Se `private` estiver listado, retirar da lista de schemas expostos é preferível a alterar a semântica das RPCs.
+
+### Edge Functions e CI
+
+- O projeto Supabase isolado não tem Edge Functions implantadas; nenhum teste HTTP ou JWT real foi executado.
+- Não há workflow run associado à branch `feature/acessos-alunos-instrutor` nem check run no commit `dadc22d32b8fa5d4ecc1548d5969a7226da0b02e`. O histórico recente de Actions retornou apenas o workflow de Pages na branch `main`, não testes da PR.
+- A PR #5 continua aberta em Draft, base `feature/relatorios-instrutor-app`.
+- Comparação atual com `main`: branch divergente, 616 commits à frente e 4 atrás. Não retargetar nem fazer merge automaticamente; é necessária uma estratégia de consolidação e revisão de diff antes da integração.
+
+### Configuração Auth pendente
+
+O Security Advisor do projeto isolado ainda aponta proteção contra senhas vazadas desabilitada. A configuração não é exposta pelas consultas SQL usadas nesta auditoria e não foi alterada. Habilitar somente pelo painel de Auth do projeto de testes, após revisão da política de senha; nunca no projeto original sem autorização específica.
+
+
+### Cobertura estática ampliada
+
+O script `scripts/test-instructor-workflow.mjs` recebeu dois testes estáticos adicionais:
+- a migration de criação de venda deve validar papel/owner, persistir `aulas_contratadas`, `valor_por_aula`, `valor_liquido`, movimentação financeira e saldo do aluno;
+- a migration de índice deve declarar `students_owner_id_idx` sobre `students(owner_id)`.
+
+Os testes foram adicionados ao repositório, mas não foram executados neste ambiente. Os resultados SQL transacionais relatados nas seções anteriores permanecem evidências separadas.
+
+
+### Correção da matriz de acesso a produtos e configurações
+
+A matriz de testes foi alinhada ao comportamento observado: `products` e `app_settings` permitem leitura por owner, de modo que instrutor A e B visualizam somente seus próprios registros. A expectativa anterior de negar leitura a instrutores foi removida. O resultado cobre leitura isolada com fixtures; escritas cruzadas nessas tabelas ainda precisam de teste.

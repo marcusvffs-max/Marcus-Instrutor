@@ -1,0 +1,4 @@
+-- Reserved migration version. Purchase-specific rental balances are now read
+-- directly through the owner-scoped RLS policy in
+-- 20261122220000_student_rental_credit_owner_read_policy.sql.
+-- No SECURITY DEFINER read RPC is created by this migration.

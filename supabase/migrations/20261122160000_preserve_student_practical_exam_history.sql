@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS student_practical_exams_owner_delete ON public.student_practical_exams;

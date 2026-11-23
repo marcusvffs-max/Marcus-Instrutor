@@ -1,8 +1,8 @@
 # Matriz de testes de autorização e isolamento RLS
 
 Projeto: Marcus Instrutor  
-Branch de referência: `feature/relatorios-instrutor-app`  
-Status: plano de testes; não executado contra banco.
+Branch de referência: `feature/acessos-alunos-instrutor`  
+Status: matriz parcialmente executada em projeto Supabase isolado; os casos não listados como aprovados permanecem pendentes.
 
 ## Objetivo
 
@@ -34,8 +34,8 @@ Guardar os UUIDs em variáveis de teste; não copiar dados reais. Tirar snapshot
 |---|---|---|---|---|---|
 | anon | Negado | Negado | Negado | Negado | Negado |
 | Aluno A | Somente agenda própria pela RPC | Negado | Negado | Negado | Negado |
-| Instrutor A | Permitido | Negado | Negado | Negado | Negado |
-| Instrutor B | Negado | Permitido | Negado | Negado | Negado |
+| Instrutor A | Permitido | Negado | Negado | Negado | Somente registros próprios por owner_id |
+| Instrutor B | Negado | Permitido | Negado | Negado | Somente registros próprios por owner_id |
 | Admin | Permitido | Permitido | Permitido | Somente pelo backend confiável | Permitido |
 
 A área do aluno não deve receber acesso direto às tabelas `students`, `lessons` ou `vehicles`; a consulta de agenda ocorre pela RPC autenticada e vinculada a `auth.uid()`.
@@ -61,7 +61,7 @@ A área do aluno não deve receber acesso direto às tabelas `students`, `lesson
 - [ ] **SEC-014:** repetir SEC-010 a SEC-013 com Instrutor B, invertendo A e B.
 - [ ] **SEC-015:** Instrutor A tenta INSERT/UPDATE/DELETE em `students`, `lessons`, `vehicles`, `sales`, `sale_items` e `financial_transactions`; operações negadas por ausência de policies de escrita.
 - [ ] **SEC-016:** Instrutor A tenta usar `TRUNCATE`, `REFERENCES` ou criar trigger nas tabelas; privilégio SQL negado antes mesmo de considerar RLS.
-- [ ] **SEC-017:** Instrutor A tenta ler/alterar `products` e `app_settings`; acesso negado.
+- [x] **SEC-017 (leitura):** Instrutor A e B consultam `products` e `app_settings` e recebem somente os registros próprios por `owner_id`; nenhuma linha do outro owner é visível. Escritas cruzadas nessas duas tabelas permanecem pendentes.
 - [ ] **SEC-018:** Instrutor A tenta ler perfil de Instrutor B; SELECT negado por RLS.
 - [ ] **SEC-019:** Instrutor A tenta atualizar `profiles.role` para `admin`, `usuario` ou qualquer papel diferente; negado pelo trigger e pelos grants.
 - [ ] **SEC-020:** Instrutor A tenta criar perfil para outro UUID; negado.
@@ -137,3 +137,283 @@ Os novos casos estão pendentes de execução em ambiente isolado. A existência
 - [ ] **SEC-070:** após a primeira consulta autenticada, a limpeza de `invited_at` e `invite_attempt_id` não remove nem troca `students.user_id`.
 
 Esses casos são novos critérios de validação. Permanecem pendentes de execução com contas fictícias em ambiente isolado.
+
+
+## Evidência de execução parcial — 21/11/2026
+
+Ambiente: projeto Supabase isolado de testes `voyjssflroiwdyaacthh`, PostgreSQL 17.12. Nenhuma consulta ou gravação foi executada no projeto original. Foram usados dois perfis fictícios de instrutor com autorização ativa e seus registros sintéticos. Os testes usaram `SET LOCAL ROLE authenticated` e claims JWT simuladas com `request.jwt.claim.sub`/`request.jwt.claims`; **não são testes HTTP/PostgREST com JWT real**.
+
+### Isolamento de leitura por owner — aprovado no escopo testado
+
+Foram comparadas as contagens diretas por owner com as contagens visíveis sob RLS para cada identidade, nas seis tabelas:
+
+- `students`: Instrutor A viu 2/2 registros; Instrutor B viu 1/1.
+- `vehicles`: Instrutor A viu 2/2; Instrutor B viu 1/1.
+- `lessons`: Instrutor A viu 2/2; Instrutor B viu 1/1.
+- `sales`, `sale_items` e `financial_transactions`: ambas as contas viram zero, conforme fixtures disponíveis.
+- Para as seis tabelas, cada identidade viu zero linhas pertencentes ao outro owner.
+
+Resultado: **12 verificações de leitura aprovadas** (seis tabelas × duas identidades). A ausência de registros financeiros significa que ainda não houve validação positiva com dados de venda, itens e transações.
+
+### Tentativas de escrita cruzada — aprovadas no escopo testado
+
+Em transação com rollback, para cada instrutor:
+
+- UPDATE de aluno de outro owner: 0 linhas afetadas.
+- DELETE de aluno de outro owner: 0 linhas afetadas.
+- UPDATE de veículo de outro owner: 0 linhas afetadas.
+- DELETE de aula de outro owner: 0 linhas afetadas.
+- INSERT de aluno com owner_id do outro instrutor: bloqueado com SQLSTATE `42501`.
+- INSERT de veículo com owner_id do outro instrutor: bloqueado com SQLSTATE `42501`.
+- INSERT de aula com owner próprio, mas aluno e veículo de outro owner: bloqueado com SQLSTATE `42501`.
+
+Resultado: **14 verificações DML aprovadas** (sete casos × duas identidades). Todas as transações foram revertidas; nenhuma alteração de fixture permaneceu.
+
+### Instrutor com autorização vencida — aprovado no escopo testado
+
+Foi expirado temporariamente um perfil fictício dentro de transação e consultadas as seis tabelas operacionais/financeiras sob `authenticated`. O perfil não visualizou nenhuma linha em `students`, `vehicles`, `lessons`, `sales`, `sale_items` ou `financial_transactions`.
+
+Resultado: **seis verificações aprovadas**. A alteração temporária de validade foi revertida.
+
+### RPCs que exigem instrutor ativo — aprovado no escopo testado
+
+As RPCs `remove_student_app_access(uuid)` e `delete_my_sale(uuid)` foram testadas em transações com claims simuladas:
+
+- Instrutor expirado: ambas rejeitaram a chamada com `42501`.
+- Instrutor ativo: ambas passaram pela checagem de papel/validade e chegaram à checagem de existência/escopo do registro inexistente (`P0002`).
+
+Nenhum aluno, acesso, venda ou lançamento foi removido. As transações foram revertidas.
+
+### Limitações explícitas
+
+Não marcar como concluídos os casos SEC-001 a SEC-070 em bloco. Permanecem pendentes, entre outros:
+
+- autenticação real via HTTP/PostgREST com JWT emitido pelo Auth;
+- aluno autenticado e RPC de agenda com vínculo `students.user_id`;
+- Admin e Edge Functions com JWT real;
+- dados sintéticos de vendas, itens, produtos e transações para testes positivos e negativos completos;
+- tentativa de escrita cruzada em vendas/itens/transações e validação de exclusão/estorno;
+- confirmação administrativa da lista de schemas expostos pela Data API;
+- privilégios de `TRUNCATE`, `REFERENCES`, `TRIGGER`, memberships e chamadas diretas a funções internas;
+- cenários completos de vínculo/convite, concorrência e integridade financeira.
+
+Esta evidência comprova somente os testes SQL transacionais descritos acima, com claims simuladas no projeto isolado. Não representa homologação funcional, teste HTTP real ou autorização para merge/deploy.
+
+
+### Perfis: redução de privilégios e validação — 21/11/2026
+
+A revisão de ACL identificou que `authenticated` ainda possuía grants de INSERT e DELETE em `public.profiles`, embora as policies existentes não oferecessem esses caminhos e o frontend não use escrita direta para criar/remover perfis. A criação é feita pelo trigger confiável de Auth e as operações administrativas são realizadas pela Edge Function com cliente administrativo.
+
+Foi criada e aplicada somente no projeto isolado a migration:
+
+`20261121260000_restrict_profile_insert_delete.sql`
+
+A migration revoga INSERT em nível de tabela e de coluna e revoga DELETE de `authenticated`. Mantém SELECT e UPDATE somente da coluna `nome`, já restrita por RLS ao próprio instrutor.
+
+Verificações transacionais com claims simuladas:
+
+- UPDATE do próprio nome: 1 linha afetada — PASS.
+- INSERT direto de perfil pelo usuário autenticado: negado, SQLSTATE `42501` — PASS.
+- DELETE do próprio perfil: negado, SQLSTATE `42501` — PASS.
+
+Consulta posterior de privilégios confirmou: SELECT permitido; INSERT negado; UPDATE de tabela negado; DELETE negado; UPDATE(nome) permitido; INSERT(role) e INSERT(instructor_access_until) negados.
+
+### RPCs administrativas chamadas diretamente por instrutor — 21/11/2026
+
+Com Instrutor autenticado por claims simuladas, as quatro RPCs abaixo foram chamadas diretamente, sem passar pelo frontend:
+
+- `admin_create_sale`
+- `admin_delete_sale`
+- `admin_refund_sale_lessons`
+- `admin_refund_sale_product`
+
+Todas interromperam no guard de papel com a mensagem `Acesso administrativo obrigatório.` e SQLSTATE `P0001`. Resultado: **4/4 bloqueios aprovados**. As chamadas não chegaram às operações de negócio e a transação foi revertida.
+
+### Observação sobre produtos e configurações por owner
+
+A matriz inicial deste documento indicava que instrutores não deveriam ler produtos/configurações. A inspeção das policies atuais mostra, porém, que `products` e `app_settings` permitem acesso de instrutor somente aos registros cujo `owner_id = auth.uid()`; produtos também têm policies próprias para admin. Isso parece compatível com a separação de catálogo/configuração por conta e não foi alterado nesta etapa.
+
+O projeto isolado não contém linhas de fixture em `products` nem `app_settings`, então ainda não houve teste positivo/negativo com registros nessas duas tabelas. A expectativa funcional da matriz deve ser alinhada a essa regra por owner antes de marcar SEC-017 como aprovado; não se deve interpretar a policy por owner como acesso global entre instrutores.
+
+
+### Produtos e configurações por conta — teste positivo/negativo — 21/11/2026
+
+Como as policies atuais permitem que o instrutor gerencie somente os próprios produtos e configurações, foram criadas linhas sintéticas temporárias para cada um dos dois instrutores dentro de uma única transação:
+
+- uma linha em `products` por owner;
+- uma linha em `app_settings` por owner.
+
+Sob `SET LOCAL ROLE authenticated` e claims simuladas, cada conta viu exatamente uma linha própria em cada tabela e zero linhas do outro owner.
+
+Resultado: **4 verificações aprovadas** (duas tabelas × duas contas). As linhas de fixture foram revertidas com `ROLLBACK`; nenhuma configuração ou produto persistiu no banco.
+
+
+### Privilégios SQL de alto impacto — verificação de catálogo — 21/11/2026
+
+Para as nove tabelas públicas operacionais e de configuração examinadas (`profiles`, `students`, `lessons`, `vehicles`, `sales`, `sale_items`, `financial_transactions`, `products`, `app_settings)), o catálogo confirmou:
+
+- `anon` sem SELECT efetivo;
+- `authenticated` sem `TRUNCATE`, `REFERENCES` ou `TRIGGER` em todas as nove tabelas;
+- nenhuma membership de `anon` ou `authenticated` para papéis privilegiados na consulta de `pg_auth_members`.
+
+Resultado: **36 verificações de privilégios aprovadas** (quatro verificações × nove tabelas), além da inspeção de memberships. Isso é evidência de catálogo do projeto isolado, não um teste HTTP.
+
+
+## Auditoria financeira: venda, devolução e exclusão — 21/11/2026
+
+Ambiente: projeto isolado `voyjssflroiwdyaacthh`, PostgreSQL 17.12. Todos os cenários usaram IDs e dados sintéticos em transações com `ROLLBACK`. A identidade de instrutor foi temporariamente promovida a admin somente dentro de transações de teste para alcançar as RPCs administrativas; a alteração de papel foi revertida. Claims foram simuladas com `request.jwt.claims`; não são testes HTTP/PostgREST com JWT real.
+
+### Defeito encontrado e corrigido
+
+O primeiro teste funcional da RPC `create_instructor_sale` mostrou que ela aumentava o saldo do aluno, mas gravava os campos `tipo_item`, `aulas_contratadas`, `valor_por_aula` e `valor_liquido` com valores default. Como `delete_my_sale` e `admin_refund_sale_lessons` dependem desses campos, a exclusão não retirava as aulas do saldo (o aluno mantinha cinco aulas após apagar a venda).
+
+Foi criada a migration:
+
+`20261121270000_fix_instructor_sale_item_lesson_tracking.sql`
+
+Ela foi aplicada somente no projeto isolado. A RPC agora classifica o item como serviço/produto, valida preço e limites de quantidade, calcula aulas contratadas e grava os valores necessários para estorno e exclusão. Também mantém o owner scope, `FOR SHARE` no produto, `search_path TO ''`, e ACL restrita a `authenticated` e `service_role`.
+
+### Venda e exclusão — aprovado após correção
+
+- Venda de serviço próprio: saldo do aluno aumentou em cinco aulas.
+- Item da venda: `aulas_contratadas=5`.
+- Vendas, itens e transações do outro owner: zero linhas visíveis.
+- Tentativa de vender para aluno de outro instrutor: bloqueada com `42501`.
+- Tentativa de usar produto de outro instrutor: bloqueada com `42501`.
+- Exclusão da venda não utilizada: saldo retornou a zero; venda e lançamento financeiro foram removidos.
+- Repetição da mesma chamada com o mesmo `p_sale_id`: não duplicou item nem saldo.
+- Após registrar uma aula como realizada, exclusão da venda foi recusada com `P0001`; venda permaneceu e saldo utilizado foi preservado.
+
+### Devoluções administrativas — aprovado
+
+Com uma venda sintética de cinco aulas a R$ 80,00 e outra venda de duas unidades de produto a R$ 30,00 cada:
+
+- Devolução de duas aulas: `aulas_devolvidas=2`, saldo passou de cinco para três e gerou saída financeira de R$ 32,00.
+- Devolução de uma unidade de produto: `quantidade_devolvida=1`, saída financeira de R$ 30,00.
+- Total de saídas registradas pelas duas devoluções: R$ 62,00.
+- Exclusão posterior da venda parcialmente devolvida: saldo retornou a zero e os lançamentos ligados à venda foram removidos.
+- Tentativa de devolver quatro aulas quando só restavam três: bloqueada, sem alterar saldo ou transações.
+- Tentativa de devolver duas unidades quando só restava uma: bloqueada, sem alterar saldo ou transações.
+
+### Escrita cruzada em vendas e finanças — aprovado
+
+Para as tabelas `sales`, `sale_items` e `financial_transactions`, sob instrutor A:
+
+- UPDATE e DELETE de registros pertencentes ao instrutor B: zero linhas afetadas em cada tabela (6 verificações).
+- INSERT de venda associada a aluno do instrutor B: bloqueado por RLS (`42501`).
+- INSERT de item associado à venda/produto do instrutor B: bloqueado por RLS (`42501`).
+- INSERT de transação associada a venda/aluno do instrutor B: bloqueado por RLS (`42501`).
+
+Resultado: **41 verificações de fluxo financeiro aprovadas após a correção**, somando os cenários de venda, idempotência, exclusão, consumo de aula, devoluções, limites e isolamento cruzado descritos acima. Todos os dados e mudanças de papel foram revertidos.
+
+### Limitações
+
+- Ainda não foram realizados testes HTTP/PostgREST com JWT real.
+- Não foram testados concorrência real entre transações independentes, pagamentos externos, conciliação bancária ou notificações.
+- Não houve validação de UI no navegador/app após a migration.
+- Não houve operação no Supabase original, deploy ou merge.
+
+
+### Regras de pacotes e RPC de exclusão cruzada — aprovado
+
+- Pacote com faixa mínima/máxima: venda de seis unidades dentro da faixa e serviço de duas aulas × três unidades adicionaram 12 aulas no total.
+- Os itens persistiram as 12 aulas contratadas.
+- Quantidade abaixo do mínimo do pacote foi bloqueada com SQLSTATE `22023`.
+- Chamada direta de `delete_my_sale` por Instrutor A usando ID de venda de Instrutor B foi bloqueada com `P0002`, sem apagar a venda de B.
+
+Esses quatro casos completam o total de **41 verificações aprovadas** após a correção.
+
+
+## Agenda do aluno e vínculo Auth — 21/11/2026
+
+Projeto isolado `voyjssflroiwdyaacthh`. Foram criadas três identidades Auth sintéticas e revertidas ao final: dois perfis `usuario` vinculados a cadastros de alunos de owners diferentes e um perfil `usuario` sem vínculo. As chamadas usaram claims simuladas; não houve login real nem emissão de JWT pelo Auth.
+
+### RPC de agenda — aprovado
+
+- Aluno A recebeu somente sua aula agendada, com nome do aluno e veículo da própria conta.
+- Aluno A não recebeu a aula do aluno B.
+- Aluno B recebeu somente sua aula agendada, com nome e veículo corretos.
+- Aluno B não recebeu a aula do aluno A.
+- Usuário sem cadastro de aluno vinculado recebeu `P0002 / CONTA_SEM_VINCULO`.
+- Instrutor tentando chamar a RPC exclusiva de aluno recebeu `42501`.
+- A chamada da RPC limpou `invited_at` e `invite_attempt_id` da reserva de convite pendente; essa confirmação foi feita como proprietário do banco após a chamada, pois o aluno não tem SELECT direto na tabela.
+- Leitura direta das tabelas `students` e `lessons` pelo perfil de aluno retornou zero linhas; a agenda é disponibilizada pela RPC controlada.
+
+### Proteção do vínculo — aprovado
+
+- Instrutor tentou alterar `students.user_id` diretamente: trigger bloqueou com `42501`.
+- Instrutor tentou inserir cadastro já vinculado a uma conta Auth: trigger bloqueou com `42501`.
+- A Edge Function de convite também verifica se a conta Auth já está vinculada a outro cadastro antes de enviar convite; existe índice único parcial `students_user_id_unique` como segunda proteção.
+
+Resultado: **14 verificações/asserções aprovadas** no escopo de agenda, visibilidade e proteção de vínculo. Todas as linhas Auth, perfis, alunos, veículos e aulas foram revertidas.
+
+### Limitações
+
+Não foi feito login real, fluxo de e-mail, convite via Edge Function em ambiente implantado, teste HTTP com JWT real ou validação visual da tela do aluno. O resultado confirma a lógica SQL com claims simuladas e revisão estática do código, não uma homologação ponta a ponta.
+
+
+## Convite, vínculo automático e remoção de acesso — 21/11/2026
+
+### Trigger de vínculo no Auth — aprovado
+
+Em transação com dados sintéticos, a inserção em `auth.users` disparou `private.link_student_account_from_invite()`:
+
+- reserva ativa + `student_id`, `instructor_id`, `invite_attempt_id` e e-mail correspondentes: vínculo criado;
+- e-mail diferente do cadastro: vínculo não criado;
+- reserva com mais de 15 minutos: vínculo não criado.
+
+Resultado: **3 verificações aprovadas**. Não foi enviado e-mail nem criado usuário persistente; a transação foi revertida.
+
+### Remoção de acesso de aluno — aprovado
+
+Com dois usuários Auth e dois cadastros de aluno sintéticos:
+
+- instrutor removeu o acesso do aluno pertencente à própria conta: identidade Auth removida, vínculo limpo pelo trigger e cadastro/histórico do aluno preservado;
+- tentativa de remover acesso de aluno de outro instrutor: bloqueada com `P0002`;
+- a identidade Auth do outro owner permaneceu intacta.
+
+Resultado: **4 verificações aprovadas**. A exclusão de Auth e a limpeza do vínculo foram revertidas no fim da transação.
+
+### Limitações
+
+A validação acima executou triggers diretamente por inserção SQL em `auth.users` e RPCs no PostgreSQL isolado. Não substitui o fluxo real de convite, confirmação de e-mail, navegação pelo `claim-student.html`, SMTP ou chamadas HTTP autenticadas à Edge Function.
+
+
+### RPC do nome do instrutor — aprovado
+
+Com dois usuários-aluno sintéticos ligados a owners diferentes:
+
+- Aluno A recebeu somente o nome do instrutor A.
+- Aluno B recebeu somente o nome do instrutor B.
+- Instrutor tentando chamar a RPC exclusiva do aluno recebeu bloqueio por papel.
+
+Resultado: **3 verificações aprovadas**.
+
+### Revisão estática da Edge Function de convite
+
+A função `admin-manage-instructors`:
+- valida o bearer token por `auth.getUser(token)`;
+- carrega o papel do perfil do próprio chamador;
+- exige autorização não expirada para instrutor e restringe o instrutor à ação `invite_student`;
+- permite `complete_student_link` somente para perfil `usuario`, com e-mail confirmado;
+- filtra o cadastro de aluno por `student_id` e `owner_id = authData.user.id`;
+- reserva o convite com atualização condicional de `user_id`/ `invited_at` e attempt ID;
+- confirma e-mail, papel e reserva antes de completar vínculo; trata concorrência e repetição idempotente;
+- não faz fallback para gravar vínculo fora do fluxo controlado pelo trigger/ação de confirmação.
+
+Esta é revisão estática do código. Não houve execução da Edge Function, chamada HTTP com JWT real, envio SMTP ou clique em link de e-mail.
+
+
+### Expiração da autorização na RPC de venda — aprovado
+
+Com o perfil de instrutor temporariamente expirado dentro de uma transação:
+
+- chamada direta a `create_instructor_sale`: bloqueada com `42501`;
+- nenhuma venda foi criada.
+
+Resultado: **2 verificações aprovadas**. A expiração temporária foi revertida.
+
+
+### Ajuste da expectativa sobre catálogo e configurações por conta
+
+A matriz inicial foi corrigida: `products` e `app_settings` possuem políticas por `owner_id`, não são exclusivamente globais do administrador. Os testes com fixtures sintéticas confirmaram leitura de uma linha própria e zero linhas do outro owner para cada tabela/conta. Isso não valida ainda todas as operações de escrita dessas tabelas; elas permanecem pendentes na matriz.
