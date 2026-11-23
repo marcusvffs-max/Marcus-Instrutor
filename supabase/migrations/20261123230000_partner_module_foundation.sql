@@ -270,6 +270,7 @@ declare
   v_base numeric(12,2);
   v_required integer;
   v_amount numeric(12,2);
+  v_commission_rate numeric(5,2);
   v_lesson public.lessons%rowtype;
 begin
   select * into v_sale from public.sales
@@ -285,16 +286,17 @@ begin
     from public.students s
     join public.partners p on p.id=s.partner_id and p.owner_id=s.owner_id
     where s.id=v_sale.student_id and s.owner_id=new.owner_id;
-  if not found or v_partner.commission_percent<=0 then return new; end if;
-  if v_partner.status<>'aprovado' and not exists (
-    select 1 from public.partner_commissions c
-    where c.sale_item_id=new.id and c.owner_id=new.owner_id
-  ) then
-    return new;
+  if not found then return new; end if;
+  select c.commission_percent into v_commission_rate
+    from public.partner_commissions c
+    where c.sale_item_id=new.id and c.owner_id=new.owner_id;
+  if not found then
+    if v_partner.status<>'aprovado' or v_partner.commission_percent<=0 then return new; end if;
+    v_commission_rate := v_partner.commission_percent;
   end if;
   v_base := greatest(0,coalesce(new.valor_liquido,new.subtotal,0));
   v_required := greatest(0,coalesce(new.aulas_contratadas,0)-coalesce(new.aulas_devolvidas,0));
-  v_amount := round(v_base*v_partner.commission_percent/100,2);
+  v_amount := round(v_base*v_commission_rate/100,2);
 
   insert into public.partner_commissions(
     owner_id,partner_id,student_id,sale_id,sale_item_id,descricao,
@@ -302,7 +304,7 @@ begin
     status,available_at
   ) values (
     new.owner_id,v_partner.id,v_sale.student_id,v_sale.id,new.id,new.descricao,
-    v_base,v_partner.commission_percent,v_amount,v_required,
+    v_base,v_commission_rate,v_amount,v_required,
     case when v_base<=0 then 'cancelado' when v_required=0 then 'disponivel' else 'pendente' end,
     case when v_base>0 and v_required=0 then now() else null end
   )
