@@ -318,7 +318,8 @@ begin
       when partner_commissions.lessons_completed>=excluded.lessons_required
         then coalesce(partner_commissions.available_at,now())
       else null
-    end;
+    end
+  where partner_commissions.status <> 'pago';
 
   -- Vincula aulas já concluídas após a data da venda, sem reutilizar aulas.
   if v_required > 0 then
