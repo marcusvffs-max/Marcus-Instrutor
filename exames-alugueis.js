@@ -143,7 +143,7 @@
     if(!f.student.value||!f.date.value||!f.time.value){say("Informe aluno, data e horário.");return;}
     const scheduled=new Date(local);if(!Number.isFinite(scheduled.getTime())){say("Data ou horário inválido.");return;}
     const btn=f.querySelector("button[type=submit]");btn.disabled=true;
-    try{const {error}=await client.from("student_practical_exams").insert({owner_id:ownerId,student_id:f.student.value,scheduled_at:scheduled.toISOString(),status:"agendado",observacoes:f.notes.value.trim()||null});if(error)throw error;try{await refresh();}catch(refreshError){console.warn("Agendamento confirmado, mas a tela não foi atualizada:",refreshError);say("Exame agendado. Atualize a tela para conferir.",false);return;}tab("historico");say("Exame agendado. Nenhum aluguel foi descontado.",false);}
+    try{const {error}=await client.from("student_practical_exams").insert({owner_id:ownerId,student_id:f.student.value,scheduled_at:scheduled.toISOString(),status:"agendado",observacoes:f.notes.value.trim()||null});if(error)throw error;try{await refresh();}catch(refreshError){console.warn("Agendamento confirmado, mas a tela não foi atualizada:",refreshError);say("Exame agendado. Atualize a tela para conferir.",false);return;}tab("proximos");say("Exame agendado. Nenhum aluguel foi descontado.",false);}
     catch(e){say(e.message||"Não foi possível agendar o exame.");}finally{btn.disabled=false;}
   }
   async function recordResult(id,result){
