@@ -54,7 +54,7 @@
       <div class="pa-card"><h3>Parceiros cadastrados</h3><div class="pa-list" id="pa-list"></div></div>
       <div class="pa-card"><h3>Enviar mensagem</h3>
         <form id="pa-message-form"><label>Destinatários</label><select name="target"><option value="all">Todos os parceiros aprovados</option><option value="selected">Selecionar parceiro</option></select>
-        <div id="pa-recipient-wrap" hidden><label>Parceiro</label><select name="partner_id"></select></div>
+        <div id="pa-recipient-wrap" hidden><label>Parceiros (selecione um ou mais)</label><select name="partner_id" multiple size="4"></select></div>
         <label>Assunto</label><input name="assunto" maxlength="160" required><label>Mensagem</label><textarea name="mensagem" rows="3" maxlength="5000" required></textarea>
         <div class="pa-actions"><button class="pa-btn" type="submit">Enviar mensagem</button></div></form>
       </div>
@@ -86,7 +86,7 @@
     };
     body.querySelector("#pa-message-form").onsubmit=async e=>{
       e.preventDefault();const form=e.currentTarget;const target=form.elements.target.value;const extra={assunto:form.elements.assunto.value,mensagem:form.elements.mensagem.value,todos_aprovados:target==="all"};
-      if(target==="selected")extra.partner_ids=[form.elements.partner_id.value];
+      if(target==="selected")extra.partner_ids=[...form.elements.partner_id.selectedOptions].map(o=>o.value);
       const btn=form.querySelector("button[type=submit]");btn.disabled=true;
       try{const r=await call("send_message",extra);message.textContent=r.message+" ("+r.recipients+")";form.reset();body.querySelector("#pa-recipient-wrap").hidden=true;}
       catch(err){message.textContent=err.message;}finally{btn.disabled=false;}
@@ -107,7 +107,6 @@
     if(!partnerId){host.textContent="Aprove um parceiro para habilitar pagamentos.";return;}
     host.textContent="Carregando comissões disponíveis...";
     try{
-      const result=await call("list");
       const {data,error}=await db.from("partner_commissions").select("id,descricao,commission_amount,student_id,lessons_completed,lessons_required")
         .eq("partner_id",partnerId).eq("status","disponivel").order("created_at",{ascending:true});
       if(error)throw error;
