@@ -9,7 +9,8 @@
   <title>Marcus Instrutor</title>
 
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=admin-invite-refresh-1">
+  <link rel="stylesheet" href="style.css?v=admin-finance-refunds-2">
+  <link rel="stylesheet" href="admin-visual.css?v=admin-visual-1">
   <link rel="stylesheet" href="admin-visual.css?v=admin-visual-1">
   <link rel="icon" href="icon-192.png" type="image/png">
 </head>
@@ -229,6 +230,17 @@
           </button>
         </div>
 
+        <div class="panel" id="precosItensFixosProdutos">
+          <h3>Preços de itens fixos</h3>
+          <p>Aluguel de Veículo e Cartão Moto Pista aparecem junto com os demais itens na hora de fazer uma venda.</p>
+          <div class="form-grid">
+            <div><label for="precoAluguelFixo">Aluguel de Veículo (R$)</label><input id="precoAluguelFixo" type="number" min="0" step="0.01"></div>
+            <div><label for="precoCartaoFixo">Cartão Moto Pista (R$)</label><input id="precoCartaoFixo" type="number" min="0" step="0.01"></div>
+          </div>
+          <button id="btnSalvarPrecosFixos" class="secondary-button" type="button">Salvar preços</button>
+          <p id="statusPrecosFixos" class="form-hint" role="status"></p>
+        </div>
+
         <input
           id="buscaProdutos"
           class="search-input"
@@ -309,6 +321,31 @@
         </div>
       </section>
 
+      <section id="page-cadastro" class="page">
+        <div class="page-heading">
+          <div><span class="eyebrow">IDENTIFICAÇÃO</span><h2>Meu cadastro</h2><p>Seus dados serão usados automaticamente nos contratos e no contato do WhatsApp dos alunos vinculados.</p></div>
+        </div>
+        <div class="panel">
+          <h3>Dados do administrador / responsável</h3>
+          <label for="contratanteNome">Nome completo / razão social *</label>
+          <input id="contratanteNome" type="text" maxlength="160" autocomplete="name">
+          <label for="contratanteDocumento">CPF / CNPJ *</label>
+          <input id="contratanteDocumento" type="text" maxlength="24" inputmode="numeric" autocomplete="off">
+          <label for="contratanteCelular">Celular / WhatsApp *</label>
+          <input id="contratanteCelular" type="tel" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="(00) 00000-0000">
+          <label for="contratanteNacionalidade">Nacionalidade</label>
+          <input id="contratanteNacionalidade" type="text" maxlength="80">
+          <label for="contratanteCivil">Estado civil</label>
+          <input id="contratanteCivil" type="text" maxlength="80">
+          <label for="contratanteProfissao">Profissão</label>
+          <input id="contratanteProfissao" type="text" maxlength="100">
+          <label for="contratanteEndereco">Endereço completo</label>
+          <textarea id="contratanteEndereco" rows="2" maxlength="300"></textarea>
+          <button id="btnSalvarDadosContratante" class="primary-button" type="button">Salvar cadastro</button>
+          <p id="statusDadosContratante" class="form-hint" role="status" aria-live="polite">Esses dados serão usados nos contratos e no WhatsApp dos alunos vinculados.</p>
+        </div>
+      </section>
+
       <section id="page-configuracoes" class="page">
         <div class="page-heading">
           <div>
@@ -329,8 +366,11 @@
           <label for="corSecundaria">Cor secundária</label>
           <input id="corSecundaria" type="color" value="#e8edf3">
 
-          <label for="logoEmpresa">Logo do aplicativo</label>
-          <input id="logoEmpresa" type="file" accept="image/*">
+          <label for="logoEmpresa">Logomarca desta conta</label>
+          <input id="logoEmpresa" type="file" accept="image/png,image/jpeg,image/webp">
+          <p class="muted">PNG, JPG ou WEBP · máximo 2 MB. A logomarca será exibida nos contratos e na área dos alunos vinculados a esta conta.</p>
+          <img id="logoEmpresaPreview" alt="Prévia da logomarca da conta" hidden style="max-width:180px;max-height:110px;object-fit:contain;margin:12px 0;border-radius:10px;">
+          <button id="btnRemoverLogoEmpresa" class="secondary-button" type="button" hidden>Remover logomarca</button>
 
           <button id="btnSalvarConfiguracoes" class="primary-button" type="button">
             Salvar configurações
@@ -351,17 +391,7 @@
         <div class="panel">
           <h3 id="tituloTipoContrato">Contrato de cliente</h3>
           <div class="contrato-tipos"><button type="button" class="primary-button active" data-tipo-contrato="cliente" onclick="try{if(typeof tipoC!=='function')throw new Error('A função tipoC não foi carregada');tipoC('cliente')}catch(e){document.getElementById('tituloTipoContrato').textContent='ERRO: '+e.message;console.error(e)}">Cliente</button><button type="button" class="secondary-button" data-tipo-contrato="parceiro" onclick="try{if(typeof tipoC!=='function')throw new Error('A função tipoC não foi carregada');tipoC('parceiro')}catch(e){document.getElementById('tituloTipoContrato').textContent='ERRO: '+e.message;console.error(e)}">Parceiro</button></div>
-          <div class="contrato-dados-contratante">
-            <h4>Dados do instrutor / contratante</h4>
-            <label for="contratanteNome">Nome completo</label><input id="contratanteNome" type="text" autocomplete="name">
-            <label for="contratanteDocumento">CPF / CNPJ</label><input id="contratanteDocumento" type="text" inputmode="numeric" autocomplete="off">
-            <label for="contratanteNacionalidade">Nacionalidade (necessária no contrato de parceria)</label><input id="contratanteNacionalidade" type="text">
-            <label for="contratanteCivil">Estado civil (necessário no contrato de parceria)</label><input id="contratanteCivil" type="text">
-            <label for="contratanteProfissao">Profissão (necessária no contrato de parceria)</label><input id="contratanteProfissao" type="text">
-            <label for="contratanteEndereco">Endereço completo (necessário no contrato de parceria)</label><textarea id="contratanteEndereco" rows="2"></textarea>
-            <button id="btnSalvarDadosContratante" class="secondary-button" type="button">Salvar meus dados</button>
-            <p id="statusDadosContratante" class="form-hint" role="status" aria-live="polite">Seus dados serão guardados na sua conta.</p>
-          </div>
+          <p class="form-hint">Os dados do responsável são preenchidos automaticamente pelo cadastro em <strong>Meu cadastro</strong>. Confira as informações antes de gerar o contrato.</p>
           <div id="formContratoCliente">
             <label for="contratoAluno">Usar aluno cadastrado</label><select id="contratoAluno"><option value="">Preencher manualmente</option></select>
             <label for="clienteNome">Nome completo</label><input id="clienteNome" type="text">
@@ -415,6 +445,7 @@
         <span>Relatórios</span>
       </button>
       <button type="button" data-page="contratos" class="menu-item"><span class="menu-icon">▧</span><span>Contratos</span></button>
+      <button type="button" data-page="cadastro" class="menu-item"><span class="menu-icon">♙</span><span>Meu cadastro</span></button>
       <button type="button" data-page="backup" class="menu-item">
         <span class="menu-icon">⇧</span>
         <span>Backup</span>
@@ -472,7 +503,7 @@
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("./service-worker.js?v=instrutor-corrections-1", { updateViaCache: "none" })
+        navigator.serviceWorker.register("./service-worker.js?v=qa-preview-isolated-3", { updateViaCache: "none" })
           .then(function (registro) {
             return registro.update();
           })
@@ -487,8 +518,10 @@
   <script>
     (function () {
       "use strict";
-      const SUPABASE_URL = "https://ydyqagqsuqntuibzgwzd.supabase.co";
-      const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
+      const hostPreview = window.location.hostname;
+      const USAR_SUPABASE_QA = hostPreview === "marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app" || /^marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(hostPreview);
+      const SUPABASE_URL = USAR_SUPABASE_QA ? "https://voyjssflroiwdyaacthh.supabase.co" : "https://ydyqagqsuqntuibzgwzd.supabase.co";
+      const SUPABASE_PUBLISHABLE_KEY = USAR_SUPABASE_QA ? "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9" : "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
       const formularioLogin = document.getElementById("formLogin");
       const campoEmail = document.getElementById("loginEmail");
       const campoSenha = document.getElementById("loginSenha");
@@ -524,6 +557,7 @@
         await carregarScript("contratante-perfil.js?v=2-cellphone");
         await carregarScript("contratos.js?v=contratos33-profile-cell");
         await carregarScript("whatsapp-panel.js?v=whatsapp-panel-v12-message-delete");
+        await carregarScript("exames-alugueis.js?v=exams-status-filter-1");
         await carregarScript("admin-users.js?v=admin-users-v3-safe-confirm");
         await carregarScript("exames-alugueis.js?v=exams-status-filter-1");
         painelAdminCarregado = true;
