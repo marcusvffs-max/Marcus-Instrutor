@@ -54,7 +54,7 @@
   }
   function escClose(e){if(e.key==="Escape")close();}
   function close(){ $("marcus-exam-overlay")?.remove();document.removeEventListener("keydown",escClose);}
-  function nav(){if($("marcus-exam-launch"))return;const actions=document.querySelector("#page-inicio .quick-actions")||document.querySelector(".intro[data-view=\"inicio\"]");if(!actions)return;const b=document.createElement("button");b.id="marcus-exam-launch";b.type="button";b.className=actions.matches(".intro")?"button button-primary":"primary-button";b.textContent="Exames";b.setAttribute("aria-label","Abrir Exames");b.onclick=async()=>{selectedStudentId=null;activeTab="historico";modal();await refresh();};actions.append(b);}
+  function nav(){if($("marcus-exam-launch"))return;const actions=document.querySelector("#page-inicio .quick-actions")||document.querySelector(".intro[data-view=\"inicio\"]");if(!actions)return;const b=document.createElement("button");b.id="marcus-exam-launch";b.type="button";b.className=actions.matches(".intro")?"button button-primary":"primary-button";b.textContent="Exames";b.setAttribute("aria-label","Abrir Exames");b.onclick=async()=>{selectedStudentId=null;activeTab="proximos";modal();await refresh();};actions.append(b);}
   async function init(){
     if(!window.supabase?.createClient)return;
     const getClient=window.getMarcusSupabase;
@@ -65,7 +65,7 @@
     ownerId=data.session.user.id;
     const p=await client.from("profiles").select("role").eq("id",ownerId).maybeSingle();
     if(p.error||!["admin","instrutor"].includes(p.data?.role))return;
-    role=p.data.role;nav();
+    role=p.data.role;nav();ensureDashboardPanel();await refresh();
   }
   async function refresh(){
     say("Carregando...");
@@ -78,18 +78,49 @@
     render();say("");
   }
   function studentOptions(selected=selectedStudentId||""){return '<option value="">Selecione o aluno</option>'+students.map(s=>'<option value="'+esc(s.id)+'" '+(s.id===selected?'selected':'')+'>'+esc(s.nome)+'</option>').join("");}
+  function ensureDashboardPanel(){
+    const page=$("page-inicio");
+    if(!page||$("marcus-upcoming-exams"))return;
+    const panel=document.createElement("div");
+    panel.className="panel";
+    panel.id="marcus-upcoming-exams";
+    panel.innerHTML='<h3>Próximos exames</h3><div id="marcus-upcoming-exams-list" class="empty-state">Carregando exames...</div><button id="marcus-open-exams-dashboard" class="secondary-button" type="button">Ver todos os exames</button>';
+    const lessonsPanel=page.querySelector(".panel");
+    if(lessonsPanel)lessonsPanel.after(panel);else page.append(panel);
+    $("marcus-open-exams-dashboard").onclick=()=>window.MarcusExamsRentals?.open();
+  }
+  function renderDashboard(){
+    const host=$("marcus-upcoming-exams-list");
+    if(!host)return;
+    const pending=exams.filter(x=>x.status==="agendado")
+      .sort((a,b)=>new Date(a.scheduled_at)-new Date(b.scheduled_at)).slice(0,5);
+    if(!pending.length){host.className="empty-state";host.textContent="Nenhum exame agendado.";return;}
+    host.className="list-container";
+    host.innerHTML=pending.map(x=>{
+      const st=students.find(s=>s.id===x.student_id);
+      return '<div class="mx-card"><strong>'+esc(st?.nome||"Aluno")+'</strong><div class="mx-muted">'+date(x.scheduled_at)+'</div><span class="mx-muted">Agendado</span></div>';
+    }).join("");
+  }
   function render(){
     const host=$("marcus-exam-content");if(!host)return;
-    const tabs=[["historico","Histórico"],["agendar","Agendar exame"]];
+    const tabs=[["proximos","Próximos exames"],["historico","Histórico"],["agendar","Agendar exame"]];
     let body="";
     if(activeTab==="agendar"){
       body='<div class="mx-card"><h3>Agendar exame prático</h3><p class="mx-muted">O agendamento não desconta aluguel. O saldo será conferido e consumido somente quando o resultado for registrado.</p><form id="mx-exam-form"><label>Aluno</label><select name="student" required>'+studentOptions()+'</select><div class="mx-grid"><div><label>Data</label><input name="date" type="date" required></div><div><label>Horário</label><input name="time" type="time" required></div></div><label>Observações</label><textarea name="notes" rows="2" maxlength="500"></textarea><button class="mx-btn" type="submit">Salvar agendamento</button></form></div>';
+    }else if(activeTab==="proximos"){
+      const rows=exams.filter(x=>x.status==="agendado"&&(!selectedStudentId||String(x.student_id)===String(selectedStudentId)))
+        .sort((a,b)=>new Date(a.scheduled_at)-new Date(b.scheduled_at)).map(x=>{
+          const st=students.find(s=>s.id===x.student_id);
+          const overdue=new Date(x.scheduled_at)<new Date();
+          return '<tr><td>'+esc(st?.nome||"Aluno")+'</td><td>'+date(x.scheduled_at)+'</td><td>'+(overdue?"Pendente":"Agendado")+'</td><td><button class="mx-btn" data-result="'+esc(x.id)+'" data-value="aprovado">Aprovado</button><button class="mx-btn alt" data-result="'+esc(x.id)+'" data-value="reprovado">Reprovado</button><button class="mx-btn danger" data-cancel="'+esc(x.id)+'">Cancelar</button></td></tr>';
+        }).join("");
+      body='<div class="mx-card"><h3>Próximos exames</h3><p class="mx-muted">Agendamentos pendentes. O aluguel só será descontado quando o resultado for registrado após a data e o horário do exame.</p><div class="mx-scroll"><table class="mx-table"><thead><tr><th>Aluno</th><th>Data e horário</th><th>Situação</th><th>Ações</th></tr></thead><tbody>'+(rows||'<tr><td colspan="4">Nenhum exame agendado.</td></tr>')+'</tbody></table></div></div>';
     }else{
-      const rows=exams.filter(x=>(!selectedStudentId||String(x.student_id)===String(selectedStudentId))&&(selectedStatus==="todos"||x.status===selectedStatus)).map(x=>{
+      const rows=exams.filter(x=>x.status!=="agendado"&&(!selectedStudentId||String(x.student_id)===String(selectedStudentId))&&(selectedStatus==="todos"||x.status===selectedStatus)).sort((a,b)=>new Date(b.scheduled_at)-new Date(a.scheduled_at)).map(x=>{
         const st=students.find(s=>s.id===x.student_id);
-        return '<tr><td>'+esc(st?.nome||"Aluno")+'</td><td>'+date(x.scheduled_at)+'</td><td>'+({agendado:"Agendado",realizado:"Realizado",cancelado:"Cancelado"}[x.status]||x.status)+'</td><td>'+({aprovado:"Aprovado",reprovado:"Reprovado"}[x.resultado]||"—")+'</td><td>'+(x.aluguel_consumido?"Sim":"Não")+'</td><td>'+(x.status==="agendado"?'<button class="mx-btn" data-result="'+esc(x.id)+'" data-value="aprovado">Aprovado</button><button class="mx-btn alt" data-result="'+esc(x.id)+'" data-value="reprovado">Reprovado</button><button class="mx-btn danger" data-cancel="'+esc(x.id)+'">Cancelar</button>':"—")+'</td></tr>';
+        return '<tr><td>'+esc(st?.nome||"Aluno")+'</td><td>'+date(x.scheduled_at)+'</td><td>'+({agendado:"Agendado",realizado:"Realizado",cancelado:"Cancelado"}[x.status]||x.status)+'</td><td>'+({aprovado:"Aprovado",reprovado:"Reprovado"}[x.resultado]||"—")+'</td><td>'+(x.aluguel_consumido?"Sim":"Não")+'</td></tr>';
       }).join("");
-      body='<div class="mx-card"><h3>Histórico de exames</h3><p class="mx-muted">O histórico é preservado após a realização ou cancelamento. Registre o resultado apenas após o exame acontecer.</p><div class="mx-filter"><label for="mx-status-filter">Filtrar por status</label><select id="mx-status-filter"><option value="todos" ${selectedStatus==="todos"?"selected":""}>Todos os status</option><option value="agendado" ${selectedStatus==="agendado"?"selected":""}>Agendados</option><option value="realizado" ${selectedStatus==="realizado"?"selected":""}>Realizados</option><option value="cancelado" ${selectedStatus==="cancelado"?"selected":""}>Cancelados</option></select></div><div class="mx-scroll"><table class="mx-table"><thead><tr><th>Aluno</th><th>Data</th><th>Status</th><th>Resultado</th><th>Consumiu aluguel</th><th>Ação</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6">Nenhum exame registrado.</td></tr>')+'</tbody></table></div></div>';
+      body='<div class="mx-card"><h3>Histórico de exames</h3><p class="mx-muted">Exames realizados e cancelados ficam preservados para consulta.</p><div class="mx-filter"><label for="mx-status-filter">Filtrar por situação</label><select id="mx-status-filter"><option value="todos">Todos</option><option value="realizado">Realizados</option><option value="cancelado">Cancelados</option></select></div><div class="mx-scroll"><table class="mx-table"><thead><tr><th>Aluno</th><th>Data e horário</th><th>Situação</th><th>Resultado</th><th>Consumiu aluguel</th></tr></thead><tbody>'+(rows||'<tr><td colspan="5">Nenhum exame no histórico.</td></tr>')+'</tbody></table></div></div>';
     }
     host.innerHTML='<nav class="mx-tabs">'+tabs.map(t=>'<button type="button" data-tab="'+t[0]+'" class="'+(activeTab===t[0]?'active':'')+'">'+t[1]+'</button>').join("")+'</nav>'+body+'<p id="mx-message" class="mx-message" role="status" aria-live="polite"></p>';
     host.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>tab(b.dataset.tab));
@@ -127,7 +158,7 @@
     catch(e){say(e.message||"Não foi possível cancelar o exame.");}
   }
   window.MarcusExamsRentals={
-    open:async()=>{selectedStudentId=null;selectedStatus="todos";activeTab="historico";modal();await refresh();},
+    open:async()=>{selectedStudentId=null;selectedStatus="todos";activeTab="proximos";modal();await refresh();},
     openForStudent:async id=>{selectedStudentId=String(id);selectedStatus="todos";activeTab="historico";modal();await refresh();}
   };
   document.addEventListener("DOMContentLoaded",()=>{init().catch(e=>console.error("Módulo de exames e aluguéis:",e));});
