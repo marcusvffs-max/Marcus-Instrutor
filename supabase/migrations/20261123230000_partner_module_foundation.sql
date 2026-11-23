@@ -333,7 +333,7 @@ using (
   or exists(select 1 from public.partners p
     where p.id=partner_commissions.partner_id
       and p.owner_id=partner_commissions.owner_id
-      and p.user_id=(select auth.uid()))
+      and p.user_id=(select auth.uid()) and p.status='aprovado')
 );
 
 drop policy if exists partner_payouts_owner_or_self_select on public.partner_payouts;
@@ -344,7 +344,7 @@ using (
   or exists(select 1 from public.partners p
     where p.id=partner_payouts.partner_id
       and p.owner_id=partner_payouts.owner_id
-      and p.user_id=(select auth.uid()))
+      and p.user_id=(select auth.uid()) and p.status='aprovado')
 );
 
 drop policy if exists partner_commission_lessons_owner_or_self_select on public.partner_commission_lessons;
