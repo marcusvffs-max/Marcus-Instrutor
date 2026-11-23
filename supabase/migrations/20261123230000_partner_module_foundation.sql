@@ -256,6 +256,9 @@ create trigger trg_allocate_partner_commission_lesson
 after insert or update of status on public.lessons
 for each row execute function private.allocate_partner_commission_lesson();
 
+revoke all on function private.sync_partner_commission_progress() from public,anon,authenticated;
+revoke all on function private.allocate_partner_commission_lesson() from public,anon,authenticated;
+
 -- Gera comissao somente para itens de servico vendidos a aluno indicado.
 -- Produtos e itens fixos (aluguel/cartao) ficam explicitamente excluidos.
 create or replace function private.create_partner_commission_for_service()
@@ -359,6 +362,8 @@ drop trigger if exists trg_create_partner_commission_for_service on public.sale_
 create trigger trg_create_partner_commission_for_service
 after insert or update of valor_liquido,aulas_devolvidas on public.sale_items
 for each row execute function private.create_partner_commission_for_service();
+
+revoke all on function private.create_partner_commission_for_service() from public,anon,authenticated;
 
 -- Registra o pagamento e quita as comissões em uma única transação.
 -- A Edge Function valida o administrador antes de chamar esta rotina.
