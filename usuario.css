@@ -139,6 +139,9 @@
   flex:0 0 auto;
 }
 .whatsapp-float[hidden] { display:none; }
+.whatsapp-instructor-float { bottom:92px; background:#12345a; }
+.whatsapp-instructor-float:hover { background:#0d2745; }
+@media (max-width:600px) { .whatsapp-instructor-float { bottom:84px; } }
 @media (max-width:600px) {
   .whatsapp-float {
     right:16px;
