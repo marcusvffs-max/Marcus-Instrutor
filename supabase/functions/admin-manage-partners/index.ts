@@ -61,8 +61,14 @@ Deno.serve(async (req: Request) => {
       if (insertError?.code === "23505") return response({ error: "Já existe um parceiro cadastrado com este e-mail." }, 409);
       if (insertError) throw insertError;
 
+      const requestOrigin = req.headers.get("origin") ?? "";
+      const safePreviewOrigin = /^https:\/\/marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(requestOrigin);
+      const redirectTo = safePreviewOrigin
+        ? requestOrigin + "/"
+        : "https://marcusinstrutor.vercel.app/";
       const { data: invited, error: inviteError } = await db.auth.admin.inviteUserByEmail(email, {
         data: { nome, app_role: "parceiro" },
+        redirectTo,
       });
       if (inviteError || !invited.user) {
         await db.from("partners").delete().eq("id", partner.id).eq("owner_id", ownerId);
