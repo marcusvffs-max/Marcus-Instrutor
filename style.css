@@ -66,6 +66,21 @@ button {
   gap: 11px;
 }
 
+.brand-logo {
+  display: block;
+  width: clamp(190px, 27vw, 270px);
+  max-height: 66px;
+  height: auto;
+  object-fit: contain;
+}
+
+@media (max-width: 520px) {
+  .brand-logo {
+    width: min(52vw, 190px);
+    max-height: 52px;
+  }
+}
+
 
 .brand-icon {
   display: flex;
