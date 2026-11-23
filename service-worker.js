@@ -1,15 +1,16 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v29-central-do-instrutor-brand";
+const CACHE_NAME = "marcus-instrutor-v30-horizontal-logo";
 
 const ARQUIVOS = [
   "./",
   "./index.html",
+  "./central-instrutor-logo.svg",
   "./instrutor.html",
-  "./style.css?v=admin-invite-refresh-1",
+  "./style.css?v=central-logo-1",
   "./admin-visual.css?v=admin-visual-1",
   "./exames-alugueis.js?v=exams-status-filter-1",
-  "./instrutor.css?v=21-finance-refunds",
+  "./instrutor.css?v=central-logo-1",
   "./instrutor.js?v=unified-fixed-items-4",
   "./script.js?v=official-finance-refunds-1",
   "./exames-alugueis.js?v=exams-status-filter-1",
