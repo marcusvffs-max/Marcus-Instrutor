@@ -371,7 +371,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $payout$
 declare
   v_count integer;
   v_total numeric(12,2);
@@ -431,7 +431,7 @@ begin
     'paid_at',now(),'payment_method',coalesce(nullif(btrim(p_payment_method),''),'pix')
   );
 end;
-$$;
+$payout$;
 
 revoke all on function public.record_partner_payout(uuid,uuid,uuid[],text,text) from public,anon,authenticated;
 grant execute on function public.record_partner_payout(uuid,uuid,uuid[],text,text) to service_role;
