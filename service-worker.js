@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v26-whatsapp-history-student-contact";
+const CACHE_NAME = "marcus-instrutor-v27-pr5-integration-preview";
 
 const ARQUIVOS = [
   "./",
@@ -12,6 +12,8 @@ const ARQUIVOS = [
   "./instrutor.css?v=21-finance-refunds",
   "./instrutor.js?v=unified-fixed-items-4",
   "./script.js?v=official-finance-refunds-1",
+  "./exames-alugueis.js?v=exams-status-filter-1",
+  "./script.js?v=official-finance-refunds-1",
   "./manifest.json"
 ];
 
@@ -20,7 +22,8 @@ const ARQUIVOS_ADMINISTRATIVOS = [
   "/contratos.js",
   "/contratante-perfil.js",
   "/whatsapp-panel.js",
-  "/admin-users.js"
+  "/admin-users.js",
+  "/exames-alugueis.js"
 ];
 
 self.addEventListener("install", event => {
