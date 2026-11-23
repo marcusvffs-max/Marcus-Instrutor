@@ -16,6 +16,7 @@ button, input, select { font: inherit; }
 .app-shell { min-height: 100vh; }
 .topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px max(20px, calc((100% - 1120px)/2)); background:var(--surface); border-bottom:1px solid var(--border); }
 .brand, .account-area { display:flex; align-items:center; gap:12px; }
+.brand-logo { display:block; width:clamp(190px, 27vw, 270px); max-height:66px; height:auto; object-fit:contain; }
 .brand-mark { width:44px; height:44px; display:grid; place-items:center; border-radius:13px; background:var(--primary); color:#fff; font-weight:800; }
 .brand h1 { margin:0; font-size:17px; }
 .brand p { margin:3px 0 0; color:var(--muted); font-size:13px; }
@@ -78,6 +79,7 @@ footer { padding:20px; text-align:center; color:var(--muted); font-size:12px; }
 
 @media (max-width:760px) {
   .topbar { align-items:flex-start; padding:13px 16px; }
+  .brand-logo { width:min(52vw, 190px); max-height:52px; }
   .account-area { flex-direction:column; align-items:flex-end; gap:7px; }
   .summary-grid { grid-template-columns:1fr; gap:9px; }
   .summary-card { padding:14px 16px; }
