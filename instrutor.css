@@ -756,3 +756,9 @@ body.instructor-modal-open { overflow: hidden; }
 
 .finance-actions { display:flex; flex-wrap:wrap; gap:8px; }
 @media (max-width:760px) { .finance-actions { width:100%; } .finance-actions .button { flex:1 1 auto; } }
+
+/* Identidade dos relatórios impressos e ocultação do aviso de validade na impressão. */
+.result-heading { align-items:center; }
+.result-heading .report-logo { display:block; flex:0 0 auto; width:auto; max-width:110px; max-height:85px; object-fit:contain; }
+.result-heading .result-title { flex:1 1 auto; min-width:0; }
+@media print { .access-expiry-banner { display:none !important; } }
