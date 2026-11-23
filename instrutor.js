@@ -1658,8 +1658,8 @@
     const aulas = Number(el("contratoQuantidadeAulas").value);
     const valor = Number(el("contratoValor").value);
     const pagamento = el("contratoPagamento").value.trim();
-    if (!contratanteNome || !contratanteDocumento || !contratanteCelular) {
-      showMessage("Preencha nome, CPF/CNPJ e celular no menu Meu cadastro antes de gerar o contrato.");
+    if (!contratanteNome) {
+      showMessage("Preencha o nome do instrutor no menu Meu cadastro antes de gerar o contrato.");
       return;
     }
     if (!nome || !cpf || !categoria || !Number.isInteger(aulas) || aulas < 1 ||
@@ -1708,14 +1708,12 @@
     ];
 
     el("contratoPreviewInstrutor").innerHTML =
-      '<article class="contract-sheet"><header>' + (state.logoUrl ? '<img src="' + safe(state.logoUrl) + '" alt="Logomarca do instrutor" style="display:block;max-width:110px;max-height:85px;object-fit:contain;margin:0 auto 12px;">' : '') + '<h2>' + safe(instructor) + '</h2><p>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</p></header>' +
-      '<main><p><strong>CONTRATADO(A) / INSTRUTOR(A):</strong> ' + safe(instructor) + '</p><p><strong>CPF/CNPJ:</strong> ' + safe(contratanteDocumento) + '</p><p><strong>CELULAR / WHATSAPP:</strong> ' + safe(contratanteCelular) + '</p>' +
-      (contratanteNacionalidade || contratanteCivil || contratanteProfissao || contratanteEndereco ? '<p><strong>Identificação:</strong> ' + safe([contratanteNacionalidade, contratanteCivil, contratanteProfissao, contratanteEndereco].filter(Boolean).join(", ")) + '</p>' : "") +
-      '<p><strong>CONTRATANTE / ALUNO(A):</strong> ' + safe(nome) + '</p><p><strong>CPF:</strong> ' + safe(cpf) + '</p>' +
+      '<article class="contract-sheet"><header style="display:flex;align-items:flex-start;justify-content:flex-start;gap:16px;text-align:left;">' + (state.logoUrl ? '<img src="' + safe(state.logoUrl) + '" alt="Logomarca do instrutor" style="display:block;flex:0 0 auto;max-width:110px;max-height:85px;object-fit:contain;margin:0;">' : '') + '<div class="contract-brand"><h2>' + safe(instructor) + '</h2><p>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</p></div></header>' +
+      '<main><p><strong>CONTRATANTE / ALUNO(A):</strong> ' + safe(nome) + '</p><p><strong>CPF:</strong> ' + safe(cpf) + '</p>' +
       clauses.join("") +
       '<p class="contract-place-date">' + safe(city) + ' - ______/______/________</p>' +
       '<div class="contract-signature-space" aria-hidden="true"></div>' +
-      '<div class="contract-signatures"><div><span></span><strong>' + safe(instructor) + '</strong><small>CONTRATADO(A) / INSTRUTOR(A) · CPF/CNPJ ' + safe(contratanteDocumento) + '</small></div>' +
+      '<div class="contract-signatures"><div><span></span><strong>' + safe(instructor) + '</strong><small>CONTRATADO(A) / INSTRUTOR(A)</small></div>' +
       '<div><span></span><strong>' + safe(nome) + '</strong><small>CONTRATANTE / ALUNO(A) · CPF ' + safe(cpf) + '</small></div></div></main></article>';
     showMessage("Contrato completo gerado. Confira todos os dados e as cláusulas antes de imprimir.", false);
   }
@@ -1932,8 +1930,10 @@
 
   function showReport(title, subtitle, items, includeSignature = false, summary = "") {
     const rows = sortLessons(items);
+    const reportLogo = state.logoUrl && /^(https?:|data:image\/)/i.test(state.logoUrl)
+      ? '<img class="report-logo" src="' + escapeHtml(state.logoUrl) + '" alt="Logomarca do instrutor">' : "";
     el("resultado").innerHTML =
-      '<div class="result-heading"><div><h3>' + escapeHtml(title) + '</h3><p>' + escapeHtml(subtitle) + '</p></div>' +
+      '<div class="result-heading">' + reportLogo + '<div class="result-title"><h3>' + escapeHtml(title) + '</h3><p>' + escapeHtml(subtitle) + '</p></div>' +
       '<button id="btnImprimir" class="button print-button" type="button">Imprimir / PDF</button></div>' +
       (summary ? '<div class="result-summary">' + summary + '</div>' : '') +
       reportTable(rows, includeSignature);
