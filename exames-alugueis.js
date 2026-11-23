@@ -79,6 +79,7 @@
   }
   function studentOptions(selected=selectedStudentId||""){return '<option value="">Selecione o aluno</option>'+students.map(s=>'<option value="'+esc(s.id)+'" '+(s.id===selected?'selected':'')+'>'+esc(s.nome)+'</option>').join("");}
   function ensureDashboardPanel(){
+    injectStyle();
     const page=$("page-inicio");
     if(!page||$("marcus-upcoming-exams"))return;
     const panel=document.createElement("div");
