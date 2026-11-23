@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v30-horizontal-logo";
+const CACHE_NAME = "marcus-instrutor-v31-partners-module";
 
 const ARQUIVOS = [
   "./",
@@ -24,6 +24,9 @@ const ARQUIVOS_ADMINISTRATIVOS = [
   "/contratante-perfil.js",
   "/whatsapp-panel.js",
   "/admin-users.js",
+  "/partners-admin.js",
+  "/partner.js",
+  "/parceiro.html",
   "/exames-alugueis.js"
 ];
 
