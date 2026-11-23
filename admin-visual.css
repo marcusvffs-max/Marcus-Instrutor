@@ -280,3 +280,6 @@
   body.autenticado .dashboard-card strong { font-size: 20px; }
   body.autenticado .brand h1 { font-size: 15px; }
 }
+
+/* A logomarca individual da conta não deve ocupar o cabeçalho da tela inicial. */
+@media screen { body.autenticado:has(#page-inicio.active) .brand-icon:has(img) { display:none !important; } }
