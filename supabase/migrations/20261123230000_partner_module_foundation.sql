@@ -270,6 +270,7 @@ declare
   v_base numeric(12,2);
   v_required integer;
   v_amount numeric(12,2);
+  v_lesson public.lessons%rowtype;
 begin
   select * into v_sale from public.sales
     where id=new.sale_id and owner_id=new.owner_id;
@@ -299,9 +300,33 @@ begin
     case when v_required=0 then 'disponivel' else 'pendente' end,
     case when v_required=0 then now() else null end
   ) on conflict (sale_item_id) do nothing;
+
+  -- Se ja houver aulas realizadas depois da venda (por sincronizacao ou
+  -- importacao), vincula-as em ordem cronologica sem reutilizar uma aula.
+  if v_required > 0 then
+    for v_lesson in
+      select l.* from public.lessons l
+      where l.owner_id=new.owner_id
+        and l.student_id=v_sale.student_id
+        and l.status='realizada'
+        and l.data_aula >= v_sale.data_venda
+        and not exists (
+          select 1 from public.partner_commission_lessons cl
+          where cl.lesson_id=l.id and cl.owner_id=l.owner_id
+        )
+      order by l.data_aula,l.horario,l.created_at,l.id
+      limit v_required
+    loop
+      insert into public.partner_commission_lessons(owner_id,commission_id,lesson_id)
+      select new.owner_id,c.id,v_lesson.id
+      from public.partner_commissions c
+      where c.sale_item_id=new.id and c.owner_id=new.owner_id
+      on conflict (lesson_id) do nothing;
+    end loop;
+  end if;
   return new;
 end;
-$$;
+$;
 
 drop trigger if exists trg_create_partner_commission_for_service on public.sale_items;
 create trigger trg_create_partner_commission_for_service
@@ -379,7 +404,7 @@ using (
   or exists(select 1 from public.partners p
     where p.id=partner_message_recipients.partner_id
       and p.owner_id=partner_message_recipients.owner_id
-      and p.user_id=(select auth.uid()))
+      and p.user_id=(select auth.uid()) and p.status='aprovado')
 );
 
 drop policy if exists partner_message_recipients_self_update_read on public.partner_message_recipients;
@@ -392,7 +417,7 @@ using (exists(select 1 from public.partners p
 with check (exists(select 1 from public.partners p
   where p.id=partner_message_recipients.partner_id
     and p.owner_id=partner_message_recipients.owner_id
-    and p.user_id=(select auth.uid())));
+    and p.user_id=(select auth.uid()) and p.status='aprovado'));
 
 grant select on public.partners,public.partner_commissions,public.partner_payouts,
   public.partner_commission_lessons,public.partner_messages,
