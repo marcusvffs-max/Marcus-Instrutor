@@ -290,6 +290,7 @@ begin
   v_base := greatest(0,coalesce(new.valor_liquido,new.subtotal,0));
   v_required := greatest(0,coalesce(new.aulas_contratadas,0)-coalesce(new.aulas_devolvidas,0));
   v_amount := round(v_base*v_partner.commission_percent/100,2);
+
   insert into public.partner_commissions(
     owner_id,partner_id,student_id,sale_id,sale_item_id,descricao,
     base_amount,commission_percent,commission_amount,lessons_required,
@@ -297,12 +298,29 @@ begin
   ) values (
     new.owner_id,v_partner.id,v_sale.student_id,v_sale.id,new.id,new.descricao,
     v_base,v_partner.commission_percent,v_amount,v_required,
-    case when v_required=0 then 'disponivel' else 'pendente' end,
-    case when v_required=0 then now() else null end
-  ) on conflict (sale_item_id) do nothing;
+    case when v_base<=0 then 'cancelado' when v_required=0 then 'disponivel' else 'pendente' end,
+    case when v_base>0 and v_required=0 then now() else null end
+  )
+  on conflict (sale_item_id) do update set
+    base_amount=excluded.base_amount,
+    commission_percent=excluded.commission_percent,
+    commission_amount=excluded.commission_amount,
+    lessons_required=excluded.lessons_required,
+    status=case
+      when partner_commissions.status in ('pago','cancelado') then partner_commissions.status
+      when excluded.status='cancelado' then 'cancelado'
+      when partner_commissions.lessons_completed>=excluded.lessons_required then 'disponivel'
+      else 'pendente'
+    end,
+    available_at=case
+      when partner_commissions.status in ('pago','cancelado') then partner_commissions.available_at
+      when excluded.status='cancelado' then null
+      when partner_commissions.lessons_completed>=excluded.lessons_required
+        then coalesce(partner_commissions.available_at,now())
+      else null
+    end;
 
-  -- Se ja houver aulas realizadas depois da venda (por sincronizacao ou
-  -- importacao), vincula-as em ordem cronologica sem reutilizar uma aula.
+  -- Vincula aulas já concluídas após a data da venda, sem reutilizar aulas.
   if v_required > 0 then
     for v_lesson in
       select l.* from public.lessons l
@@ -321,6 +339,7 @@ begin
       select new.owner_id,c.id,v_lesson.id
       from public.partner_commissions c
       where c.sale_item_id=new.id and c.owner_id=new.owner_id
+        and c.status<>'cancelado'
       on conflict (lesson_id) do nothing;
     end loop;
   end if;
@@ -330,9 +349,8 @@ $$;
 
 drop trigger if exists trg_create_partner_commission_for_service on public.sale_items;
 create trigger trg_create_partner_commission_for_service
-after insert on public.sale_items
+after insert or update of valor_liquido,aulas_devolvidas on public.sale_items
 for each row execute function private.create_partner_commission_for_service();
-
 
 -- Registra o pagamento e quita as comissões em uma única transação.
 -- A Edge Function valida o administrador antes de chamar esta rotina.
