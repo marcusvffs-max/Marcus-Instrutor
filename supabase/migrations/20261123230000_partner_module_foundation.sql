@@ -41,6 +41,12 @@ create index if not exists partners_user_id_idx
 alter table public.students
   add column if not exists partner_id uuid;
 
+-- Chaves compostas mantem a integridade entre registros e o respectivo proprietario.
+alter table public.sale_items
+  add constraint sale_items_id_owner_partner_key unique (id,owner_id);
+alter table public.lessons
+  add constraint lessons_id_owner_partner_key unique (id,owner_id);
+
 do $$
 begin
   if not exists (
@@ -166,8 +172,13 @@ declare
   v_completed integer;
   v_required integer;
 begin
-  v_commission_id := coalesce(new.commission_id,old.commission_id);
-  v_owner_id := coalesce(new.owner_id,old.owner_id);
+  if tg_op='DELETE' then
+    v_commission_id := old.commission_id;
+    v_owner_id := old.owner_id;
+  else
+    v_commission_id := new.commission_id;
+    v_owner_id := new.owner_id;
+  end if;
   select count(*)::integer into v_completed
     from public.partner_commission_lessons l
     where l.commission_id=v_commission_id and l.owner_id=v_owner_id;
@@ -175,7 +186,9 @@ begin
     from public.partner_commissions
     where id=v_commission_id and owner_id=v_owner_id
     for update;
-  if not found then return coalesce(new,old); end if;
+  if not found then
+    if tg_op='DELETE' then return old; else return new; end if;
+  end if;
   update public.partner_commissions
     set lessons_completed=v_completed,
         status=case
@@ -189,9 +202,9 @@ begin
           else null
         end
     where id=v_commission_id and owner_id=v_owner_id;
-  return coalesce(new,old);
+  if tg_op='DELETE' then return old; else return new; end if;
 end;
-$$;
+$;
 
 drop trigger if exists trg_sync_partner_commission_progress
   on public.partner_commission_lessons;
@@ -346,10 +359,17 @@ using (
       and p.user_id=(select auth.uid()))
 );
 
-drop policy if exists partner_messages_owner_select on public.partner_messages;
-create policy partner_messages_owner_select on public.partner_messages
+drop policy if exists partner_messages_owner_or_recipient_select on public.partner_messages;
+create policy partner_messages_owner_or_recipient_select on public.partner_messages
 for select to authenticated
-using (owner_id=(select auth.uid()) and private.current_app_role()='admin');
+using (
+  (owner_id=(select auth.uid()) and private.current_app_role()='admin')
+  or exists(select 1 from public.partner_message_recipients r
+    join public.partners p on p.id=r.partner_id and p.owner_id=r.owner_id
+    where r.message_id=partner_messages.id
+      and r.owner_id=partner_messages.owner_id
+      and p.user_id=(select auth.uid()))
+);
 
 drop policy if exists partner_message_recipients_owner_or_self_select on public.partner_message_recipients;
 create policy partner_message_recipients_owner_or_self_select on public.partner_message_recipients
