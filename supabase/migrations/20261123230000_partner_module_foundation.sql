@@ -333,6 +333,85 @@ create trigger trg_create_partner_commission_for_service
 after insert on public.sale_items
 for each row execute function private.create_partner_commission_for_service();
 
+
+-- Registra o pagamento e quita as comissões em uma única transação.
+-- A Edge Function valida o administrador antes de chamar esta rotina.
+create or replace function public.record_partner_payout(
+  p_owner_id uuid,
+  p_partner_id uuid,
+  p_commission_ids uuid[],
+  p_payment_method text default 'pix',
+  p_reference text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $
+declare
+  v_count integer;
+  v_total numeric(12,2);
+  v_payout_id uuid;
+  v_pix text;
+begin
+  if p_owner_id is null or p_partner_id is null
+     or p_commission_ids is null or cardinality(p_commission_ids)=0
+     or cardinality(p_commission_ids)>100 then
+    raise exception 'Seleção de comissões inválida.' using errcode='22023';
+  end if;
+
+  perform 1 from public.partner_commissions c
+   where c.owner_id=p_owner_id
+     and c.partner_id=p_partner_id
+     and c.id=any(p_commission_ids)
+     and c.status='disponivel'
+   for update;
+
+  select count(*)::integer,coalesce(sum(c.commission_amount),0)
+    into v_count,v_total
+    from public.partner_commissions c
+   where c.owner_id=p_owner_id
+     and c.partner_id=p_partner_id
+     and c.id=any(p_commission_ids)
+     and c.status='disponivel';
+
+  if v_count<>cardinality(p_commission_ids) or v_total<=0 then
+    raise exception 'Uma ou mais comissões não estão disponíveis para pagamento.' using errcode='23514';
+  end if;
+
+  select p.pix_key into v_pix
+    from public.partners p
+   where p.id=p_partner_id and p.owner_id=p_owner_id;
+  if not found then
+    raise exception 'Parceiro não encontrado.' using errcode='P0002';
+  end if;
+
+  insert into public.partner_payouts(
+    owner_id,partner_id,amount,payment_method,pix_key_snapshot,reference
+  ) values (
+    p_owner_id,p_partner_id,v_total,
+    coalesce(nullif(left(btrim(p_payment_method),40),''),'pix'),
+    v_pix,nullif(left(btrim(coalesce(p_reference,'')),160),'')
+  ) returning id into v_payout_id;
+
+  update public.partner_commissions
+     set status='pago',payout_id=v_payout_id,paid_at=now()
+   where owner_id=p_owner_id
+     and partner_id=p_partner_id
+     and id=any(p_commission_ids)
+     and status='disponivel';
+
+  return jsonb_build_object(
+    'id',v_payout_id,'partner_id',p_partner_id,
+    'amount',v_total,'commission_count',v_count,
+    'paid_at',now(),'payment_method',coalesce(nullif(btrim(p_payment_method),''),'pix')
+  );
+end;
+$;
+
+revoke all on function public.record_partner_payout(uuid,uuid,uuid[],text,text) from public,anon,authenticated;
+grant execute on function public.record_partner_payout(uuid,uuid,uuid[],text,text) to service_role;
+
 -- RLS: admin/proprietario ve seus registros; parceiro ve somente seu cadastro,
 -- suas comissoes/pagamentos e mensagens enderecadas a ele.
 alter table public.partners enable row level security;
