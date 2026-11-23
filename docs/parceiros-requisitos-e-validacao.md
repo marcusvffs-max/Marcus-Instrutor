@@ -54,5 +54,34 @@ Este documento acompanha a implementação independente do módulo Parceiros no 
 11. Contratos continuam exclusivos do proprietário.
 12. Testar em projeto QA isolado; não inserir dados fictícios na base oficial.
 
-## Estado desta entrega
-A migration inicial cria a estrutura de parceiros, comissões, pagamentos, vínculos de aulas e mensagens, com políticas de leitura por proprietário/parceiro. Ainda faltam a Edge Function administrativa, telas do proprietário, portal do parceiro, associação operacional dos alunos, rotinas transacionais de pagamento/mensagens e testes ponta a ponta. A migration está apenas no branch e não foi aplicada a nenhum banco.
+## Estado desta entrega (23/11/2026)
+Implementado no branch de desenvolvimento:
+- Migration de estrutura de parceiros, vínculo de alunos, comissões, vínculo de aulas, pagamentos, mensagens e políticas RLS.
+- Comissão gerada somente para serviço vendido a aluno indicado; itens fixos/produtos ficam excluídos.
+- Percentual de comissão é congelado na venda; base e valor acompanham descontos/devoluções antes do pagamento.
+- Comissão de pacote só fica disponível após todas as aulas exigidas serem realizadas.
+- Pagamento de comissões usa rotina SQL transacional e bloqueia quitação duplicada.
+- Edge Functions separadas para administração e portal do parceiro.
+- Painel administrativo inicial para convites, aprovação/suspensão, percentual, mensagens e registro de pagamentos.
+- Portal individual do parceiro com alunos, comissões, pagamentos, mensagens e atualização de chave PIX.
+- Cadastro do aluno permite selecionar parceiro indicador.
+- Login encaminha o perfil parceiro para página independente.
+- Scripts do parceiro foram excluídos do cache compartilhado do service worker.
+- No módulo Exames, a lista de próximos exames no painel inicial agora é atualizada após carregar os dados.
+
+## Estado da validação
+- Sintaxe dos arquivos JavaScript e scripts inline do HTML conferida sem erros.
+- Revisão estática dos arquivos SQL e Edge Functions realizada; ainda não equivale a execução real do banco nem a compilação Deno.
+- O projeto Supabase de QA associado ao Preview (voyjssflroiwdyaacthh) está INACTIVE. Por isso a migration não foi aplicada e as Edge Functions não foram implantadas; não há como executar testes de integração neste momento.
+- A migration e as funções estão somente no branch; nada foi aplicado ao Supabase oficial.
+- Nenhum merge ou deploy de produção foi feito.
+
+## Próximas verificações obrigatórias
+1. Reativar o projeto QA quando estiver disponível e confirmar o status ACTIVE_HEALTHY.
+2. Aplicar a migration somente no QA e revisar a execução sem dados reais.
+3. Implantar as duas Edge Functions somente no QA.
+4. Testar convite, aprovação, suspensão, login e isolamento entre dois parceiros.
+5. Testar aluno indicado, vendas de serviços, desconto, devolução, aulas realizadas, liberação e pagamento único de comissão.
+6. Testar exclusão de acesso, mensagens em massa/individuais, leitura e chave PIX.
+7. Testar Exames visualmente e operacionalmente no Preview.
+8. Só depois consolidar a versão para revisão final; publicação depende de autorização separada.
