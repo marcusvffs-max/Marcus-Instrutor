@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+<title id="title">Central do Instrutor</title>
+<desc id="desc">Logomarca horizontal com volante, nome Central do Instrutor e placa dê a preferência.</desc>
+<defs>
+  <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0876d5"/><stop offset="1" stop-color="#063d8d"/></linearGradient>
+  <linearGradient id="dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#29323c"/><stop offset="1" stop-color="#101820"/></linearGradient>
+</defs>
+<path d="M34 164 C78 38 205 20 330 34 L1055 34" fill="none" stroke="#0868bd" stroke-width="13" stroke-linecap="round"/>
+<path d="M38 300 C180 344 310 324 435 318 L1165 318" fill="none" stroke="url(#blue)" stroke-width="12" stroke-linecap="round"/>
+<circle cx="175" cy="180" r="130" fill="none" stroke="url(#blue)" stroke-width="18"/>
+<circle cx="175" cy="180" r="93" fill="url(#dark)" stroke="#68717a" stroke-width="5"/>
+<circle cx="175" cy="180" r="17" fill="#f7f9fc"/>
+<path d="M175 163 L175 91 M160 184 L108 231 M190 184 L242 231" stroke="#f7f9fc" stroke-width="17" stroke-linecap="round"/>
+<path d="M110 124 Q175 72 240 124" fill="none" stroke="#f7f9fc" stroke-width="18" stroke-linecap="round"/>
+<text x="330" y="126" font-family="Arial, Helvetica, sans-serif" font-size="92" font-weight="800" font-style="italic" fill="#202a34">Central do</text>
+<rect x="315" y="145" width="735" height="143" rx="22" fill="url(#blue)"/>
+<text x="350" y="258" font-family="Arial, Helvetica, sans-serif" font-size="112" font-weight="900" font-style="italic" letter-spacing="-4" fill="#fff">Instrutor</text>
+<path d="M1077 40 L1170 133 L1077 226 L984 133 Z" fill="#ffc400" stroke="#171b20" stroke-width="10" stroke-linejoin="round"/>
+<path d="M1077 53 L1157 133 L1077 213 L997 133 Z" fill="none" stroke="#fff1a3" stroke-width="3"/>
+<text x="1077" y="111" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="900" fill="#111">DÊ A</text>
+<text x="1077" y="143" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="900" fill="#111">PREFERÊNCIA</text>
+<path d="M1048 177 Q1077 153 1106 177 L1114 197 L1040 197 Z" fill="#111"/>
+<circle cx="1056" cy="198" r="7" fill="#111"/><circle cx="1098" cy="198" r="7" fill="#111"/>
+<path d="M270 326 H1180" stroke="#aeb7c1" stroke-width="5" stroke-linecap="round"/>
+</svg>
