@@ -1,18 +1,17 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v44-exams-sales-flow";
+const CACHE_NAME = "marcus-instrutor-v26-whatsapp-history-student-contact";
 
 const ARQUIVOS = [
   "./",
   "./index.html",
   "./instrutor.html",
-  "./style.css?v=admin-finance-refunds-2",
+  "./style.css?v=admin-invite-refresh-1",
   "./admin-visual.css?v=admin-visual-1",
+  "./exames-alugueis.js?v=exams-status-filter-1",
   "./instrutor.css?v=21-finance-refunds",
   "./instrutor.js?v=unified-fixed-items-4",
-  "./exames-alugueis.js?v=exams-status-filter-1",
-  "./usuario.html",
-  "./usuario.js?v=qa-preview-isolated-1",
+  "./script.js?v=official-finance-refunds-1",
   "./manifest.json"
 ];
 
@@ -21,8 +20,7 @@ const ARQUIVOS_ADMINISTRATIVOS = [
   "/contratos.js",
   "/contratante-perfil.js",
   "/whatsapp-panel.js",
-  "/admin-users.js",
-  "/exames-alugueis.js"
+  "/admin-users.js"
 ];
 
 self.addEventListener("install", event => {
