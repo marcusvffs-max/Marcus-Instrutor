@@ -303,8 +303,8 @@ begin
   )
   on conflict (sale_item_id) do update set
     base_amount=excluded.base_amount,
-    commission_percent=excluded.commission_percent,
-    commission_amount=excluded.commission_amount,
+    commission_percent=partner_commissions.commission_percent,
+    commission_amount=round(excluded.base_amount*partner_commissions.commission_percent/100,2),
     lessons_required=excluded.lessons_required,
     status=case
       when partner_commissions.status in ('pago','cancelado') then partner_commissions.status
