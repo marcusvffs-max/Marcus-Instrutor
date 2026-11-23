@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Marcus Instrutor",
-  "short_name": "Marcus Instrutor",
-  "description": "Sistema de gerenciamento de alunos, aulas e financeiro.",
+  "name": "Central do Instrutor",
+  "short_name": "Central do Instrutor",
+  "description": "Sistema de gerenciamento de alunos, aulas e financeiro - Central do Instrutor.",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",
