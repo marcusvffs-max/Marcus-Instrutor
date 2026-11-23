@@ -502,7 +502,7 @@
   <script>
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("./service-worker.js?v=qa-preview-isolated-3", { updateViaCache: "none" })
+        navigator.serviceWorker.register("./service-worker.js?v=qa-preview-isolated-4", { updateViaCache: "none" })
           .then(function (registro) {
             return registro.update();
           })
