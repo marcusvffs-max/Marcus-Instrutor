@@ -1,19 +1,5 @@
--- Controla cada aluguel pela compra de origem, evitando devoluções cruzadas entre vendas.
--- A implantação é interrompida se houver saldos históricos que precisem de conciliação manual.
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM public.sale_items WHERE fixed_item_key = 'aluguel_veiculo')
-     OR EXISTS (SELECT 1 FROM public.student_practical_exams WHERE aluguel_consumido = true)
-     OR EXISTS (
-       SELECT 1 FROM public.students
-       WHERE coalesce(alugueis_comprados, 0) > 0
-          OR coalesce(alugueis_disponiveis, 0) > 0
-     ) THEN
-    RAISE EXCEPTION 'Existem aluguéis ou saldos históricos. Concilie as compras e consumos antes de ativar o controle individual.';
-  END IF;
-END;
-$$;
-
+-- A conciliação dos registros anteriores à ativação é feita pela migration
+-- 20261124090000_backfill_student_rental_credit_ledger.sql, após a criação da tabela.
 CREATE TABLE public.student_rental_credits (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
