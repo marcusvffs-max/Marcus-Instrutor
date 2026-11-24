@@ -130,7 +130,7 @@
       ], "Nenhum aluno indicado.", 4);
       renderTable("partnerCommissions", data.commissions || [], [
         x => x.descricao, x => x.student_name,
-        x => x.status === "pago" ? "Acompanhamento encerrado" : (x.lessons_completed || 0) + " de " + (x.lessons_required || 0),
+        x => x.status === "pago" ? "Acompanhamento encerrado" : Math.max(0, (x.lessons_required || 0) - (x.lessons_completed || 0)) + " restantes · " + (x.lessons_completed || 0) + "/" + (x.lessons_required || 0),
         x => money(x.commission_amount), x => x.status
       ], "Nenhuma comissão registrada.", 5);
       renderPayouts(data.payouts || []);
