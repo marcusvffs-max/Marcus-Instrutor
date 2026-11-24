@@ -84,10 +84,16 @@
     <section class="partner-card partner-section"><h2>Alunos aprovados</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Aluno</th><th>Categoria</th><th>Situação</th><th>Cadastro</th></tr></thead><tbody id="partnerStudents"><tr><td colspan="4">Carregando…</td></tr></tbody></table></div></section>
     <section class="partner-card partner-section"><h2>Minhas comissões</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Descrição</th><th>Aluno</th><th>Progresso</th><th>Valor</th><th>Situação</th></tr></thead><tbody id="partnerCommissions"><tr><td colspan="5">Carregando…</td></tr></tbody></table></div></section>
     <section class="partner-card partner-section"><h2>Histórico de pagamentos</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Data</th><th>Forma</th><th>Referência</th><th>Valor</th><th>Confirmação</th></tr></thead><tbody id="partnerPayouts"><tr><td colspan="5">Carregando…</td></tr></tbody></table></div></section>
-    <section id="partnerMessagesSection" class="partner-card partner-section"><h2>Mensagens do administrador</h2><div id="partnerMessages"><p>Carregando…</p></div></section>
   </main>
+  <div id="partnerMessagesModal" class="partner-modal" hidden>
+    <div class="partner-modal-backdrop" data-close-messages-modal></div>
+    <section class="partner-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="partnerMessagesTitle">
+      <header class="partner-modal-head"><h2 id="partnerMessagesTitle">Mensagens do administrador</h2><button id="partnerMessagesClose" class="partner-modal-close" type="button" aria-label="Fechar">✕</button></header>
+      <div id="partnerMessages"><p>Carregando…</p></div>
+    </section>
+  </div>
   <div id="partnerModal" class="partner-modal" hidden><div class="partner-modal-backdrop" data-close-partner-modal></div><section class="partner-modal-dialog" role="dialog" aria-modal="true"><header class="partner-modal-head"><h2 id="partnerModalTitle">Cadastro</h2><button id="partnerModalClose" class="partner-modal-close" type="button">✕</button></header><div id="partnerModalBody"></div></section></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="parceiro.js?v=partner-portal-6"></script>
+  <script src="parceiro.js?v=partner-portal-7"></script>
 </body>
 </html>
