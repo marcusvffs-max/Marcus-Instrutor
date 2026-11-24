@@ -31,6 +31,43 @@
     if (!rows.length) { const tr = document.createElement("tr"); cell(tr, empty, colspan); target.append(tr); return; }
     rows.forEach(item => { const tr = document.createElement("tr"); columns.forEach(fn => cell(tr, fn(item))); target.append(tr); });
   }
+  function renderPayouts(rows) {
+    const target = $("partnerPayouts");
+    target.replaceChildren();
+    if (!rows.length) {
+      const tr = document.createElement("tr"); cell(tr, "Nenhum pagamento registrado.", 5); target.append(tr); return;
+    }
+    rows.forEach(item => {
+      const tr = document.createElement("tr");
+      cell(tr, date(item.paid_at));
+      cell(tr, ({ pix: "PIX", dinheiro: "Dinheiro", transferencia: "Transferência", outro: "Outro" })[item.payment_method] || item.payment_method);
+      cell(tr, item.reference || "—");
+      cell(tr, money(item.amount));
+      const action = document.createElement("td");
+      if (item.received_at) {
+        action.textContent = "Recebido em " + date(item.received_at);
+      } else {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "partner-button secondary";
+        button.textContent = "Confirmar recebimento";
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          try {
+            await invoke("confirm_receipt", { payout_id: item.id });
+            say("Recebimento confirmado.");
+            await load();
+          } catch (error) {
+            say(error.message, true);
+            button.disabled = false;
+          }
+        });
+        action.append(button);
+      }
+      tr.append(action);
+      target.append(tr);
+    });
+  }
   async function load() {
     say("Carregando seus dados…");
     try {
@@ -45,12 +82,11 @@
         x => x.nome, x => x.categoria, x => x.status, x => date(x.created_at)
       ], "Nenhum aluno indicado.", 4);
       renderTable("partnerCommissions", data.commissions || [], [
-        x => x.descricao, x => x.student_name, x => (x.lessons_completed || 0) + " de " + (x.lessons_required || 0),
+        x => x.descricao, x => x.student_name,
+        x => x.status === "pago" ? "Acompanhamento encerrado" : (x.lessons_completed || 0) + " de " + (x.lessons_required || 0),
         x => money(x.commission_amount), x => x.status
       ], "Nenhuma comissão registrada.", 5);
-      renderTable("partnerPayouts", data.payouts || [], [
-        x => date(x.paid_at), x => x.payment_method, x => x.reference || "—", x => money(x.amount)
-      ], "Nenhum pagamento registrado.", 4);
+      renderPayouts(data.payouts || []);
       const messages = $("partnerMessages"); messages.replaceChildren();
       if (!(data.messages || []).length) messages.append(document.createTextNode("Nenhum comunicado no momento."));
       (data.messages || []).forEach(item => {
@@ -69,11 +105,6 @@
       say("Dados atualizados.");
     } catch (error) { say(error.message, true); }
   }
-  $("partnerPixForm").addEventListener("submit", async event => {
-    event.preventDefault(); const button = event.currentTarget.querySelector("button"); button.disabled = true;
-    try { await invoke("update_pix_key", { pix_key: $("partnerPixKey").value }); say("Chave PIX atualizada."); }
-    catch (error) { say(error.message, true); } finally { button.disabled = false; }
-  });
   $("partnerLogout").addEventListener("click", async () => {
     $("partnerLogout").disabled = true;
     const { error } = await client.auth.signOut({ scope: "local" });
