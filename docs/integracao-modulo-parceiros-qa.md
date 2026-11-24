@@ -24,7 +24,7 @@ O projeto QA `voyjssflroiwdyaacthh` já possui a fundação do módulo de parcei
 
 ## Bloqueio antes de produção
 
-As migrations da fundação de parceiros aparecem no histórico do projeto QA (`partner_module_foundation`, `partner_foreign_key_indexes` e `fix_partner_commission_refund_rules`), mas os respectivos arquivos SQL não estão versionados nesta branch. As Edge Functions também estão confirmadas apenas no projeto QA.
+As migrations da fundação de parceiros aparecem no histórico do projeto QA (`partner_module_foundation`, `partner_foreign_key_indexes` e `fix_partner_commission_refund_rules`), mas os respectivos arquivos SQL não estão versionados nesta branch. As fontes das Edge Functions foram versionadas nesta branch, mas continuam implantadas apenas no QA. A versão atualmente implantada de `admin-manage-partners` ainda precisa receber a origem de Preview específica desta branch antes de validar convites por e-mail; a alteração está somente no arquivo versionado e não foi implantada.
 
 Portanto, **não fazer merge nem deploy em produção** deste módulo até:
 1. recuperar e versionar as migrations SQL completas;
