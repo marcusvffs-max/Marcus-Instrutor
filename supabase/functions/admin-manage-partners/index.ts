@@ -50,39 +50,55 @@ Deno.serve(async (req: Request) => {
     }
 
     if (body.action === "list") {
-      const [partnersResult, referralsResult, quotesResult] = await Promise.all([
-        db.from("partners")
-          .select("id,nome,email,telefone,cpf_cnpj,endereco,pix_key,commission_percent,status,approved_at,rejected_at,created_at,updated_at,user_id")
-          .eq("owner_id", ownerId).order("created_at", { ascending: false }),
-        db.from("partner_students")
-          .select("id,partner_id,nome,telefone,cpf,endereco,categoria,status,created_at")
-          .eq("owner_id", ownerId).order("created_at", { ascending: false }),
-        db.from("partner_quotes")
-          .select("id,partner_id,partner_student_id,status,subtotal,total,observacoes,created_at")
-          .eq("owner_id", ownerId).eq("status", "pendente").order("created_at", { ascending: false }),
+      const [partnersResult, referralsResult, quotesResult, studentsResult, commissionsResult] = await Promise.all([
+        db.from("partners").select("id,nome,email,telefone,cpf_cnpj,endereco,pix_key,commission_percent,status,approved_at,rejected_at,created_at,updated_at,user_id").eq("owner_id", ownerId).order("created_at", { ascending: false }),
+        db.from("partner_students").select("id,partner_id,nome,telefone,cpf,endereco,categoria,status,created_at").eq("owner_id", ownerId).order("created_at", { ascending: false }),
+        db.from("partner_quotes").select("id,partner_id,partner_student_id,status,subtotal,total,observacoes,created_at").eq("owner_id", ownerId).eq("status", "pendente").order("created_at", { ascending: false }),
+        db.from("students").select("id,nome,telefone,categoria,status,partner_id,created_at").eq("owner_id", ownerId).not("partner_id", "is", null).order("nome"),
+        db.from("partner_commissions").select("id,partner_id,commission_amount,status").eq("owner_id", ownerId).in("status", ["disponivel","pendente"]),
       ]);
-      const error = partnersResult.error || referralsResult.error || quotesResult.error;
+      const error = partnersResult.error || referralsResult.error || quotesResult.error || studentsResult.error || commissionsResult.error;
       if (error) throw error;
       const partnerNames = new Map((partnersResult.data ?? []).map((p: any) => [p.id, p.nome]));
       const referralNames = new Map((referralsResult.data ?? []).map((s: any) => [s.id, s.nome]));
-      const referrals = (referralsResult.data ?? []).map((s: any) => ({
-        ...s, partner_name: partnerNames.get(s.partner_id) ?? "Parceiro",
-      }));
+      const referrals = (referralsResult.data ?? []).map((s: any) => ({ ...s, partner_name: partnerNames.get(s.partner_id) ?? "Parceiro" }));
       const quoteIds = (quotesResult.data ?? []).map((q: any) => q.id);
       let quoteItems: any[] = [];
       if (quoteIds.length) {
-        const { data, error } = await db.from("partner_quote_items")
-          .select("id,quote_id,descricao,tipo_item,quantidade,valor_unitario,subtotal,aulas_contratadas")
-          .eq("owner_id", ownerId).in("quote_id", quoteIds);
+        const { data, error } = await db.from("partner_quote_items").select("id,quote_id,descricao,tipo_item,quantidade,valor_unitario,subtotal,aulas_contratadas").eq("owner_id", ownerId).in("quote_id", quoteIds);
         if (error) throw error;
         quoteItems = data ?? [];
       }
-      const quotes = (quotesResult.data ?? []).map((q: any) => ({
-        ...q, partner_name: partnerNames.get(q.partner_id) ?? "Parceiro",
-        student_name: referralNames.get(q.partner_student_id) ?? "Aluno",
-        items: quoteItems.filter((item: any) => item.quote_id === q.id),
-      }));
-      return response({ ok: true, partners: partnersResult.data ?? [], referrals, quotes });
+      const quotes = (quotesResult.data ?? []).map((q: any) => ({ ...q, partner_name: partnerNames.get(q.partner_id) ?? "Parceiro", student_name: referralNames.get(q.partner_student_id) ?? "Aluno", items: quoteItems.filter((item: any) => item.quote_id === q.id) }));
+      const students = (studentsResult.data ?? []).map((s: any) => ({ ...s, partner_name: partnerNames.get(s.partner_id) ?? "Parceiro" }));
+      const commissionSummary = new Map<string, any>();
+      for (const c of commissionsResult.data ?? []) {
+        const item = commissionSummary.get(c.partner_id) ?? { available_count: 0, available_amount: 0, pending_count: 0, pending_amount: 0 };
+        if (c.status === "disponivel") { item.available_count++; item.available_amount += Number(c.commission_amount || 0); }
+        if (c.status === "pendente") { item.pending_count++; item.pending_amount += Number(c.commission_amount || 0); }
+        commissionSummary.set(c.partner_id, item);
+      }
+      const partners = (partnersResult.data ?? []).map((p: any) => ({ ...p, commissions: commissionSummary.get(p.id) ?? { available_count: 0, available_amount: 0, pending_count: 0, pending_amount: 0 } }));
+      return response({ ok: true, partners, referrals, quotes, students });
+    }
+    if (body.action === "message_history") {
+      const { data: messages, error: messagesError } = await db.from("partner_messages").select("id,assunto,mensagem,publico,created_at").eq("owner_id", ownerId).order("created_at", { ascending: false }).limit(200);
+      if (messagesError) throw messagesError;
+      const ids = (messages ?? []).map((m: any) => m.id);
+      let recipients: any[] = [];
+      if (ids.length) {
+        const { data, error } = await db.from("partner_message_recipients").select("id,message_id,partner_id,read_at,created_at").eq("owner_id", ownerId).in("message_id", ids);
+        if (error) throw error;
+        recipients = data ?? [];
+      }
+      const partnerIds = [...new Set(recipients.map((r: any) => r.partner_id))];
+      let names = new Map<string, string>();
+      if (partnerIds.length) {
+        const { data, error } = await db.from("partners").select("id,nome").eq("owner_id", ownerId).in("id", partnerIds);
+        if (error) throw error;
+        names = new Map((data ?? []).map((p: any) => [p.id, p.nome]));
+      }
+      return response({ ok: true, messages: (messages ?? []).map((m: any) => ({ ...m, recipients: recipients.filter((r: any) => r.message_id === m.id).map((r: any) => ({ partner_name: names.get(r.partner_id) ?? "Parceiro", read_at: r.read_at })) })) });
     }
 
     if (body.action === "review_student") {
