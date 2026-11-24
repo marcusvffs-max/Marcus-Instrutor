@@ -178,7 +178,8 @@ test("resultado do exame consome crédito FIFO e vincula o exame à compra", () 
 test("devolução não ultrapassa os créditos não consumidos da própria compra", () => {
   assert.match(rentalCreditMigration, /quantity_purchased - quantity_refunded - quantity_consumed >= v_delta/i);
   assert.match(rentalCreditMigration, /A devolução excede os aluguéis não utilizados desta compra/i);
-  assert.match(rentalCreditMigration, /Existem aluguéis ou saldos históricos/i);
+  assert.doesNotMatch(rentalCreditMigration, /Existem aluguéis ou saldos históricos/i);
+  assert.match(rentalCreditMigration, /20261124090000_backfill_student_rental_credit_ledger/i);
 });
 
 test("ledger possui índices para suas chaves estrangeiras", () => {
@@ -207,4 +208,25 @@ test("saldo de aluguel por compra é lido somente pela própria conta via RLS", 
 test("módulo de exames é carregado uma única vez no painel administrativo", () => {
   assert.equal((adminHtml.match(/carregarScript\("exames-alugueis\.js\?v=exams-status-filter-1"\)/g) || []).length, 1);
   assert.equal((serviceWorker.match(/"\.\/exames-alugueis\.js\?v=exams-status-filter-1"/g) || []).length, 1);
+});
+
+const rentalCreditBackfillMigration = read("../supabase/migrations/20261124090000_backfill_student_rental_credit_ledger.sql");
+
+test("backfill cria créditos de compras anteriores e preserva devoluções registradas", () => {
+  assert.match(rentalCreditBackfillMigration, /INSERT INTO public\.student_rental_credits/i);
+  assert.match(rentalCreditBackfillMigration, /si\.quantidade::integer/i);
+  assert.match(rentalCreditBackfillMigration, /si\.quantidade_devolvida::integer/i);
+  assert.match(rentalCreditBackfillMigration, /ON CONFLICT \(sale_item_id\) DO NOTHING/i);
+});
+
+test("backfill vincula exames históricos por FIFO sem debitar o saldo novamente", () => {
+  assert.match(rentalCreditBackfillMigration, /WHERE e\.aluguel_consumido = true[\s\S]*rental_credit_id IS NULL/i);
+  assert.match(rentalCreditBackfillMigration, /ORDER BY c\.created_at, c\.id/i);
+  assert.match(rentalCreditBackfillMigration, /SET rental_credit_id = v_credit_id/i);
+  assert.doesNotMatch(rentalCreditBackfillMigration, /SET alugueis_disponiveis\s*=/i);
+});
+
+test("backfill aborta se créditos não reproduzirem o saldo agregado do aluno", () => {
+  assert.match(rentalCreditBackfillMigration, /alugueis_disponiveis/i);
+  assert.match(rentalCreditBackfillMigration, /A migration foi revertida/i);
 });
