@@ -91,7 +91,7 @@ Deno.serve(async (req: Request) => {
       }
       const productIds = [...new Set(normalized.map((item: any) => item.product_id))];
       const { data: products, error: productsError } = await db.from("products")
-        .select("id,nome,tipo,descricao,preco,quantidade_aulas,quantidade_aulas_min,quantidade_aulas_max,ativo")
+        .select("id,nome,tipo,descricao,preco,quantidade_aulas,quantidade_aulas_min,quantidade_aulas_max,app_product_id,ativo")
         .eq("owner_id", partner.owner_id).eq("ativo", true).in("id", productIds);
       if (productsError) throw productsError;
       const byId = new Map((products ?? []).map((p: any) => [p.id, p]));
@@ -100,6 +100,7 @@ Deno.serve(async (req: Request) => {
       const items = normalized.map((item: any) => {
         const product: any = byId.get(item.product_id);
         const price = Number(product.preco || 0);
+        if (!Number.isFinite(price) || price <= 0) throw new Error("O item " + product.nome + " não possui preço válido.");
         const type = product.tipo === "servico" || product.tipo === "pacote" ||
           product.quantidade_aulas != null || product.quantidade_aulas_min != null ||
           product.quantidade_aulas_max != null ||
