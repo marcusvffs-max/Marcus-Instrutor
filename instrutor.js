@@ -228,6 +228,50 @@
     applyInstructorTheme(primary, secondary);
   }
 
+  async function linkInstructorToCentral() {
+    const input = el("codigoVinculoCentral");
+    const button = el("btnVincularCentral");
+    const status = el("statusVinculoCentral");
+    const code = String(input?.value || "").replace(/\\D/g, "");
+    if (code.length !== 8) {
+      if (status) status.textContent = "Digite o código completo de 8 dígitos.";
+      input?.focus();
+      return;
+    }
+    if (!state.supabase || !state.user) {
+      if (status) status.textContent = "Sua sessão não está disponível. Entre novamente no aplicativo.";
+      return;
+    }
+    button.disabled = true;
+    button.textContent = "Vinculando...";
+    if (status) status.textContent = "Validando o código com a Central...";
+    try {
+      const { data, error } = await state.supabase.functions.invoke("complete-central-link", {
+        body: { code }
+      });
+      if (error) {
+        let detail = "";
+        try { detail = (await error.context.json())?.error || ""; } catch (_) {}
+        throw new Error(detail || "Não foi possível concluir o vínculo. Confira o código e tente novamente.");
+      }
+      if (!data?.linked) throw new Error(data?.error || "A Central não confirmou a vinculação.");
+      input.value = "";
+      input.disabled = true;
+      button.disabled = true;
+      button.textContent = "Conta vinculada";
+      if (status) status.textContent = data.message || "Conta vinculada com sucesso à Central do Instrutor.";
+      if (status) status.style.color = "#16794b";
+    } catch (error) {
+      console.error("Falha ao vincular conta à Central:", error);
+      if (status) {
+        status.textContent = error?.message || "Não foi possível vincular a conta. Tente novamente.";
+        status.style.color = "#a12b2b";
+      }
+      button.disabled = false;
+      button.textContent = "Vincular minha conta";
+    }
+  }
+
   async function saveInstructorSettings() {
     const button = el("btnSalvarConfiguracoesInstrutor");
     const name = el("nomePerfilInstrutor").value.trim();
@@ -2217,6 +2261,10 @@
     el("btnGerarDatasLote").addEventListener("click", generateBatchLessonRows);
     el("btnCancelarAulasLote").addEventListener("click", resetBatchLessonForm);
     el("formAulasLote").addEventListener("submit", saveBatchLessons);
+    el("btnVincularCentral").addEventListener("click", linkInstructorToCentral);
+    el("codigoVinculoCentral").addEventListener("input", event => {
+      event.target.value = event.target.value.replace(/\\D/g, "").slice(0, 8);
+    });
     el("btnSalvarConfiguracoesInstrutor").addEventListener("click", saveInstructorSettings);
     el("btnRemoverLogoInstrutor").addEventListener("click", removeInstructorLogo);
     el("btnAgendarInicio").addEventListener("click", () => {
