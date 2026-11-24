@@ -601,6 +601,7 @@ async function salvarAluno(evento) {
       telefone: salvo.telefone || "",
       cpf: salvo.cpf || "",
       endereco: salvo.endereco || "",
+      partner_id: salvo.partner_id || null,
       categoria: salvo.categoria || "B",
       situacao: statusAlunoParaTela(salvo.status),
       contratadas: Number(salvo.aulas_compradas || 0),
