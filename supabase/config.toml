@@ -3,3 +3,9 @@
 # inside the handler, not with a Supabase user JWT.
 [functions.whatsapp-webhook]
 verify_jwt = false
+
+[functions.admin-manage-partners]
+verify_jwt = true
+
+[functions.partner-portal]
+verify_jwt = true
