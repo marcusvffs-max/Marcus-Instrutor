@@ -142,6 +142,7 @@ test("progresso de aulas de comissão paga não pode ser consultado diretamente 
   assert.match(partnerProgressPolicyMigration, /DROP POLICY IF EXISTS partner_commissions_owner_or_self_select/);
   assert.match(partnerProgressPolicyMigration, /DROP POLICY IF EXISTS partner_commission_lessons_owner_or_self_select/);
   assert.match(partnerEdge, /lessons_completed: c\.status === "pago" \? null/);
+  assert.match(partnerJs, /Math\.max\(0, \(x\.lessons_required \|\| 0\) - \(x\.lessons_completed \|\| 0\)\) \+ " restantes/);
 });
 
 const partnerPolicyConsolidationMigration = read("../supabase/migrations/20261124050054_consolidate_partner_read_policies_indexes.sql");
