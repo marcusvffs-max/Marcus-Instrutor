@@ -7,6 +7,7 @@
   const style = document.createElement("style");
   style.textContent = `
     .pa-overlay{position:fixed;inset:0;z-index:18000;background:rgba(15,23,42,.64);display:flex;align-items:center;justify-content:center;padding:12px}
+    .pa-overlay[hidden]{display:none!important}
     .pa-dialog{width:min(100%,980px);max-height:94vh;overflow:auto;background:#f4f7fb;color:#172536;border-radius:18px;padding:18px;box-shadow:0 22px 70px rgba(0,0,0,.3)}
     .pa-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.pa-head h2{margin:0}.pa-close{border:0;border-radius:9px;padding:9px 13px}
     .pa-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.pa-card{background:#fff;border:1px solid #dce4ed;border-radius:13px;padding:14px;margin:12px 0}
