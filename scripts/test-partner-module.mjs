@@ -26,7 +26,7 @@ test("painel admin carrega gestão de parceiros somente após autenticação", (
 test("admin usa Edge Function para convidar, aprovar, comunicar e pagar parceiros", () => {
   assert.match(adminJs, /functions\.invoke\("admin-manage-partners"/);
   assert.match(adminJs, /if \(initialized \|\| initializing\) return/);
-  for (const action of ["list", "invite", "update_status", "update_commission", "send_message", "record_payout"]) {
+  for (const action of ["list", "invite", "update_status", "update_commission", "update_pix_key", "send_message", "record_payout"]) {
     assert.ok(adminJs.includes('"' + action + '"') || adminJs.includes("invoke(\"" + action + "\""), "Ação ausente: " + action);
   }
 });
@@ -43,7 +43,7 @@ test("cadastro administrativo do aluno permite associar parceiro", () => {
 test("portal do parceiro consulta somente as ações autenticadas do endpoint próprio", () => {
   assert.match(partnerHtml, /parceiro\.js\?v=partner-portal-1/);
   assert.match(partnerJs, /functions\.invoke\("partner-portal"/);
-  for (const action of ["overview", "update_pix_key", "mark_read"]) {
+  for (const action of ["overview", "confirm_receipt", "mark_read"]) {
     assert.ok(partnerJs.includes('"' + action + '"'), "Ação ausente: " + action);
   }
   assert.match(partnerJs, /profile\?\.role !== "parceiro"/);
@@ -74,4 +74,44 @@ test("portal Edge Function valida o parceiro vinculado e aprovado", () => {
 test("as duas Edge Functions exigem JWT no config do Supabase", () => {
   assert.match(supabaseConfig, /\[functions\.admin-manage-partners\]\s+verify_jwt = true/);
   assert.match(supabaseConfig, /\[functions\.partner-portal\]\s+verify_jwt = true/);
+});
+
+const partnerSchemaMigration = read("../supabase/migrations/20261124100000_partner_module_schema_and_commissions.sql");
+const partnerIndexesMigration = read("../supabase/migrations/20261124110000_partner_referral_fk_indexes.sql");
+
+test("PIX é controlado pelo administrador e somente leitura no portal", () => {
+  assert.match(adminJs, /update_pix_key/);
+  assert.match(adminEdge, /body\.action === "update_pix_key"/);
+  assert.match(partnerHtml, /id="partnerPixKey"[^>]*readonly/);
+  assert.doesNotMatch(partnerJs, /update_pix_key/);
+  assert.doesNotMatch(partnerEdge, /body\.action === "update_pix_key"/);
+});
+
+test("parceiro confirma recebimento sem alterar o registro do pagamento", () => {
+  assert.match(partnerJs, /confirm_receipt/);
+  assert.match(partnerEdge, /body\.action === "confirm_receipt"/);
+  assert.match(partnerEdge, /\.eq\("partner_id", partner\.id\)[\s\S]*\.is\("received_at", null\)/);
+  assert.match(partnerEdge, /received_at: new Date\(\)\.toISOString\(\)/);
+});
+
+test("comissão é gerada apenas para serviços e só fica disponível após aulas concluídas", () => {
+  assert.match(partnerSchemaMigration, /coalesce\(NEW\.tipo_item,'servico'\) <> 'servico'/);
+  assert.match(partnerSchemaMigration, /NEW\.fixed_item_key IS NOT NULL/);
+  assert.match(partnerSchemaMigration, /lessons_completed >= v_required/);
+  assert.match(partnerSchemaMigration, /partner_commission_lessons/);
+  assert.match(partnerSchemaMigration, /status = 'pago'/);
+  assert.match(partnerSchemaMigration, /Não é possível devolver aulas: a comissão deste pacote já foi paga/);
+});
+
+test("pagamento registra PIX em snapshot e associa a comissão ao pagamento", () => {
+  assert.match(partnerSchemaMigration, /pix_key_snapshot/);
+  assert.match(partnerSchemaMigration, /SET status = 'pago', payout_id = v_payout_id, paid_at = now\(\)/);
+  assert.match(partnerSchemaMigration, /GRANT EXECUTE ON FUNCTION public\.record_partner_payout\(uuid,uuid,uuid\[\],text,text\) TO service_role/);
+});
+
+test("índices cobrem as relações de alunos, orçamentos e itens de orçamento", () => {
+  assert.match(partnerIndexesMigration, /partner_students_partner_owner_fk_idx/);
+  assert.match(partnerIndexesMigration, /partner_quotes_student_owner_fk_idx/);
+  assert.match(partnerIndexesMigration, /partner_quote_items_quote_owner_fk_idx/);
+  assert.match(partnerIndexesMigration, /partner_quote_items_product_id_idx/);
 });
