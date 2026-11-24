@@ -186,8 +186,9 @@
   });
   $("partnerQuoteForm").addEventListener("submit", async event => {
     event.preventDefault();
+    const form = event.currentTarget;
     if (!quoteItems.length) { say("Adicione ao menos um item ao orçamento.", true); return; }
-    const button = event.currentTarget.querySelector('[type="submit"]');
+    const button = form.querySelector('[type="submit"]');
     button.disabled = true;
     try {
       const result = await invoke("create_quote", {
@@ -196,7 +197,7 @@
         observacoes: $("partnerQuoteNotes").value,
       });
       quoteItems = [];
-      event.currentTarget.reset();
+      form.reset();
       renderQuoteItems();
       say(result.message || "Orçamento enviado para aprovação.");
       await load();
