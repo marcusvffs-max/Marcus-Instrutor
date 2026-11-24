@@ -38,17 +38,32 @@
     if (event.key === "Escape") {
       closePartnerForm();
       closePartnerMessages();
+      closePartnerPayments();
     }
   });
   $("btnOpenStudentForm")?.addEventListener("click", () => openPartnerForm("partnerStudentForm", "Cadastrar aluno indicado"));
   $("btnOpenQuoteForm")?.addEventListener("click", () => openPartnerForm("partnerQuoteForm", "Montar orçamento"));
   function closePartnerMessages() {
     $("partnerMessagesModal").hidden = true;
-    if (!activePartnerForm) document.body.style.overflow = "";
+    if (!activePartnerForm && $("partnerPaymentsModal").hidden) document.body.style.overflow = "";
+  }
+  function closePartnerPayments() {
+    $("partnerPaymentsModal").hidden = true;
+    if (!activePartnerForm && $("partnerMessagesModal").hidden) document.body.style.overflow = "";
   }
   $("btnPartnerMessages")?.addEventListener("click", () => {
+    closePartnerPayments();
     $("partnerMessagesModal").hidden = false;
     document.body.style.overflow = "hidden";
+  });
+  $("btnPartnerPayments")?.addEventListener("click", () => {
+    closePartnerMessages();
+    $("partnerPaymentsModal").hidden = false;
+    document.body.style.overflow = "hidden";
+  });
+  $("partnerPaymentsClose")?.addEventListener("click", closePartnerPayments);
+  $("partnerPaymentsModal")?.addEventListener("click", event => {
+    if (event.target === $("partnerPaymentsModal") || event.target.hasAttribute("data-close-payments-modal")) closePartnerPayments();
   });
   $("partnerMessagesClose")?.addEventListener("click", closePartnerMessages);
   $("partnerMessagesModal")?.addEventListener("click", event => {
@@ -77,23 +92,32 @@
   }
   function renderPayouts(rows) {
     const target = $("partnerPayouts");
+    const notifications = $("partnerPaymentNotifications");
     target.replaceChildren();
-    if (!rows.length) {
-      const tr = document.createElement("tr"); cell(tr, "Nenhum pagamento registrado.", 5); target.append(tr); return;
+    notifications.replaceChildren();
+    const pending = rows.filter(item => !item.received_at);
+    const badge = $("partnerPaymentsBadge");
+    if (badge) {
+      badge.textContent = String(pending.length);
+      badge.hidden = pending.length === 0;
     }
-    rows.forEach(item => {
-      const tr = document.createElement("tr");
-      cell(tr, date(item.paid_at));
-      cell(tr, ({ pix: "PIX", dinheiro: "Dinheiro", transferencia: "Transferência", outro: "Outro" })[item.payment_method] || item.payment_method);
-      cell(tr, item.reference || "—");
-      cell(tr, money(item.amount));
-      const action = document.createElement("td");
-      if (item.received_at) {
-        action.textContent = "Recebido em " + date(item.received_at);
-      } else {
+    if (!pending.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "Nenhum pagamento aguardando confirmação.";
+      notifications.append(empty);
+    } else {
+      pending.forEach(item => {
+        const card = document.createElement("article");
+        card.className = "partner-message";
+        const title = document.createElement("h3");
+        title.textContent = "Pagamento de " + money(item.amount);
+        const details = document.createElement("p");
+        details.textContent = date(item.paid_at) + " · " +
+          (({ pix: "PIX", dinheiro: "Dinheiro", transferencia: "Transferência", outro: "Outro" })[item.payment_method] || item.payment_method) +
+          (item.reference ? " · " + item.reference : "");
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "partner-button secondary";
+        button.className = "partner-button";
         button.textContent = "Confirmar recebimento";
         button.addEventListener("click", async () => {
           button.disabled = true;
@@ -106,8 +130,21 @@
             button.disabled = false;
           }
         });
-        action.append(button);
-      }
+        card.append(title, details, button);
+        notifications.append(card);
+      });
+    }
+    if (!rows.length) {
+      const tr = document.createElement("tr"); cell(tr, "Nenhum pagamento registrado.", 5); target.append(tr); return;
+    }
+    rows.forEach(item => {
+      const tr = document.createElement("tr");
+      cell(tr, date(item.paid_at));
+      cell(tr, ({ pix: "PIX", dinheiro: "Dinheiro", transferencia: "Transferência", outro: "Outro" })[item.payment_method] || item.payment_method);
+      cell(tr, item.reference || "—");
+      cell(tr, money(item.amount));
+      const action = document.createElement("td");
+      action.textContent = item.received_at ? "Recebido em " + date(item.received_at) : "Aguardando confirmação";
       tr.append(action);
       target.append(tr);
     });
