@@ -195,7 +195,11 @@ test("saldo de aluguel por compra é lido somente pela própria conta via RLS", 
   assert.match(rentalCreditOwnerPolicyMigration, /GRANT SELECT \([\s\S]*sale_item_id[\s\S]*quantity_purchased[\s\S]*quantity_refunded[\s\S]*quantity_consumed/i);
   assert.match(instructorJs, /from\("student_rental_credits"\)[\s\S]*select\("sale_item_id,quantity_purchased,quantity_refunded,quantity_consumed"\)/i);
   assert.match(instructorJs, /rentalCreditAvailability\.get\(item\.id\)/i);
+  assert.match(instructorJs, /rentalCreditLedgerMissing \? fallback : 0/);
+  assert.doesNotMatch(instructorJs, /from\("student_rental_credits"\)[\s\S]{0,180}\.eq\("owner_id"/);
   assert.match(adminJs, /from\("student_rental_credits"\)[\s\S]*select\("sale_item_id,quantity_purchased,quantity_refunded,quantity_consumed"\)/i);
+  assert.match(adminJs, /rentalCreditLedgerMissing \? fallback : 0/);
+  assert.doesNotMatch(adminJs, /from\("student_rental_credits"\)[\s\S]{0,180}\.eq\("owner_id"/);
   assert.match(adminJs, /alugueisDisponiveisNaCompra/);
   assert.match(adminJs, /saldoCompra/);
 });
