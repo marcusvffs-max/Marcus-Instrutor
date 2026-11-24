@@ -1994,7 +1994,7 @@
     el("btnSairAcessoBloqueado").addEventListener("click", signOut);
     el("btnVincularCentral").addEventListener("click", linkCentralAccount);
     el("codigoVinculoCentral").addEventListener("input", event => {
-      event.target.value = event.target.value.replace(/\\D/g, "").slice(0, 8);
+      event.target.value = event.target.value.replace(/\D/g, "").slice(0, 8);
     });
   }
 
