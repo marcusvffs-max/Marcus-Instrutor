@@ -365,7 +365,7 @@ function atualizarPainel() {
                 data-realizar-aula="${a.id}"
                 class="primary-button confirm-lesson-button"
               >
-                Confirmar aula realizada
+                Realizada
               </button>
 
               <button
