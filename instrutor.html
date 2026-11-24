@@ -411,6 +411,16 @@
           <div class="student-form-actions">
             <button id="btnSalvarConfiguracoesInstrutor" class="button button-primary" type="button">Salvar alterações</button>
           </div>
+          <div class="student-form" style="margin-top:22px;padding-top:20px;border-top:1px solid var(--border-color,#e5e7eb)">
+            <h4>Vincular com a Central do Instrutor</h4>
+            <p class="contract-note">Gere um código de vínculo na sua conta da Central e informe-o aqui. O código é pessoal, válido por 10 minutos e pode ser usado uma única vez.</p>
+            <label for="codigoVinculoCentral">Código de 8 dígitos</label>
+            <input id="codigoVinculoCentral" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="[0-9]{8}" placeholder="00000000" aria-describedby="statusVinculoCentral">
+            <div class="student-form-actions">
+              <button id="btnVincularCentral" class="button button-primary" type="button">Vincular minha conta</button>
+              <span id="statusVinculoCentral" class="contract-note" role="status" aria-live="polite">Nenhum vínculo foi confirmado nesta sessão.</span>
+            </div>
+          </div>
         </div>
       </section>
 
