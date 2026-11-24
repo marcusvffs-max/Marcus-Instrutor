@@ -211,7 +211,7 @@ test("módulo de exames é carregado uma única vez no painel administrativo", (
   assert.equal((serviceWorker.match(/"\.\/exames-alugueis\.js\?v=exams-status-filter-1"/g) || []).length, 1);
 });
 
-const rentalCreditBackfillMigration = read("../supabase/migrations/20261124090000_backfill_student_rental_credit_ledger.sql");
+const rentalCreditBackfillMigration = read("../supabase/migrations/20261124045009_backfill_student_rental_credit_ledger.sql");
 
 test("backfill cria créditos de compras anteriores e preserva devoluções registradas", () => {
   assert.match(rentalCreditBackfillMigration, /INSERT INTO public\.student_rental_credits/i);
