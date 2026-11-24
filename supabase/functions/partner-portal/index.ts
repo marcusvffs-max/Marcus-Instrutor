@@ -37,15 +37,19 @@ Deno.serve(async (req: Request) => {
     if (partner.status !== "aprovado") return response({ error: "Seu acesso está aguardando aprovação ou encontra-se suspenso." }, 403);
     const body = await req.json().catch(() => ({}));
 
-    if (body.action === "update_pix_key") {
-      const pixKey = typeof body.pix_key === "string" ? body.pix_key.trim() : "";
-      if (pixKey.length > 120) return response({ error: "A chave PIX deve ter até 120 caracteres." }, 400);
-      const { data, error } = await db.from("partners").update({ pix_key: pixKey || null, updated_at: new Date().toISOString() })
-        .eq("id", partner.id).eq("owner_id", partner.owner_id).eq("user_id", auth.user.id)
-        .select("id,pix_key").maybeSingle();
+    if (body.action === "confirm_receipt") {
+      if (!uuid(body.payout_id)) return response({ error: "Pagamento inválido." }, 400);
+      const { data, error } = await db.from("partner_payouts")
+        .update({ received_at: new Date().toISOString() })
+        .eq("id", body.payout_id)
+        .eq("owner_id", partner.owner_id)
+        .eq("partner_id", partner.id)
+        .is("received_at", null)
+        .select("id,received_at")
+        .maybeSingle();
       if (error) throw error;
-      if (!data) return response({ error: "Não foi possível atualizar sua chave PIX." }, 409);
-      return response({ ok: true, pix_key: data.pix_key });
+      if (!data) return response({ error: "Pagamento não encontrado ou já confirmado." }, 404);
+      return response({ ok: true, payout: data, message: "Recebimento confirmado." });
     }
 
     if (body.action === "mark_read") {
@@ -65,7 +69,7 @@ Deno.serve(async (req: Request) => {
         .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).order("nome"),
       db.from("partner_commissions").select("id,student_id,descricao,base_amount,commission_percent,commission_amount,lessons_required,lessons_completed,status,created_at,available_at,paid_at")
         .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).order("created_at", { ascending: false }),
-      db.from("partner_payouts").select("id,amount,payment_method,reference,paid_at,pix_key_snapshot")
+      db.from("partner_payouts").select("id,amount,payment_method,reference,paid_at,pix_key_snapshot,received_at")
         .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).order("paid_at", { ascending: false }),
       db.from("partner_message_recipients").select("id,message_id,read_at,created_at")
         .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).order("created_at", { ascending: false }).limit(100),
@@ -85,7 +89,10 @@ Deno.serve(async (req: Request) => {
     }
     const studentById = new Map((studentsResult.data ?? []).map((s: any) => [s.id, s.nome]));
     const commissions = (commissionsResult.data ?? []).map((c: any) => ({
-      ...c, student_name: studentById.get(c.student_id) ?? "Aluno",
+      ...c,
+      student_name: studentById.get(c.student_id) ?? "Aluno",
+      lessons_completed: c.status === "pago" ? null : c.lessons_completed,
+      lessons_required: c.status === "pago" ? null : c.lessons_required,
     }));
     return response({
       ok: true,
