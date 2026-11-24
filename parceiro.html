@@ -17,7 +17,12 @@
     .partner-table th{color:#64748b;font-size:.78rem;text-transform:uppercase}.partner-scroll{overflow:auto}
     .partner-message{border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin:10px 0}.partner-message h3{margin:0 0 6px;font-size:1rem}.partner-message p{white-space:pre-wrap;margin:0 0 10px}
     .partner-message small{color:#64748b}.partner-inline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .partner-pix{display:flex;gap:8px;flex-wrap:wrap}.partner-pix input{flex:1;min-width:190px;padding:11px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}
+    .partner-pix{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+    .partner-pix input,.partner-pix select,#partnerQuoteForm input,#partnerQuoteForm select,#partnerQuoteForm textarea{box-sizing:border-box;width:100%;min-width:0;padding:11px;border:1px solid #cbd5e1;border-radius:9px;font:inherit;background:#fff}
+    #partnerQuoteForm{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;align-items:end}
+    #partnerQuoteItems{grid-column:1/-1}
+    #partnerQuoteForm label{font-weight:600;color:#334155}
+    #partnerQuoteForm textarea{resize:vertical}
     #partnerStatus{margin:12px 0;color:#475569;min-height:24px}.partner-error{color:#b42318!important}
     @media(max-width:600px){.partner-shell{padding:16px 12px 40px}.partner-table{min-width:560px}}
   </style>
@@ -59,7 +64,7 @@
         <label for="partnerQuoteProduct">Produto ou serviço</label><select id="partnerQuoteProduct"><option value="">Selecione um item</option></select>
         <label for="partnerQuoteQuantity">Quantidade</label><input id="partnerQuoteQuantity" type="number" min="1" max="100" step="1" value="1">
         <button id="partnerAddQuoteItem" class="partner-button secondary" type="button">Adicionar item</button>
-        <div id="partnerQuoteItems" class="partner-messages">Nenhum item adicionado.</div>
+        <div id="partnerQuoteItems" class="partner-message">Nenhum item adicionado.</div>
         <label for="partnerQuoteNotes">Observações</label><textarea id="partnerQuoteNotes" maxlength="1000" rows="2"></textarea>
         <button class="partner-button" type="submit">Enviar orçamento</button>
       </form>
@@ -68,7 +73,7 @@
       <h2>Meus orçamentos</h2>
       <div class="partner-scroll"><table class="partner-table"><thead><tr><th>Aluno</th><th>Data</th><th>Total</th><th>Situação</th></tr></thead><tbody id="partnerQuotes"><tr><td colspan="4">Carregando…</td></tr></tbody></table></div>
     </section>
-    <section class="partner-card partner-section"><h2>Alunos indicados</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Aluno</th><th>Categoria</th><th>Situação</th><th>Cadastro</th></tr></thead><tbody id="partnerStudents"><tr><td colspan="4">Carregando…</td></tr></tbody></table></div></section>
+    <section class="partner-card partner-section"><h2>Alunos aprovados</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Aluno</th><th>Categoria</th><th>Situação</th><th>Cadastro</th></tr></thead><tbody id="partnerStudents"><tr><td colspan="4">Carregando…</td></tr></tbody></table></div></section>
     <section class="partner-card partner-section"><h2>Minhas comissões</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Descrição</th><th>Aluno</th><th>Progresso</th><th>Valor</th><th>Situação</th></tr></thead><tbody id="partnerCommissions"><tr><td colspan="5">Carregando…</td></tr></tbody></table></div></section>
     <section class="partner-card partner-section"><h2>Histórico de pagamentos</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Data</th><th>Forma</th><th>Referência</th><th>Valor</th><th>Confirmação</th></tr></thead><tbody id="partnerPayouts"><tr><td colspan="5">Carregando…</td></tr></tbody></table></div></section>
     <section class="partner-card partner-section"><h2>Comunicados</h2><div id="partnerMessages"><p>Carregando…</p></div></section>
