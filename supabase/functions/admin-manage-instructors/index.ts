@@ -38,7 +38,7 @@ Deno.serve(async (req: Request) => {
   if (origin && !ALLOWED_ORIGINS.has(origin)) {
     return new Response("Origem não autorizada.", { status: 403, headers: corsHeaders });
   }
-  const requestAppUrl = (origin && ALLOWED_ORIGINS.has(origin) ? origin : APP_ORIGIN) + "/";
+  const requestAppUrl = (origin && /^https:\/\/marcusinstrutor-[a-z0-9-]+-marcusvffs-2839\.vercel\.app$/.test(origin) ? origin : APP_ORIGIN) + "/";
 
   try {
     const authorization = req.headers.get("Authorization") ?? "";
