@@ -50,7 +50,7 @@ test("portal do parceiro consulta somente as ações autenticadas do endpoint pr
 });
 
 test("service worker mantém portal disponível e não compartilha script administrativo", () => {
-  assert.match(serviceWorker, /marcus-instrutor-v31-partner-module/);
+  assert.match(serviceWorker, /marcus-instrutor-v32-partner-module/);
   assert.match(serviceWorker, /"\.\/parceiro\.html"/);
   assert.match(serviceWorker, /"\.\/parceiro\.js\?v=partner-portal-1"/);
   assert.match(serviceWorker, /"\/parceiros-admin\.js"/);
