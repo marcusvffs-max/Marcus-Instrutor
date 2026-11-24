@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v31-partner-module";
+const CACHE_NAME = "marcus-instrutor-v32-partner-module";
 
 const ARQUIVOS = [
   "./",
@@ -8,7 +8,7 @@ const ARQUIVOS = [
   "./central-instrutor-logo.svg",
   "./instrutor.html",
   "./parceiro.html",
-  "./parceiro.js?v=partner-portal-1",
+  "./parceiro.js?v=partner-portal-2",
   "./style.css?v=central-logo-1",
   "./admin-visual.css?v=admin-visual-1",
   "./exames-alugueis.js?v=exams-status-filter-1",
