@@ -41,12 +41,77 @@
       const result = await invoke("list");
       partners = Array.isArray(result.partners) ? result.partners : [];
       renderPartners();
+      renderReferrals(Array.isArray(result.referrals) ? result.referrals : []);
+      renderQuotes(Array.isArray(result.quotes) ? result.quotes : []);
       await refreshPaymentPartners();
       say(partners.length ? partners.length + " parceiro(s) cadastrado(s)." : "Nenhum parceiro cadastrado ainda.");
     } catch (error) {
       listEl.replaceChildren(make("p", "empty-state", error.message));
       say(error.message, true);
     }
+  }
+
+  function renderReferrals(rows) {
+    const target = $("listaIndicacoesParceiros");
+    if (!target) return;
+    target.replaceChildren();
+    if (!rows.length) { target.append(make("p", "empty-state", "Nenhuma indicação pendente.")); return; }
+    rows.forEach(item => {
+      const card = make("article", "partner-admin-card");
+      card.append(make("strong", "", item.nome));
+      card.append(make("p", "partner-admin-meta", [item.partner_name, item.telefone, item.cpf, item.categoria].filter(Boolean).join(" · ")));
+      if (item.endereco) card.append(make("p", "partner-admin-meta", item.endereco));
+      const actions = make("div", "partner-admin-actions");
+      [["aprovado","Aprovar cadastro"],["reprovado","Reprovar"]].forEach(([status,label]) => {
+        const button = make("button", "button button-secondary", label);
+        button.type = "button";
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          try {
+            const result = await invoke("review_student", { partner_student_id: item.id, status });
+            say(result.message || "Indicação atualizada.");
+            await loadPartners();
+          } catch (error) { say(error.message, true); button.disabled = false; }
+        });
+        actions.append(button);
+      });
+      card.append(actions);
+      target.append(card);
+    });
+  }
+
+  function renderQuotes(rows) {
+    const target = $("listaOrcamentosParceiros");
+    if (!target) return;
+    target.replaceChildren();
+    if (!rows.length) { target.append(make("p", "empty-state", "Nenhum orçamento pendente.")); return; }
+    rows.forEach(item => {
+      const card = make("article", "partner-admin-card");
+      card.append(make("strong", "", item.student_name + " · " + item.partner_name));
+      (item.items || []).forEach(line => {
+        card.append(make("p", "partner-admin-meta",
+          line.descricao + " · " + line.quantidade + " × " + money(line.valor_unitario) +
+          " = " + money(line.subtotal) + (line.tipo_item === "servico" ? " · " + line.aulas_contratadas + " aula(s)" : " · produto")));
+      });
+      card.append(make("p", "partner-admin-meta", "Total do orçamento: " + money(item.total)));
+      if (item.observacoes) card.append(make("p", "partner-admin-meta", item.observacoes));
+      const actions = make("div", "partner-admin-actions");
+      [["aprovado","Aprovar orçamento"],["reprovado","Reprovar orçamento"]].forEach(([status,label]) => {
+        const button = make("button", "button button-secondary", label);
+        button.type = "button";
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          try {
+            const result = await invoke("review_quote", { quote_id: item.id, status });
+            say(result.message || "Orçamento atualizado.");
+            await loadPartners();
+          } catch (error) { say(error.message, true); button.disabled = false; }
+        });
+        actions.append(button);
+      });
+      card.append(actions);
+      target.append(card);
+    });
   }
 
   function renderPartners() {
