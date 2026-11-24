@@ -52,6 +52,7 @@
   }
 
   function renderReferrals(rows) {
+    rows = rows.filter(item => item.status === "pendente_aprovacao");
     const target = $("listaIndicacoesParceiros");
     if (!target) return;
     target.replaceChildren();
