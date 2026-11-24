@@ -348,6 +348,7 @@
       document.querySelectorAll("[data-parceiro-selecionado]").forEach(input => { input.disabled = event.target.checked; });
     });
     loadPartners();
+    window.setInterval(() => { if (document.visibilityState === "visible") loadPartners(); }, 30000);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
