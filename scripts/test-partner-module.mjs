@@ -18,7 +18,7 @@ test("login encaminha perfil parceiro para a área exclusiva", () => {
 });
 
 test("painel admin carrega gestão de parceiros somente após autenticação", () => {
-  assert.match(adminHtml, /await carregarScript\("parceiros-admin\.js\?v=partner-admin-1"\)/);
+  assert.match(adminHtml, /await carregarScript\("parceiros-admin\.js\?v=partner-admin-2"\)/);
   assert.match(adminHtml, /id="page-parceiros"/);
   assert.match(adminHtml, /data-page="parceiros"/);
 });
@@ -41,7 +41,7 @@ test("cadastro administrativo do aluno permite associar parceiro", () => {
 });
 
 test("portal do parceiro consulta somente as ações autenticadas do endpoint próprio", () => {
-  assert.match(partnerHtml, /parceiro\.js\?v=partner-portal-1/);
+  assert.match(partnerHtml, /parceiro\.js\?v=partner-portal-2/);
   assert.match(partnerJs, /functions\.invoke\("partner-portal"/);
   for (const action of ["overview", "confirm_receipt", "mark_read"]) {
     assert.ok(partnerJs.includes('"' + action + '"'), "Ação ausente: " + action);
@@ -52,7 +52,7 @@ test("portal do parceiro consulta somente as ações autenticadas do endpoint pr
 test("service worker mantém portal disponível e não compartilha script administrativo", () => {
   assert.match(serviceWorker, /marcus-instrutor-v32-partner-module/);
   assert.match(serviceWorker, /"\.\/parceiro\.html"/);
-  assert.match(serviceWorker, /"\.\/parceiro\.js\?v=partner-portal-1"/);
+  assert.match(serviceWorker, /"\.\/parceiro\.js\?v=partner-portal-2"/);
   assert.match(serviceWorker, /"\/parceiros-admin\.js"/);
 });
 
@@ -97,7 +97,7 @@ test("parceiro confirma recebimento sem alterar o registro do pagamento", () => 
 test("comissão é gerada apenas para serviços e só fica disponível após aulas concluídas", () => {
   assert.match(partnerSchemaMigration, /coalesce\(NEW\.tipo_item,'servico'\) <> 'servico'/);
   assert.match(partnerSchemaMigration, /NEW\.fixed_item_key IS NOT NULL/);
-  assert.match(partnerSchemaMigration, /lessons_completed >= v_required/);
+  assert.match(partnerSchemaMigration, /v_completed >= v_required/);
   assert.match(partnerSchemaMigration, /partner_commission_lessons/);
   assert.match(partnerSchemaMigration, /status = 'pago'/);
   assert.match(partnerSchemaMigration, /Não é possível devolver aulas: a comissão deste pacote já foi paga/);
