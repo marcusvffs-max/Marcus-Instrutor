@@ -76,8 +76,8 @@ test("as duas Edge Functions exigem JWT no config do Supabase", () => {
   assert.match(supabaseConfig, /\[functions\.partner-portal\]\s+verify_jwt = true/);
 });
 
-const partnerSchemaMigration = read("../supabase/migrations/20261124100000_partner_module_schema_and_commissions.sql");
-const partnerIndexesMigration = read("../supabase/migrations/20261124110000_partner_referral_fk_indexes.sql");
+const partnerSchemaMigration = read("../supabase/migrations/20261124045002_partner_module_schema_and_commissions.sql");
+const partnerIndexesMigration = read("../supabase/migrations/20261124045125_partner_referral_fk_indexes.sql");
 
 test("PIX é controlado pelo administrador e somente leitura no portal", () => {
   assert.match(adminJs, /update_pix_key/);
@@ -116,7 +116,7 @@ test("índices cobrem as relações de alunos, orçamentos e itens de orçamento
   assert.match(partnerIndexesMigration, /partner_quote_items_product_id_idx/);
 });
 
-const partnerProgressPolicyMigration = read("../supabase/migrations/20261124120000_restrict_partner_commission_progress_read.sql");
+const partnerProgressPolicyMigration = read("../supabase/migrations/20261124045622_restrict_partner_commission_progress_read.sql");
 
 test("parceiro cadastra indicação e envia orçamento usando catálogo do administrador", () => {
   assert.match(partnerHtml, /id="partnerStudentForm"/);
@@ -144,7 +144,7 @@ test("progresso de aulas de comissão paga não pode ser consultado diretamente 
   assert.match(partnerEdge, /lessons_completed: c\.status === "pago" \? null/);
 });
 
-const partnerPolicyConsolidationMigration = read("../supabase/migrations/20261124130000_consolidate_partner_read_policies_indexes.sql");
+const partnerPolicyConsolidationMigration = read("../supabase/migrations/20261124050054_consolidate_partner_read_policies_indexes.sql");
 
 test("leitura de parceiros usa uma única política e elimina índices redundantes", () => {
   assert.match(partnerPolicyConsolidationMigration, /DROP POLICY IF EXISTS partners_owner_or_self_select/);
