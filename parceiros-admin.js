@@ -69,6 +69,21 @@
       const state = make("span", "partner-status partner-status-" + partner.status, statusLabel(partner.status));
       header.append(identity, state);
       const details = make("p", "partner-admin-meta", [partner.telefone, partner.cpf_cnpj].filter(Boolean).join(" · ") || "Sem telefone/documento");
+      const pixLabel = make("label", "partner-pix-admin-label", "Chave PIX (administrador)");
+      const pixInput = make("input", "");
+      pixInput.type = "text"; pixInput.maxLength = 120; pixInput.value = partner.pix_key || "";
+      pixLabel.append(pixInput);
+      const savePix = make("button", "button button-secondary", "Salvar PIX");
+      savePix.type = "button";
+      savePix.addEventListener("click", async () => {
+        savePix.disabled = true;
+        try {
+          const result = await invoke("update_pix_key", { partner_id: partner.id, pix_key: pixInput.value });
+          partner.pix_key = result.pix_key || null;
+          say("Chave PIX atualizada para " + partner.nome + ".");
+        } catch (error) { say(error.message, true); }
+        finally { savePix.disabled = false; }
+      });
       const actions = make("div", "partner-admin-actions");
       const commissionLabel = make("label", "", "Comissão (%)");
       const commission = make("input", "");
@@ -104,7 +119,7 @@
         finally { saveStatus.disabled = false; }
       });
       actions.append(commissionLabel, saveCommission, statusSelect, saveStatus);
-      card.append(header, details, actions);
+      card.append(header, details, pixLabel, savePix, actions);
       if (!partner.user_id) card.append(make("small", "partner-admin-warning", "Convite ainda não vinculado a uma conta."));
       listEl.append(card);
     });
