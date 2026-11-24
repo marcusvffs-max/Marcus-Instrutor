@@ -383,79 +383,26 @@
       </section>
 
       <section id="page-parceiros" class="page">
-        <div class="page-heading">
-          <div><span class="eyebrow">RELACIONAMENTO</span><h2>Parceiros</h2></div>
-          <button id="btnAtualizarParceiros" class="secondary-button" type="button">Atualizar parceiros</button>
-        </div>
-        <p id="statusParceirosAdmin" class="form-hint" role="status" aria-live="polite"></p>
-        <div class="panel partner-invite-launcher">
-          <div><h3>Cadastrar parceiro</h3><p>Cadastre e envie um convite. O acesso ficará pendente até a aprovação.</p></div>
-          <button id="btnAbrirCadastroParceiro" class="primary-button" type="button">Cadastrar parceiro</button>
-        </div>
-        <div id="modalCadastroParceiro" class="partner-modal" hidden>
-          <div class="partner-modal-backdrop" data-close-partner-modal></div>
-          <section class="partner-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tituloModalParceiro">
-            <div class="partner-modal-head"><h3 id="tituloModalParceiro">Novo parceiro</h3><button id="btnFecharCadastroParceiro" class="secondary-button" type="button" aria-label="Fechar">✕</button></div>
-            <p>Preencha os dados para enviar o convite. A aprovação do parceiro continua pendente.</p>
-            <form id="formNovoParceiro" class="form-grid">
-              <div><label for="novoParceiroNome">Nome completo *</label><input id="novoParceiroNome" required maxlength="160"></div>
-              <div><label for="novoParceiroEmail">E-mail *</label><input id="novoParceiroEmail" type="email" required maxlength="254"></div>
-              <div><label for="novoParceiroTelefone">Telefone</label><input id="novoParceiroTelefone" type="tel" maxlength="40"></div>
-              <div><label for="novoParceiroDocumento">CPF / CNPJ</label><input id="novoParceiroDocumento" maxlength="30"></div>
-              <div><label for="novaComissaoParceiro">Comissão (%) *</label><input id="novaComissaoParceiro" type="number" min="0" max="100" step="0.01" value="5" required></div>
-              <div class="form-actions"><button class="primary-button" type="submit">Enviar convite</button></div>
-            </form>
-          </section>
-        </div>
-        <div class="panel">
-          <h3>Parceiros cadastrados</h3>
-          <p>Revise os convites, aprove ou suspenda acessos e ajuste a comissão.</p>
-          <div id="listaParceirosAdmin" class="list-container"><div class="empty-state">Carregando parceiros…</div></div>
-        </div>
-        <div class="panel">
-          <h3>Indicações de alunos para aprovação</h3>
-          <p>Ao aprovar, somente os dados cadastrais são transferidos. Nenhuma venda ou movimentação financeira é criada.</p>
-          <div id="listaIndicacoesParceiros" class="list-container"><div class="empty-state">Carregando indicações…</div></div>
-        </div>
-        <div class="panel">
-          <h3>Orçamentos enviados para aprovação</h3>
-          <p>A aprovação do orçamento não registra venda nem financeiro. O administrador faz esses lançamentos manualmente.</p>
-          <div id="listaOrcamentosParceiros" class="list-container"><div class="empty-state">Carregando orçamentos…</div></div>
-        </div>
-        <div class="panel">
-          <h3>Enviar comunicado</h3>
-          <form id="formMensagemParceiros">
-            <label class="contrato-check"><input id="mensagemTodosParceiros" type="checkbox"> Enviar para todos os parceiros aprovados</label>
-            <label for="assuntoMensagemParceiros">Assunto</label><input id="assuntoMensagemParceiros" required maxlength="160">
-            <label for="textoMensagemParceiros">Mensagem</label><textarea id="textoMensagemParceiros" rows="4" required maxlength="5000"></textarea>
-            <button class="primary-button" type="submit">Enviar comunicado</button>
-          </form>
-        </div>
-        <div class="panel partner-invite-launcher">
-          <div><h3>Relatório de pagamentos</h3><p>Consulte os pagamentos registrados pelo administrador e a confirmação de recebimento de cada parceiro.</p></div>
-          <button id="btnRelatorioPagamentosParceiros" class="primary-button" type="button">Abrir relatório</button>
-        </div>
-        <div id="modalRelatorioPagamentosParceiros" class="partner-modal" hidden>
-          <div class="partner-modal-backdrop" data-close-report></div>
-          <section class="partner-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tituloRelatorioPagamentosParceiros">
-            <div class="partner-modal-head"><h3 id="tituloRelatorioPagamentosParceiros">Relatório de pagamentos aos parceiros</h3><button id="btnFecharRelatorioPagamentosParceiros" class="secondary-button" type="button" aria-label="Fechar">✕</button></div>
-            <p id="resumoRelatorioPagamentosParceiros" class="form-hint"></p>
-            <div id="listaRelatorioPagamentosParceiros" class="list-container"><p class="empty-state">Carregando pagamentos…</p></div>
-            <div class="form-actions"><button id="btnImprimirRelatorioPagamentosParceiros" class="secondary-button" type="button">Imprimir relatório</button></div>
-          </section>
-        </div>
-        <div class="panel">
-          <h3>Registrar pagamento de comissão</h3>
-          <form id="formPagamentoParceiro">
-            <label for="selectParceiroPagamento">Parceiro</label><select id="selectParceiroPagamento" required><option value="">Selecione um parceiro</option></select>
-            <div id="listaComissoesParceiro" class="list-container"><div class="empty-state">Selecione um parceiro para consultar as comissões disponíveis.</div></div>
-            <label for="metodoPagamentoParceiro">Forma de pagamento</label>
-            <select id="metodoPagamentoParceiro" required><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="transferencia">Transferência</option><option value="outro">Outro</option></select>
-            <label for="referenciaPagamentoParceiro">Referência / observação</label><input id="referenciaPagamentoParceiro" maxlength="160">
-            <button id="btnRegistrarPagamentoParceiro" class="primary-button" type="submit">Registrar pagamento</button>
-          </form>
-        </div>
-      </section>
+<div class="page-heading"><div><span class="eyebrow">RELACIONAMENTO</span><h2>Parceiros</h2></div><button id="btnAtualizarParceiros" class="secondary-button" type="button">Atualizar parceiros</button></div>
+<p id="statusParceirosAdmin" class="form-hint" role="status" aria-live="polite"></p>
+<div class="partner-action-grid">
+<button id="btnAbrirCadastroParceiro" class="primary-button" type="button">+ Cadastrar parceiro</button>
+<button id="btnAbrirMensagemParceiros" class="secondary-button" type="button">Enviar mensagem</button>
+<button id="btnHistoricoMensagensParceiros" class="secondary-button" type="button">Histórico de mensagens</button>
+<button id="btnAbrirPagamentoParceiro" class="secondary-button" type="button">Registrar pagamento</button>
+<button id="btnRelatorioPagamentosParceiros" class="secondary-button" type="button">Relatório de pagamentos</button>
+</div>
+<div class="panel"><h3>Parceiros cadastrados</h3><p>Os valores disponíveis para pagamento aparecem destacados em cada parceiro.</p><div id="listaParceirosAdmin" class="list-container"><div class="empty-state">Carregando parceiros…</div></div></div>
+<div class="panel"><h3>Alunos e respectivos parceiros</h3><input id="buscaAlunosParceiros" class="search-input" type="search" placeholder="Buscar aluno ou parceiro"><div id="listaAlunosParceiros" class="list-container"><div class="empty-state">Carregando alunos…</div></div></div>
+<div class="panel"><h3>Indicações de alunos para aprovação</h3><div id="listaIndicacoesParceiros" class="list-container"></div></div>
+<div class="panel"><h3>Orçamentos enviados para aprovação</h3><div id="listaOrcamentosParceiros" class="list-container"></div></div>
+<div id="modalCadastroParceiro" class="partner-modal" hidden><div class="partner-modal-backdrop" data-close-partner-modal></div><section class="partner-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tituloModalParceiro"><div class="partner-modal-head"><h3 id="tituloModalParceiro">Cadastrar parceiro</h3><button id="btnFecharCadastroParceiro" class="secondary-button" type="button">✕</button></div><p>Cadastre e envie um convite. O acesso ficará pendente até a aprovação.</p><form id="formNovoParceiro" class="form-grid"><div><label for="novoParceiroNome">Nome completo *</label><input id="novoParceiroNome" required maxlength="160"></div><div><label for="novoParceiroEmail">E-mail *</label><input id="novoParceiroEmail" type="email" required maxlength="254"></div><div><label for="novoParceiroTelefone">Telefone</label><input id="novoParceiroTelefone" type="tel" maxlength="40"></div><div><label for="novoParceiroDocumento">CPF / CNPJ</label><input id="novoParceiroDocumento" maxlength="30"></div><div><label for="novaComissaoParceiro">Comissão (%) *</label><input id="novaComissaoParceiro" type="number" min="0" max="100" step="0.01" value="5" required></div><div class="form-actions"><button class="primary-button" type="submit">Enviar convite</button></div></form></section></div>
+<div id="modalGerenciarParceiro" class="partner-modal" hidden><div class="partner-modal-backdrop" data-close-manage-partner></div><section class="partner-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tituloGerenciarParceiro"><div class="partner-modal-head"><h3 id="tituloGerenciarParceiro">Gerenciar parceiro</h3><button id="btnFecharGerenciarParceiro" class="secondary-button" type="button">✕</button></div><form id="formGerenciarParceiro" class="form-grid"><input id="gerenciarParceiroId" type="hidden"><div><label for="gerenciarComissaoParceiro">Comissão (%)</label><input id="gerenciarComissaoParceiro" type="number" min="0" max="100" step="0.01" required></div><div><label for="gerenciarPixParceiro">Chave PIX</label><input id="gerenciarPixParceiro" maxlength="120"></div><div><label for="gerenciarStatusParceiro">Situação</label><select id="gerenciarStatusParceiro"><option value="pendente">Pendente</option><option value="aprovado">Aprovado</option><option value="suspenso">Suspenso</option><option value="reprovado">Reprovado</option></select></div><div class="form-actions"><button class="primary-button" type="submit">Salvar alterações</button></div></form></section></div>
+<div id="modalMensagemParceiros" class="partner-modal" hidden><div class="partner-modal-backdrop" data-close-message></div><section class="partner-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tituloMensagemParceiros"><div class="partner-modal-head"><h3 id="tituloMensagemParceiros">Enviar mensagem aos parceiros</h3><button id="btnFecharMensagemParceiros" class="secondary-button" type="button">✕</button></div><form id="formMensagemParceiros"><label class="contrato-check"><input id="mensagemTodosParceiros" type="checkbox"> Enviar para todos os parceiros aprovados</label><p>Ou selecione os parceiros na lista abaixo.</p><div id="selecaoDestinatariosParceiros" class="list-container"></div><label for="assuntoMensagemParceiros">Assunto</label><input id="assuntoMensagemParceiros" required maxlength="160"><label for="textoMensagemParceiros">Mensagem</label><textarea id="textoMensagemParceiros" rows="4" required maxlength="5000"></textarea><button class="primary-button" type="submit">Enviar comunicado</button></form></section></div>
+<div id="modalHistoricoMensagensParceiros" class="partner-modal" hidden><div class="partner-modal-backdrop" data-close-message-history></div><section class="partner-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tituloHistoricoMensagensParceiros"><div class="partner-modal-head"><h3 id="tituloHistoricoMensagensParceiros">Histórico de mensagens</h3><button id="btnFecharHistoricoMensagensParceiros" class="secondary-button" type="button">✕</button></div><div id="listaHistoricoMensagensParceiros" class="list-container"></div></section></div>
+<div id="modalPagamentoParceiro" class="partner-modal" hidden><div class="partner-modal-backdrop" data-close-payout></div><section class="partner-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tituloPagamentoParceiro"><div class="partner-modal-head"><h3 id="tituloPagamentoParceiro">Registrar pagamento de comissão</h3><button id="btnFecharPagamentoParceiro" class="secondary-button" type="button">✕</button></div><form id="formPagamentoParceiro"><label for="selectParceiroPagamento">Parceiro</label><select id="selectParceiroPagamento" required><option value="">Selecione um parceiro</option></select><div id="listaComissoesParceiro" class="list-container"></div><label for="metodoPagamentoParceiro">Forma de pagamento</label><select id="metodoPagamentoParceiro" required><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="transferencia">Transferência</option><option value="outro">Outro</option></select><label for="referenciaPagamentoParceiro">Referência / observação</label><input id="referenciaPagamentoParceiro" maxlength="160"><button id="btnRegistrarPagamentoParceiro" class="primary-button" type="submit">Registrar pagamento</button></form></section></div>
+<div id="modalRelatorioPagamentosParceiros" class="partner-modal" hidden><div class="partner-modal-backdrop" data-close-report></div><section class="partner-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tituloRelatorioPagamentosParceiros"><div class="partner-modal-head"><h3 id="tituloRelatorioPagamentosParceiros">Relatório de pagamentos aos parceiros</h3><button id="btnFecharRelatorioPagamentosParceiros" class="secondary-button" type="button">✕</button></div><p id="resumoRelatorioPagamentosParceiros" class="form-hint"></p><div id="listaRelatorioPagamentosParceiros" class="list-container"></div><div class="form-actions"><button id="btnImprimirRelatorioPagamentosParceiros" class="secondary-button" type="button">Imprimir relatório</button></div></section></div>
+</section>
 
       <section id="page-contratos" class="page">
         <div class="page-heading"><div><span class="eyebrow">DOCUMENTOS</span><h2>Contratos</h2></div></div>
@@ -633,7 +580,7 @@
         await carregarScript("whatsapp-panel.js?v=whatsapp-panel-v12-message-delete");
         await carregarScript("exames-alugueis.js?v=exams-status-filter-1");
         await carregarScript("admin-users.js?v=admin-users-v3-safe-confirm");
-        await carregarScript("parceiros-admin.js?v=partner-admin-4");
+        await carregarScript("parceiros-admin.js?v=partner-admin-5");
         painelAdminCarregado = true;
       }
       async function mostrarAplicativo(usuario) {
