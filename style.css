@@ -1800,3 +1800,65 @@ body.autenticado .login-screen {
 .menu-item[data-page="parceiros"]{position:relative}
 .menu-notification-badge{position:absolute;top:2px;right:calc(50% - 25px);z-index:2;display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin:0;border:2px solid #fff;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;line-height:1;pointer-events:none}
 .menu-notification-badge[hidden]{display:none!important}
+
+
+/* CONTRATO DO INSTRUTOR — ajuste de impressão para duas folhas A4 */
+@page {
+  size: A4;
+  margin: 9mm 10mm 8mm 10mm;
+}
+@media print {
+  body.contrato-impressao .contrato-folha,
+  body.contrato-impressao .contrato-folha.contrato-parceiro {
+    font-family: Arial, Helvetica, sans-serif !important;
+    font-size: 9pt !important;
+    line-height: 1.5 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body.contrato-impressao .contrato-folha main,
+  body.contrato-impressao .contrato-folha.contrato-parceiro main {
+    font-size: 9pt !important;
+    line-height: 1.5 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body.contrato-impressao .contrato-folha main p,
+  body.contrato-impressao .contrato-folha.contrato-parceiro main p {
+    font-size: 9pt !important;
+    line-height: 1.5 !important;
+    margin: 2px 0 !important;
+    text-align: justify !important;
+  }
+  body.contrato-impressao .contrato-folha main h1 {
+    font-size: 12pt !important;
+    line-height: 1.25 !important;
+    margin: 4px 0 7px !important;
+  }
+  body.contrato-impressao .contrato-folha main h3,
+  body.contrato-impressao .contrato-folha.contrato-parceiro main h3 {
+    font-size: 9pt !important;
+    line-height: 1.25 !important;
+    margin: 5px 0 2px !important;
+    break-after: avoid-page !important;
+    page-break-after: avoid !important;
+  }
+  body.contrato-impressao .contrato-folha .contrato-cabecalho {
+    margin: 0 0 5px !important;
+    padding: 0 0 3px !important;
+  }
+  body.contrato-impressao .contrato-folha footer {
+    margin: 4mm 0 0 !important;
+    padding: 2mm 0 0 !important;
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
+  }
+  body.contrato-impressao .contrato-folha main,
+  body.contrato-impressao .contrato-folha main p,
+  body.contrato-impressao .contrato-folha main h3 {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+    orphans: 2 !important;
+    widows: 2 !important;
+  }
+}
