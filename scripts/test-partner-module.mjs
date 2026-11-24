@@ -143,3 +143,14 @@ test("progresso de aulas de comissão paga não pode ser consultado diretamente 
   assert.match(partnerProgressPolicyMigration, /DROP POLICY IF EXISTS partner_commission_lessons_owner_or_self_select/);
   assert.match(partnerEdge, /lessons_completed: c\.status === "pago" \? null/);
 });
+
+const partnerPolicyConsolidationMigration = read("../supabase/migrations/20261124130000_consolidate_partner_read_policies_indexes.sql");
+
+test("leitura de parceiros usa uma única política e elimina índices redundantes", () => {
+  assert.match(partnerPolicyConsolidationMigration, /DROP POLICY IF EXISTS partners_owner_or_self_select/);
+  assert.match(partnerPolicyConsolidationMigration, /CREATE POLICY partners_owner_or_self_select/);
+  assert.match(partnerPolicyConsolidationMigration, /OR user_id = \(SELECT auth\.uid\(\)\)/);
+  assert.match(partnerPolicyConsolidationMigration, /DROP INDEX IF EXISTS public\.partners_owner_status_idx/);
+  assert.match(partnerPolicyConsolidationMigration, /DROP INDEX IF EXISTS public\.partner_commission_lessons_commission_idx/);
+  assert.match(partnerPolicyConsolidationMigration, /DROP INDEX IF EXISTS public\.partner_message_recipients_partner_idx/);
+});
