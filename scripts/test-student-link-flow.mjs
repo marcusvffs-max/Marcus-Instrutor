@@ -7,6 +7,7 @@ const edge = read("../supabase/functions/admin-manage-instructors/index.ts");
 const migration = read("../supabase/migrations/20261121120000_student_account_link.sql");
 const rules = read("../supabase/functions/_shared/student-link-rules.mjs");
 const claim = read("../claim-student.html");
+const studentPortal = read("../usuario.js");
 const docs = read("../docs/TESTE-CONVITE-VINCULO-ALUNO.md");
 
 test("reserva usa timestamp capturado sem referência fora do escopo", () => {
@@ -81,6 +82,9 @@ test("página de confirmação exige sessão e chama a ação autenticada", () =
   assert.match(claim, /client\.auth\.getSession\(\)/);
   assert.match(claim, /action: "complete_student_link"/);
   assert.match(claim, /window\.location\.replace\("usuario\.html"\)/);
+  assert.match(claim, /const usarSupabaseQa =/);
+  assert.match(claim, /voyjssflroiwdyaacthh\.supabase\.co/);
+  assert.match(studentPortal, /marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839\.vercel\.app/);
 });
 
 test("trigger SQL rejeita reservas vencidas e timestamps futuros", () => {
