@@ -38,6 +38,7 @@
       <div><h1 id="partnerName">Área do Parceiro</h1><p id="partnerEmail">Carregando seus dados…</p></div>
       <div class="partner-top-actions">
         <button id="btnPartnerMessages" class="partner-button secondary partner-header-message" type="button">Mensagens <span id="partnerUpdatesBadge" class="partner-notification-badge" hidden>0</span></button>
+        <button id="btnPartnerPayments" class="partner-button secondary" type="button">Pagamentos <span id="partnerPaymentsBadge" class="partner-notification-badge" hidden>0</span></button>
         <button id="partnerLogout" class="partner-button secondary" type="button">Sair</button>
       </div>
     </header>
@@ -85,6 +86,14 @@
     <section class="partner-card partner-section"><h2>Minhas comissões</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Descrição</th><th>Aluno</th><th>Progresso</th><th>Valor</th><th>Situação</th></tr></thead><tbody id="partnerCommissions"><tr><td colspan="5">Carregando…</td></tr></tbody></table></div></section>
     <section class="partner-card partner-section"><h2>Histórico de pagamentos</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Data</th><th>Forma</th><th>Referência</th><th>Valor</th><th>Confirmação</th></tr></thead><tbody id="partnerPayouts"><tr><td colspan="5">Carregando…</td></tr></tbody></table></div></section>
   </main>
+  <div id="partnerPaymentsModal" class="partner-modal" hidden>
+    <div class="partner-modal-backdrop" data-close-payments-modal></div>
+    <section class="partner-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="partnerPaymentsTitle">
+      <header class="partner-modal-head"><h2 id="partnerPaymentsTitle">Pagamentos aguardando confirmação</h2><button id="partnerPaymentsClose" class="partner-modal-close" type="button" aria-label="Fechar">✕</button></header>
+      <p>Confira os valores enviados pelo administrador e confirme somente depois de identificar o recebimento.</p>
+      <div id="partnerPaymentNotifications"><p>Carregando…</p></div>
+    </section>
+  </div>
   <div id="partnerMessagesModal" class="partner-modal" hidden>
     <div class="partner-modal-backdrop" data-close-messages-modal></div>
     <section class="partner-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="partnerMessagesTitle">
