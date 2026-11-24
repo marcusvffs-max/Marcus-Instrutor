@@ -44,7 +44,6 @@
       renderPartners();
       partnerStudents = Array.isArray(result.students) ? result.students : [];
       renderPartnerStudents();
-      renderMessageRecipients();
       const referrals = Array.isArray(result.referrals) ? result.referrals : [];
       const quotes = Array.isArray(result.quotes) ? result.quotes : [];
       renderReferrals(referrals);
@@ -203,11 +202,12 @@
   async function refreshPaymentPartners() {
     const select = $("selectParceiroPagamento");
     if (!select) return;
+    const previousPartnerId = select.value;
     select.replaceChildren();
     const placeholder = make("option", "", "Selecione um parceiro");
     placeholder.value = ""; select.append(placeholder);
     partners.filter(p => p.status === "aprovado").forEach(p => {
-      const option = make("option", "", p.nome); option.value = p.id; select.append(option);
+      const option = make("option", "", p.nome); option.value = p.id; option.selected = p.id === previousPartnerId; select.append(option);
     });
     await loadAvailableCommissions();
   }
