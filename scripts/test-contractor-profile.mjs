@@ -40,7 +40,7 @@ test("painel administrador carrega o helper antes do gerador de contratos", () =
 
 test("área do instrutor carrega e vincula seus próprios dados", () => {
   const helperPosition = instructorHtml.indexOf("contratante-perfil.js");
-  const instructorScriptPosition = instructorHtml.indexOf('instrutor.js?v=29-linked-student-access');
+  const instructorScriptPosition = instructorHtml.indexOf('src="instrutor.js?v=');
   assert.ok(helperPosition >= 0 && instructorScriptPosition > helperPosition);
   assert.match(instructorJs, /MarcusContractorProfile\.carregar\(state\.supabase, state\.user\.id\)/);
   assert.match(instructorJs, /MarcusContractorProfile\.vincular/);
@@ -56,7 +56,7 @@ test("contrato do instrutor usa a identificação persistida na emissão", () =>
 });
 
 test("service worker atualiza versão e não armazena o helper no cache compartilhado", () => {
-  assert.match(serviceWorker, /marcus-instrutor-v25-instructor-modal-forms/);
+  assert.match(serviceWorker, /const CACHE_NAME = "marcus-instrutor-v\\d+-partner-module/);
   const htmlVersion = instructorHtml.match(/src="instrutor\.js\?v=([^"]+)"/)?.[1];
   const cachedVersion = serviceWorker.match(/"\.\/instrutor\.js\?v=([^"]+)"/)?.[1];
   assert.ok(htmlVersion, "A versão do script do instrutor deve estar declarada no HTML.");
