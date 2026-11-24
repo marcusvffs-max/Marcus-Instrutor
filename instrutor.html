@@ -369,6 +369,25 @@
 
       <section class="panel settings-panel" data-view="cadastro">
         <div class="section-heading">
+          <div><h3>Vincular à Central do Instrutor</h3><p>Conecte esta conta do aplicativo à sua conta de instrutor na Central para sincronizar os períodos de acesso.</p></div>
+        </div>
+        <div class="student-form" id="centralLinkCard">
+          <div class="student-form-grid">
+            <div class="form-full">
+              <label for="codigoVinculoCentral">Código de vinculação (8 dígitos)</label>
+              <input id="codigoVinculoCentral" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="[0-9]{8}" placeholder="00000000" aria-describedby="ajudaVinculoCentral">
+              <small id="ajudaVinculoCentral">Gere o código na tela Assinatura da Central. Ele expira em 10 minutos e só pode ser utilizado uma vez.</small>
+            </div>
+          </div>
+          <div class="student-form-actions">
+            <button id="btnVincularCentral" class="button button-primary" type="button">Vincular minha conta</button>
+            <p id="statusVinculoCentral" class="contract-note" role="status" aria-live="polite">Ainda não foi feita uma vinculação por esta tela.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel settings-panel" data-view="cadastro">
+        <div class="section-heading">
           <div><h3>Meu cadastro</h3><p>Seus dados pessoais e de contato serão utilizados automaticamente nos contratos e no WhatsApp dos seus alunos.</p></div>
         </div>
         <div class="student-form">
