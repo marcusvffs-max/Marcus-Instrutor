@@ -52,6 +52,88 @@ Deno.serve(async (req: Request) => {
       return response({ ok: true, payout: data, message: "Recebimento confirmado." });
     }
 
+    if (body.action === "create_student") {
+      const nome = typeof body.nome === "string" ? body.nome.trim() : "";
+      const telefone = typeof body.telefone === "string" ? body.telefone.trim() : null;
+      const cpf = typeof body.cpf === "string" ? body.cpf.trim() : null;
+      const endereco = typeof body.endereco === "string" ? body.endereco.trim() : null;
+      const categoria = typeof body.categoria === "string" ? body.categoria.trim() : null;
+      if (nome.length < 2 || nome.length > 160 || (telefone && telefone.length > 40) ||
+          (cpf && cpf.length > 20) || (endereco && endereco.length > 300) ||
+          (categoria && !["A","B","AB","C","D","E"].includes(categoria))) {
+        return response({ error: "Confira o nome, telefone, CPF, endereço e categoria do aluno." }, 400);
+      }
+      const { data, error } = await db.from("partner_students").insert({
+        owner_id: partner.owner_id, partner_id: partner.id, nome, telefone, cpf, endereco, categoria,
+        status: "pendente_aprovacao",
+      }).select("id,nome,telefone,cpf,endereco,categoria,status,created_at").single();
+      if (error) throw error;
+      return response({ ok: true, student: data, message: "Aluno enviado ao administrador para aprovação." });
+    }
+
+    if (body.action === "create_quote") {
+      if (!uuid(body.partner_student_id) || !Array.isArray(body.items) ||
+          body.items.length < 1 || body.items.length > 30) {
+        return response({ error: "Selecione um aluno e ao menos um item válido para o orçamento." }, 400);
+      }
+      const { data: referral, error: referralError } = await db.from("partner_students")
+        .select("id,status").eq("id", body.partner_student_id)
+        .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).maybeSingle();
+      if (referralError) throw referralError;
+      if (!referral || referral.status === "reprovado") return response({ error: "Aluno não encontrado ou reprovado." }, 404);
+
+      const normalized = body.items.map((item: any) => ({
+        product_id: uuid(item?.product_id) ? item.product_id : null,
+        quantidade: Number(item?.quantidade),
+      }));
+      if (normalized.some((item: any) => !item.product_id || !Number.isInteger(item.quantidade) || item.quantidade < 1 || item.quantidade > 100)) {
+        return response({ error: "Um ou mais itens do orçamento possuem quantidade inválida." }, 400);
+      }
+      const productIds = [...new Set(normalized.map((item: any) => item.product_id))];
+      const { data: products, error: productsError } = await db.from("products")
+        .select("id,nome,tipo,descricao,preco,quantidade_aulas,quantidade_aulas_min,quantidade_aulas_max,ativo")
+        .eq("owner_id", partner.owner_id).eq("ativo", true).in("id", productIds);
+      if (productsError) throw productsError;
+      const byId = new Map((products ?? []).map((p: any) => [p.id, p]));
+      if (byId.size !== productIds.length) return response({ error: "O orçamento contém produto inexistente ou inativo." }, 400);
+
+      const items = normalized.map((item: any) => {
+        const product: any = byId.get(item.product_id);
+        const price = Number(product.preco || 0);
+        const type = product.tipo === "servico" || product.tipo === "pacote" ||
+          product.quantidade_aulas != null || product.quantidade_aulas_min != null ||
+          product.quantidade_aulas_max != null ||
+          ["bronze","prata","ouro"].includes(String(product.app_product_id || "").toLowerCase()) ||
+          /^pacote |^aula avulsa/i.test(product.nome || "") ? "servico" : "produto";
+        const lessons = type !== "servico" ? 0 :
+          (product.quantidade_aulas_min != null || product.quantidade_aulas_max != null
+            ? item.quantidade
+            : item.quantidade * Math.max(1, Number(product.quantidade_aulas || 1)));
+        return {
+          owner_id: partner.owner_id, product_id: product.id, descricao: product.nome,
+          tipo_item: type, quantidade: item.quantidade, valor_unitario: price,
+          subtotal: Math.round(price * item.quantidade * 100) / 100,
+          aulas_contratadas: lessons,
+        };
+      });
+      const subtotal = items.reduce((sum: number, item: any) => sum + item.subtotal, 0);
+      const observacoes = typeof body.observacoes === "string" ? body.observacoes.trim().slice(0,1000) : null;
+      const { data: quote, error: quoteError } = await db.from("partner_quotes").insert({
+        owner_id: partner.owner_id, partner_id: partner.id,
+        partner_student_id: referral.id, subtotal, desconto: 0, total: subtotal,
+        observacoes, status: "pendente",
+      }).select("id,status,total,created_at").single();
+      if (quoteError) throw quoteError;
+      const { error: itemError } = await db.from("partner_quote_items").insert(
+        items.map((item: any) => ({ ...item, quote_id: quote.id }))
+      );
+      if (itemError) {
+        await db.from("partner_quotes").delete().eq("id", quote.id).eq("owner_id", partner.owner_id);
+        throw itemError;
+      }
+      return response({ ok: true, quote, message: "Orçamento enviado ao administrador para aprovação." });
+    }
+
     if (body.action === "mark_read") {
       if (!uuid(body.recipient_id)) return response({ error: "Mensagem inválida." }, 400);
       const { data, error } = await db.from("partner_message_recipients")
@@ -64,17 +146,23 @@ Deno.serve(async (req: Request) => {
     }
 
     if (body.action !== "overview") return response({ error: "Ação não reconhecida." }, 400);
-    const [studentsResult, commissionsResult, payoutsResult, recipientsResult] = await Promise.all([
+    const [studentsResult, referralsResult, quotesResult, commissionsResult, payoutsResult, recipientsResult, productsResult] = await Promise.all([
       db.from("students").select("id,nome,categoria,status,created_at")
         .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).order("nome"),
+      db.from("partner_students").select("id,nome,telefone,cpf,categoria,status,student_id,created_at")
+        .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).order("created_at", { ascending: false }),
+      db.from("partner_quotes").select("id,partner_student_id,status,total,created_at,observacoes")
+        .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).order("created_at", { ascending: false }),
       db.from("partner_commissions").select("id,student_id,descricao,base_amount,commission_percent,commission_amount,lessons_required,lessons_completed,status,created_at,available_at,paid_at")
         .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).order("created_at", { ascending: false }),
       db.from("partner_payouts").select("id,amount,payment_method,reference,paid_at,pix_key_snapshot,received_at")
         .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).order("paid_at", { ascending: false }),
       db.from("partner_message_recipients").select("id,message_id,read_at,created_at")
         .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).order("created_at", { ascending: false }).limit(100),
+      db.from("products").select("id,nome,tipo,preco,quantidade_aulas,quantidade_aulas_min,quantidade_aulas_max")
+        .eq("owner_id", partner.owner_id).eq("ativo", true).order("nome"),
     ]);
-    const err = studentsResult.error || commissionsResult.error || payoutsResult.error || recipientsResult.error;
+    const err = studentsResult.error || referralsResult.error || quotesResult.error || commissionsResult.error || payoutsResult.error || recipientsResult.error || productsResult.error;
     if (err) throw err;
     const recipients = recipientsResult.data ?? [];
     const messageIds = [...new Set(recipients.map((r: any) => r.message_id))];
@@ -98,6 +186,12 @@ Deno.serve(async (req: Request) => {
       ok: true,
       partner,
       students: studentsResult.data ?? [],
+      referrals: referralsResult.data ?? [],
+      quotes: (quotesResult.data ?? []).map((q: any) => ({
+        ...q,
+        student_name: (referralsResult.data ?? []).find((s: any) => s.id === q.partner_student_id)?.nome ?? "Aluno",
+      })),
+      products: productsResult.data ?? [],
       commissions,
       payouts: payoutsResult.data ?? [],
       messages,
