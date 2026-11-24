@@ -363,9 +363,9 @@ function atualizarPainel() {
               <button
                 type="button"
                 data-realizar-aula="${a.id}"
-                class="primary-button"
+                class="primary-button confirm-lesson-button"
               >
-                Realizada
+                Confirmar aula realizada
               </button>
 
               <button
