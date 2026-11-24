@@ -41,7 +41,7 @@ test("cadastro administrativo do aluno permite associar parceiro", () => {
 });
 
 test("portal do parceiro consulta somente as ações autenticadas do endpoint próprio", () => {
-  assert.match(partnerHtml, /parceiro\.js\?v=partner-portal-4/);
+  assert.match(partnerHtml, /parceiro\.js\?v=partner-portal-5/);
   assert.match(partnerJs, /functions\.invoke\("partner-portal"/);
   for (const action of ["overview", "confirm_receipt", "mark_read"]) {
     assert.ok(partnerJs.includes('"' + action + '"'), "Ação ausente: " + action);
@@ -50,7 +50,7 @@ test("portal do parceiro consulta somente as ações autenticadas do endpoint pr
 });
 
 test("service worker mantém portal disponível e não compartilha script administrativo", () => {
-  assert.match(serviceWorker, /marcus-instrutor-v36-partner-module/);
+  assert.match(serviceWorker, /marcus-instrutor-v37-partner-module/);
   assert.match(serviceWorker, /"\.\/parceiro\.html"/);
   assert.match(serviceWorker, /"\.\/parceiro\.js\?v=partner-portal-3"/);
   assert.match(serviceWorker, /"\/parceiros-admin\.js"/);
