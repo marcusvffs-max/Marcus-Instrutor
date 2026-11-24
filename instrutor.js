@@ -232,7 +232,7 @@
     const input = el("codigoVinculoCentral");
     const button = el("btnVincularCentral");
     const status = el("statusVinculoCentral");
-    const code = String(input?.value || "").replace(/\\D/g, "");
+    const code = String(input?.value || "").replace(/\D/g, "");
     if (code.length !== 8) {
       if (status) status.textContent = "Digite o código completo de 8 dígitos.";
       input?.focus();
@@ -2263,7 +2263,7 @@
     el("formAulasLote").addEventListener("submit", saveBatchLessons);
     el("btnVincularCentral").addEventListener("click", linkInstructorToCentral);
     el("codigoVinculoCentral").addEventListener("input", event => {
-      event.target.value = event.target.value.replace(/\\D/g, "").slice(0, 8);
+      event.target.value = event.target.value.replace(/\D/g, "").slice(0, 8);
     });
     el("btnSalvarConfiguracoesInstrutor").addEventListener("click", saveInstructorSettings);
     el("btnRemoverLogoInstrutor").addEventListener("click", removeInstructorLogo);
