@@ -56,6 +56,12 @@
     partners.forEach(partner => {
       const card = make("article", "partner-admin-card");
       const header = make("div", "partner-admin-card-head");
+      if (partner.status === "aprovado") {
+        const selectLabel = make("label", "partner-recipient-select");
+        const recipient = make("input", ""); recipient.type = "checkbox"; recipient.value = partner.id; recipient.dataset.parceiroSelecionado = "true";
+        selectLabel.append(recipient, document.createTextNode("Selecionar para comunicado"));
+        card.append(selectLabel);
+      }
       const identity = make("div", "");
       identity.append(make("strong", "", partner.nome), make("small", "", partner.email));
       const state = make("span", "partner-status partner-status-" + partner.status, statusLabel(partner.status));
