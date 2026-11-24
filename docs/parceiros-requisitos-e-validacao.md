@@ -69,19 +69,21 @@ Implementado no branch de desenvolvimento:
 - Scripts do parceiro foram excluídos do cache compartilhado do service worker.
 - No módulo Exames, a lista de próximos exames no painel inicial agora é atualizada após carregar os dados.
 
-## Estado da validação
-- Sintaxe dos arquivos JavaScript e scripts inline do HTML conferida sem erros.
-- Revisão estática dos arquivos SQL e Edge Functions realizada; ainda não equivale a execução real do banco nem a compilação Deno.
-- O projeto Supabase de QA associado ao Preview (voyjssflroiwdyaacthh) está INACTIVE. Por isso a migration não foi aplicada e as Edge Functions não foram implantadas; não há como executar testes de integração neste momento.
-- A migration e as funções estão somente no branch; nada foi aplicado ao Supabase oficial.
-- Nenhum merge ou deploy de produção foi feito.
+## Estado da validação (24/11/2026)
+- Sintaxe dos arquivos JavaScript e scripts inline do HTML conferida sem erros na revisão anterior.
+- Migration aplicada com sucesso somente no Supabase QA `voyjssflroiwdyaacthh`; índices para as chaves estrangeiras compostas também foram incluídos na migration do branch.
+- As seis tabelas do módulo estão com RLS habilitado.
+- Edge Functions `admin-manage-partners` e `partner-portal` implantadas no QA, ambas com `verify_jwt=true`.
+- Teste transacional em QA aprovado: comissão de 10% criada para serviço, duas aulas contabilizadas sem duplicação, liberação somente após a segunda aula, recálculo da comissão de R$20 para R$10 após redução do valor líquido, pagamento único e bloqueio da tentativa de pagamento duplicado. Todos os dados de teste foram revertidos com ROLLBACK.
+- Advisor de performance não apontou mais chaves estrangeiras sem índice no módulo Parceiros. Permanecem alertas preexistentes sobre funções SECURITY DEFINER de outros módulos, tabelas de WhatsApp sem políticas diretas (bloqueio intencional) e proteção contra senhas vazadas desativada no projeto QA.
+- A conta administrativa `marcusvffs@gmail.com` já existe no QA com perfil admin; credenciais não foram alteradas nem copiadas da produção.
+- O Preview mais recente da branch estava READY antes desta atualização de documentação; novo Preview será gerado pelo commit desta atualização.
+- Nada foi aplicado ao Supabase oficial. Nenhum merge ou deploy de produção foi feito.
 
 ## Próximas verificações obrigatórias
-1. Reativar o projeto QA quando estiver disponível e confirmar o status ACTIVE_HEALTHY.
-2. Aplicar a migration somente no QA e revisar a execução sem dados reais.
-3. Implantar as duas Edge Functions somente no QA.
-4. Testar convite, aprovação, suspensão, login e isolamento entre dois parceiros.
-5. Testar aluno indicado, vendas de serviços, desconto, devolução, aulas realizadas, liberação e pagamento único de comissão.
-6. Testar exclusão de acesso, mensagens em massa/individuais, leitura e chave PIX.
-7. Testar Exames visualmente e operacionalmente no Preview.
-8. Só depois consolidar a versão para revisão final; publicação depende de autorização separada.
+1. Confirmar o novo Preview READY e validar login com a conta administrativa QA (senha do projeto QA, independente da produção).
+2. Testar convite, aprovação, suspensão, login de parceiro e isolamento entre dois parceiros.
+3. Testar produtos e itens fixos excluídos de comissão, desconto/devolução, vínculo FIFO de aulas e reversão de aula.
+4. Testar cadastro de aluno indicado, mensagens em massa/individuais, leitura, chave PIX e pagamentos.
+5. Testar Exames visualmente e operacionalmente no Preview.
+6. Corrigir qualquer falha encontrada e consolidar para revisão final; publicação depende de autorização separada.
