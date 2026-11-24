@@ -32,7 +32,7 @@ test("persistência sempre filtra e grava pelo owner_id autenticado", () => {
 });
 
 test("painel administrador carrega o helper antes do gerador de contratos", () => {
-  assert.ok(adminHtml.indexOf("contratante-perfil.js") < adminHtml.indexOf("contratos.js?v=contratos31"));
+  assert.ok(adminHtml.indexOf("contratante-perfil.js") < adminHtml.indexOf('contratos.js?v='));
   assert.match(contractsJs, /window\.MarcusContractorProfile/);
   assert.match(contractsJs, /perfil\.vincular/);
   assert.match(adminHtml, /id="btnSalvarDadosContratante"/);
