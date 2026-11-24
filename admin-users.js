@@ -149,7 +149,10 @@
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && !overlay.hidden) closeModal(); });
 
   async function call(action, extra = {}) {
-    const { data, error } = await supabase.functions.invoke("admin-manage-instructors", {
+    const functionName = /^https:\/\/marcusinstrutor-[a-z0-9-]+-marcusvffs-2839\.vercel\.app$/.test(window.location.origin)
+      ? "admin-manage-instructors-preview"
+      : "admin-manage-instructors";
+    const { data, error } = await supabase.functions.invoke(functionName, {
       body: { action, ...extra },
     });
     if (error) {
