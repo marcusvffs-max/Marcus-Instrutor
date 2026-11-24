@@ -5,6 +5,7 @@
   const listEl = $("listaParceirosAdmin");
   let partners = [];
   let client = null;
+  let ownerId = null;
   let initialized = false;
 
   const say = (message, error = false) => {
@@ -129,7 +130,7 @@
     try {
       const { data, error } = await client.from("partner_commissions")
         .select("id,descricao,commission_amount,created_at")
-        .eq("partner_id", select.value).eq("status", "disponivel")
+        .eq("owner_id", ownerId).eq("partner_id", select.value).eq("status", "disponivel")
         .order("created_at", { ascending: true });
       if (error) throw error;
       if (!data?.length) { target.append(make("p", "empty-state", "Nenhuma comissão disponível para pagamento.")); return; }
@@ -211,7 +212,7 @@
     document.head.append(style);
   }
 
-  function init() {
+  async function init() {
     if (initialized) return;
     const trigger = $("btnAtualizarParceiros");
     const invite = $("formNovoParceiro");
@@ -220,6 +221,9 @@
     if (!trigger || !invite || !message || !payout) return;
     client = window.getMarcusSupabase?.();
     if (!client) { say("Cliente Supabase não encontrado.", true); return; }
+    const { data: authData, error: authError } = await client.auth.getUser();
+    if (authError || !authData?.user?.id) { say("Sessão administrativa não encontrada.", true); return; }
+    ownerId = authData.user.id;
     initialized = true;
     installStyles();
     trigger.addEventListener("click", loadPartners);
