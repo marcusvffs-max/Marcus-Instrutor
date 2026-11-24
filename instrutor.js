@@ -1984,7 +1984,7 @@
       '<div class="access-blocked-icon" aria-hidden="true">🔒</div>' +
       '<h1>Acesso temporariamente bloqueado</h1>' +
       '<p>Sua autorização de acesso ainda não foi liberada ou já venceu.</p>' +
-      '<p>Entre em contato com o administrador para solicitar a liberação por mais 31 dias.</p>' +
+      '<p>Entre em contato com o administrador para solicitar a renovação do acesso por mais 30 dias.</p>' +
       '<button id="btnSairAcessoBloqueado" type="button">Sair</button>' +
       '</section></main>';
     el("btnSairAcessoBloqueado").addEventListener("click", signOut);
@@ -1994,16 +1994,42 @@
     const banner = el("avisoValidadeAcesso");
     if (!banner) return;
 
-    const expiresAt = new Date(accessUntil).getTime();
+    let expiresAt = new Date(accessUntil).getTime();
     const maxTimeout = 24 * 60 * 60 * 1000;
     let intervalId = null;
+    let refreshIntervalId = null;
     let expirationTimeoutId = null;
     let blocked = false;
+    let refreshInFlight = false;
 
-    const blockAccess = () => {
-      if (blocked) return;
+    const refreshFromServer = async () => {
+      const { data, error } = await state.supabase.from("profiles")
+        .select("id,nome,role,instructor_access_until").eq("id", state.user.id).maybeSingle();
+      if (error) throw error;
+      if (!data || data.role !== "instrutor") return false;
+      state.profile = data;
+      expiresAt = data.instructor_access_until ? new Date(data.instructor_access_until).getTime() : 0;
+      return expiresAt > Date.now();
+    };
+
+    const blockAccess = async () => {
+      if (blocked || refreshInFlight) return;
+      refreshInFlight = true;
+      try {
+        if (await refreshFromServer()) {
+          update();
+          scheduleExpirationCheck();
+          return;
+        }
+      } catch (error) {
+        console.error("Não foi possível confirmar a validade do acesso:", error);
+      } finally {
+        refreshInFlight = false;
+      }
+      if (expiresAt > Date.now()) return;
       blocked = true;
       if (intervalId !== null) window.clearInterval(intervalId);
+      if (refreshIntervalId !== null) window.clearInterval(refreshIntervalId);
       if (expirationTimeoutId !== null) window.clearTimeout(expirationTimeoutId);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       renderAccessBlocked();
@@ -2013,10 +2039,9 @@
       if (blocked) return;
       const remaining = expiresAt - Date.now();
       if (remaining <= 0) {
-        blockAccess();
+        void blockAccess();
         return;
       }
-
       const days = Math.ceil(remaining / 86400000);
       banner.textContent = "Autorização ativa · faltam " + days +
         (days === 1 ? " dia para o bloqueio automático." : " dias para o bloqueio automático.");
@@ -2026,33 +2051,94 @@
     const scheduleExpirationCheck = () => {
       if (blocked) return;
       if (expirationTimeoutId !== null) window.clearTimeout(expirationTimeoutId);
-
       const remaining = expiresAt - Date.now();
       if (remaining <= 0) {
-        blockAccess();
+        void blockAccess();
         return;
       }
-
-      // Reagenda em etapas de até 24h para não exceder o limite de setTimeout.
       expirationTimeoutId = window.setTimeout(() => {
         update();
-        if (!blocked) scheduleExpirationCheck();
+        if (!blocked && expiresAt > Date.now()) scheduleExpirationCheck();
       }, Math.min(remaining, maxTimeout));
     };
 
-    function handleVisibilityChange() {
-      if (!document.hidden) {
+    const refreshAccess = async () => {
+      if (blocked || refreshInFlight) return;
+      try {
+        await refreshFromServer();
         update();
-        if (!blocked) scheduleExpirationCheck();
+        if (!blocked && expiresAt > Date.now()) scheduleExpirationCheck();
+      } catch (error) {
+        console.error("Falha ao atualizar a validade do acesso:", error);
       }
+    };
+
+    function handleVisibilityChange() {
+      if (!document.hidden) void refreshAccess();
     }
+
+    state.refreshAccessCountdown = newAccessUntil => {
+      expiresAt = newAccessUntil ? new Date(newAccessUntil).getTime() : 0;
+      update();
+      if (!blocked && expiresAt > Date.now()) scheduleExpirationCheck();
+    };
 
     update();
     if (blocked) return;
-
     scheduleExpirationCheck();
     intervalId = window.setInterval(update, 60_000);
+    refreshIntervalId = window.setInterval(() => void refreshAccess(), 60_000);
     document.addEventListener("visibilitychange", handleVisibilityChange);
+  }
+
+  async function linkCentralAccount() {
+    const button = el("btnVincularCentral");
+    const codeInput = el("codigoVinculoCentral");
+    const status = el("statusVinculoCentral");
+    const code = String(codeInput?.value || "").replace(/\D/g, "");
+    if (!/^\d{8}$/.test(code)) {
+      status.textContent = "Informe o código completo de 8 dígitos.";
+      status.style.color = "#a12b2b";
+      codeInput?.focus();
+      return;
+    }
+    button.disabled = true;
+    button.textContent = "Vinculando...";
+    status.textContent = "Validando o código e sincronizando sua validade...";
+    status.style.color = "";
+    try {
+      const { data, error } = await state.supabase.functions.invoke("complete-central-link", { body: { code } });
+      if (error) {
+        let detail = data?.error;
+        if (!detail && typeof error.context?.json === "function") {
+          const body = await error.context.json().catch(() => null);
+          detail = body?.error;
+        }
+        throw new Error(detail || error.message || "Não foi possível concluir o vínculo.");
+      }
+      if (!data?.linked || !data?.access_synced) {
+        throw new Error(data?.error || "O vínculo não foi confirmado com a sincronização de acesso.");
+      }
+      codeInput.value = "";
+      const { data: profile, error: profileError } = await state.supabase.from("profiles")
+        .select("id,nome,role,instructor_access_until").eq("id", state.user.id).maybeSingle();
+      if (profileError) throw profileError;
+      if (!profile || profile.role !== "instrutor") throw new Error("Não foi possível atualizar seu perfil de acesso.");
+      state.profile = profile;
+      if (typeof state.refreshAccessCountdown === "function") {
+        state.refreshAccessCountdown(profile.instructor_access_until);
+      }
+      status.textContent = "Conta vinculada e validade sincronizada com sucesso.";
+      status.style.color = "#16794b";
+      showMessage("Conta Central vinculada com sucesso.", false);
+    } catch (error) {
+      console.error("Falha ao vincular a Central:", error);
+      status.textContent = error.message || "Não foi possível vincular a conta.";
+      status.style.color = "#a12b2b";
+    } finally {
+      button.disabled = false;
+      button.textContent = "Vincular minha conta";
+    }
   }
 
   async function initialize() {
@@ -2218,6 +2304,10 @@
     el("btnCancelarAulasLote").addEventListener("click", resetBatchLessonForm);
     el("formAulasLote").addEventListener("submit", saveBatchLessons);
     el("btnSalvarConfiguracoesInstrutor").addEventListener("click", saveInstructorSettings);
+    el("btnVincularCentral").addEventListener("click", linkCentralAccount);
+    el("codigoVinculoCentral").addEventListener("input", event => {
+      event.target.value = event.target.value.replace(/\D/g, "").slice(0, 8);
+    });
     el("btnRemoverLogoInstrutor").addEventListener("click", removeInstructorLogo);
     el("btnAgendarInicio").addEventListener("click", () => {
       navigateInstructorPage("aulas");
