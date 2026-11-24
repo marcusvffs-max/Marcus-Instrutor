@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS public.partners (
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT partners_id_owner_key UNIQUE (id, owner_id)
 );
+ALTER TABLE public.partners ALTER COLUMN commission_percent SET DEFAULT 5;
+ALTER TABLE public.partners ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 CREATE UNIQUE INDEX IF NOT EXISTS partners_owner_email_lower_uidx
   ON public.partners(owner_id, lower(email));
 CREATE INDEX IF NOT EXISTS partners_owner_status_created_idx
@@ -343,17 +345,17 @@ BEGIN
   )
   ON CONFLICT (sale_item_id) DO UPDATE SET
     base_amount = EXCLUDED.base_amount,
-    commission_percent = public.partner_commissions.commission_percent,
+    commission_percent = partner_commissions.commission_percent,
     commission_amount = round(EXCLUDED.base_amount * public.partner_commissions.commission_percent / 100, 2),
     lessons_required = EXCLUDED.lessons_required,
     status = CASE
-      WHEN public.partner_commissions.status IN ('pago','cancelado') THEN public.partner_commissions.status
+      WHEN partner_commissions.status IN ('pago','cancelado') THEN public.partner_commissions.status
       WHEN EXCLUDED.status = 'cancelado' THEN 'cancelado'
-      WHEN public.partner_commissions.lessons_completed >= EXCLUDED.lessons_required THEN 'disponivel'
+      WHEN partner_commissions.lessons_completed >= EXCLUDED.lessons_required THEN 'disponivel'
       ELSE 'pendente'
     END,
     available_at = CASE
-      WHEN public.partner_commissions.status IN ('pago','cancelado') THEN public.partner_commissions.available_at
+      WHEN public.partner_commissions.status IN ('pago','cancelado') THEN partner_commissions.available_at
       WHEN EXCLUDED.status = 'cancelado' THEN NULL
       WHEN public.partner_commissions.lessons_completed >= EXCLUDED.lessons_required
         THEN coalesce(public.partner_commissions.available_at, now())
@@ -404,6 +406,12 @@ AS $function$
 DECLARE
   v_commission public.partner_commissions%rowtype;
 BEGIN
+  IF TG_OP = 'DELETE' THEN
+    DELETE FROM public.partner_commission_lessons
+    WHERE lesson_id = OLD.id AND owner_id = OLD.owner_id;
+    RETURN OLD;
+  END IF;
+
   IF TG_OP = 'UPDATE' AND OLD.status = 'realizada'
      AND (NEW.status IS DISTINCT FROM OLD.status
        OR NEW.student_id IS DISTINCT FROM OLD.student_id
@@ -444,7 +452,7 @@ REVOKE ALL ON FUNCTION private.allocate_partner_commission_lesson() FROM PUBLIC,
 DROP TRIGGER IF EXISTS trg_allocate_partner_commission_lesson ON public.lessons;
 DROP TRIGGER IF EXISTS sync_partner_commission_lesson_progress ON public.lessons;
 CREATE TRIGGER trg_allocate_partner_commission_lesson
-AFTER INSERT OR UPDATE OF status, student_id, owner_id, data_aula
+AFTER INSERT OR UPDATE OF status, student_id, owner_id, data_aula OR DELETE
 ON public.lessons
 FOR EACH ROW EXECUTE FUNCTION private.allocate_partner_commission_lesson();
 
