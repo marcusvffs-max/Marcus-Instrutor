@@ -39,10 +39,75 @@
       closePartnerForm();
       closePartnerMessages();
       closePartnerPayments();
+      closePartnerListModals();
     }
   });
   $("btnOpenStudentForm")?.addEventListener("click", () => openPartnerForm("partnerStudentForm", "Cadastrar aluno indicado"));
   $("btnOpenQuoteForm")?.addEventListener("click", () => openPartnerForm("partnerQuoteForm", "Montar orçamento"));
+  const partnerListModalIds = [];
+  function installPartnerListPopups() {
+    const configs = [
+      ["partnerReferrals", "Minhas indicações", "Abrir indicações"],
+      ["partnerQuotes", "Meus orçamentos", "Abrir orçamentos"],
+      ["partnerStudents", "Alunos aprovados", "Abrir alunos aprovados"],
+      ["partnerCommissions", "Minhas comissões", "Abrir comissões"],
+      ["partnerPayouts", "Histórico de pagamentos", "Abrir histórico de pagamentos"]
+    ];
+    configs.forEach(([tbodyId, title, buttonText]) => {
+      const tbody = $(tbodyId);
+      const section = tbody?.closest(".partner-section");
+      const scroll = tbody?.closest(".partner-scroll");
+      if (!tbody || !section || !scroll || section.dataset.popupReady === "true") return;
+      section.dataset.popupReady = "true";
+      const modal = document.createElement("div");
+      modal.className = "partner-modal";
+      modal.id = "partnerListModal_" + tbodyId;
+      modal.hidden = true;
+      const backdrop = document.createElement("div");
+      backdrop.className = "partner-modal-backdrop";
+      const dialog = document.createElement("section");
+      dialog.className = "partner-modal-dialog";
+      dialog.setAttribute("role", "dialog");
+      dialog.setAttribute("aria-modal", "true");
+      const head = document.createElement("header");
+      head.className = "partner-modal-head";
+      const heading = document.createElement("h2");
+      heading.textContent = title;
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "partner-modal-close";
+      close.textContent = "✕";
+      close.setAttribute("aria-label", "Fechar");
+      const closeModal = () => {
+        modal.hidden = true;
+        if (!activePartnerForm && $("partnerMessagesModal").hidden && $("partnerPaymentsModal").hidden &&
+            partnerListModalIds.every(id => $(id)?.hidden)) document.body.style.overflow = "";
+      };
+      close.addEventListener("click", closeModal);
+      backdrop.addEventListener("click", closeModal);
+      head.append(heading, close);
+      dialog.append(head, scroll);
+      modal.append(backdrop, dialog);
+      document.body.append(modal);
+      partnerListModalIds.push(modal.id);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "partner-button secondary";
+      button.textContent = buttonText;
+      button.addEventListener("click", () => {
+        partnerListModalIds.forEach(id => { if (id !== modal.id && $(id)) $(id).hidden = true; });
+        modal.hidden = false;
+        document.body.style.overflow = "hidden";
+      });
+      section.append(button);
+    });
+  }
+  function closePartnerListModals() {
+    partnerListModalIds.forEach(id => { if ($(id)) $(id).hidden = true; });
+    if (!activePartnerForm && $("partnerMessagesModal").hidden && $("partnerPaymentsModal").hidden) {
+      document.body.style.overflow = "";
+    }
+  }
   function closePartnerMessages() {
     $("partnerMessagesModal").hidden = true;
     if (!activePartnerForm && $("partnerPaymentsModal").hidden) document.body.style.overflow = "";
@@ -74,6 +139,7 @@
   if (sessionError || !sessionData.session) { location.replace("index.html"); return; }
   const { data: profile, error: profileError } = await client.from("profiles").select("role").eq("id", sessionData.session.user.id).maybeSingle();
   if (profileError || profile?.role !== "parceiro") { await client.auth.signOut({ scope: "local" }); location.replace("index.html"); return; }
+  installPartnerListPopups();
 
   async function invoke(action, payload = {}) {
     const { data, error } = await client.functions.invoke("partner-portal", { body: { action, ...payload } });
