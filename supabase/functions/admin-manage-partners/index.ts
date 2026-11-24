@@ -50,11 +50,98 @@ Deno.serve(async (req: Request) => {
     }
 
     if (body.action === "list") {
-      const { data, error } = await db.from("partners")
-        .select("id,nome,email,telefone,cpf_cnpj,endereco,pix_key,commission_percent,status,approved_at,rejected_at,created_at,updated_at,user_id")
-        .eq("owner_id", ownerId).order("created_at", { ascending: false });
+      const [partnersResult, referralsResult, quotesResult] = await Promise.all([
+        db.from("partners")
+          .select("id,nome,email,telefone,cpf_cnpj,endereco,pix_key,commission_percent,status,approved_at,rejected_at,created_at,updated_at,user_id")
+          .eq("owner_id", ownerId).order("created_at", { ascending: false }),
+        db.from("partner_students")
+          .select("id,partner_id,nome,telefone,cpf,endereco,categoria,status,created_at")
+          .eq("owner_id", ownerId).eq("status", "pendente_aprovacao").order("created_at", { ascending: false }),
+        db.from("partner_quotes")
+          .select("id,partner_id,partner_student_id,status,subtotal,total,observacoes,created_at")
+          .eq("owner_id", ownerId).eq("status", "pendente").order("created_at", { ascending: false }),
+      ]);
+      const error = partnersResult.error || referralsResult.error || quotesResult.error;
       if (error) throw error;
-      return response({ ok: true, partners: data ?? [] });
+      const partnerNames = new Map((partnersResult.data ?? []).map((p: any) => [p.id, p.nome]));
+      const referralNames = new Map((referralsResult.data ?? []).map((s: any) => [s.id, s.nome]));
+      const referrals = (referralsResult.data ?? []).map((s: any) => ({
+        ...s, partner_name: partnerNames.get(s.partner_id) ?? "Parceiro",
+      }));
+      const quotes = (quotesResult.data ?? []).map((q: any) => ({
+        ...q, partner_name: partnerNames.get(q.partner_id) ?? "Parceiro",
+        student_name: referralNames.get(q.partner_student_id) ?? "Aluno",
+      }));
+      return response({ ok: true, partners: partnersResult.data ?? [], referrals, quotes });
+    }
+
+    if (body.action === "review_student") {
+      if (!uuid(body.partner_student_id) || !["aprovado","reprovado"].includes(body.status)) {
+        return response({ error: "Aluno ou decisão inválidos." }, 400);
+      }
+      const { data: referral, error: referralError } = await db.from("partner_students")
+        .select("id,partner_id,nome,telefone,cpf,endereco,categoria,status,student_id")
+        .eq("id", body.partner_student_id).eq("owner_id", ownerId).maybeSingle();
+      if (referralError) throw referralError;
+      if (!referral || referral.status !== "pendente_aprovacao") return response({ error: "Indicação não encontrada ou já analisada." }, 409);
+      if (body.status === "reprovado") {
+        const { data, error } = await db.from("partner_students")
+          .update({ status: "reprovado", reviewed_at: new Date().toISOString(), reviewed_by: ownerId, updated_at: new Date().toISOString() })
+          .eq("id", referral.id).eq("owner_id", ownerId).eq("status", "pendente_aprovacao")
+          .select("id,status").maybeSingle();
+        if (error) throw error;
+        if (!data) return response({ error: "A indicação já foi analisada." }, 409);
+        return response({ ok: true, student: data, message: "Indicação reprovada." });
+      }
+      const { data: partner, error: partnerError } = await db.from("partners")
+        .select("id,status").eq("id", referral.partner_id).eq("owner_id", ownerId).maybeSingle();
+      if (partnerError) throw partnerError;
+      if (!partner || partner.status !== "aprovado") return response({ error: "Aprove o parceiro antes de aceitar indicações." }, 409);
+      const { data: student, error: studentError } = await db.from("students").insert({
+        owner_id: ownerId, partner_id: referral.partner_id,
+        nome: referral.nome, telefone: referral.telefone, cpf: referral.cpf,
+        endereco: referral.endereco, categoria: referral.categoria,
+        status: "em_aberto", aulas_compradas: 0, aulas_restantes: 0,
+        alugueis_comprados: 0, alugueis_disponiveis: 0,
+      }).select("id,nome").single();
+      if (studentError) throw studentError;
+      const { data: updated, error: updateError } = await db.from("partner_students")
+        .update({ status: "aprovado", student_id: student.id, reviewed_at: new Date().toISOString(), reviewed_by: ownerId, updated_at: new Date().toISOString() })
+        .eq("id", referral.id).eq("owner_id", ownerId).eq("status", "pendente_aprovacao")
+        .select("id,status,student_id").maybeSingle();
+      if (updateError || !updated) {
+        await db.from("students").delete().eq("id", student.id).eq("owner_id", ownerId);
+        if (updateError) throw updateError;
+        return response({ error: "A indicação foi analisada em outra sessão." }, 409);
+      }
+      return response({ ok: true, student: updated, message: "Dados cadastrais transferidos para o cadastro de alunos. Nenhuma venda ou movimentação financeira foi criada." });
+    }
+
+    if (body.action === "review_quote") {
+      if (!uuid(body.quote_id) || !["aprovado","reprovado"].includes(body.status)) {
+        return response({ error: "Orçamento ou decisão inválidos." }, 400);
+      }
+      const { data: quote, error: quoteError } = await db.from("partner_quotes")
+        .select("id,partner_student_id,status").eq("id", body.quote_id).eq("owner_id", ownerId).maybeSingle();
+      if (quoteError) throw quoteError;
+      if (!quote || quote.status !== "pendente") return response({ error: "Orçamento não encontrado ou já analisado." }, 409);
+      if (body.status === "aprovado") {
+        const { data: referral, error: referralError } = await db.from("partner_students")
+          .select("id,status,student_id").eq("id", quote.partner_student_id).eq("owner_id", ownerId).maybeSingle();
+        if (referralError) throw referralError;
+        if (!referral || referral.status !== "aprovado" || !referral.student_id) {
+          return response({ error: "Aprove primeiro o cadastro do aluno. O orçamento não cria venda nem lançamento financeiro." }, 409);
+        }
+      }
+      const { data, error } = await db.from("partner_quotes")
+        .update({ status: body.status, reviewed_at: new Date().toISOString(), reviewed_by: ownerId, updated_at: new Date().toISOString() })
+        .eq("id", quote.id).eq("owner_id", ownerId).eq("status", "pendente")
+        .select("id,status").maybeSingle();
+      if (error) throw error;
+      if (!data) return response({ error: "O orçamento já foi analisado." }, 409);
+      return response({ ok: true, quote: data, message: body.status === "aprovado"
+        ? "Orçamento aprovado. Registre a venda e o financeiro manualmente no cadastro do aluno."
+        : "Orçamento reprovado." });
     }
 
     if (body.action === "invite") {
