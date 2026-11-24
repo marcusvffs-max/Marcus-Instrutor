@@ -18,7 +18,7 @@ test("login encaminha perfil parceiro para a área exclusiva", () => {
 });
 
 test("painel admin carrega gestão de parceiros somente após autenticação", () => {
-  assert.match(adminHtml, /await carregarScript\("parceiros-admin\.js\?v=partner-admin-3"\)/);
+  assert.match(adminHtml, /await carregarScript\("parceiros-admin\.js\?v=partner-admin-5"\)/);
   assert.match(adminHtml, /id="page-parceiros"/);
   assert.match(adminHtml, /data-page="parceiros"/);
 });
@@ -154,4 +154,23 @@ test("leitura de parceiros usa uma única política e elimina índices redundant
   assert.match(partnerPolicyConsolidationMigration, /DROP INDEX IF EXISTS public\.partners_owner_status_idx/);
   assert.match(partnerPolicyConsolidationMigration, /DROP INDEX IF EXISTS public\.partner_commission_lessons_commission_idx/);
   assert.match(partnerPolicyConsolidationMigration, /DROP INDEX IF EXISTS public\.partner_message_recipients_partner_idx/);
+});
+
+test("admin Parceiros usa pop-ups para formulários, lista alunos e mostra comissões disponíveis", () => {
+  assert.match(adminHtml, /id="modalMensagemParceiros"/);
+  assert.match(adminHtml, /id="modalHistoricoMensagensParceiros"/);
+  assert.match(adminHtml, /id="modalPagamentoParceiro"/);
+  assert.match(adminHtml, /id="modalGerenciarParceiro"/);
+  assert.match(adminJs, /message_history/);
+  assert.match(adminJs, /COMISSÃO DISPONÍVEL/);
+  assert.match(adminJs, /listaAlunosParceiros/);
+  assert.match(adminEdge, /body\.action === "message_history"/);
+  assert.match(adminEdge, /available_amount/);
+  assert.match(adminEdge, /partner_name: partnerNames\.get\(s\.partner_id\)/);
+});
+
+test("texto do botão de aula realizada na tela inicial foi simplificado", () => {
+  const adminMain = read("../script.js");
+  assert.doesNotMatch(adminMain, /Confirmar aula realizada/);
+  assert.match(adminMain, /data-realizar-aula/);
 });
