@@ -34,8 +34,9 @@ test("admin usa Edge Function para convidar, aprovar, comunicar e pagar parceiro
 test("cadastro administrativo do aluno permite associar parceiro", () => {
   assert.match(studentJs, /name="partner_id" id="alunoParceiro"/);
   assert.match(studentJs, /from\("partners"\)\.select\("id,nome,status"\)/);
-  assert.match(studentJs, /partner_id: String\(dados\.partner_id \|\| ""\)\.trim\(\) \|\| null/);
+  assert.match(studentJs, /payload\.partner_id = String\(dados\.partner_id \|\| ""\)\.trim\(\) \|\| null/);
   assert.match(studentJs, /partner_id: salvo\.partner_id \|\| null/);
+  assert.match(studentJs, /dataset\.partnerColumnAvailable === "true"/);
   assert.equal((studentJs.match(/partner_id: a\.partner_id \|\| null/g) || []).length, 2);
 });
 
