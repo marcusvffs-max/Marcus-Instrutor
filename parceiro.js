@@ -37,6 +37,9 @@
   document.addEventListener("keydown", event => { if (event.key === "Escape") closePartnerForm(); });
   $("btnOpenStudentForm")?.addEventListener("click", () => openPartnerForm("partnerStudentForm", "Cadastrar aluno indicado"));
   $("btnOpenQuoteForm")?.addEventListener("click", () => openPartnerForm("partnerQuoteForm", "Montar orçamento"));
+  $("btnPartnerMessages")?.addEventListener("click", () => {
+    $("partnerMessagesSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   if (!client) { say("Não foi possível carregar a autenticação.", true); return; }
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
   if (sessionError || !sessionData.session) { location.replace("index.html"); return; }
