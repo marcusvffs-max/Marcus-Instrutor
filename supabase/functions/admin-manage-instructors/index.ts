@@ -4,10 +4,11 @@ import nodemailer from "npm:nodemailer@^9";
 import { getCompletionFallbackOutcome, getReservationStatus } from "../_shared/student-link-rules.mjs";
 
 const APP_ORIGIN = "https://marcusinstrutor.vercel.app";
-const ALLOWED_ORIGINS = new Set([
-  APP_ORIGIN,
-  "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app",
-]);
+const PREVIEW_ORIGIN_PATTERN = /^https:\/\/marcusinstrutor-[a-z0-9-]+-marcusvffs-2839\.vercel\.app$/;
+
+function isAllowedOrigin(origin: string) {
+  return origin === APP_ORIGIN || PREVIEW_ORIGIN_PATTERN.test(origin);
+}
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -35,10 +36,10 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return response({ error: "Método não permitido." }, 405);
 
   const origin = req.headers.get("origin");
-  if (origin && !ALLOWED_ORIGINS.has(origin)) {
+  if (origin && !isAllowedOrigin(origin)) {
     return new Response("Origem não autorizada.", { status: 403, headers: corsHeaders });
   }
-  const requestAppUrl = (origin && /^https:\/\/marcusinstrutor-[a-z0-9-]+-marcusvffs-2839\.vercel\.app$/.test(origin) ? origin : APP_ORIGIN) + "/";
+  const requestAppUrl = (origin && PREVIEW_ORIGIN_PATTERN.test(origin) ? origin : APP_ORIGIN) + "/";
 
   try {
     const authorization = req.headers.get("Authorization") ?? "";
