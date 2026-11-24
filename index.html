@@ -431,6 +431,19 @@
             <button class="primary-button" type="submit">Enviar comunicado</button>
           </form>
         </div>
+        <div class="panel partner-invite-launcher">
+          <div><h3>Relatório de pagamentos</h3><p>Consulte os pagamentos registrados pelo administrador e a confirmação de recebimento de cada parceiro.</p></div>
+          <button id="btnRelatorioPagamentosParceiros" class="primary-button" type="button">Abrir relatório</button>
+        </div>
+        <div id="modalRelatorioPagamentosParceiros" class="partner-modal" hidden>
+          <div class="partner-modal-backdrop" data-close-report></div>
+          <section class="partner-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="tituloRelatorioPagamentosParceiros">
+            <div class="partner-modal-head"><h3 id="tituloRelatorioPagamentosParceiros">Relatório de pagamentos aos parceiros</h3><button id="btnFecharRelatorioPagamentosParceiros" class="secondary-button" type="button" aria-label="Fechar">✕</button></div>
+            <p id="resumoRelatorioPagamentosParceiros" class="form-hint"></p>
+            <div id="listaRelatorioPagamentosParceiros" class="list-container"><p class="empty-state">Carregando pagamentos…</p></div>
+            <div class="form-actions"><button id="btnImprimirRelatorioPagamentosParceiros" class="secondary-button" type="button">Imprimir relatório</button></div>
+          </section>
+        </div>
         <div class="panel">
           <h3>Registrar pagamento de comissão</h3>
           <form id="formPagamentoParceiro">
