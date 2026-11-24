@@ -288,11 +288,8 @@
     target.replaceChildren(make("p", "empty-state", "Carregando pagamentos…"));
     summary.textContent = "";
     try {
-      const { data, error } = await client.from("partner_payouts")
-        .select("id,partner_id,amount,payment_method,reference,paid_at,received_at")
-        .eq("owner_id", ownerId).order("paid_at", { ascending: false });
-      if (error) throw error;
-      const rows = data || [];
+      const result = await invoke("payout_report");
+      const rows = Array.isArray(result.payouts) ? result.payouts : [];
       const total = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
       const confirmed = rows.filter(row => !!row.received_at).length;
       summary.textContent = rows.length + " pagamento(s) · Total " + money(total) +
@@ -310,10 +307,9 @@
       thead.append(header);
       const tbody = make("tbody");
       rows.forEach(row => {
-        const partner = partners.find(item => item.id === row.partner_id);
         const tr = make("tr");
         [
-          partner?.nome || "Parceiro",
+          row.partner_name || "Parceiro",
           row.paid_at ? new Date(row.paid_at).toLocaleString("pt-BR") : "—",
           ({pix:"PIX",dinheiro:"Dinheiro",transferencia:"Transferência",outro:"Outro"})[row.payment_method] || row.payment_method || "—",
           row.reference || "—",
