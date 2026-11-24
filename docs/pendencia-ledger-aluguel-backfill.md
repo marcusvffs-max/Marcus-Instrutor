@@ -1,30 +1,32 @@
-# Pendência: backfill do ledger de aluguéis
+# Backfill do ledger de aluguéis
 
 Data: 24/11/2026  
 Branch: `feature/relatorios-instrutor-app`
 
-## Achado
+## Correção versionada
 
-A migration `20261122213000_student_rental_credit_ledger.sql` cria `student_rental_credits` e um trigger para novos itens de venda de aluguel. Ela não contém um `INSERT ... SELECT` de backfill para itens de aluguel já vendidos antes da migration.
+Foi removido da migration de criação do ledger o bloqueio que impedia a instalação quando já existiam vendas ou exames históricos. A conciliação agora acontece em migration própria:
 
-A mesma migration substitui `record_student_practical_exam_result` para exigir um crédito individual disponível antes de concluir um exame. Portanto, uma venda antiga sem linha em `student_rental_credits` pode ter saldo agregado em `students.alugueis_disponiveis`, mas não terá crédito que a RPC consiga consumir. O histórico de exames anteriores também pode ficar sem `rental_credit_id`.
+`supabase/migrations/20261124090000_backfill_student_rental_credit_ledger.sql`
 
-## Proteção adicionada no frontend
+Ela:
+1. cria créditos para cada item de aluguel de venda confirmada, mantendo a quantidade original e as devoluções já registradas;
+2. vincula exames históricos realizados e ainda sem crédito à compra elegível mais antiga (FIFO);
+3. não debita novamente `students.alugueis_disponiveis`, pois o fluxo histórico já fez esse débito;
+4. interrompe e reverte a migration se houver quantidades inválidas, exame sem compra elegível ou divergência entre o ledger e o saldo agregado do aluno.
 
-- Administrador e instrutor agora leem apenas `sale_item_id, quantity_purchased, quantity_refunded, quantity_consumed`; a política RLS restringe as linhas à própria conta.
-- Quando a tabela ainda não existe, o app mantém o fallback legado.
-- Quando a tabela existe, mas uma compra não possui crédito individual, a interface considera zero disponível para aquela compra, evitando oferecer devolução que a RPC recusará.
+A migration é idempotente para créditos já existentes, usando `ON CONFLICT (sale_item_id) DO NOTHING`.
+
+## Proteção no aplicativo
+
+- Administrador e instrutor leem apenas as colunas necessárias do ledger, sob política RLS limitada à própria conta.
+- Se a tabela ainda não existir, o frontend mantém compatibilidade com o comportamento legado.
+- Se a tabela existir, mas uma compra não tiver crédito individual, a interface não oferece quantidade para devolução daquela compra.
 
 ## Verificação QA
 
-Consulta somente de leitura no projeto QA retornou zero vendas confirmadas de aluguel, zero linhas de crédito, zero exames consumidos sem vínculo de crédito e zero exames agendados vencidos. O ambiente QA está sem dados operacionais para validar backfill.
+A consulta somente de leitura anterior retornou zero vendas confirmadas de aluguel, zero créditos, zero exames consumidos sem vínculo e zero exames agendados vencidos. O ambiente QA está sem dados operacionais para validar a conciliação com registros reais.
 
-## Bloqueio antes de produção
+## Próxima validação
 
-É necessário criar uma migration de backfill que:
-1. crie um crédito para cada item de aluguel confirmado e vinculado a aluno;
-2. distribua os exames já consumidos entre compras elegíveis em ordem FIFO, respeitando data da venda, data do exame e quantidades devolvidas;
-3. preencha `student_practical_exams.rental_credit_id` nos exames históricos já realizados;
-4. valide que `quantity_refunded + quantity_consumed <= quantity_purchased` e que a soma dos créditos disponíveis seja coerente com `students.alugueis_disponiveis`.
-
-Não foi executada nenhuma escrita no banco, nenhum pagamento e nenhuma implantação. A migration ainda precisa ser criada pelo fluxo local do Supabase CLI e revisada antes de aplicar.
+A migration foi versionada na branch, mas não foi aplicada ao QA ou à produção. Antes de aplicar, revisar o SQL e executar primeiro em uma cópia de dados representativa; em seguida validar as somas por aluno e os exames vinculados. Nenhum dado foi alterado por este trabalho.
