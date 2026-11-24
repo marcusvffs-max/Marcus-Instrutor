@@ -451,6 +451,9 @@ function abrirFormularioAluno(id = null) {
       <label>Endereço</label>
       <input name="endereco" value="${escapar(aluno.endereco)}">
 
+      <label>Parceiro indicador</label>
+      <select name="partner_id" id="alunoParceiro"><option value="">Sem parceiro</option></select>
+
       <label>Categoria em andamento</label>
       <select name="categoria">
         ${opcoes(["A", "B", "AB"], aluno.categoria || "B")}
@@ -475,6 +478,27 @@ function abrirFormularioAluno(id = null) {
   `);
 
   document.getElementById("formAluno").onsubmit = salvarAluno;
+  carregarParceirosNoFormulario(aluno.partner_id || null);
+}
+
+async function carregarParceirosNoFormulario(partnerId = null) {
+  const select = document.getElementById("alunoParceiro");
+  const cliente = window.getMarcusSupabase?.();
+  if (!select || !cliente || !adminSupabaseUserId) return;
+  try {
+    const { data, error } = await cliente.from("partners").select("id,nome,status")
+      .eq("owner_id", adminSupabaseUserId).order("nome");
+    if (error) throw error;
+    select.replaceChildren(new Option("Sem parceiro", ""));
+    (data || []).forEach(partner => {
+      const option = new Option(partner.nome + (partner.status === "aprovado" ? "" : " (" + partner.status + ")"), partner.id);
+      select.append(option);
+    });
+    select.value = partnerId || "";
+  } catch (error) {
+    console.error("Não foi possível carregar os parceiros para o cadastro do aluno:", error);
+    select.replaceChildren(new Option("Sem parceiro (lista indisponível)", ""));
+  }
 }
 
 
@@ -530,6 +554,7 @@ async function salvarAluno(evento) {
     telefone: dados.telefone?.trim() || null,
     cpf: dados.cpf?.trim() || null,
     endereco: dados.endereco?.trim() || null,
+    partner_id: String(dados.partner_id || "").trim() || null,
     categoria: dados.categoria || "B",
     status: ({
       "Em aberto": "em_aberto",
@@ -3517,7 +3542,8 @@ async function carregarDadosAdminSupabase() {
     alugueisComprados: Number(a.alugueis_comprados || 0),
     alugueisDisponiveis: Number(a.alugueis_disponiveis || 0),
     user_id: a.user_id || null,
-    invited_at: a.invited_at || null
+    invited_at: a.invited_at || null,
+    partner_id: a.partner_id || null
   }));
 
   const temDadosNuvem = tabelas.some(tabela => dados[tabela].length > 0);
@@ -3544,7 +3570,8 @@ async function carregarDadosAdminSupabase() {
     alugueisComprados: Number(a.alugueis_comprados || 0),
     alugueisDisponiveis: Number(a.alugueis_disponiveis || 0),
     user_id: a.user_id || null,
-    invited_at: a.invited_at || null
+    invited_at: a.invited_at || null,
+    partner_id: a.partner_id || null
   }));
 
   const veiculos = dados.vehicles.map(v => ({
