@@ -68,9 +68,19 @@ Deno.serve(async (req: Request) => {
       const referrals = (referralsResult.data ?? []).map((s: any) => ({
         ...s, partner_name: partnerNames.get(s.partner_id) ?? "Parceiro",
       }));
+      const quoteIds = (quotesResult.data ?? []).map((q: any) => q.id);
+      let quoteItems: any[] = [];
+      if (quoteIds.length) {
+        const { data, error } = await db.from("partner_quote_items")
+          .select("id,quote_id,descricao,tipo_item,quantidade,valor_unitario,subtotal,aulas_contratadas")
+          .eq("owner_id", ownerId).in("quote_id", quoteIds);
+        if (error) throw error;
+        quoteItems = data ?? [];
+      }
       const quotes = (quotesResult.data ?? []).map((q: any) => ({
         ...q, partner_name: partnerNames.get(q.partner_id) ?? "Parceiro",
         student_name: referralNames.get(q.partner_student_id) ?? "Aluno",
+        items: quoteItems.filter((item: any) => item.quote_id === q.id),
       }));
       return response({ ok: true, partners: partnersResult.data ?? [], referrals, quotes });
     }
