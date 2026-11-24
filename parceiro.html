@@ -13,6 +13,7 @@
     .partner-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:18px;box-shadow:0 5px 20px #0f172a08}
     .partner-card small{display:block;color:#64748b;margin-bottom:8px}.partner-card strong{font-size:1.35rem}
     .partner-section{margin:18px 0}.partner-section h2{font-size:1.1rem;margin:0 0 12px}
+    .partner-modal[hidden]{display:none}.partner-modal{position:fixed;inset:0;z-index:12000;display:flex;align-items:center;justify-content:center;padding:16px}.partner-modal-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.68)}.partner-modal-dialog{position:relative;z-index:1;width:min(100%,680px);max-height:90vh;overflow:auto;background:#fff;color:#172033;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.28)}.partner-modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.partner-modal-close{border:0;border-radius:9px;padding:8px 12px;background:#e2e8f0;color:#172033}.partner-notification-badge{display:inline-flex;min-width:22px;height:22px;align-items:center;justify-content:center;border-radius:99px;background:#dc2626;color:#fff;padding:0 6px;font-size:12px;font-weight:800}.partner-notification-badge[hidden]{display:none}
     .partner-table{width:100%;border-collapse:collapse}.partner-table th,.partner-table td{text-align:left;padding:11px 9px;border-bottom:1px solid #e2e8f0;font-size:.92rem}
     .partner-table th{color:#64748b;font-size:.78rem;text-transform:uppercase}.partner-scroll{overflow:auto}
     .partner-message{border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin:10px 0}.partner-message h3{margin:0 0 6px;font-size:1rem}.partner-message p{white-space:pre-wrap;margin:0 0 10px}
@@ -41,9 +42,9 @@
     </section>
     <section class="partner-card partner-section"><h2>Chave PIX</h2><p>Esta chave é cadastrada e atualizada pelo administrador.</p><input id="partnerPixKey" maxlength="120" aria-label="Chave PIX cadastrada" readonly></section>
     <section class="partner-card partner-section">
-      <h2>Cadastrar aluno indicado</h2>
+      <h2>Cadastrar aluno indicado</h2><button id="btnOpenStudentForm" class="partner-button" type="button">Abrir formulário</button><span id="partnerUpdatesBadge" class="partner-notification-badge" hidden>0</span>
       <p>O cadastro será enviado ao administrador. O aluno só entrará na base principal após aprovação.</p>
-      <form id="partnerStudentForm" class="partner-pix">
+      <form id="partnerStudentForm" class="partner-pix" hidden>
         <input id="referralName" required maxlength="160" placeholder="Nome completo" aria-label="Nome completo">
         <input id="referralPhone" maxlength="40" placeholder="Telefone" aria-label="Telefone">
         <input id="referralCpf" maxlength="20" placeholder="CPF" aria-label="CPF">
@@ -57,9 +58,9 @@
       <div class="partner-scroll"><table class="partner-table"><thead><tr><th>Aluno</th><th>Categoria</th><th>Situação</th><th>Data</th></tr></thead><tbody id="partnerReferrals"><tr><td colspan="4">Carregando…</td></tr></tbody></table></div>
     </section>
     <section class="partner-card partner-section">
-      <h2>Montar orçamento</h2>
+      <h2>Montar orçamento</h2><button id="btnOpenQuoteForm" class="partner-button" type="button">Novo orçamento</button>
       <p>Selecione itens da lista do administrador e envie para aprovação. A aprovação não registra venda nem pagamento.</p>
-      <form id="partnerQuoteForm">
+      <form id="partnerQuoteForm" hidden>
         <label for="partnerQuoteStudent">Aluno indicado</label><select id="partnerQuoteStudent" required><option value="">Selecione um aluno</option></select>
         <label for="partnerQuoteProduct">Produto ou serviço</label><select id="partnerQuoteProduct"><option value="">Selecione um item</option></select>
         <label for="partnerQuoteQuantity">Quantidade</label><input id="partnerQuoteQuantity" type="number" min="1" max="100" step="1" value="1">
@@ -78,6 +79,7 @@
     <section class="partner-card partner-section"><h2>Histórico de pagamentos</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Data</th><th>Forma</th><th>Referência</th><th>Valor</th><th>Confirmação</th></tr></thead><tbody id="partnerPayouts"><tr><td colspan="5">Carregando…</td></tr></tbody></table></div></section>
     <section class="partner-card partner-section"><h2>Comunicados</h2><div id="partnerMessages"><p>Carregando…</p></div></section>
   </main>
+  <div id="partnerModal" class="partner-modal" hidden><div class="partner-modal-backdrop" data-close-partner-modal></div><section class="partner-modal-dialog" role="dialog" aria-modal="true"><header class="partner-modal-head"><h2 id="partnerModalTitle">Cadastro</h2><button id="partnerModalClose" class="partner-modal-close" type="button">✕</button></header><div id="partnerModalBody"></div></section></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
   <script src="parceiro.js?v=partner-portal-5"></script>
 </body>
