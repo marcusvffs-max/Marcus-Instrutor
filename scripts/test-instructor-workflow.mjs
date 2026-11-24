@@ -199,3 +199,8 @@ test("saldo de aluguel por compra é lido somente pela própria conta via RLS", 
   assert.match(adminJs, /alugueisDisponiveisNaCompra/);
   assert.match(adminJs, /saldoCompra/);
 });
+
+test("módulo de exames é carregado uma única vez no painel administrativo", () => {
+  assert.equal((adminHtml.match(/carregarScript\("exames-alugueis\.js\?v=exams-status-filter-1"\)/g) || []).length, 1);
+  assert.equal((serviceWorker.match(/"\.\/exames-alugueis\.js\?v=exams-status-filter-1"/g) || []).length, 1);
+});
