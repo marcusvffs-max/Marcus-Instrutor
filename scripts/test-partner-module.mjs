@@ -25,6 +25,7 @@ test("painel admin carrega gestão de parceiros somente após autenticação", (
 
 test("admin usa Edge Function para convidar, aprovar, comunicar e pagar parceiros", () => {
   assert.match(adminJs, /functions\.invoke\("admin-manage-partners"/);
+  assert.match(adminJs, /if \(initialized \|\| initializing\) return/);
   for (const action of ["list", "invite", "update_status", "update_commission", "send_message", "record_payout"]) {
     assert.ok(adminJs.includes('"' + action + '"') || adminJs.includes("invoke(\"" + action + "\""), "Ação ausente: " + action);
   }
