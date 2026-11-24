@@ -45,9 +45,15 @@
         return;
       }
 
+      const hostPreview = window.location.hostname;
+      const usarSupabaseQa = hostPreview === "marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app" ||
+        hostPreview === "marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app" ||
+        /^marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(hostPreview);
+      const supabaseUrl = usarSupabaseQa ? "https://voyjssflroiwdyaacthh.supabase.co" : "https://ydyqagqsuqntuibzgwzd.supabase.co";
+      const supabaseKey = usarSupabaseQa ? "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9" : "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
       const client = window.supabase.createClient(
-        "https://ydyqagqsuqntuibzgwzd.supabase.co",
-        "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU",
+        supabaseUrl,
+        supabaseKey,
         { auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage } }
       );
 
