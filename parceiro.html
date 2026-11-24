@@ -35,6 +35,39 @@
       <article class="partner-card"><small>Total recebido</small><strong id="partnerPaid">R$ 0,00</strong></article>
     </section>
     <section class="partner-card partner-section"><h2>Chave PIX</h2><p>Esta chave é cadastrada e atualizada pelo administrador.</p><input id="partnerPixKey" maxlength="120" aria-label="Chave PIX cadastrada" readonly></section>
+    <section class="partner-card partner-section">
+      <h2>Cadastrar aluno indicado</h2>
+      <p>O cadastro será enviado ao administrador. O aluno só entrará na base principal após aprovação.</p>
+      <form id="partnerStudentForm" class="partner-pix">
+        <input id="referralName" required maxlength="160" placeholder="Nome completo" aria-label="Nome completo">
+        <input id="referralPhone" maxlength="40" placeholder="Telefone" aria-label="Telefone">
+        <input id="referralCpf" maxlength="20" placeholder="CPF" aria-label="CPF">
+        <input id="referralAddress" maxlength="300" placeholder="Endereço" aria-label="Endereço">
+        <select id="referralCategory" aria-label="Categoria"><option value="">Categoria em andamento</option><option value="A">A</option><option value="B">B</option><option value="AB">AB</option><option value="C">C</option><option value="D">D</option><option value="E">E</option></select>
+        <button class="partner-button" type="submit">Enviar cadastro</button>
+      </form>
+    </section>
+    <section class="partner-card partner-section">
+      <h2>Minhas indicações</h2>
+      <div class="partner-scroll"><table class="partner-table"><thead><tr><th>Aluno</th><th>Categoria</th><th>Situação</th><th>Data</th></tr></thead><tbody id="partnerReferrals"><tr><td colspan="4">Carregando…</td></tr></tbody></table></div>
+    </section>
+    <section class="partner-card partner-section">
+      <h2>Montar orçamento</h2>
+      <p>Selecione itens da lista do administrador e envie para aprovação. A aprovação não registra venda nem pagamento.</p>
+      <form id="partnerQuoteForm">
+        <label for="partnerQuoteStudent">Aluno indicado</label><select id="partnerQuoteStudent" required><option value="">Selecione um aluno</option></select>
+        <label for="partnerQuoteProduct">Produto ou serviço</label><select id="partnerQuoteProduct"><option value="">Selecione um item</option></select>
+        <label for="partnerQuoteQuantity">Quantidade</label><input id="partnerQuoteQuantity" type="number" min="1" max="100" step="1" value="1">
+        <button id="partnerAddQuoteItem" class="partner-button secondary" type="button">Adicionar item</button>
+        <div id="partnerQuoteItems" class="partner-messages">Nenhum item adicionado.</div>
+        <label for="partnerQuoteNotes">Observações</label><textarea id="partnerQuoteNotes" maxlength="1000" rows="2"></textarea>
+        <button class="partner-button" type="submit">Enviar orçamento</button>
+      </form>
+    </section>
+    <section class="partner-card partner-section">
+      <h2>Meus orçamentos</h2>
+      <div class="partner-scroll"><table class="partner-table"><thead><tr><th>Aluno</th><th>Data</th><th>Total</th><th>Situação</th></tr></thead><tbody id="partnerQuotes"><tr><td colspan="4">Carregando…</td></tr></tbody></table></div>
+    </section>
     <section class="partner-card partner-section"><h2>Alunos indicados</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Aluno</th><th>Categoria</th><th>Situação</th><th>Cadastro</th></tr></thead><tbody id="partnerStudents"><tr><td colspan="5">Carregando…</td></tr></tbody></table></div></section>
     <section class="partner-card partner-section"><h2>Minhas comissões</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Descrição</th><th>Aluno</th><th>Progresso</th><th>Valor</th><th>Situação</th></tr></thead><tbody id="partnerCommissions"><tr><td colspan="5">Carregando…</td></tr></tbody></table></div></section>
     <section class="partner-card partner-section"><h2>Histórico de pagamentos</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Data</th><th>Forma</th><th>Referência</th><th>Valor</th><th>Confirmação</th></tr></thead><tbody id="partnerPayouts"><tr><td colspan="4">Carregando…</td></tr></tbody></table></div></section>
