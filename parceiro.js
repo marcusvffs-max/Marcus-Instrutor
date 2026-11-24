@@ -239,4 +239,5 @@
     location.replace("index.html");
   });
   await load();
+  window.setInterval(() => { if (document.visibilityState === "visible") load(); }, 30000);
 })();
