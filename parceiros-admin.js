@@ -223,7 +223,14 @@
     client = window.getMarcusSupabase?.();
     if (!client) { say("Cliente Supabase não encontrado.", true); return; }
     initializing = true;
-    const { data: authData, error: authError } = await client.auth.getUser();
+    let authData, authError;
+    try {
+      ({ data: authData, error: authError } = await client.auth.getUser());
+    } catch (error) {
+      initializing = false;
+      say(error.message || "Não foi possível validar a sessão administrativa.", true);
+      return;
+    }
     if (authError || !authData?.user?.id) { initializing = false; say("Sessão administrativa não encontrada.", true); return; }
     ownerId = authData.user.id;
     initialized = true;
