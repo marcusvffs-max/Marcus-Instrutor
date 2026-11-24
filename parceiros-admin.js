@@ -58,6 +58,13 @@
   }
 
   function updatePartnerMenuBadge(referrals, quotes, partnerRows) {
+    const listBadge = $("badgeListaParceirosDisponiveis");
+    if (listBadge) {
+      const availablePartners = (partnerRows || []).filter(p => Number(p.commissions && p.commissions.available_count || 0) > 0).length;
+      listBadge.textContent = String(availablePartners);
+      listBadge.hidden = availablePartners === 0;
+      listBadge.title = availablePartners + " parceiro(s) com comissão disponível";
+    }
     const badge = $("badgeMenuParceiros");
     if (!badge) return;
     const pending = referrals.filter(item => item.status === "pendente_aprovacao").length + quotes.filter(item => item.status === "pendente").length;
@@ -387,6 +394,54 @@
     finally { button.disabled = false; }
   }
 
+  function installPartnerListPopups() {
+    const configs = [
+      ["listaParceirosAdmin", "Parceiros cadastrados", "Abrir lista de parceiros"],
+      ["listaAlunosParceiros", "Alunos e respectivos parceiros", "Abrir lista de alunos"],
+      ["listaIndicacoesParceiros", "Indicações de alunos para aprovação", "Ver indicações"],
+      ["listaOrcamentosParceiros", "Orçamentos enviados para aprovação", "Ver orçamentos"]
+    ];
+    configs.forEach(([targetId, title, buttonText]) => {
+      const target = $(targetId);
+      const panel = target?.closest(".panel");
+      if (!target || !panel || panel.dataset.popupReady === "true") return;
+      panel.dataset.popupReady = "true";
+      const modal = make("div", "partner-modal");
+      modal.id = "modalLista_" + targetId;
+      modal.hidden = true;
+      const backdrop = make("div", "partner-modal-backdrop");
+      const dialog = make("section", "partner-modal-dialog");
+      dialog.setAttribute("role", "dialog");
+      dialog.setAttribute("aria-modal", "true");
+      const head = make("div", "partner-modal-head");
+      head.append(make("h3", "", title));
+      const close = make("button", "secondary-button", "✕");
+      close.type = "button";
+      close.setAttribute("aria-label", "Fechar");
+      close.addEventListener("click", () => closeModal(modal.id));
+      head.append(close);
+      dialog.append(head);
+      while (panel.firstChild) dialog.append(panel.firstChild);
+      modal.append(backdrop, dialog);
+      modal.addEventListener("click", event => {
+        if (event.target === modal || event.target === backdrop) closeModal(modal.id);
+      });
+      const launcher = make("button", "secondary-button", buttonText);
+      launcher.type = "button";
+      launcher.addEventListener("click", () => openModal(modal.id));
+      if (targetId === "listaParceirosAdmin") {
+        const availableCount = partners.filter(p => Number(p.commissions?.available_count || 0) > 0).length;
+        const badge = make("span", "partner-notification-badge", String(availableCount));
+        badge.id = "badgeListaParceirosDisponiveis";
+        badge.hidden = availableCount === 0;
+        badge.title = "Parceiros com comissão disponível";
+        launcher.append(" ", badge);
+      }
+      panel.append(launcher);
+      $("page-parceiros")?.append(modal);
+    });
+  }
+
   function installStyles() {
     if (document.getElementById("partner-admin-styles")) return;
     const style = document.createElement("style"); style.id = "partner-admin-styles";
@@ -407,7 +462,7 @@
     try { ({ data: authData, error: authError } = await client.auth.getUser()); }
     catch (error) { initializing = false; say(error.message || "Não foi possível validar a sessão administrativa.", true); return; }
     if (authError || !authData?.user?.id) { initializing = false; say("Sessão administrativa não encontrada.", true); return; }
-    ownerId = authData.user.id; initialized = true; initializing = false; installStyles();
+    ownerId = authData.user.id; initialized = true; initializing = false; installStyles(); installPartnerListPopups();
     trigger.addEventListener("click",loadPartners);
     $("btnAbrirCadastroParceiro").addEventListener("click",() => openModal("modalCadastroParceiro"));
     $("btnFecharCadastroParceiro").addEventListener("click",() => closeModal("modalCadastroParceiro"));
