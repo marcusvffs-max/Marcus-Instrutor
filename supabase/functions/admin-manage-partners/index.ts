@@ -36,9 +36,22 @@ Deno.serve(async (req: Request) => {
     if (!body || typeof body.action !== "string") return response({ error: "Solicitação inválida." }, 400);
     const ownerId = auth.user.id;
 
+    if (body.action === "update_pix_key") {
+      if (!uuid(body.partner_id)) return response({ error: "Parceiro inválido." }, 400);
+      const pixKey = typeof body.pix_key === "string" ? body.pix_key.trim() : "";
+      if (pixKey.length > 120) return response({ error: "A chave PIX deve ter até 120 caracteres." }, 400);
+      const { data, error } = await db.from("partners")
+        .update({ pix_key: pixKey || null, updated_at: new Date().toISOString() })
+        .eq("id", body.partner_id).eq("owner_id", ownerId)
+        .select("id,pix_key").maybeSingle();
+      if (error) throw error;
+      if (!data) return response({ error: "Parceiro não encontrado." }, 404);
+      return response({ ok: true, pix_key: data.pix_key });
+    }
+
     if (body.action === "list") {
       const { data, error } = await db.from("partners")
-        .select("id,nome,email,telefone,cpf_cnpj,endereco,pix_key,commission_percent,status,approved_at,rejected_at,created_at,user_id")
+        .select("id,nome,email,telefone,cpf_cnpj,endereco,pix_key,commission_percent,status,approved_at,rejected_at,created_at,updated_at,user_id")
         .eq("owner_id", ownerId).order("created_at", { ascending: false });
       if (error) throw error;
       return response({ ok: true, partners: data ?? [] });
