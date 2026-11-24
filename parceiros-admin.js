@@ -41,14 +41,27 @@
       const result = await invoke("list");
       partners = Array.isArray(result.partners) ? result.partners : [];
       renderPartners();
-      renderReferrals(Array.isArray(result.referrals) ? result.referrals : []);
-      renderQuotes(Array.isArray(result.quotes) ? result.quotes : []);
+      const referrals = Array.isArray(result.referrals) ? result.referrals : [];
+      const quotes = Array.isArray(result.quotes) ? result.quotes : [];
+      renderReferrals(referrals);
+      renderQuotes(quotes);
+      updatePartnerMenuBadge(referrals, quotes);
       await refreshPaymentPartners();
       say(partners.length ? partners.length + " parceiro(s) cadastrado(s)." : "Nenhum parceiro cadastrado ainda.");
     } catch (error) {
       listEl.replaceChildren(make("p", "empty-state", error.message));
       say(error.message, true);
     }
+  }
+
+  function updatePartnerMenuBadge(referrals, quotes) {
+    const badge = $("badgeMenuParceiros");
+    if (!badge) return;
+    const count = referrals.filter(item => item.status === "pendente_aprovacao").length +
+      quotes.filter(item => item.status === "pendente").length;
+    badge.textContent = count > 99 ? "99+" : String(count);
+    badge.hidden = count === 0;
+    badge.setAttribute("aria-label", count + " atualizações pendentes em Parceiros");
   }
 
   function renderReferrals(rows) {
