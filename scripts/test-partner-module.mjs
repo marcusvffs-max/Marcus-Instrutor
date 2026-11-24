@@ -9,6 +9,9 @@ const partnerHtml = read("../parceiro.html");
 const partnerJs = read("../parceiro.js");
 const studentJs = read("../script.js");
 const serviceWorker = read("../service-worker.js");
+const adminEdge = read("../supabase/functions/admin-manage-partners/index.ts");
+const partnerEdge = read("../supabase/functions/partner-portal/index.ts");
+const supabaseConfig = read("../supabase/config.toml");
 
 test("login encaminha perfil parceiro para a área exclusiva", () => {
   assert.match(adminHtml, /perfil\.role === "parceiro"[\s\S]{0,100}parceiro\.html/);
@@ -48,4 +51,24 @@ test("service worker mantém portal disponível e não compartilha script admini
   assert.match(serviceWorker, /"\.\/parceiro\.html"/);
   assert.match(serviceWorker, /"\.\/parceiro\.js\?v=partner-portal-1"/);
   assert.match(serviceWorker, /"\/parceiros-admin\.js"/);
+});
+
+test("Edge Function administrativa valida sessão e papel de administrador", () => {
+  assert.match(adminEdge, /authClient\.auth\.getUser\(token\)/);
+  assert.match(adminEdge, /profile\?\.role !== "admin"/);
+  assert.match(adminEdge, /owner_id: ownerId/);
+  assert.match(adminEdge, /requestOrigin === "https:\/\/marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839\.vercel\.app"/);
+});
+
+test("portal Edge Function valida o parceiro vinculado e aprovado", () => {
+  assert.match(partnerEdge, /authClient\.auth\.getUser\(token\)/);
+  assert.match(partnerEdge, /profile\?\.role !== "parceiro"/);
+  assert.match(partnerEdge, /\.eq\("user_id", auth\.user\.id\)/);
+  assert.match(partnerEdge, /partner\.status !== "aprovado"/);
+  assert.match(partnerEdge, /\.eq\("partner_id", partner\.id\)/);
+});
+
+test("as duas Edge Functions exigem JWT no config do Supabase", () => {
+  assert.match(supabaseConfig, /\[functions\.admin-manage-partners\]\s+verify_jwt = true/);
+  assert.match(supabaseConfig, /\[functions\.partner-portal\]\s+verify_jwt = true/);
 });
