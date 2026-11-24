@@ -1797,5 +1797,6 @@ body.autenticado .login-screen {
 
 .confirm-lesson-button{background:#198754!important;color:#fff!important;border-color:#198754!important}
 .confirm-lesson-button:hover{background:#157347!important;color:#fff!important}
-.menu-notification-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin-left:4px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;line-height:1}
+.menu-item[data-page="parceiros"]{position:relative}
+.menu-notification-badge{position:absolute;top:2px;right:calc(50% - 25px);z-index:2;display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin:0;border:2px solid #fff;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;line-height:1;pointer-events:none}
 .menu-notification-badge[hidden]{display:none!important}
