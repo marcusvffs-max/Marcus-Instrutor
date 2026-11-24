@@ -1335,7 +1335,7 @@
         (sale.status === "confirmada" ? "Confirmada" : "Cancelada") + '</span><div class="sale-history-actions">' +
         '<button class="button button-outline button-small" type="button" data-sale-print="' + escapeHtml(sale.id) + '">Imprimir recibo</button>' +
         (canRefund ? '<button class="button button-outline button-small" type="button" data-sale-refund="' + escapeHtml(sale.id) + '">↩ Devolver itens</button>' : '') +
-        (containsRental ? "" : '<button class="button button-danger button-small" type="button" data-sale-delete="' + escapeHtml(sale.id) + '">Excluir venda</button>') + '</div></article>';
+        '<button class="button button-danger button-small" type="button" data-sale-delete="' + escapeHtml(sale.id) + '">Excluir venda</button>' + '</div></article>';
     }).join("");
   }
 
@@ -1512,9 +1512,6 @@
   async function deleteInstructorSale(id) {
     const sale = state.sales.find(item => item.id === id);
     if (!sale) return;
-    if (state.saleItems.some(item => item.sale_id === id && item.fixed_item_key === "aluguel_veiculo")) {
-      return showMessage("Esta venda contém aluguéis de veículo e deve permanecer no histórico. Use a opção de devolução para ajustar o saldo.");
-    }
     if (!await confirmAction("Deseja excluir esta venda? O saldo de aulas será ajustado. Se alguma aula deste pacote já tiver sido utilizada, a exclusão será bloqueada.")) return;
     try {
       const { error } = await state.supabase.rpc("delete_my_sale", { p_sale_id: id });
