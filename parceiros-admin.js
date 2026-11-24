@@ -7,6 +7,7 @@
   let client = null;
   let ownerId = null;
   let initialized = false;
+  let initializing = false;
 
   const say = (message, error = false) => {
     if (!statusEl) return;
@@ -213,7 +214,7 @@
   }
 
   async function init() {
-    if (initialized) return;
+    if (initialized || initializing) return;
     const trigger = $("btnAtualizarParceiros");
     const invite = $("formNovoParceiro");
     const message = $("formMensagemParceiros");
@@ -221,10 +222,12 @@
     if (!trigger || !invite || !message || !payout) return;
     client = window.getMarcusSupabase?.();
     if (!client) { say("Cliente Supabase não encontrado.", true); return; }
+    initializing = true;
     const { data: authData, error: authError } = await client.auth.getUser();
-    if (authError || !authData?.user?.id) { say("Sessão administrativa não encontrada.", true); return; }
+    if (authError || !authData?.user?.id) { initializing = false; say("Sessão administrativa não encontrada.", true); return; }
     ownerId = authData.user.id;
     initialized = true;
+    initializing = false;
     installStyles();
     trigger.addEventListener("click", loadPartners);
     invite.addEventListener("submit", invitePartner);
