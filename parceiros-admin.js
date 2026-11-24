@@ -4,6 +4,7 @@
   const statusEl = $("statusParceirosAdmin");
   const listEl = $("listaParceirosAdmin");
   let partners = [];
+  let partnerStudents = [];
   let client = null;
   let ownerId = null;
   let initialized = false;
@@ -41,11 +42,14 @@
       const result = await invoke("list");
       partners = Array.isArray(result.partners) ? result.partners : [];
       renderPartners();
+      partnerStudents = Array.isArray(result.students) ? result.students : [];
+      renderPartnerStudents();
+      renderMessageRecipients();
       const referrals = Array.isArray(result.referrals) ? result.referrals : [];
       const quotes = Array.isArray(result.quotes) ? result.quotes : [];
       renderReferrals(referrals);
       renderQuotes(quotes);
-      updatePartnerMenuBadge(referrals, quotes);
+      updatePartnerMenuBadge(referrals, quotes, partners);
       await refreshPaymentPartners();
       say(partners.length ? partners.length + " parceiro(s) cadastrado(s)." : "Nenhum parceiro cadastrado ainda.");
     } catch (error) {
@@ -54,14 +58,47 @@
     }
   }
 
-  function updatePartnerMenuBadge(referrals, quotes) {
+  function updatePartnerMenuBadge(referrals, quotes, partnerRows) {
     const badge = $("badgeMenuParceiros");
     if (!badge) return;
-    const count = referrals.filter(item => item.status === "pendente_aprovacao").length +
-      quotes.filter(item => item.status === "pendente").length;
+    const pending = referrals.filter(item => item.status === "pendente_aprovacao").length + quotes.filter(item => item.status === "pendente").length;
+    const available = (partnerRows || []).filter(p => Number(p.commissions && p.commissions.available_count || 0) > 0).length;
+    const count = pending + available;
     badge.textContent = count > 99 ? "99+" : String(count);
     badge.hidden = count === 0;
-    badge.setAttribute("aria-label", count + " atualizações pendentes em Parceiros");
+    badge.setAttribute("aria-label", pending + " aprovações pendentes e " + available + " parceiro(s) com comissão disponível");
+    badge.title = pending + " pendência(s) · " + available + " parceiro(s) com comissão disponível";
+  }
+
+  function renderPartnerStudents() {
+    const target = $("listaAlunosParceiros");
+    if (!target) return;
+    const term = String($("buscaAlunosParceiros") && $("buscaAlunosParceiros").value || "").trim().toLocaleLowerCase("pt-BR");
+    const rows = partnerStudents.filter(s => !term || [s.nome,s.partner_name,s.telefone,s.categoria].join(" ").toLocaleLowerCase("pt-BR").includes(term));
+    target.replaceChildren();
+    if (!rows.length) { target.append(make("p","empty-state",partnerStudents.length ? "Nenhum aluno encontrado." : "Nenhum aluno vinculado a parceiro.")); return; }
+    rows.forEach(s => {
+      const card = make("article","partner-admin-card");
+      card.append(make("strong","",s.nome));
+      card.append(make("p","partner-admin-meta","Parceiro: " + (s.partner_name || "—") + (s.telefone ? " · " + s.telefone : "") + (s.categoria ? " · Categoria " + s.categoria : "")));
+      card.append(make("span","partner-status partner-status-" + (s.status === "aprovado" ? "aprovado" : "pendente"),s.status === "aprovado" ? "Cadastro aprovado" : (s.status || "Em andamento")));
+      target.append(card);
+    });
+  }
+
+  function renderMessageRecipients() {
+    const target = $("selecaoDestinatariosParceiros");
+    if (!target) return;
+    target.replaceChildren();
+    const approved = partners.filter(p => p.status === "aprovado");
+    if (!approved.length) { target.append(make("p","empty-state","Nenhum parceiro aprovado disponível.")); return; }
+    approved.forEach(partner => {
+      const label = make("label","partner-recipient-select");
+      const input = make("input","");
+      input.type = "checkbox"; input.value = partner.id; input.dataset.parceiroSelecionado = "true";
+      label.append(input,document.createTextNode(partner.nome));
+      target.append(label);
+    });
   }
 
   function renderReferrals(rows) {
@@ -130,79 +167,38 @@
 
   function renderPartners() {
     listEl.replaceChildren();
-    if (!partners.length) {
-      listEl.append(make("p", "empty-state", "Nenhum parceiro cadastrado."));
-      return;
-    }
+    if (!partners.length) { listEl.append(make("p","empty-state","Nenhum parceiro cadastrado.")); return; }
     partners.forEach(partner => {
-      const card = make("article", "partner-admin-card");
-      const header = make("div", "partner-admin-card-head");
-      if (partner.status === "aprovado") {
-        const selectLabel = make("label", "partner-recipient-select");
-        const recipient = make("input", ""); recipient.type = "checkbox"; recipient.value = partner.id; recipient.dataset.parceiroSelecionado = "true";
-        selectLabel.append(recipient, document.createTextNode("Selecionar para comunicado"));
-        card.append(selectLabel);
-      }
-      const identity = make("div", "");
-      identity.append(make("strong", "", partner.nome), make("small", "", partner.email));
-      const state = make("span", "partner-status partner-status-" + partner.status, statusLabel(partner.status));
-      header.append(identity, state);
-      const details = make("p", "partner-admin-meta", [partner.telefone, partner.cpf_cnpj].filter(Boolean).join(" · ") || "Sem telefone/documento");
-      const pixLabel = make("label", "partner-pix-admin-label", "Chave PIX (administrador)");
-      const pixInput = make("input", "");
-      pixInput.type = "text"; pixInput.maxLength = 120; pixInput.value = partner.pix_key || "";
-      pixLabel.append(pixInput);
-      const savePix = make("button", "button button-secondary", "Salvar PIX");
-      savePix.type = "button";
-      savePix.addEventListener("click", async () => {
-        savePix.disabled = true;
-        try {
-          const result = await invoke("update_pix_key", { partner_id: partner.id, pix_key: pixInput.value });
-          partner.pix_key = result.pix_key || null;
-          say("Chave PIX atualizada para " + partner.nome + ".");
-        } catch (error) { say(error.message, true); }
-        finally { savePix.disabled = false; }
+      const card = make("article","partner-admin-card");
+      const header = make("div","partner-admin-card-head");
+      const identity = make("div","");
+      identity.append(make("strong","",partner.nome),make("small","",partner.email));
+      header.append(identity,make("span","partner-status partner-status-" + partner.status,statusLabel(partner.status)));
+      card.append(header);
+      card.append(make("p","partner-admin-meta",[partner.telefone,partner.cpf_cnpj].filter(Boolean).join(" · ") || "Sem telefone/documento"));
+      const available = Number(partner.commissions && partner.commissions.available_amount || 0);
+      const count = Number(partner.commissions && partner.commissions.available_count || 0);
+      const pending = Number(partner.commissions && partner.commissions.pending_amount || 0);
+      card.append(make("div",count ? "partner-commission-available" : "partner-admin-meta",count ? "COMISSÃO DISPONÍVEL: " + money(available) + " (" + count + ")" : "Sem comissão disponível para pagamento"));
+      if (pending > 0) card.append(make("p","partner-admin-meta","Comissão em andamento: " + money(pending)));
+      const manage = make("button","button button-secondary","Gerenciar parceiro");
+      manage.type = "button";
+      manage.addEventListener("click",() => {
+        $("gerenciarParceiroId").value = partner.id;
+        $("gerenciarComissaoParceiro").value = String(partner.commission_percent == null ? 0 : partner.commission_percent);
+        $("gerenciarPixParceiro").value = partner.pix_key || "";
+        $("gerenciarStatusParceiro").value = partner.status;
+        $("tituloGerenciarParceiro").textContent = "Gerenciar: " + partner.nome;
+        openModal("modalGerenciarParceiro");
       });
-      const actions = make("div", "partner-admin-actions");
-      const commissionLabel = make("label", "", "Comissão (%)");
-      const commission = make("input", "");
-      commission.type = "number"; commission.min = "0"; commission.max = "100"; commission.step = "0.01";
-      commission.value = String(partner.commission_percent ?? 0);
-      commissionLabel.append(commission);
-      const saveCommission = make("button", "button button-secondary", "Salvar comissão");
-      saveCommission.type = "button";
-      saveCommission.addEventListener("click", async () => {
-        saveCommission.disabled = true;
-        try {
-          await invoke("update_commission", { partner_id: partner.id, commission_percent: Number(commission.value) });
-          partner.commission_percent = Number(commission.value);
-          say("Comissão atualizada para " + partner.nome + ".");
-        } catch (error) { say(error.message, true); }
-        finally { saveCommission.disabled = false; }
-      });
-      const statusSelect = make("select", "partner-status-select");
-      [["pendente","Pendente"],["aprovado","Aprovar"],["suspenso","Suspender"],["reprovado","Reprovar"]].forEach(([value,label]) => {
-        const option = make("option", "", label); option.value = value; option.selected = value === partner.status; statusSelect.append(option);
-      });
-      const saveStatus = make("button", "button button-secondary", "Atualizar situação");
-      saveStatus.type = "button";
-      saveStatus.addEventListener("click", async () => {
-        saveStatus.disabled = true;
-        try {
-          const result = await invoke("update_status", { partner_id: partner.id, status: statusSelect.value });
-          partner.status = result.partner?.status || statusSelect.value;
-          renderPartners();
-          await refreshPaymentPartners();
-          say("Situação de " + partner.nome + " atualizada.");
-        } catch (error) { say(error.message, true); }
-        finally { saveStatus.disabled = false; }
-      });
-      actions.append(commissionLabel, saveCommission, statusSelect, saveStatus);
-      card.append(header, details, pixLabel, savePix, actions);
-      if (!partner.user_id) card.append(make("small", "partner-admin-warning", "Convite ainda não vinculado a uma conta."));
+      card.append(manage);
+      if (!partner.user_id) card.append(make("small","partner-admin-warning","Convite ainda não vinculado a uma conta."));
       listEl.append(card);
     });
   }
+
+  function openModal(id) { const modal = $(id); if (modal) { modal.hidden = false; document.body.style.overflow = "hidden"; } }
+  function closeModal(id) { const modal = $(id); if (modal) modal.hidden = true; if (![...document.querySelectorAll("#page-parceiros .partner-modal")].some(m => !m.hidden)) document.body.style.overflow = ""; }
 
   async function refreshPaymentPartners() {
     const select = $("selectParceiroPagamento");
@@ -253,7 +249,8 @@
       });
       form.reset();
       $("novaComissaoParceiro").value = "5";
-      $("modalCadastroParceiro").hidden = true;
+      closeModal("modalCadastroParceiro");
+      closeModal("modalCadastroParceiro");
       say(result.message || "Convite enviado.");
       await loadPartners();
     } catch (error) { say(error.message, true); }
@@ -265,7 +262,7 @@
     const form = event.currentTarget;
     const button = form.querySelector('[type="submit"]');
     const all = $("mensagemTodosParceiros").checked;
-    const ids = [...document.querySelectorAll("[data-parceiro-selecionado]:checked")].map(input => input.value);
+    const ids = [...document.querySelectorAll("#selecaoDestinatariosParceiros [data-parceiro-selecionado]:checked")].map(input => input.value);
     if (!all && !ids.length) { say("Selecione ao menos um parceiro aprovado ou marque enviar para todos.", true); return; }
     button.disabled = true;
     try {
@@ -276,7 +273,9 @@
         partner_ids: all ? [] : ids
       });
       form.reset();
+      closeModal("modalMensagemParceiros");
       say(result.message || "Mensagem enviada.");
+      await loadPartners();
     } catch (error) { say(error.message, true); }
     finally { button.disabled = false; }
   }
@@ -285,8 +284,7 @@
     const modal = $("modalRelatorioPagamentosParceiros");
     const target = $("listaRelatorioPagamentosParceiros");
     const summary = $("resumoRelatorioPagamentosParceiros");
-    modal.hidden = false;
-    document.body.style.overflow = "hidden";
+    openModal("modalRelatorioPagamentosParceiros");
     target.replaceChildren(make("p", "empty-state", "Carregando pagamentos…"));
     summary.textContent = "";
     try {
