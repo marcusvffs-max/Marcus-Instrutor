@@ -3517,7 +3517,7 @@ async function carregarDadosAdminSupabase() {
       const fallback = Math.max(0, Number(item.quantidade || 0) - Number(item.quantidade_devolvida || 0));
       const available = credit
         ? Math.max(0, Number(credit.quantity_purchased || 0) - Number(credit.quantity_refunded || 0) - Number(credit.quantity_consumed || 0))
-        : fallback;
+        : rentalCreditLedgerMissing ? fallback : 0;
       return [item.id, available];
     }));
 
