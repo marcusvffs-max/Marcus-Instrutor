@@ -135,24 +135,31 @@ CREATE TABLE IF NOT EXISTS public.partner_commissions (
   partner_id uuid NOT NULL,
   student_id uuid NOT NULL,
   sale_id uuid NOT NULL,
-  sale_item_id uuid NOT NULL UNIQUE REFERENCES public.sale_items(id) ON DELETE CASCADE,
+  sale_item_id uuid NOT NULL UNIQUE,
   descricao text NOT NULL,
   base_amount numeric(10,2) NOT NULL CHECK (base_amount >= 0),
   commission_percent numeric(5,2) NOT NULL CHECK (commission_percent BETWEEN 0 AND 100),
   commission_amount numeric(10,2) NOT NULL CHECK (commission_amount >= 0),
-  lessons_required integer NOT NULL CHECK (lessons_required > 0),
+  lessons_required integer NOT NULL DEFAULT 0 CHECK (lessons_required >= 0),
   lessons_completed integer NOT NULL DEFAULT 0 CHECK (lessons_completed >= 0),
-  status text NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente','disponivel','pago')),
+  status text NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente','disponivel','pago','cancelado')),
+  payout_id uuid NULL,
   available_at timestamptz NULL,
   paid_at timestamptz NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT partner_commissions_partner_owner_fk
-    FOREIGN KEY (partner_id, owner_id) REFERENCES public.partners(id, owner_id) ON DELETE CASCADE,
+    FOREIGN KEY (partner_id, owner_id) REFERENCES public.partners(id, owner_id) ON DELETE RESTRICT,
   CONSTRAINT partner_commissions_student_owner_fk
-    FOREIGN KEY (student_id, owner_id) REFERENCES public.students(id, owner_id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id, owner_id) REFERENCES public.students(id, owner_id) ON DELETE RESTRICT,
   CONSTRAINT partner_commissions_sale_owner_fk
-    FOREIGN KEY (sale_id, owner_id) REFERENCES public.sales(id, owner_id) ON DELETE CASCADE
+    FOREIGN KEY (sale_id, owner_id) REFERENCES public.sales(id, owner_id) ON DELETE RESTRICT,
+  CONSTRAINT partner_commissions_sale_item_owner_fk
+    FOREIGN KEY (sale_item_id, owner_id) REFERENCES public.sale_items(id, owner_id) ON DELETE RESTRICT,
+  CONSTRAINT partner_commissions_id_owner_key UNIQUE (id, owner_id)
 );
+ALTER TABLE public.partner_commissions ADD COLUMN IF NOT EXISTS payout_id uuid NULL;
+ALTER TABLE public.partner_commissions ADD COLUMN IF NOT EXISTS available_at timestamptz NULL;
+ALTER TABLE public.partner_commissions ADD COLUMN IF NOT EXISTS paid_at timestamptz NULL;
 CREATE INDEX IF NOT EXISTS partner_commissions_owner_partner_status_idx
   ON public.partner_commissions(owner_id, partner_id, status, created_at);
 CREATE INDEX IF NOT EXISTS partner_commissions_owner_student_fifo_idx
@@ -163,36 +170,58 @@ CREATE TABLE IF NOT EXISTS public.partner_payouts (
   owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   partner_id uuid NOT NULL,
   amount numeric(10,2) NOT NULL CHECK (amount > 0),
-  payment_method text NOT NULL CHECK (length(btrim(payment_method)) BETWEEN 1 AND 40),
-  reference text NULL CHECK (reference IS NULL OR length(reference) <= 160),
+  payment_method text NOT NULL DEFAULT 'pix',
+  reference text NULL,
   pix_key_snapshot text NULL,
   paid_at timestamptz NOT NULL DEFAULT now(),
   received_at timestamptz NULL,
   CONSTRAINT partner_payouts_partner_owner_fk
-    FOREIGN KEY (partner_id, owner_id) REFERENCES public.partners(id, owner_id) ON DELETE CASCADE,
+    FOREIGN KEY (partner_id, owner_id) REFERENCES public.partners(id, owner_id) ON DELETE RESTRICT,
   CONSTRAINT partner_payouts_id_owner_key UNIQUE (id, owner_id)
 );
-CREATE TABLE IF NOT EXISTS public.partner_payout_commissions (
+ALTER TABLE public.partner_payouts ADD COLUMN IF NOT EXISTS received_at timestamptz NULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'partner_commissions_payout_fk') THEN
+    ALTER TABLE public.partner_commissions
+      ADD CONSTRAINT partner_commissions_payout_fk
+      FOREIGN KEY (payout_id, owner_id)
+      REFERENCES public.partner_payouts(id, owner_id)
+      ON DELETE RESTRICT;
+  END IF;
+END;
+$$;
+
+CREATE TABLE IF NOT EXISTS public.partner_commission_lessons (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  payout_id uuid NOT NULL,
   commission_id uuid NOT NULL,
-  PRIMARY KEY (payout_id, commission_id),
-  CONSTRAINT partner_payout_commissions_payout_owner_fk
-    FOREIGN KEY (payout_id, owner_id) REFERENCES public.partner_payouts(id, owner_id) ON DELETE CASCADE,
-  CONSTRAINT partner_payout_commissions_commission_fk
-    FOREIGN KEY (commission_id) REFERENCES public.partner_commissions(id) ON DELETE RESTRICT
+  lesson_id uuid NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT partner_commission_lessons_commission_owner_fk
+    FOREIGN KEY (commission_id, owner_id)
+    REFERENCES public.partner_commissions(id, owner_id) ON DELETE CASCADE,
+  CONSTRAINT partner_commission_lessons_lesson_owner_fk
+    FOREIGN KEY (lesson_id, owner_id)
+    REFERENCES public.lessons(id, owner_id) ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS partner_commission_lessons_owner_commission_idx
+  ON public.partner_commission_lessons(owner_id, commission_id);
 
 ALTER TABLE public.partners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.partner_commissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_commission_lessons ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.partners, public.partner_students, public.partner_quotes,
   public.partner_quote_items, public.partner_messages, public.partner_message_recipients,
-  public.partner_commissions, public.partner_payouts, public.partner_payout_commissions
+  public.partner_commissions, public.partner_payouts, public.partner_commission_lessons
 FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON public.partners, public.partner_commissions TO authenticated;
+DROP POLICY IF EXISTS partners_owner_select ON public.partners;
 CREATE POLICY partners_owner_select ON public.partners
   FOR SELECT TO authenticated
   USING (owner_id = (SELECT auth.uid()) AND private.current_app_role() IN ('admin','instrutor'));
+DROP POLICY IF EXISTS partner_commissions_owner_select ON public.partner_commissions;
 CREATE POLICY partner_commissions_owner_select ON public.partner_commissions
   FOR SELECT TO authenticated
   USING (owner_id = (SELECT auth.uid()) AND private.current_app_role() IN ('admin','instrutor'));
@@ -210,60 +239,63 @@ SECURITY DEFINER
 SET search_path = ''
 AS $function$
 DECLARE
-  v_uid uuid := auth.uid();
-  v_partner public.partners%rowtype;
-  v_amount numeric(10,2);
   v_count integer;
+  v_total numeric(12,2);
   v_payout_id uuid;
+  v_pix text;
 BEGIN
-  IF v_uid IS NULL OR private.current_app_role() IS DISTINCT FROM 'admin' OR p_owner_id IS DISTINCT FROM v_uid THEN
-    RAISE EXCEPTION 'Somente o administrador desta conta pode registrar pagamentos.';
+  -- Esta RPC é chamada exclusivamente pela Edge Function, que autentica o
+  -- administrador antes de usar a chave service_role.
+  IF p_owner_id IS NULL OR p_partner_id IS NULL
+     OR p_commission_ids IS NULL OR cardinality(p_commission_ids) NOT BETWEEN 1 AND 100 THEN
+    RAISE EXCEPTION 'Seleção de comissões inválida.' USING ERRCODE = '22023';
   END IF;
-  IF p_partner_id IS NULL OR coalesce(array_length(p_commission_ids, 1), 0) NOT BETWEEN 1 AND 100 THEN
-    RAISE EXCEPTION 'Selecione comissões válidas para pagamento.';
-  END IF;
-  IF p_payment_method NOT IN ('pix','dinheiro','transferencia','outro') THEN
-    RAISE EXCEPTION 'Forma de pagamento inválida.';
-  END IF;
-  SELECT * INTO v_partner FROM public.partners
-  WHERE id = p_partner_id AND owner_id = v_uid AND status = 'aprovado'
-  FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'Parceiro aprovado não encontrado.'; END IF;
 
-  SELECT count(*), coalesce(sum(c.commission_amount),0)
-    INTO v_count, v_amount
+  PERFORM 1 FROM public.partner_commissions c
+   WHERE c.owner_id = p_owner_id AND c.partner_id = p_partner_id
+     AND c.id = ANY(p_commission_ids) AND c.status = 'disponivel'
+   FOR UPDATE;
+
+  SELECT count(*)::integer, coalesce(sum(c.commission_amount),0)
+    INTO v_count, v_total
   FROM public.partner_commissions c
-  WHERE c.owner_id = v_uid AND c.partner_id = p_partner_id
-    AND c.status = 'disponivel' AND c.id = ANY(p_commission_ids)
-  FOR UPDATE;
-  IF v_count <> (SELECT count(DISTINCT x) FROM unnest(p_commission_ids) AS x) THEN
-    RAISE EXCEPTION 'Uma ou mais comissões não estão disponíveis para este parceiro.';
+  WHERE c.owner_id = p_owner_id AND c.partner_id = p_partner_id
+    AND c.id = ANY(p_commission_ids) AND c.status = 'disponivel';
+
+  IF v_count <> cardinality(p_commission_ids) OR v_total <= 0 THEN
+    RAISE EXCEPTION 'Uma ou mais comissões não estão disponíveis para pagamento.' USING ERRCODE = '23514';
   END IF;
-  IF v_amount <= 0 THEN RAISE EXCEPTION 'O total do pagamento deve ser maior que zero.'; END IF;
+
+  SELECT p.pix_key INTO v_pix
+  FROM public.partners p
+  WHERE p.id = p_partner_id AND p.owner_id = p_owner_id AND p.status = 'aprovado'
+  FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Parceiro aprovado não encontrado.' USING ERRCODE = 'P0002'; END IF;
+
+  IF coalesce(nullif(btrim(p_payment_method),''),'pix') NOT IN ('pix','dinheiro','transferencia','outro') THEN
+    RAISE EXCEPTION 'Forma de pagamento inválida.' USING ERRCODE = '22023';
+  END IF;
 
   INSERT INTO public.partner_payouts(owner_id, partner_id, amount, payment_method, reference, pix_key_snapshot)
-  VALUES(v_uid, p_partner_id, v_amount, p_payment_method, nullif(btrim(p_reference),''), v_partner.pix_key)
+  VALUES(p_owner_id, p_partner_id, v_total, coalesce(nullif(btrim(p_payment_method),''),'pix'),
+    nullif(left(btrim(coalesce(p_reference,'')),160),''), v_pix)
   RETURNING id INTO v_payout_id;
 
-  INSERT INTO public.partner_payout_commissions(owner_id, payout_id, commission_id)
-  SELECT v_uid, v_payout_id, c.id
-  FROM public.partner_commissions c
-  WHERE c.owner_id = v_uid AND c.partner_id = p_partner_id
-    AND c.status = 'disponivel' AND c.id = ANY(p_commission_ids);
-
   UPDATE public.partner_commissions
-  SET status = 'pago', paid_at = now()
-  WHERE owner_id = v_uid AND partner_id = p_partner_id
-    AND status = 'disponivel' AND id = ANY(p_commission_ids);
+  SET status = 'pago', payout_id = v_payout_id, paid_at = now()
+  WHERE owner_id = p_owner_id AND partner_id = p_partner_id
+    AND id = ANY(p_commission_ids) AND status = 'disponivel';
 
-  RETURN jsonb_build_object('payout_id', v_payout_id, 'amount', v_amount, 'commission_count', v_count);
+  RETURN jsonb_build_object('id',v_payout_id,'partner_id',p_partner_id,'amount',v_total,
+    'commission_count',v_count,'paid_at',now(),'payment_method',p_payment_method);
 END;
 $function$;
-REVOKE ALL ON FUNCTION public.record_partner_payout(uuid,uuid,uuid[],text,text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.record_partner_payout(uuid,uuid,uuid[],text,text) TO authenticated;
+REVOKE ALL ON FUNCTION public.record_partner_payout(uuid,uuid,uuid[],text,text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.record_partner_payout(uuid,uuid,uuid[],text,text) TO service_role;
 
--- Cria uma comissão somente para serviço vendido a aluno indicado por parceiro.
-CREATE OR REPLACE FUNCTION private.sync_partner_commission_from_sale_item()
+-- Comissão incide exclusivamente sobre serviços e somente depois da aprovação
+-- do parceiro. Produtos e itens fixos nunca geram comissão.
+CREATE OR REPLACE FUNCTION private.create_partner_commission_for_service()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -271,158 +303,227 @@ SET search_path = ''
 AS $function$
 DECLARE
   v_sale public.sales%rowtype;
-  v_student public.students%rowtype;
   v_partner public.partners%rowtype;
-  v_lessons integer;
+  v_base numeric(12,2);
+  v_required integer;
+  v_rate numeric(5,2);
+  v_lesson public.lessons%rowtype;
+  v_commission_id uuid;
 BEGIN
-  IF NEW.tipo_item IS DISTINCT FROM 'servico' OR coalesce(NEW.aulas_contratadas,0) <= 0 THEN
-    RETURN NEW;
-  END IF;
   SELECT * INTO v_sale FROM public.sales
-  WHERE id = NEW.sale_id AND owner_id = NEW.owner_id AND status = 'confirmada';
-  IF NOT FOUND OR v_sale.student_id IS NULL THEN RETURN NEW; END IF;
-  SELECT * INTO v_student FROM public.students
-  WHERE id = v_sale.student_id AND owner_id = NEW.owner_id;
-  IF NOT FOUND OR v_student.partner_id IS NULL THEN RETURN NEW; END IF;
-  SELECT * INTO v_partner FROM public.partners
-  WHERE id = v_student.partner_id AND owner_id = NEW.owner_id AND status = 'aprovado';
+  WHERE id = NEW.sale_id AND owner_id = NEW.owner_id;
+  IF NOT FOUND OR v_sale.student_id IS NULL OR v_sale.status <> 'confirmada' THEN RETURN NEW; END IF;
+  IF coalesce(NEW.tipo_item,'servico') <> 'servico' OR NEW.fixed_item_key IS NOT NULL THEN RETURN NEW; END IF;
+
+  SELECT p.* INTO v_partner
+  FROM public.students s
+  JOIN public.partners p ON p.id = s.partner_id AND p.owner_id = s.owner_id
+  WHERE s.id = v_sale.student_id AND s.owner_id = NEW.owner_id;
   IF NOT FOUND THEN RETURN NEW; END IF;
 
-  v_lessons := NEW.aulas_contratadas;
+  SELECT c.commission_percent INTO v_rate
+  FROM public.partner_commissions c
+  WHERE c.sale_item_id = NEW.id AND c.owner_id = NEW.owner_id;
+  IF NOT FOUND THEN
+    IF v_partner.status <> 'aprovado' OR v_partner.commission_percent <= 0 THEN RETURN NEW; END IF;
+    v_rate := v_partner.commission_percent;
+  END IF;
+
+  v_base := greatest(0, coalesce(NEW.valor_liquido, NEW.subtotal, 0) - coalesce(NEW.valor_devolvido, 0));
+  v_required := greatest(0, coalesce(NEW.aulas_contratadas, 0) - coalesce(NEW.aulas_devolvidas, 0));
+
   INSERT INTO public.partner_commissions(
     owner_id, partner_id, student_id, sale_id, sale_item_id, descricao,
-    base_amount, commission_percent, commission_amount, lessons_required
+    base_amount, commission_percent, commission_amount, lessons_required, status, available_at
   ) VALUES (
-    NEW.owner_id, v_partner.id, v_student.id, v_sale.id, NEW.id, NEW.descricao,
-    coalesce(NEW.valor_liquido, NEW.subtotal, 0), v_partner.commission_percent,
-    round(coalesce(NEW.valor_liquido, NEW.subtotal, 0) * v_partner.commission_percent / 100, 2),
-    v_lessons
+    NEW.owner_id, v_partner.id, v_sale.student_id, v_sale.id, NEW.id, NEW.descricao,
+    v_base, v_rate, round(v_base * v_rate / 100, 2), v_required,
+    CASE WHEN v_base <= 0 OR v_required = 0 THEN 'cancelado' ELSE 'pendente' END,
+    NULL
   )
   ON CONFLICT (sale_item_id) DO UPDATE SET
-    descricao = EXCLUDED.descricao,
     base_amount = EXCLUDED.base_amount,
-    commission_percent = EXCLUDED.commission_percent,
-    commission_amount = EXCLUDED.commission_amount,
-    lessons_required = EXCLUDED.lessons_required;
+    commission_percent = public.partner_commissions.commission_percent,
+    commission_amount = round(EXCLUDED.base_amount * public.partner_commissions.commission_percent / 100, 2),
+    lessons_required = EXCLUDED.lessons_required,
+    status = CASE
+      WHEN public.partner_commissions.status IN ('pago','cancelado') THEN public.partner_commissions.status
+      WHEN EXCLUDED.status = 'cancelado' THEN 'cancelado'
+      WHEN public.partner_commissions.lessons_completed >= EXCLUDED.lessons_required THEN 'disponivel'
+      ELSE 'pendente'
+    END,
+    available_at = CASE
+      WHEN public.partner_commissions.status IN ('pago','cancelado') THEN public.partner_commissions.available_at
+      WHEN EXCLUDED.status = 'cancelado' THEN NULL
+      WHEN public.partner_commissions.lessons_completed >= EXCLUDED.lessons_required
+        THEN coalesce(public.partner_commissions.available_at, now())
+      ELSE NULL
+    END
+  WHERE public.partner_commissions.status <> 'pago'
+  RETURNING id INTO v_commission_id;
 
+  IF v_commission_id IS NULL THEN
+    SELECT id INTO v_commission_id FROM public.partner_commissions
+    WHERE sale_item_id = NEW.id AND owner_id = NEW.owner_id;
+  END IF;
+
+  IF v_required > 0 AND v_base > 0 AND v_commission_id IS NOT NULL THEN
+    FOR v_lesson IN
+      SELECT l.* FROM public.lessons l
+      WHERE l.owner_id = NEW.owner_id AND l.student_id = v_sale.student_id
+        AND l.status = 'realizada' AND l.data_aula >= v_sale.data_venda
+        AND NOT EXISTS (
+          SELECT 1 FROM public.partner_commission_lessons cl
+          WHERE cl.lesson_id = l.id AND cl.owner_id = l.owner_id
+        )
+      ORDER BY l.data_aula, l.horario, l.created_at, l.id
+      LIMIT v_required
+    LOOP
+      INSERT INTO public.partner_commission_lessons(owner_id, commission_id, lesson_id)
+      VALUES(NEW.owner_id, v_commission_id, v_lesson.id)
+      ON CONFLICT (lesson_id) DO NOTHING;
+    END LOOP;
+  END IF;
   RETURN NEW;
 END;
 $function$;
-REVOKE ALL ON FUNCTION private.sync_partner_commission_from_sale_item() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION private.create_partner_commission_for_service() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS trg_create_partner_commission_for_service ON public.sale_items;
 DROP TRIGGER IF EXISTS sync_partner_commission_from_sale_item ON public.sale_items;
-CREATE TRIGGER sync_partner_commission_from_sale_item
-AFTER INSERT OR UPDATE OF tipo_item, aulas_contratadas, valor_liquido, subtotal
+CREATE TRIGGER trg_create_partner_commission_for_service
+AFTER INSERT OR UPDATE OF tipo_item, fixed_item_key, aulas_contratadas, aulas_devolvidas, valor_liquido, valor_devolvido, subtotal
 ON public.sale_items
-FOR EACH ROW EXECUTE FUNCTION private.sync_partner_commission_from_sale_item();
+FOR EACH ROW EXECUTE FUNCTION private.create_partner_commission_for_service();
 
--- Recalcula o progresso por aluno, distribuindo aulas concluídas em FIFO entre pacotes.
-CREATE OR REPLACE FUNCTION private.refresh_partner_commissions_for_student(p_owner_id uuid, p_student_id uuid)
-RETURNS void
+CREATE OR REPLACE FUNCTION private.allocate_partner_commission_lesson()
+RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $function$
 DECLARE
-  v_completed integer;
+  v_commission public.partner_commissions%rowtype;
 BEGIN
-  SELECT count(*)::integer INTO v_completed
-  FROM public.lessons
-  WHERE owner_id = p_owner_id AND student_id = p_student_id
-    AND lower(coalesce(status,'')) IN ('realizada','realizado');
+  IF TG_OP = 'UPDATE' AND OLD.status = 'realizada'
+     AND (NEW.status IS DISTINCT FROM OLD.status
+       OR NEW.student_id IS DISTINCT FROM OLD.student_id
+       OR NEW.owner_id IS DISTINCT FROM OLD.owner_id
+       OR NEW.data_aula IS DISTINCT FROM OLD.data_aula) THEN
+    DELETE FROM public.partner_commission_lessons
+    WHERE lesson_id = OLD.id AND owner_id = OLD.owner_id;
+  END IF;
 
-  WITH ordered AS (
-    SELECT c.id, c.lessons_required,
-      coalesce(sum(c.lessons_required) OVER (
-        ORDER BY c.created_at, c.id
-        ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-      ),0)::integer AS lessons_before
-    FROM public.partner_commissions c
-    WHERE c.owner_id = p_owner_id AND c.student_id = p_student_id
-  )
-  UPDATE public.partner_commissions c
-  SET lessons_completed = least(c.lessons_required, greatest(0, v_completed - ordered.lessons_before)),
+  IF NEW.status = 'realizada' THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM public.partner_commission_lessons
+      WHERE lesson_id = NEW.id AND owner_id = NEW.owner_id
+    ) THEN
+      SELECT c.* INTO v_commission
+      FROM public.partner_commissions c
+      JOIN public.sales s ON s.id = c.sale_id AND s.owner_id = c.owner_id
+      WHERE c.owner_id = NEW.owner_id
+        AND c.student_id = NEW.student_id
+        AND c.status = 'pendente'
+        AND c.lessons_completed < c.lessons_required
+        AND s.data_venda <= NEW.data_aula
+      ORDER BY s.data_venda, c.created_at, c.id
+      LIMIT 1
+      FOR UPDATE OF c;
+      IF FOUND THEN
+        INSERT INTO public.partner_commission_lessons(owner_id, commission_id, lesson_id)
+        VALUES(NEW.owner_id, v_commission.id, NEW.id)
+        ON CONFLICT (lesson_id) DO NOTHING;
+      END IF;
+    END IF;
+  END IF;
+  IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+  RETURN NEW;
+END;
+$function$;
+REVOKE ALL ON FUNCTION private.allocate_partner_commission_lesson() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS trg_allocate_partner_commission_lesson ON public.lessons;
+DROP TRIGGER IF EXISTS sync_partner_commission_lesson_progress ON public.lessons;
+CREATE TRIGGER trg_allocate_partner_commission_lesson
+AFTER INSERT OR UPDATE OF status, student_id, owner_id, data_aula
+ON public.lessons
+FOR EACH ROW EXECUTE FUNCTION private.allocate_partner_commission_lesson();
+
+CREATE OR REPLACE FUNCTION private.sync_partner_commission_progress()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+DECLARE
+  v_commission_id uuid;
+  v_owner_id uuid;
+  v_completed integer;
+  v_required integer;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    v_commission_id := OLD.commission_id;
+    v_owner_id := OLD.owner_id;
+  ELSE
+    v_commission_id := NEW.commission_id;
+    v_owner_id := NEW.owner_id;
+  END IF;
+
+  SELECT count(*)::integer INTO v_completed
+  FROM public.partner_commission_lessons
+  WHERE commission_id = v_commission_id AND owner_id = v_owner_id;
+
+  SELECT lessons_required INTO v_required
+  FROM public.partner_commissions
+  WHERE id = v_commission_id AND owner_id = v_owner_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
+  END IF;
+
+  UPDATE public.partner_commissions
+  SET lessons_completed = v_completed,
       status = CASE
-        WHEN c.status = 'pago' THEN 'pago'
-        WHEN least(c.lessons_required, greatest(0, v_completed - ordered.lessons_before)) >= c.lessons_required THEN 'disponivel'
+        WHEN status IN ('pago','cancelado') THEN status
+        WHEN v_completed >= v_required THEN 'disponivel'
         ELSE 'pendente'
       END,
       available_at = CASE
-        WHEN c.status = 'pago' THEN c.available_at
-        WHEN least(c.lessons_required, greatest(0, v_completed - ordered.lessons_before)) >= c.lessons_required THEN coalesce(c.available_at, now())
+        WHEN v_completed >= v_required AND status NOT IN ('pago','cancelado')
+          THEN coalesce(available_at, now())
         ELSE NULL
       END
-  FROM ordered
-  WHERE c.id = ordered.id;
+  WHERE id = v_commission_id AND owner_id = v_owner_id;
+
+  IF TG_OP = 'DELETE' THEN RETURN OLD; ELSE RETURN NEW; END IF;
 END;
 $function$;
-REVOKE ALL ON FUNCTION private.refresh_partner_commissions_for_student(uuid,uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION private.sync_partner_commission_progress() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS trg_sync_partner_commission_progress ON public.partner_commission_lessons;
+CREATE TRIGGER trg_sync_partner_commission_progress
+AFTER INSERT OR DELETE ON public.partner_commission_lessons
+FOR EACH ROW EXECUTE FUNCTION private.sync_partner_commission_progress();
 
-CREATE OR REPLACE FUNCTION private.sync_partner_commission_lesson_progress()
+CREATE OR REPLACE FUNCTION private.guard_paid_partner_commission_refund()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $function$
 BEGIN
-  IF TG_OP = 'DELETE' THEN
-    PERFORM private.refresh_partner_commissions_for_student(OLD.owner_id, OLD.student_id);
-    RETURN OLD;
-  END IF;
-  PERFORM private.refresh_partner_commissions_for_student(NEW.owner_id, NEW.student_id);
-  IF TG_OP = 'UPDATE' AND (OLD.owner_id, OLD.student_id) IS DISTINCT FROM (NEW.owner_id, NEW.student_id) THEN
-    PERFORM private.refresh_partner_commissions_for_student(OLD.owner_id, OLD.student_id);
-  END IF;
-  RETURN NEW;
-END;
-$function$;
-REVOKE ALL ON FUNCTION private.sync_partner_commission_lesson_progress() FROM PUBLIC, anon, authenticated;
-DROP TRIGGER IF EXISTS sync_partner_commission_lesson_progress ON public.lessons;
-CREATE TRIGGER sync_partner_commission_lesson_progress
-AFTER INSERT OR UPDATE OF status, student_id, owner_id OR DELETE
-ON public.lessons
-FOR EACH ROW EXECUTE FUNCTION private.sync_partner_commission_lesson_progress();
-
--- Recalcula também se uma venda for editada ou se o vínculo de indicação mudar.
-CREATE OR REPLACE FUNCTION private.refresh_partner_commissions_for_student_trigger()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $function$
-BEGIN
-  PERFORM private.refresh_partner_commissions_for_student(NEW.owner_id, NEW.id);
-  RETURN NEW;
-END;
-$function$;
-REVOKE ALL ON FUNCTION private.refresh_partner_commissions_for_student_trigger() FROM PUBLIC, anon, authenticated;
-DROP TRIGGER IF EXISTS refresh_partner_commissions_after_student_update ON public.students;
-CREATE TRIGGER refresh_partner_commissions_after_student_update
-AFTER UPDATE OF partner_id ON public.students
-FOR EACH ROW EXECUTE FUNCTION private.refresh_partner_commissions_for_student_trigger();
-
--- Garante que comissões já geradas acompanhem alterações nos itens de serviço.
-CREATE OR REPLACE FUNCTION private.refresh_partner_commission_after_sale_item()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $function$
-DECLARE v_student_id uuid;
-BEGIN
-  SELECT student_id INTO v_student_id FROM public.sales
-  WHERE id = NEW.sale_id AND owner_id = NEW.owner_id;
-  IF v_student_id IS NOT NULL THEN
-    PERFORM private.refresh_partner_commissions_for_student(NEW.owner_id, v_student_id);
+  IF (coalesce(NEW.aulas_devolvidas,0) > coalesce(OLD.aulas_devolvidas,0)
+      OR coalesce(NEW.valor_devolvido,0) > coalesce(OLD.valor_devolvido,0))
+     AND EXISTS (
+       SELECT 1 FROM public.partner_commissions c
+       WHERE c.sale_item_id = OLD.id AND c.owner_id = OLD.owner_id AND c.status = 'pago'
+     ) THEN
+    RAISE EXCEPTION 'Não é possível devolver aulas: a comissão deste pacote já foi paga ao parceiro.'
+      USING ERRCODE = '23514';
   END IF;
   RETURN NEW;
 END;
 $function$;
-REVOKE ALL ON FUNCTION private.refresh_partner_commission_after_sale_item() FROM PUBLIC, anon, authenticated;
-DROP TRIGGER IF EXISTS refresh_partner_commission_after_sale_item ON public.sale_items;
-CREATE TRIGGER refresh_partner_commission_after_sale_item
-AFTER INSERT OR UPDATE OF tipo_item, aulas_contratadas, valor_liquido, subtotal
-ON public.sale_items
-FOR EACH ROW EXECUTE FUNCTION private.refresh_partner_commission_after_sale_item();
-
--- Todas as demais tabelas do módulo são acessadas somente pelas Edge Functions
--- que validam o usuário, papel, parceiro e proprietário antes de cada operação.
+REVOKE ALL ON FUNCTION private.guard_paid_partner_commission_refund() FROM PUBLIC, anon, authenticated;
+DROP TRIGGER IF EXISTS trg_guard_paid_partner_commission_refund ON public.sale_items;
+CREATE TRIGGER trg_guard_paid_partner_commission_refund
+BEFORE UPDATE OF aulas_devolvidas, valor_devolvido ON public.sale_items
+FOR EACH ROW EXECUTE FUNCTION private.guard_paid_partner_commission_refund();
