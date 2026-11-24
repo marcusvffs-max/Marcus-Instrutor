@@ -331,6 +331,45 @@
     }
   }
 
+  async function savePartnerManagement(event) {
+    event.preventDefault();
+    const id = $("gerenciarParceiroId").value;
+    const partner = partners.find(p => p.id === id);
+    if (!partner) return;
+    const button = event.currentTarget.querySelector('[type="submit"]');
+    button.disabled = true;
+    try {
+      await invoke("update_commission",{partner_id:id,commission_percent:Number($("gerenciarComissaoParceiro").value)});
+      await invoke("update_pix_key",{partner_id:id,pix_key:$("gerenciarPixParceiro").value});
+      await invoke("update_status",{partner_id:id,status:$("gerenciarStatusParceiro").value});
+      closeModal("modalGerenciarParceiro");
+      say("Dados de " + partner.nome + " atualizados.");
+      await loadPartners();
+    } catch(error) { say(error.message,true); }
+    finally { button.disabled = false; }
+  }
+
+  async function openMessageHistory() {
+    openModal("modalHistoricoMensagensParceiros");
+    const target = $("listaHistoricoMensagensParceiros");
+    target.replaceChildren(make("p","empty-state","Carregando histórico…"));
+    try {
+      const result = await invoke("message_history");
+      const rows = result.messages || [];
+      target.replaceChildren();
+      if (!rows.length) { target.append(make("p","empty-state","Nenhuma mensagem enviada ainda.")); return; }
+      rows.forEach(item => {
+        const card = make("article","partner-admin-card");
+        card.append(make("strong","",item.assunto));
+        card.append(make("p","partner-admin-meta",new Date(item.created_at).toLocaleString("pt-BR") + " · " + (item.publico === "todos_aprovados" ? "Todos os parceiros aprovados" : "Parceiros selecionados")));
+        card.append(make("p","",item.mensagem));
+        const recipients = item.recipients || [];
+        card.append(make("p","partner-admin-meta",recipients.length + " destinatário(s): " + recipients.map(r => r.partner_name + (r.read_at ? " (lida)" : " (não lida)")).join(", ")));
+        target.append(card);
+      });
+    } catch(error) { target.replaceChildren(make("p","empty-state",error.message)); }
+  }
+
   async function recordPayout(event) {
     event.preventDefault();
     const ids = [...document.querySelectorAll("#listaComissoesParceiro input:checked")].map(input => input.value);
@@ -346,7 +385,8 @@
       });
       $("referenciaPagamentoParceiro").value = "";
       say(result.message || "Pagamento registrado.");
-      await loadAvailableCommissions();
+      closeModal("modalPagamentoParceiro");
+      await loadPartners();
     } catch (error) { say(error.message, true); }
     finally { button.disabled = false; }
   }
@@ -354,57 +394,51 @@
   function installStyles() {
     if (document.getElementById("partner-admin-styles")) return;
     const style = document.createElement("style"); style.id = "partner-admin-styles";
-    style.textContent = `.partner-report-scroll{overflow:auto}.partner-report-table{width:100%;border-collapse:collapse}.partner-report-table th,.partner-report-table td{text-align:left;padding:10px;border-bottom:1px solid #e2e8f0;font-size:.88rem;vertical-align:top}.partner-report-table th{color:#64748b;font-size:.76rem;text-transform:uppercase}@media print{body *{visibility:hidden!important}#modalRelatorioPagamentosParceiros,#modalRelatorioPagamentosParceiros *{visibility:visible!important}#modalRelatorioPagamentosParceiros{position:absolute!important;inset:0!important;display:block!important;background:#fff!important;padding:0!important}#modalRelatorioPagamentosParceiros .partner-modal-backdrop,#modalRelatorioPagamentosParceiros button{display:none!important}#modalRelatorioPagamentosParceiros .partner-modal-dialog{max-height:none!important;overflow:visible!important;box-shadow:none!important;width:100%!important;padding:0!important}}.partner-invite-launcher{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.partner-modal[hidden]{display:none}.partner-modal{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px}.partner-modal-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.68)}.partner-modal-dialog{position:relative;z-index:1;width:min(100%,620px);max-height:90vh;overflow:auto;background:#fff;color:#172033;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.28)}.partner-modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.partner-modal-head h3{margin:0}@media(max-width:520px){.partner-modal-dialog{padding:16px}.partner-invite-launcher{align-items:stretch}.partner-invite-launcher button{width:100%}}.partner-admin-card{border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:10px 0;background:#fff}.partner-admin-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.partner-admin-card-head strong,.partner-admin-card-head small{display:block}.partner-admin-card-head small,.partner-admin-meta{color:#64748b;margin:5px 0}.partner-status{border-radius:20px;padding:5px 10px;font-size:.78rem;font-weight:700;background:#eef2f7}.partner-status-aprovado{background:#dcfce7;color:#166534}.partner-status-pendente{background:#fef3c7;color:#92400e}.partner-status-suspenso,.partner-status-reprovado{background:#fee2e2;color:#991b1b}.partner-admin-actions{display:flex;align-items:end;gap:8px;flex-wrap:wrap;margin-top:12px}.partner-admin-actions label{display:grid;gap:5px;font-size:.85rem}.partner-admin-actions input,.partner-status-select{max-width:150px;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}.partner-admin-warning{display:block;color:#92400e;margin-top:9px}.partner-recipient-select,.partner-commission-option{display:flex;align-items:center;gap:9px;padding:8px 0;font-size:.9rem}.partner-recipient-select{margin-bottom:8px}`;
+    style.textContent = `.partner-report-scroll{overflow:auto}.partner-report-table{width:100%;border-collapse:collapse}.partner-report-table th,.partner-report-table td{text-align:left;padding:10px;border-bottom:1px solid #e2e8f0;font-size:.88rem;vertical-align:top}.partner-report-table th{color:#64748b;font-size:.76rem;text-transform:uppercase}@media print{body *{visibility:hidden!important}#modalRelatorioPagamentosParceiros,#modalRelatorioPagamentosParceiros *{visibility:visible!important}#modalRelatorioPagamentosParceiros{position:absolute!important;inset:0!important;display:block!important;background:#fff!important;padding:0!important}#modalRelatorioPagamentosParceiros .partner-modal-backdrop,#modalRelatorioPagamentosParceiros button{display:none!important}#modalRelatorioPagamentosParceiros .partner-modal-dialog{max-height:none!important;overflow:visible!important;box-shadow:none!important;width:100%!important;padding:0!important}}.partner-invite-launcher{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.partner-modal[hidden]{display:none}.partner-modal{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px}.partner-modal-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.68)}.partner-modal-dialog{position:relative;z-index:1;width:min(100%,620px);max-height:90vh;overflow:auto;background:#fff;color:#172033;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.28)}.partner-modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.partner-modal-head h3{margin:0}@media(max-width:520px){.partner-modal-dialog{padding:16px}.partner-invite-launcher{align-items:stretch}.partner-invite-launcher button{width:100%}}.partner-admin-card{border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:10px 0;background:#fff}.partner-admin-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.partner-admin-card-head strong,.partner-admin-card-head small{display:block}.partner-admin-card-head small,.partner-admin-meta{color:#64748b;margin:5px 0}.partner-status{border-radius:20px;padding:5px 10px;font-size:.78rem;font-weight:700;background:#eef2f7}.partner-status-aprovado{background:#dcfce7;color:#166534}.partner-status-pendente{background:#fef3c7;color:#92400e}.partner-status-suspenso,.partner-status-reprovado{background:#fee2e2;color:#991b1b}.partner-admin-actions{display:flex;align-items:end;gap:8px;flex-wrap:wrap;margin-top:12px}.partner-admin-actions label{display:grid;gap:5px;font-size:.85rem}.partner-admin-actions input,.partner-status-select{max-width:150px;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}.partner-admin-warning{display:block;color:#92400e;margin-top:9px}.partner-recipient-select,.partner-commission-option{display:flex;align-items:center;gap:9px;padding:8px 0;font-size:.9rem}.partner-recipient-select{margin-bottom:8px}.partner-action-grid{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 18px}.partner-action-grid button{flex:1 1 170px}.partner-commission-available{padding:12px;border-radius:10px;background:#dcfce7;color:#166534;font-weight:800;margin:10px 0}.partner-admin-card>button{margin-top:10px}`;
     document.head.append(style);
   }
 
   async function init() {
     if (initialized || initializing) return;
     const trigger = $("btnAtualizarParceiros");
-    const openInvite = $("btnAbrirCadastroParceiro");
-    const inviteModal = $("modalCadastroParceiro");
-    const closeInvite = $("btnFecharCadastroParceiro");
-    const invite = $("formNovoParceiro");
-    const message = $("formMensagemParceiros");
-    const payout = $("formPagamentoParceiro");
+    const invite = $("formNovoParceiro"), message = $("formMensagemParceiros"), payout = $("formPagamentoParceiro");
     const reportModal = $("modalRelatorioPagamentosParceiros");
-    if (!trigger || !openInvite || !inviteModal || !closeInvite || !invite || !message || !payout || !reportModal) return;
+    if (!trigger || !invite || !message || !payout || !reportModal || !$("modalGerenciarParceiro")) return;
     client = window.getMarcusSupabase?.();
     if (!client) { say("Cliente Supabase não encontrado.", true); return; }
     initializing = true;
     let authData, authError;
-    try {
-      ({ data: authData, error: authError } = await client.auth.getUser());
-    } catch (error) {
-      initializing = false;
-      say(error.message || "Não foi possível validar a sessão administrativa.", true);
-      return;
-    }
+    try { ({ data: authData, error: authError } = await client.auth.getUser()); }
+    catch (error) { initializing = false; say(error.message || "Não foi possível validar a sessão administrativa.", true); return; }
     if (authError || !authData?.user?.id) { initializing = false; say("Sessão administrativa não encontrada.", true); return; }
-    ownerId = authData.user.id;
-    initialized = true;
-    initializing = false;
-    installStyles();
-    trigger.addEventListener("click", loadPartners);
-    const closeInviteModal = () => { inviteModal.hidden = true; };
-    openInvite.addEventListener("click", () => { inviteModal.hidden = false; $("novoParceiroNome").focus(); });
-    closeInvite.addEventListener("click", closeInviteModal);
-    inviteModal.addEventListener("click", event => { if (event.target === inviteModal || event.target.hasAttribute("data-close-partner-modal")) closeInviteModal(); });
-    document.addEventListener("keydown", event => { if (event.key === "Escape") { if (!inviteModal.hidden) closeInviteModal(); if (!reportModal.hidden) closeReport(); } });
-    invite.addEventListener("submit", invitePartner);
-    message.addEventListener("submit", sendMessage);
-    payout.addEventListener("submit", recordPayout);
-    $("btnRelatorioPagamentosParceiros").addEventListener("click", openPayoutReport);
-    const closeReport = () => { reportModal.hidden = true; if (inviteModal.hidden) document.body.style.overflow = ""; };
-    $("btnFecharRelatorioPagamentosParceiros").addEventListener("click", closeReport);
-    reportModal.addEventListener("click", event => { if (event.target === reportModal || event.target.hasAttribute("data-close-report")) closeReport(); });
-    $("btnImprimirRelatorioPagamentosParceiros").addEventListener("click", () => window.print());
-    $("selectParceiroPagamento").addEventListener("change", loadAvailableCommissions);
-    $("mensagemTodosParceiros").addEventListener("change", event => {
-      document.querySelectorAll("[data-parceiro-selecionado]").forEach(input => { input.disabled = event.target.checked; });
-    });
+    ownerId = authData.user.id; initialized = true; initializing = false; installStyles();
+    trigger.addEventListener("click",loadPartners);
+    $("btnAbrirCadastroParceiro").addEventListener("click",() => openModal("modalCadastroParceiro"));
+    $("btnFecharCadastroParceiro").addEventListener("click",() => closeModal("modalCadastroParceiro"));
+    $("modalCadastroParceiro").addEventListener("click",e => { if(e.target.hasAttribute("data-close-partner-modal")) closeModal("modalCadastroParceiro"); });
+    $("btnAbrirMensagemParceiros").addEventListener("click",() => { renderMessageRecipients(); openModal("modalMensagemParceiros"); });
+    $("btnFecharMensagemParceiros").addEventListener("click",() => closeModal("modalMensagemParceiros"));
+    $("modalMensagemParceiros").addEventListener("click",e => { if(e.target.hasAttribute("data-close-message")) closeModal("modalMensagemParceiros"); });
+    $("btnHistoricoMensagensParceiros").addEventListener("click",openMessageHistory);
+    $("btnFecharHistoricoMensagensParceiros").addEventListener("click",() => closeModal("modalHistoricoMensagensParceiros"));
+    $("modalHistoricoMensagensParceiros").addEventListener("click",e => { if(e.target.hasAttribute("data-close-message-history")) closeModal("modalHistoricoMensagensParceiros"); });
+    $("btnAbrirPagamentoParceiro").addEventListener("click",() => openModal("modalPagamentoParceiro"));
+    $("btnFecharPagamentoParceiro").addEventListener("click",() => closeModal("modalPagamentoParceiro"));
+    $("modalPagamentoParceiro").addEventListener("click",e => { if(e.target.hasAttribute("data-close-payout")) closeModal("modalPagamentoParceiro"); });
+    $("btnFecharGerenciarParceiro").addEventListener("click",() => closeModal("modalGerenciarParceiro"));
+    $("modalGerenciarParceiro").addEventListener("click",e => { if(e.target.hasAttribute("data-close-manage-partner")) closeModal("modalGerenciarParceiro"); });
+    $("formGerenciarParceiro").addEventListener("submit",savePartnerManagement);
+    invite.addEventListener("submit",invitePartner); message.addEventListener("submit",sendMessage); payout.addEventListener("submit",recordPayout);
+    $("btnRelatorioPagamentosParceiros").addEventListener("click",openPayoutReport);
+    $("btnFecharRelatorioPagamentosParceiros").addEventListener("click",() => closeModal("modalRelatorioPagamentosParceiros"));
+    reportModal.addEventListener("click",e => { if(e.target.hasAttribute("data-close-report")) closeModal("modalRelatorioPagamentosParceiros"); });
+    $("btnImprimirRelatorioPagamentosParceiros").addEventListener("click",() => window.print());
+    $("selectParceiroPagamento").addEventListener("change",loadAvailableCommissions);
+    $("buscaAlunosParceiros").addEventListener("input",renderPartnerStudents);
+    $("mensagemTodosParceiros").addEventListener("change",event => document.querySelectorAll("#selecaoDestinatariosParceiros [data-parceiro-selecionado]").forEach(input => { input.disabled = event.target.checked; }));
+    document.addEventListener("keydown",event => { if(event.key === "Escape") document.querySelectorAll("#page-parceiros .partner-modal:not([hidden])").forEach(m => closeModal(m.id)); });
     loadPartners();
-    window.setInterval(() => { if (document.visibilityState === "visible") loadPartners(); }, 30000);
+    window.setInterval(() => { if(document.visibilityState === "visible") loadPartners(); },30000);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
