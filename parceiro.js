@@ -12,6 +12,31 @@
   const cell = (row, text, span) => { const td = document.createElement("td"); td.textContent = text ?? "—"; if (span) td.colSpan = span; row.append(td); };
   let availableProducts = [];
   let quoteItems = [];
+  let activePartnerForm = null;
+  function openPartnerForm(formId, title) {
+    const form = $(formId), modal = $("partnerModal"), body = $("partnerModalBody");
+    if (!form || !modal || !body) return;
+    if (activePartnerForm) closePartnerForm();
+    const marker = document.createComment("partner-form-" + formId);
+    form.parentNode.insertBefore(marker, form);
+    body.append(form); form.hidden = false;
+    $("partnerModalTitle").textContent = title; modal.hidden = false;
+    activePartnerForm = { form, marker }; document.body.style.overflow = "hidden";
+  }
+  function closePartnerForm() {
+    if (!activePartnerForm) return;
+    const { form, marker } = activePartnerForm;
+    marker.parentNode?.insertBefore(form, marker); marker.remove(); form.hidden = true;
+    $("partnerModal").hidden = true; $("partnerModalBody").replaceChildren();
+    document.body.style.overflow = ""; activePartnerForm = null;
+  }
+  $("partnerModalClose")?.addEventListener("click", closePartnerForm);
+  $("partnerModal")?.addEventListener("click", event => {
+    if (event.target === $("partnerModal") || event.target.hasAttribute("data-close-partner-modal")) closePartnerForm();
+  });
+  document.addEventListener("keydown", event => { if (event.key === "Escape") closePartnerForm(); });
+  $("btnOpenStudentForm")?.addEventListener("click", () => openPartnerForm("partnerStudentForm", "Cadastrar aluno indicado"));
+  $("btnOpenQuoteForm")?.addEventListener("click", () => openPartnerForm("partnerQuoteForm", "Montar orçamento"));
   if (!client) { say("Não foi possível carregar a autenticação.", true); return; }
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
   if (sessionError || !sessionData.session) { location.replace("index.html"); return; }
@@ -135,6 +160,9 @@
       ], "Nenhuma comissão registrada.", 5);
       renderPayouts(data.payouts || []);
       const messages = $("partnerMessages"); messages.replaceChildren();
+      const unreadMessages = (data.messages || []).filter(item => !item.read_at);
+      const badge = $("partnerUpdatesBadge");
+      if (badge) { badge.textContent = String(unreadMessages.length); badge.hidden = unreadMessages.length === 0; }
       if (!(data.messages || []).length) messages.append(document.createTextNode("Nenhum comunicado no momento."));
       (data.messages || []).forEach(item => {
         const article = document.createElement("article"); article.className = "partner-message";
@@ -165,7 +193,7 @@
         endereco: $("referralAddress").value,
         categoria: $("referralCategory").value,
       });
-      form.reset();
+      form.reset(); closePartnerForm();
       say(result.message || "Aluno enviado para aprovação.");
       await load();
     } catch (error) { say(error.message, true); }
@@ -197,7 +225,7 @@
         observacoes: $("partnerQuoteNotes").value,
       });
       quoteItems = [];
-      form.reset();
+      form.reset(); closePartnerForm();
       renderQuoteItems();
       say(result.message || "Orçamento enviado para aprovação.");
       await load();
