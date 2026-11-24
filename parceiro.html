@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#12345a"><title>Área do Parceiro · Marcus Instrutor</title>
+  <link rel="stylesheet" href="style.css?v=central-logo-1">
+  <style>
+    body{background:#f3f6fb;color:#172033}.partner-shell{max-width:1080px;margin:0 auto;padding:24px 16px 56px}
+    .partner-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+    .partner-top h1{margin:0;font-size:clamp(1.4rem,4vw,2rem)}.partner-top p{margin:5px 0 0;color:#64748b}
+    .partner-button{border:0;border-radius:10px;padding:11px 15px;font:inherit;font-weight:700;cursor:pointer;background:#12345a;color:#fff}
+    .partner-button.secondary{background:#e2e8f0;color:#172033}.partner-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:20px}
+    .partner-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:18px;box-shadow:0 5px 20px #0f172a08}
+    .partner-card small{display:block;color:#64748b;margin-bottom:8px}.partner-card strong{font-size:1.35rem}
+    .partner-section{margin:18px 0}.partner-section h2{font-size:1.1rem;margin:0 0 12px}
+    .partner-table{width:100%;border-collapse:collapse}.partner-table th,.partner-table td{text-align:left;padding:11px 9px;border-bottom:1px solid #e2e8f0;font-size:.92rem}
+    .partner-table th{color:#64748b;font-size:.78rem;text-transform:uppercase}.partner-scroll{overflow:auto}
+    .partner-message{border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin:10px 0}.partner-message h3{margin:0 0 6px;font-size:1rem}.partner-message p{white-space:pre-wrap;margin:0 0 10px}
+    .partner-message small{color:#64748b}.partner-inline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .partner-pix{display:flex;gap:8px;flex-wrap:wrap}.partner-pix input{flex:1;min-width:190px;padding:11px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}
+    #partnerStatus{margin:12px 0;color:#475569;min-height:24px}.partner-error{color:#b42318!important}
+    @media(max-width:600px){.partner-shell{padding:16px 12px 40px}.partner-table{min-width:560px}}
+  </style>
+</head>
+<body>
+  <main class="partner-shell">
+    <header class="partner-top">
+      <div><h1 id="partnerName">Área do Parceiro</h1><p id="partnerEmail">Carregando seus dados…</p></div>
+      <button id="partnerLogout" class="partner-button secondary" type="button">Sair</button>
+    </header>
+    <p id="partnerStatus" role="status" aria-live="polite">Validando acesso…</p>
+    <section class="partner-grid" aria-label="Resumo financeiro">
+      <article class="partner-card"><small>Comissões pendentes</small><strong id="partnerPending">R$ 0,00</strong></article>
+      <article class="partner-card"><small>Disponível para receber</small><strong id="partnerAvailable">R$ 0,00</strong></article>
+      <article class="partner-card"><small>Total recebido</small><strong id="partnerPaid">R$ 0,00</strong></article>
+    </section>
+    <section class="partner-card partner-section"><h2>Minha chave PIX</h2><form id="partnerPixForm" class="partner-pix"><input id="partnerPixKey" maxlength="120" placeholder="Informe sua chave PIX" aria-label="Chave PIX"><button class="partner-button" type="submit">Salvar chave</button></form></section>
+    <section class="partner-card partner-section"><h2>Alunos indicados</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Aluno</th><th>Categoria</th><th>Situação</th><th>Cadastro</th></tr></thead><tbody id="partnerStudents"><tr><td colspan="4">Carregando…</td></tr></tbody></table></div></section>
+    <section class="partner-card partner-section"><h2>Minhas comissões</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Descrição</th><th>Aluno</th><th>Progresso</th><th>Valor</th><th>Situação</th></tr></thead><tbody id="partnerCommissions"><tr><td colspan="5">Carregando…</td></tr></tbody></table></div></section>
+    <section class="partner-card partner-section"><h2>Histórico de pagamentos</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Data</th><th>Forma</th><th>Referência</th><th>Valor</th></tr></thead><tbody id="partnerPayouts"><tr><td colspan="4">Carregando…</td></tr></tbody></table></div></section>
+    <section class="partner-card partner-section"><h2>Comunicados</h2><div id="partnerMessages"><p>Carregando…</p></div></section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
+  <script src="parceiro.js?v=partner-portal-1"></script>
+</body>
+</html>
