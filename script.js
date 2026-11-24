@@ -3501,12 +3501,25 @@ async function carregarDadosAdminSupabase() {
 
   const dados = Object.fromEntries(resultados);
 
-  // O saldo oficial de aluguel é controlado em students.alugueis_disponiveis.
-  // A devolução por item usa a quantidade ainda não devolvida; a RPC valida
-  // o saldo real e bloqueia qualquer aluguel já consumido em exame.
+  // A política RLS limita a leitura aos créditos da própria conta; a tabela
+  // libera somente as colunas necessárias para calcular o saldo por compra.
+  const rentalCreditsResult = await cliente.from("student_rental_credits")
+    .select("sale_item_id,quantity_purchased,quantity_refunded,quantity_consumed");
+  const rentalCreditLedgerMissing = rentalCreditsResult.error &&
+    (["42P01", "PGRST205"].includes(rentalCreditsResult.error.code) ||
+     /student_rental_credits.*(schema cache|does not exist|not found)/i.test(rentalCreditsResult.error.message || ""));
+  if (rentalCreditsResult.error && !rentalCreditLedgerMissing) throw rentalCreditsResult.error;
+  const creditsBySaleItem = new Map((rentalCreditsResult.data || []).map(credit => [credit.sale_item_id, credit]));
   const rentalCreditAvailability = new Map((dados.sale_items || [])
     .filter(item => item.fixed_item_key === "aluguel_veiculo")
-    .map(item => [item.id, Math.max(0, Number(item.quantidade || 0) - Number(item.quantidade_devolvida || 0))]));
+    .map(item => {
+      const credit = creditsBySaleItem.get(item.id);
+      const fallback = Math.max(0, Number(item.quantidade || 0) - Number(item.quantidade_devolvida || 0));
+      const available = credit
+        ? Math.max(0, Number(credit.quantity_purchased || 0) - Number(credit.quantity_refunded || 0) - Number(credit.quantity_consumed || 0))
+        : fallback;
+      return [item.id, available];
+    }));
 
   const configuracoesNuvem = dados.app_settings?.[0] || null;
   db.configuracoes = {
