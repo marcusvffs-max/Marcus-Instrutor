@@ -18,7 +18,7 @@ test("login encaminha perfil parceiro para a área exclusiva", () => {
 });
 
 test("painel admin carrega gestão de parceiros somente após autenticação", () => {
-  assert.match(adminHtml, /await carregarScript\("parceiros-admin\.js\?v=partner-admin-2"\)/);
+  assert.match(adminHtml, /await carregarScript\("parceiros-admin\.js\?v=partner-admin-3"\)/);
   assert.match(adminHtml, /id="page-parceiros"/);
   assert.match(adminHtml, /data-page="parceiros"/);
 });
@@ -41,7 +41,7 @@ test("cadastro administrativo do aluno permite associar parceiro", () => {
 });
 
 test("portal do parceiro consulta somente as ações autenticadas do endpoint próprio", () => {
-  assert.match(partnerHtml, /parceiro\.js\?v=partner-portal-2/);
+  assert.match(partnerHtml, /parceiro\.js\?v=partner-portal-3/);
   assert.match(partnerJs, /functions\.invoke\("partner-portal"/);
   for (const action of ["overview", "confirm_receipt", "mark_read"]) {
     assert.ok(partnerJs.includes('"' + action + '"'), "Ação ausente: " + action);
@@ -50,9 +50,9 @@ test("portal do parceiro consulta somente as ações autenticadas do endpoint pr
 });
 
 test("service worker mantém portal disponível e não compartilha script administrativo", () => {
-  assert.match(serviceWorker, /marcus-instrutor-v32-partner-module/);
+  assert.match(serviceWorker, /marcus-instrutor-v33-partner-module/);
   assert.match(serviceWorker, /"\.\/parceiro\.html"/);
-  assert.match(serviceWorker, /"\.\/parceiro\.js\?v=partner-portal-2"/);
+  assert.match(serviceWorker, /"\.\/parceiro\.js\?v=partner-portal-3"/);
   assert.match(serviceWorker, /"\/parceiros-admin\.js"/);
 });
 
@@ -114,4 +114,32 @@ test("índices cobrem as relações de alunos, orçamentos e itens de orçamento
   assert.match(partnerIndexesMigration, /partner_quotes_student_owner_fk_idx/);
   assert.match(partnerIndexesMigration, /partner_quote_items_quote_owner_fk_idx/);
   assert.match(partnerIndexesMigration, /partner_quote_items_product_id_idx/);
+});
+
+const partnerProgressPolicyMigration = read("../supabase/migrations/20261124120000_restrict_partner_commission_progress_read.sql");
+
+test("parceiro cadastra indicação e envia orçamento usando catálogo do administrador", () => {
+  assert.match(partnerHtml, /id="partnerStudentForm"/);
+  assert.match(partnerHtml, /id="partnerQuoteForm"/);
+  assert.match(partnerJs, /create_student/);
+  assert.match(partnerJs, /create_quote/);
+  assert.match(partnerEdge, /body\.action === "create_student"/);
+  assert.match(partnerEdge, /body\.action === "create_quote"/);
+  assert.match(partnerEdge, /\.eq\("owner_id", partner\.owner_id\)\.eq\("ativo", true\)/);
+});
+
+test("administrador aprova apenas dados cadastrais e não cria venda financeira", () => {
+  assert.match(adminJs, /review_student/);
+  assert.match(adminJs, /review_quote/);
+  assert.match(adminEdge, /body\.action === "review_student"/);
+  assert.match(adminEdge, /aulas_compradas: 0, aulas_restantes: 0/);
+  assert.match(adminEdge, /alugueis_comprados: 0, alugueis_disponiveis: 0/);
+  assert.match(adminEdge, /Nenhuma venda ou movimentação financeira foi criada/);
+  assert.match(adminEdge, /Registre a venda e o financeiro manualmente/);
+});
+
+test("progresso de aulas de comissão paga não pode ser consultado diretamente pelo parceiro", () => {
+  assert.match(partnerProgressPolicyMigration, /DROP POLICY IF EXISTS partner_commissions_owner_or_self_select/);
+  assert.match(partnerProgressPolicyMigration, /DROP POLICY IF EXISTS partner_commission_lessons_owner_or_self_select/);
+  assert.match(partnerEdge, /lessons_completed: c\.status === "pago" \? null/);
 });
