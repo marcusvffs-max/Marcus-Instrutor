@@ -382,6 +382,51 @@
         </div>
       </section>
 
+      <section id="page-parceiros" class="page">
+        <div class="page-heading">
+          <div><span class="eyebrow">RELACIONAMENTO</span><h2>Parceiros</h2></div>
+          <button id="btnAtualizarParceiros" class="secondary-button" type="button">Atualizar parceiros</button>
+        </div>
+        <p id="statusParceirosAdmin" class="form-hint" role="status" aria-live="polite"></p>
+        <div class="panel">
+          <h3>Cadastrar parceiro</h3>
+          <p>Envie um convite. O acesso do parceiro ficará pendente até a aprovação do administrador.</p>
+          <form id="formNovoParceiro" class="form-grid">
+            <div><label for="novoParceiroNome">Nome completo *</label><input id="novoParceiroNome" required maxlength="160"></div>
+            <div><label for="novoParceiroEmail">E-mail *</label><input id="novoParceiroEmail" type="email" required maxlength="254"></div>
+            <div><label for="novoParceiroTelefone">Telefone</label><input id="novoParceiroTelefone" type="tel" maxlength="40"></div>
+            <div><label for="novoParceiroDocumento">CPF / CNPJ</label><input id="novoParceiroDocumento" maxlength="30"></div>
+            <div><label for="novaComissaoParceiro">Comissão (%) *</label><input id="novaComissaoParceiro" type="number" min="0" max="100" step="0.01" value="5" required></div>
+            <div class="form-actions"><button class="primary-button" type="submit">Enviar convite</button></div>
+          </form>
+        </div>
+        <div class="panel">
+          <h3>Parceiros cadastrados</h3>
+          <p>Revise os convites, aprove ou suspenda acessos e ajuste a comissão.</p>
+          <div id="listaParceirosAdmin" class="list-container"><div class="empty-state">Carregando parceiros…</div></div>
+        </div>
+        <div class="panel">
+          <h3>Enviar comunicado</h3>
+          <form id="formMensagemParceiros">
+            <label class="contrato-check"><input id="mensagemTodosParceiros" type="checkbox"> Enviar para todos os parceiros aprovados</label>
+            <label for="assuntoMensagemParceiros">Assunto</label><input id="assuntoMensagemParceiros" required maxlength="160">
+            <label for="textoMensagemParceiros">Mensagem</label><textarea id="textoMensagemParceiros" rows="4" required maxlength="5000"></textarea>
+            <button class="primary-button" type="submit">Enviar comunicado</button>
+          </form>
+        </div>
+        <div class="panel">
+          <h3>Registrar pagamento de comissão</h3>
+          <form id="formPagamentoParceiro">
+            <label for="selectParceiroPagamento">Parceiro</label><select id="selectParceiroPagamento" required><option value="">Selecione um parceiro</option></select>
+            <div id="listaComissoesParceiro" class="list-container"><div class="empty-state">Selecione um parceiro para consultar as comissões disponíveis.</div></div>
+            <label for="metodoPagamentoParceiro">Forma de pagamento</label>
+            <select id="metodoPagamentoParceiro" required><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="transferencia">Transferência</option><option value="outro">Outro</option></select>
+            <label for="referenciaPagamentoParceiro">Referência / observação</label><input id="referenciaPagamentoParceiro" maxlength="160">
+            <button id="btnRegistrarPagamentoParceiro" class="primary-button" type="submit">Registrar pagamento</button>
+          </form>
+        </div>
+      </section>
+
       <section id="page-contratos" class="page">
         <div class="page-heading"><div><span class="eyebrow">DOCUMENTOS</span><h2>Contratos</h2></div></div>
         <div class="panel">
@@ -440,6 +485,7 @@
         <span class="menu-icon">▤</span>
         <span>Relatórios</span>
       </button>
+      <button type="button" data-page="parceiros" class="menu-item"><span class="menu-icon">♧</span><span>Parceiros</span></button>
       <button type="button" data-page="contratos" class="menu-item"><span class="menu-icon">▧</span><span>Contratos</span></button>
       <button type="button" data-page="cadastro" class="menu-item"><span class="menu-icon">♙</span><span>Meu cadastro</span></button>
       <button type="button" data-page="backup" class="menu-item">
@@ -555,6 +601,7 @@
         await carregarScript("whatsapp-panel.js?v=whatsapp-panel-v12-message-delete");
         await carregarScript("exames-alugueis.js?v=exams-status-filter-1");
         await carregarScript("admin-users.js?v=admin-users-v3-safe-confirm");
+        await carregarScript("parceiros-admin.js?v=partner-admin-1");
         await carregarScript("exames-alugueis.js?v=exams-status-filter-1");
         painelAdminCarregado = true;
       }
@@ -613,6 +660,10 @@
         }
         if (perfil.role === "instrutor") {
           window.location.replace("instrutor.html");
+          return false;
+        }
+        if (perfil.role === "parceiro") {
+          window.location.replace("parceiro.html");
           return false;
         }
         if (perfil.role !== "admin") {
