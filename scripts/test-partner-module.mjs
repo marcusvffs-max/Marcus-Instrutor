@@ -34,6 +34,7 @@ test("cadastro administrativo do aluno permite associar parceiro", () => {
   assert.match(studentJs, /name="partner_id" id="alunoParceiro"/);
   assert.match(studentJs, /from\("partners"\)\.select\("id,nome,status"\)/);
   assert.match(studentJs, /partner_id: String\(dados\.partner_id \|\| ""\)\.trim\(\) \|\| null/);
+  assert.match(studentJs, /partner_id: salvo\.partner_id \|\| null/);
   assert.equal((studentJs.match(/partner_id: a\.partner_id \|\| null/g) || []).length, 2);
 });
 
