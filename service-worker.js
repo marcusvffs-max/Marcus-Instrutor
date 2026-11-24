@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v33-partner-module";
+const CACHE_NAME = "marcus-instrutor-v34-partner-module";
 
 const ARQUIVOS = [
   "./",
@@ -13,8 +13,8 @@ const ARQUIVOS = [
   "./admin-visual.css?v=admin-visual-1",
   "./exames-alugueis.js?v=exams-status-filter-1",
   "./instrutor.css?v=central-logo-1",
-  "./instrutor.js?v=unified-fixed-items-4",
-  "./script.js?v=official-finance-refunds-1",
+  "./instrutor.js?v=unified-fixed-items-5",
+  "./script.js?v=official-finance-refunds-2",
   "./manifest.json"
 ];
 
