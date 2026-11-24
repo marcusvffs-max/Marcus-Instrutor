@@ -10,6 +10,8 @@
   const money = value => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const date = value => value ? new Date(value).toLocaleDateString("pt-BR") : "—";
   const cell = (row, text, span) => { const td = document.createElement("td"); td.textContent = text ?? "—"; if (span) td.colSpan = span; row.append(td); };
+  let availableProducts = [];
+  let quoteItems = [];
   if (!client) { say("Não foi possível carregar a autenticação.", true); return; }
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
   if (sessionError || !sessionData.session) { location.replace("index.html"); return; }
@@ -68,6 +70,40 @@
       target.append(tr);
     });
   }
+  function populateQuoteControls(referrals, products) {
+    const students = $("partnerQuoteStudent");
+    const productSelect = $("partnerQuoteProduct");
+    students.replaceChildren(new Option("Selecione um aluno", ""));
+    referrals.filter(x => x.status !== "reprovado").forEach(item => {
+      students.append(new Option(item.nome + (item.status === "aprovado" ? "" : " (aguardando aprovação)"), item.id));
+    });
+    productSelect.replaceChildren(new Option("Selecione um item", ""));
+    products.forEach(item => {
+      productSelect.append(new Option(item.nome + " — " + money(item.preco), item.id));
+    });
+    renderQuoteItems();
+  }
+  function renderQuoteItems() {
+    const target = $("partnerQuoteItems");
+    target.replaceChildren();
+    if (!quoteItems.length) { target.textContent = "Nenhum item adicionado."; return; }
+    let total = 0;
+    quoteItems.forEach((item, index) => {
+      total += item.subtotal;
+      const row = document.createElement("div");
+      row.className = "partner-message";
+      const description = document.createElement("span");
+      description.textContent = item.nome + " · " + item.quantidade + " × " + money(item.preco) + " = " + money(item.subtotal);
+      const remove = document.createElement("button");
+      remove.type = "button"; remove.className = "partner-button secondary"; remove.textContent = "Remover";
+      remove.addEventListener("click", () => { quoteItems.splice(index, 1); renderQuoteItems(); });
+      row.append(description, remove);
+      target.append(row);
+    });
+    const totalLine = document.createElement("strong");
+    totalLine.textContent = "Total estimado: " + money(total);
+    target.append(totalLine);
+  }
   async function load() {
     say("Carregando seus dados…");
     try {
@@ -75,6 +111,17 @@
       $("partnerName").textContent = data.partner?.nome || "Área do Parceiro";
       $("partnerEmail").textContent = data.partner?.email || "";
       $("partnerPixKey").value = data.partner?.pix_key || "";
+      availableProducts = data.products || [];
+      const referrals = data.referrals || [];
+      renderTable("partnerReferrals", referrals, [
+        x => x.nome, x => x.categoria, x => ({ pendente_aprovacao: "Aguardando aprovação", aprovado: "Aprovado", reprovado: "Reprovado" })[x.status] || x.status,
+        x => date(x.created_at)
+      ], "Nenhuma indicação enviada.", 4);
+      renderTable("partnerQuotes", data.quotes || [], [
+        x => x.student_name, x => date(x.created_at), x => money(x.total),
+        x => ({ pendente: "Aguardando aprovação", aprovado: "Aprovado", reprovado: "Reprovado", cancelado: "Cancelado" })[x.status] || x.status
+      ], "Nenhum orçamento enviado.", 4);
+      populateQuoteControls(referrals, availableProducts);
       $("partnerPending").textContent = money(data.totals?.pending);
       $("partnerAvailable").textContent = money(data.totals?.available);
       $("partnerPaid").textContent = money(data.totals?.paid);
@@ -105,6 +152,57 @@
       say("Dados atualizados.");
     } catch (error) { say(error.message, true); }
   }
+  $("partnerStudentForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector('[type="submit"]');
+    button.disabled = true;
+    try {
+      const result = await invoke("create_student", {
+        nome: $("referralName").value,
+        telefone: $("referralPhone").value,
+        cpf: $("referralCpf").value,
+        endereco: $("referralAddress").value,
+        categoria: $("referralCategory").value,
+      });
+      form.reset();
+      say(result.message || "Aluno enviado para aprovação.");
+      await load();
+    } catch (error) { say(error.message, true); }
+    finally { button.disabled = false; }
+  });
+  $("partnerAddQuoteItem").addEventListener("click", () => {
+    const product = availableProducts.find(x => x.id === $("partnerQuoteProduct").value);
+    const quantity = Number($("partnerQuoteQuantity").value);
+    if (!product || !Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+      say("Selecione um produto ou serviço e informe uma quantidade válida.", true);
+      return;
+    }
+    const price = Number(product.preco || 0);
+    if (price <= 0) { say("O item selecionado não possui preço válido.", true); return; }
+    quoteItems.push({ product_id: product.id, nome: product.nome, preco: price, quantidade: quantity, subtotal: Math.round(price * quantity * 100) / 100 });
+    renderQuoteItems();
+    say("Item adicionado ao orçamento.");
+  });
+  $("partnerQuoteForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!quoteItems.length) { say("Adicione ao menos um item ao orçamento.", true); return; }
+    const button = event.currentTarget.querySelector('[type="submit"]');
+    button.disabled = true;
+    try {
+      const result = await invoke("create_quote", {
+        partner_student_id: $("partnerQuoteStudent").value,
+        items: quoteItems.map(item => ({ product_id: item.product_id, quantidade: item.quantidade })),
+        observacoes: $("partnerQuoteNotes").value,
+      });
+      quoteItems = [];
+      event.currentTarget.reset();
+      renderQuoteItems();
+      say(result.message || "Orçamento enviado para aprovação.");
+      await load();
+    } catch (error) { say(error.message, true); }
+    finally { button.disabled = false; }
+  });
   $("partnerLogout").addEventListener("click", async () => {
     $("partnerLogout").disabled = true;
     const { error } = await client.auth.signOut({ scope: "local" });
