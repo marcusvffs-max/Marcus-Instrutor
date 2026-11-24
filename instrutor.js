@@ -1984,10 +1984,18 @@
       '<div class="access-blocked-icon" aria-hidden="true">🔒</div>' +
       '<h1>Acesso temporariamente bloqueado</h1>' +
       '<p>Sua autorização de acesso ainda não foi liberada ou já venceu.</p>' +
-      '<p>Entre em contato com o administrador para solicitar a renovação do acesso por mais 30 dias.</p>' +
+      '<p>Para reativar, gere um código na sua conta da Central do Instrutor e informe-o abaixo.</p>' +
+      '<label for="codigoVinculoCentral">Código de 8 dígitos</label>' +
+      '<input id="codigoVinculoCentral" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="[0-9]{8}" placeholder="00000000">' +
+      '<button id="btnVincularCentral" type="button">Vincular minha conta</button>' +
+      '<p id="statusVinculoCentral" role="status" aria-live="polite">O código é válido por 10 minutos e só pode ser usado uma vez.</p>' +
       '<button id="btnSairAcessoBloqueado" type="button">Sair</button>' +
       '</section></main>';
     el("btnSairAcessoBloqueado").addEventListener("click", signOut);
+    el("btnVincularCentral").addEventListener("click", linkCentralAccount);
+    el("codigoVinculoCentral").addEventListener("input", event => {
+      event.target.value = event.target.value.replace(/\\D/g, "").slice(0, 8);
+    });
   }
 
   function renderAccessCountdown(accessUntil) {
@@ -2127,6 +2135,10 @@
       state.profile = profile;
       if (typeof state.refreshAccessCountdown === "function") {
         state.refreshAccessCountdown(profile.instructor_access_until);
+      } else {
+        status.textContent = "Vínculo concluído. Atualizando o aplicativo...";
+        window.location.reload();
+        return;
       }
       status.textContent = "Conta vinculada e validade sincronizada com sucesso.";
       status.style.color = "#16794b";
