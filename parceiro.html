@@ -36,7 +36,10 @@
   <main class="partner-shell">
     <header class="partner-top">
       <div><h1 id="partnerName">Área do Parceiro</h1><p id="partnerEmail">Carregando seus dados…</p></div>
-      <button id="partnerLogout" class="partner-button secondary" type="button">Sair</button>
+      <div class="partner-top-actions">
+        <button id="btnPartnerMessages" class="partner-button secondary partner-header-message" type="button">Mensagens <span id="partnerUpdatesBadge" class="partner-notification-badge" hidden>0</span></button>
+        <button id="partnerLogout" class="partner-button secondary" type="button">Sair</button>
+      </div>
     </header>
     <p id="partnerStatus" role="status" aria-live="polite">Validando acesso…</p>
     <section class="partner-grid" aria-label="Resumo financeiro">
@@ -46,7 +49,7 @@
     </section>
     <section class="partner-card partner-section"><h2>Chave PIX</h2><p>Esta chave é cadastrada e atualizada pelo administrador.</p><input id="partnerPixKey" maxlength="120" aria-label="Chave PIX cadastrada" readonly></section>
     <section class="partner-card partner-section">
-      <h2>Cadastrar aluno indicado</h2><button id="btnOpenStudentForm" class="partner-button" type="button">Abrir formulário</button><span id="partnerUpdatesBadge" class="partner-notification-badge" hidden>0</span>
+      <h2>Cadastrar aluno indicado</h2><button id="btnOpenStudentForm" class="partner-button" type="button">Abrir formulário</button>
       <p>O cadastro será enviado ao administrador. O aluno só entrará na base principal após aprovação.</p>
       <form id="partnerStudentForm" class="partner-pix" hidden>
         <input id="referralName" required maxlength="160" placeholder="Nome completo" aria-label="Nome completo">
@@ -81,10 +84,10 @@
     <section class="partner-card partner-section"><h2>Alunos aprovados</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Aluno</th><th>Categoria</th><th>Situação</th><th>Cadastro</th></tr></thead><tbody id="partnerStudents"><tr><td colspan="4">Carregando…</td></tr></tbody></table></div></section>
     <section class="partner-card partner-section"><h2>Minhas comissões</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Descrição</th><th>Aluno</th><th>Progresso</th><th>Valor</th><th>Situação</th></tr></thead><tbody id="partnerCommissions"><tr><td colspan="5">Carregando…</td></tr></tbody></table></div></section>
     <section class="partner-card partner-section"><h2>Histórico de pagamentos</h2><div class="partner-scroll"><table class="partner-table"><thead><tr><th>Data</th><th>Forma</th><th>Referência</th><th>Valor</th><th>Confirmação</th></tr></thead><tbody id="partnerPayouts"><tr><td colspan="5">Carregando…</td></tr></tbody></table></div></section>
-    <section class="partner-card partner-section"><h2>Comunicados</h2><div id="partnerMessages"><p>Carregando…</p></div></section>
+    <section id="partnerMessagesSection" class="partner-card partner-section"><h2>Mensagens do administrador</h2><div id="partnerMessages"><p>Carregando…</p></div></section>
   </main>
   <div id="partnerModal" class="partner-modal" hidden><div class="partner-modal-backdrop" data-close-partner-modal></div><section class="partner-modal-dialog" role="dialog" aria-modal="true"><header class="partner-modal-head"><h2 id="partnerModalTitle">Cadastro</h2><button id="partnerModalClose" class="partner-modal-close" type="button">✕</button></header><div id="partnerModalBody"></div></section></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="parceiro.js?v=partner-portal-5"></script>
+  <script src="parceiro.js?v=partner-portal-6"></script>
 </body>
 </html>
