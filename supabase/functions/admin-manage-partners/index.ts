@@ -56,7 +56,7 @@ Deno.serve(async (req: Request) => {
           .eq("owner_id", ownerId).order("created_at", { ascending: false }),
         db.from("partner_students")
           .select("id,partner_id,nome,telefone,cpf,endereco,categoria,status,created_at")
-          .eq("owner_id", ownerId).eq("status", "pendente_aprovacao").order("created_at", { ascending: false }),
+          .eq("owner_id", ownerId).order("created_at", { ascending: false }),
         db.from("partner_quotes")
           .select("id,partner_id,partner_student_id,status,subtotal,total,observacoes,created_at")
           .eq("owner_id", ownerId).eq("status", "pendente").order("created_at", { ascending: false }),
