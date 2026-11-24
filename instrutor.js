@@ -1659,8 +1659,8 @@
     const aulas = Number(el("contratoQuantidadeAulas").value);
     const valor = Number(el("contratoValor").value);
     const pagamento = el("contratoPagamento").value.trim();
-    if (!contratanteNome) {
-      showMessage("Preencha o nome do instrutor no menu Meu cadastro antes de gerar o contrato.");
+    if (!contratanteNome || !contratanteDocumento) {
+      showMessage("Preencha nome e CPF/CNPJ no menu Meu cadastro antes de gerar o contrato.");
       return;
     }
     if (!nome || !cpf || !categoria || !Number.isInteger(aulas) || aulas < 1 ||
@@ -1676,6 +1676,7 @@
     const services = ["Pacote de aulas adquirido", cartao, aluguel].filter(Boolean).join(", ");
     const money = moneyInWordsForContract(valor);
     const safe = escapeHtml;
+    const contractorQualification = [contratanteNacionalidade, contratanteCivil, contratanteProfissao].filter(Boolean).map(safe).join(" · ");
     const clauses = [
       "<p>O CONTRATADO compromete-se a fornecer ao CONTRATANTE os seguintes serviços: " + safe(services) + ".</p>",
       "<p>O CONTRATANTE deverá estar com o pagamento em dia para o agendamento de aulas práticas e para marcação de exames junto ao DETRAN.</p>",
@@ -1710,7 +1711,11 @@
 
     el("contratoPreviewInstrutor").innerHTML =
       '<article class="contract-sheet"><header style="display:flex;align-items:flex-start;justify-content:flex-start;gap:16px;text-align:left;">' + (state.logoUrl ? '<img src="' + safe(state.logoUrl) + '" alt="Logomarca do instrutor" style="display:block;flex:0 0 auto;max-width:110px;max-height:85px;object-fit:contain;margin:0;">' : '') + '<div class="contract-brand"><h2>' + safe(instructor) + '</h2><p>CONTRATO DE PRESTAÇÃO DE SERVIÇOS</p></div></header>' +
-      '<main><p><strong>CONTRATANTE / ALUNO(A):</strong> ' + safe(nome) + '</p><p><strong>CPF:</strong> ' + safe(cpf) + '</p>' +
+      '<main><p><strong>CONTRATADO(A) / INSTRUTOR(A):</strong> ' + safe(instructor) + '</p><p><strong>CPF/CNPJ:</strong> ' + safe(contratanteDocumento) + '</p>' +
+      (contratanteCelular ? '<p><strong>Telefone/WhatsApp:</strong> ' + safe(contratanteCelular) + '</p>' : "") +
+      (contractorQualification ? '<p><strong>Qualificação:</strong> ' + contractorQualification + '</p>' : "") +
+      (contratanteEndereco ? '<p><strong>Endereço:</strong> ' + safe(contratanteEndereco) + '</p>' : "") +
+      '<p><strong>CONTRATANTE / ALUNO(A):</strong> ' + safe(nome) + '</p><p><strong>CPF:</strong> ' + safe(cpf) + '</p>' +
       clauses.join("") +
       '<p class="contract-place-date">' + safe(city) + ' - ______/______/________</p>' +
       '<div class="contract-signature-space" aria-hidden="true"></div>' +
