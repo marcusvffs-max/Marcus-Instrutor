@@ -281,6 +281,58 @@
     finally { button.disabled = false; }
   }
 
+  async function openPayoutReport() {
+    const modal = $("modalRelatorioPagamentosParceiros");
+    const target = $("listaRelatorioPagamentosParceiros");
+    const summary = $("resumoRelatorioPagamentosParceiros");
+    modal.hidden = false;
+    document.body.style.overflow = "hidden";
+    target.replaceChildren(make("p", "empty-state", "Carregando pagamentos…"));
+    summary.textContent = "";
+    try {
+      const { data, error } = await client.from("partner_payouts")
+        .select("id,partner_id,amount,payment_method,reference,paid_at,received_at")
+        .eq("owner_id", ownerId).order("paid_at", { ascending: false });
+      if (error) throw error;
+      const rows = data || [];
+      const total = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);
+      const confirmed = rows.filter(row => !!row.received_at).length;
+      summary.textContent = rows.length + " pagamento(s) · Total " + money(total) +
+        " · " + confirmed + " confirmado(s) · " + (rows.length - confirmed) + " aguardando confirmação";
+      target.replaceChildren();
+      if (!rows.length) {
+        target.append(make("p", "empty-state", "Nenhum pagamento foi registrado."));
+        return;
+      }
+      const tableWrap = make("div", "partner-report-scroll");
+      const table = make("table", "partner-report-table");
+      const thead = make("thead");
+      const header = make("tr");
+      ["Parceiro","Data do pagamento","Forma","Referência","Valor","Recebimento"].forEach(label => header.append(make("th","",label)));
+      thead.append(header);
+      const tbody = make("tbody");
+      rows.forEach(row => {
+        const partner = partners.find(item => item.id === row.partner_id);
+        const tr = make("tr");
+        [
+          partner?.nome || "Parceiro",
+          row.paid_at ? new Date(row.paid_at).toLocaleString("pt-BR") : "—",
+          ({pix:"PIX",dinheiro:"Dinheiro",transferencia:"Transferência",outro:"Outro"})[row.payment_method] || row.payment_method || "—",
+          row.reference || "—",
+          money(row.amount),
+          row.received_at ? "Confirmado em " + new Date(row.received_at).toLocaleString("pt-BR") : "Aguardando confirmação"
+        ].forEach(value => tr.append(make("td","",value)));
+        tbody.append(tr);
+      });
+      table.append(thead,tbody);
+      tableWrap.append(table);
+      target.append(tableWrap);
+    } catch (error) {
+      target.replaceChildren(make("p","empty-state",error.message));
+      say(error.message,true);
+    }
+  }
+
   async function recordPayout(event) {
     event.preventDefault();
     const ids = [...document.querySelectorAll("#listaComissoesParceiro input:checked")].map(input => input.value);
@@ -304,7 +356,7 @@
   function installStyles() {
     if (document.getElementById("partner-admin-styles")) return;
     const style = document.createElement("style"); style.id = "partner-admin-styles";
-    style.textContent = `.partner-invite-launcher{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.partner-modal[hidden]{display:none}.partner-modal{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px}.partner-modal-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.68)}.partner-modal-dialog{position:relative;z-index:1;width:min(100%,620px);max-height:90vh;overflow:auto;background:#fff;color:#172033;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.28)}.partner-modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.partner-modal-head h3{margin:0}@media(max-width:520px){.partner-modal-dialog{padding:16px}.partner-invite-launcher{align-items:stretch}.partner-invite-launcher button{width:100%}}.partner-admin-card{border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:10px 0;background:#fff}.partner-admin-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.partner-admin-card-head strong,.partner-admin-card-head small{display:block}.partner-admin-card-head small,.partner-admin-meta{color:#64748b;margin:5px 0}.partner-status{border-radius:20px;padding:5px 10px;font-size:.78rem;font-weight:700;background:#eef2f7}.partner-status-aprovado{background:#dcfce7;color:#166534}.partner-status-pendente{background:#fef3c7;color:#92400e}.partner-status-suspenso,.partner-status-reprovado{background:#fee2e2;color:#991b1b}.partner-admin-actions{display:flex;align-items:end;gap:8px;flex-wrap:wrap;margin-top:12px}.partner-admin-actions label{display:grid;gap:5px;font-size:.85rem}.partner-admin-actions input,.partner-status-select{max-width:150px;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}.partner-admin-warning{display:block;color:#92400e;margin-top:9px}.partner-recipient-select,.partner-commission-option{display:flex;align-items:center;gap:9px;padding:8px 0;font-size:.9rem}.partner-recipient-select{margin-bottom:8px}`;
+    style.textContent = `.partner-report-scroll{overflow:auto}.partner-report-table{width:100%;border-collapse:collapse}.partner-report-table th,.partner-report-table td{text-align:left;padding:10px;border-bottom:1px solid #e2e8f0;font-size:.88rem;vertical-align:top}.partner-report-table th{color:#64748b;font-size:.76rem;text-transform:uppercase}@media print{body *{visibility:hidden!important}#modalRelatorioPagamentosParceiros,#modalRelatorioPagamentosParceiros *{visibility:visible!important}#modalRelatorioPagamentosParceiros{position:absolute!important;inset:0!important;display:block!important;background:#fff!important;padding:0!important}#modalRelatorioPagamentosParceiros .partner-modal-backdrop,#modalRelatorioPagamentosParceiros button{display:none!important}#modalRelatorioPagamentosParceiros .partner-modal-dialog{max-height:none!important;overflow:visible!important;box-shadow:none!important;width:100%!important;padding:0!important}}.partner-invite-launcher{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.partner-modal[hidden]{display:none}.partner-modal{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px}.partner-modal-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.68)}.partner-modal-dialog{position:relative;z-index:1;width:min(100%,620px);max-height:90vh;overflow:auto;background:#fff;color:#172033;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.28)}.partner-modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.partner-modal-head h3{margin:0}@media(max-width:520px){.partner-modal-dialog{padding:16px}.partner-invite-launcher{align-items:stretch}.partner-invite-launcher button{width:100%}}.partner-admin-card{border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:10px 0;background:#fff}.partner-admin-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.partner-admin-card-head strong,.partner-admin-card-head small{display:block}.partner-admin-card-head small,.partner-admin-meta{color:#64748b;margin:5px 0}.partner-status{border-radius:20px;padding:5px 10px;font-size:.78rem;font-weight:700;background:#eef2f7}.partner-status-aprovado{background:#dcfce7;color:#166534}.partner-status-pendente{background:#fef3c7;color:#92400e}.partner-status-suspenso,.partner-status-reprovado{background:#fee2e2;color:#991b1b}.partner-admin-actions{display:flex;align-items:end;gap:8px;flex-wrap:wrap;margin-top:12px}.partner-admin-actions label{display:grid;gap:5px;font-size:.85rem}.partner-admin-actions input,.partner-status-select{max-width:150px;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}.partner-admin-warning{display:block;color:#92400e;margin-top:9px}.partner-recipient-select,.partner-commission-option{display:flex;align-items:center;gap:9px;padding:8px 0;font-size:.9rem}.partner-recipient-select{margin-bottom:8px}`;
     document.head.append(style);
   }
 
@@ -317,7 +369,8 @@
     const invite = $("formNovoParceiro");
     const message = $("formMensagemParceiros");
     const payout = $("formPagamentoParceiro");
-    if (!trigger || !openInvite || !inviteModal || !closeInvite || !invite || !message || !payout) return;
+    const reportModal = $("modalRelatorioPagamentosParceiros");
+    if (!trigger || !openInvite || !inviteModal || !closeInvite || !invite || !message || !payout || !reportModal) return;
     client = window.getMarcusSupabase?.();
     if (!client) { say("Cliente Supabase não encontrado.", true); return; }
     initializing = true;
@@ -339,10 +392,15 @@
     openInvite.addEventListener("click", () => { inviteModal.hidden = false; $("novoParceiroNome").focus(); });
     closeInvite.addEventListener("click", closeInviteModal);
     inviteModal.addEventListener("click", event => { if (event.target === inviteModal || event.target.hasAttribute("data-close-partner-modal")) closeInviteModal(); });
-    document.addEventListener("keydown", event => { if (event.key === "Escape" && !inviteModal.hidden) closeInviteModal(); });
+    document.addEventListener("keydown", event => { if (event.key === "Escape") { if (!inviteModal.hidden) closeInviteModal(); if (!reportModal.hidden) closeReport(); } });
     invite.addEventListener("submit", invitePartner);
     message.addEventListener("submit", sendMessage);
     payout.addEventListener("submit", recordPayout);
+    $("btnRelatorioPagamentosParceiros").addEventListener("click", openPayoutReport);
+    const closeReport = () => { reportModal.hidden = true; if (inviteModal.hidden) document.body.style.overflow = ""; };
+    $("btnFecharRelatorioPagamentosParceiros").addEventListener("click", closeReport);
+    reportModal.addEventListener("click", event => { if (event.target === reportModal || event.target.hasAttribute("data-close-report")) closeReport(); });
+    $("btnImprimirRelatorioPagamentosParceiros").addEventListener("click", () => window.print());
     $("selectParceiroPagamento").addEventListener("change", loadAvailableCommissions);
     $("mensagemTodosParceiros").addEventListener("change", event => {
       document.querySelectorAll("[data-parceiro-selecionado]").forEach(input => { input.disabled = event.target.checked; });
