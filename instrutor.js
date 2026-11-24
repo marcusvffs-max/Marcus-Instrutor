@@ -1693,7 +1693,7 @@
     const clauses = [
       "<p>O CONTRATADO compromete-se a fornecer ao CONTRATANTE os seguintes serviços: " + safe(services) + ".</p>",
       "<p>O CONTRATANTE deverá estar com o pagamento em dia para o agendamento de aulas práticas e para marcação de exames junto ao DETRAN.</p>",
-      "<h3>1. MATRÍCULAS</h3><p>1. Pelos serviços contratado(s) " + safe(categoria) + " com " + aulas + " aulas, " + safe(services) + ", o CONTRATANTE paga ao CONTRATADO a importância de " + safe(money) + ", da seguinte forma: " + safe(pagamento) + ".</p>",
+      "<h3>1. MATRÍCULAS</h3><p>Pelos serviços contratado(s) " + safe(categoria) + " com " + aulas + " aulas, " + safe(services) + ", o CONTRATANTE paga ao CONTRATADO a importância de " + safe(money) + ", da seguinte forma: " + safe(pagamento) + ".</p>",
       "<h3>SÃO OBRIGAÇÕES DO CONTRATADO:</h3><p>2- A realização das aulas práticas e disponibilizar ao Candidato, para a realização das aulas práticas e exame, veículos em boas condições de uso, de acordo com a sua disponibilidade.</p>",
       "<h3>3- SÃO OBRIGAÇÕES DO CONTRATANTE:</h3>" +
         "<p>3.1- Caso seja necessária a realização de novos exames o Aluno deverá arcar com as novas taxas cobradas.</p>" +
