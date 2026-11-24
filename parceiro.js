@@ -34,11 +34,25 @@
   $("partnerModal")?.addEventListener("click", event => {
     if (event.target === $("partnerModal") || event.target.hasAttribute("data-close-partner-modal")) closePartnerForm();
   });
-  document.addEventListener("keydown", event => { if (event.key === "Escape") closePartnerForm(); });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      closePartnerForm();
+      closePartnerMessages();
+    }
+  });
   $("btnOpenStudentForm")?.addEventListener("click", () => openPartnerForm("partnerStudentForm", "Cadastrar aluno indicado"));
   $("btnOpenQuoteForm")?.addEventListener("click", () => openPartnerForm("partnerQuoteForm", "Montar orçamento"));
+  function closePartnerMessages() {
+    $("partnerMessagesModal").hidden = true;
+    if (!activePartnerForm) document.body.style.overflow = "";
+  }
   $("btnPartnerMessages")?.addEventListener("click", () => {
-    $("partnerMessagesSection")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    $("partnerMessagesModal").hidden = false;
+    document.body.style.overflow = "hidden";
+  });
+  $("partnerMessagesClose")?.addEventListener("click", closePartnerMessages);
+  $("partnerMessagesModal")?.addEventListener("click", event => {
+    if (event.target === $("partnerMessagesModal") || event.target.hasAttribute("data-close-messages-modal")) closePartnerMessages();
   });
   if (!client) { say("Não foi possível carregar a autenticação.", true); return; }
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
