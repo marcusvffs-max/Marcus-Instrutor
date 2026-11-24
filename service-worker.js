@@ -15,8 +15,6 @@ const ARQUIVOS = [
   "./instrutor.css?v=central-logo-1",
   "./instrutor.js?v=unified-fixed-items-4",
   "./script.js?v=official-finance-refunds-1",
-  "./exames-alugueis.js?v=exams-status-filter-1",
-  "./script.js?v=official-finance-refunds-1",
   "./manifest.json"
 ];
 
