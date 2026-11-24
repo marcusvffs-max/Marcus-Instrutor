@@ -485,10 +485,12 @@ async function carregarParceirosNoFormulario(partnerId = null) {
   const select = document.getElementById("alunoParceiro");
   const cliente = window.getMarcusSupabase?.();
   if (!select || !cliente || !adminSupabaseUserId) return;
+  select.dataset.partnerColumnAvailable = "false";
   try {
     const { data, error } = await cliente.from("partners").select("id,nome,status")
       .eq("owner_id", adminSupabaseUserId).order("nome");
     if (error) throw error;
+    select.dataset.partnerColumnAvailable = "true";
     select.replaceChildren(new Option("Sem parceiro", ""));
     (data || []).forEach(partner => {
       const option = new Option(partner.nome + (partner.status === "aprovado" ? "" : " (" + partner.status + ")"), partner.id);
@@ -556,7 +558,6 @@ async function salvarAluno(evento) {
     telefone: dados.telefone?.trim() || null,
     cpf: dados.cpf?.trim() || null,
     endereco: dados.endereco?.trim() || null,
-    partner_id: String(dados.partner_id || "").trim() || null,
     categoria: dados.categoria || "B",
     status: ({
       "Em aberto": "em_aberto",
@@ -566,6 +567,9 @@ async function salvarAluno(evento) {
     aulas_compradas: Number(alunoAnterior?.contratadas || 0),
     aulas_restantes: Number(alunoAnterior?.saldo || 0)
   };
+  if (document.getElementById("alunoParceiro")?.dataset.partnerColumnAvailable === "true") {
+    payload.partner_id = String(dados.partner_id || "").trim() || null;
+  }
 
   if (botaoSalvar) {
     botaoSalvar.disabled = true;
