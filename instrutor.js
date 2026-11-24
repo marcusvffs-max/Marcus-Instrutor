@@ -1322,7 +1322,6 @@
     list.innerHTML = state.sales.map(sale => {
       const items = state.saleItems.filter(item => item.sale_id === sale.id);
       const canRefund = sale.status === "confirmada" && items.some(item => refundableInstructorItem(item).available > 0);
-      const containsRental = items.some(item => item.fixed_item_key === "aluguel_veiculo");
       const itemSummary = items.map(item => {
         const info = refundableInstructorItem(item);
         return '<span class="sale-item-chip">' + escapeHtml(item.descricao || "Item") + ' · ' +
