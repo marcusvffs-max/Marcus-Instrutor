@@ -219,10 +219,14 @@ REVOKE ALL ON public.partners, public.partner_students, public.partner_quotes,
   public.partner_commissions, public.partner_payouts, public.partner_commission_lessons
 FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON public.partners, public.partner_commissions TO authenticated;
+DROP POLICY IF EXISTS partners_owner_or_self_select ON public.partners;
 DROP POLICY IF EXISTS partners_owner_select ON public.partners;
-CREATE POLICY partners_owner_select ON public.partners
+CREATE POLICY partners_owner_or_self_select ON public.partners
   FOR SELECT TO authenticated
-  USING (owner_id = (SELECT auth.uid()) AND private.current_app_role() IN ('admin','instrutor'));
+  USING (
+    (owner_id = (SELECT auth.uid()) AND private.current_app_role() IN ('admin','instrutor'))
+    OR user_id = (SELECT auth.uid())
+  );
 DROP POLICY IF EXISTS partner_commissions_owner_select ON public.partner_commissions;
 CREATE POLICY partner_commissions_owner_select ON public.partner_commissions
   FOR SELECT TO authenticated
