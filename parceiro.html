@@ -24,6 +24,7 @@
     .partner-message small{color:#64748b}.partner-inline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
     .partner-pix{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
     .partner-pix input,.partner-pix select,#partnerQuoteForm input,#partnerQuoteForm select,#partnerQuoteForm textarea{box-sizing:border-box;width:100%;min-width:0;padding:11px;border:1px solid #cbd5e1;border-radius:9px;font:inherit;background:#fff}
+    form.partner-pix[hidden],#partnerQuoteForm[hidden]{display:none!important}
     #partnerQuoteForm{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;align-items:end}
     #partnerQuoteItems{grid-column:1/-1}
     #partnerQuoteForm label{font-weight:600;color:#334155}
@@ -68,7 +69,7 @@
     <section class="partner-card partner-section">
       <h2>Montar orçamento</h2><button id="btnOpenQuoteForm" class="partner-button" type="button">Novo orçamento</button>
       <p>Selecione itens da lista do administrador e envie para aprovação. A aprovação não registra venda nem pagamento.</p>
-      <form id="partnerQuoteForm" hidden>
+      <form id="partnerQuoteForm" hidden hidden>
         <label for="partnerQuoteStudent">Aluno indicado</label><select id="partnerQuoteStudent" required><option value="">Selecione um aluno</option></select>
         <label for="partnerQuoteProduct">Produto ou serviço</label><select id="partnerQuoteProduct"><option value="">Selecione um item</option></select>
         <label for="partnerQuoteQuantity">Quantidade</label><input id="partnerQuoteQuantity" type="number" min="1" max="100" step="1" value="1">
@@ -103,6 +104,6 @@
   </div>
   <div id="partnerModal" class="partner-modal" hidden><div class="partner-modal-backdrop" data-close-partner-modal></div><section class="partner-modal-dialog" role="dialog" aria-modal="true"><header class="partner-modal-head"><h2 id="partnerModalTitle">Cadastro</h2><button id="partnerModalClose" class="partner-modal-close" type="button">✕</button></header><div id="partnerModalBody"></div></section></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="parceiro.js?v=partner-portal-8"></script>
+  <script src="parceiro.js?v=partner-portal-9"></script>
 </body>
 </html>
