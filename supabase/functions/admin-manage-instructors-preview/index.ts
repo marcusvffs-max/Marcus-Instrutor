@@ -528,8 +528,17 @@ Deno.serve(async (req: Request) => {
         }
       }
       const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
-      if (deleteError) throw deleteError;
-      return respond({ ok: true, message: "Usuário excluído com sucesso." });
+      if (deleteError) {
+        console.error("Falha ao excluir conta de usuário:", deleteError.message);
+        const detail = deleteError.message || "";
+        if (/foreign key|database error deleting user|violates.*constraint/i.test(detail)) {
+          return respond({
+            error: "Não foi possível excluir esta conta porque ainda existe um vínculo no banco de dados. Nenhum outro cadastro foi removido. Revise as dependências e tente novamente."
+          }, 409);
+        }
+        throw deleteError;
+      }
+      return respond({ ok: true, message: "Usuário e configurações vinculadas excluídos com sucesso." });
     }
 
     if (body.action === "resend") {
