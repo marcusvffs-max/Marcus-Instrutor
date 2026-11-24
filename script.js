@@ -497,7 +497,9 @@ async function carregarParceirosNoFormulario(partnerId = null) {
     select.value = partnerId || "";
   } catch (error) {
     console.error("Não foi possível carregar os parceiros para o cadastro do aluno:", error);
-    select.replaceChildren(new Option("Sem parceiro (lista indisponível)", ""));
+    select.replaceChildren(new Option("Sem parceiro", ""));
+    if (partnerId) select.append(new Option("Parceiro já vinculado (lista indisponível)", partnerId));
+    select.value = partnerId || "";
   }
 }
 
