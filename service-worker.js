@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v37-partner-module";
+const CACHE_NAME = "marcus-instrutor-v38-partner-admin-popups";
 
 const ARQUIVOS = [
   "./",
