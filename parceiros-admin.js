@@ -240,6 +240,7 @@
       });
       form.reset();
       $("novaComissaoParceiro").value = "5";
+      $("modalCadastroParceiro").hidden = true;
       say(result.message || "Convite enviado.");
       await loadPartners();
     } catch (error) { say(error.message, true); }
@@ -290,17 +291,20 @@
   function installStyles() {
     if (document.getElementById("partner-admin-styles")) return;
     const style = document.createElement("style"); style.id = "partner-admin-styles";
-    style.textContent = `.partner-admin-card{border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:10px 0;background:#fff}.partner-admin-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.partner-admin-card-head strong,.partner-admin-card-head small{display:block}.partner-admin-card-head small,.partner-admin-meta{color:#64748b;margin:5px 0}.partner-status{border-radius:20px;padding:5px 10px;font-size:.78rem;font-weight:700;background:#eef2f7}.partner-status-aprovado{background:#dcfce7;color:#166534}.partner-status-pendente{background:#fef3c7;color:#92400e}.partner-status-suspenso,.partner-status-reprovado{background:#fee2e2;color:#991b1b}.partner-admin-actions{display:flex;align-items:end;gap:8px;flex-wrap:wrap;margin-top:12px}.partner-admin-actions label{display:grid;gap:5px;font-size:.85rem}.partner-admin-actions input,.partner-status-select{max-width:150px;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}.partner-admin-warning{display:block;color:#92400e;margin-top:9px}.partner-recipient-select,.partner-commission-option{display:flex;align-items:center;gap:9px;padding:8px 0;font-size:.9rem}.partner-recipient-select{margin-bottom:8px}`;
+    style.textContent = `.partner-invite-launcher{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.partner-modal[hidden]{display:none}.partner-modal{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px}.partner-modal-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.68)}.partner-modal-dialog{position:relative;z-index:1;width:min(100%,620px);max-height:90vh;overflow:auto;background:#fff;color:#172033;border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.28)}.partner-modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.partner-modal-head h3{margin:0}@media(max-width:520px){.partner-modal-dialog{padding:16px}.partner-invite-launcher{align-items:stretch}.partner-invite-launcher button{width:100%}}.partner-admin-card{border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin:10px 0;background:#fff}.partner-admin-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.partner-admin-card-head strong,.partner-admin-card-head small{display:block}.partner-admin-card-head small,.partner-admin-meta{color:#64748b;margin:5px 0}.partner-status{border-radius:20px;padding:5px 10px;font-size:.78rem;font-weight:700;background:#eef2f7}.partner-status-aprovado{background:#dcfce7;color:#166534}.partner-status-pendente{background:#fef3c7;color:#92400e}.partner-status-suspenso,.partner-status-reprovado{background:#fee2e2;color:#991b1b}.partner-admin-actions{display:flex;align-items:end;gap:8px;flex-wrap:wrap;margin-top:12px}.partner-admin-actions label{display:grid;gap:5px;font-size:.85rem}.partner-admin-actions input,.partner-status-select{max-width:150px;padding:9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}.partner-admin-warning{display:block;color:#92400e;margin-top:9px}.partner-recipient-select,.partner-commission-option{display:flex;align-items:center;gap:9px;padding:8px 0;font-size:.9rem}.partner-recipient-select{margin-bottom:8px}`;
     document.head.append(style);
   }
 
   async function init() {
     if (initialized || initializing) return;
     const trigger = $("btnAtualizarParceiros");
+    const openInvite = $("btnAbrirCadastroParceiro");
+    const inviteModal = $("modalCadastroParceiro");
+    const closeInvite = $("btnFecharCadastroParceiro");
     const invite = $("formNovoParceiro");
     const message = $("formMensagemParceiros");
     const payout = $("formPagamentoParceiro");
-    if (!trigger || !invite || !message || !payout) return;
+    if (!trigger || !openInvite || !inviteModal || !closeInvite || !invite || !message || !payout) return;
     client = window.getMarcusSupabase?.();
     if (!client) { say("Cliente Supabase não encontrado.", true); return; }
     initializing = true;
@@ -318,6 +322,11 @@
     initializing = false;
     installStyles();
     trigger.addEventListener("click", loadPartners);
+    const closeInviteModal = () => { inviteModal.hidden = true; };
+    openInvite.addEventListener("click", () => { inviteModal.hidden = false; $("novoParceiroNome").focus(); });
+    closeInvite.addEventListener("click", closeInviteModal);
+    inviteModal.addEventListener("click", event => { if (event.target === inviteModal || event.target.hasAttribute("data-close-partner-modal")) closeInviteModal(); });
+    document.addEventListener("keydown", event => { if (event.key === "Escape" && !inviteModal.hidden) closeInviteModal(); });
     invite.addEventListener("submit", invitePartner);
     message.addEventListener("submit", sendMessage);
     payout.addEventListener("submit", recordPayout);
