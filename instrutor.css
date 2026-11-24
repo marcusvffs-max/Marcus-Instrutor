@@ -764,3 +764,53 @@ body.instructor-modal-open { overflow: hidden; }
 .result-heading .report-logo { display:block; flex:0 0 auto; width:auto; max-width:110px; max-height:85px; object-fit:contain; }
 .result-heading .result-title { flex:1 1 auto; min-width:0; }
 @media print { .access-expiry-banner { display:none !important; } }
+
+
+
+/* Ajuste específico do contrato do instrutor: A4, 9 pt e entrelinha 1,5 */
+@media print {
+  @page { size: A4; margin: 9mm 10mm 8mm 10mm; }
+
+  body.printing-contract .contract-sheet {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  body.printing-contract .contract-sheet header {
+    padding-bottom: 7px !important;
+    margin-bottom: 10px !important;
+  }
+
+  body.printing-contract .contract-sheet main {
+    font-size: 9pt !important;
+    line-height: 1.5 !important;
+  }
+
+  body.printing-contract .contract-sheet main h3 {
+    margin: 7px 0 3px !important;
+    font-size: 9pt !important;
+    line-height: 1.5 !important;
+  }
+
+  body.printing-contract .contract-sheet main p {
+    margin: 2px 0 !important;
+    font-size: 9pt !important;
+    line-height: 1.5 !important;
+    orphans: 2;
+    widows: 2;
+  }
+
+  body.printing-contract .contract-place-date {
+    margin-top: 8px !important;
+  }
+
+  body.printing-contract .contract-signature-space {
+    height: 20mm !important;
+    min-height: 20mm !important;
+  }
+
+  body.printing-contract .contract-signatures {
+    gap: 20px !important;
+    margin-top: 4px !important;
+  }
+}
