@@ -38,7 +38,6 @@
       <div class="brand">
         <img class="brand-logo" src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Central do Instrutor">
       </div>
-      <button id="btnInstallApp" class="icon-button" type="button" aria-label="Instalar aplicativo">Instalar app</button>
       <button id="btnLogout" class="icon-button" type="button">Sair</button>
     </header>
 
@@ -867,32 +866,6 @@
 
 <!-- Atualização de interface do módulo Parceiros -->
 
-<script id="preview-pwa-install">
-(function () {
-  "use strict";
-  var installPrompt = null;
-  var installButton = document.getElementById("btnInstallApp");
-  if (!installButton) return;
-  window.addEventListener("beforeinstallprompt", function (event) {
-    event.preventDefault();
-    installPrompt = event;
-    installButton.textContent = "Instalar app";
-    installButton.disabled = false;
-  });
-  installButton.addEventListener("click", async function () {
-    if (!installPrompt) {
-      window.alert("Para instalar o aplicativo Preview, abra esta página no Google Chrome, toque no menu ⋮ e escolha ‘Instalar app’ ou ‘Adicionar à tela inicial’. A instalação ficará vinculada ao endereço do aplicativo, não ao site.");
-      return;
-    }
-    installPrompt.prompt();
-    await installPrompt.userChoice;
-    installPrompt = null;
-  });
-  window.addEventListener("appinstalled", function () {
-    installButton.textContent = "App instalado";
-    installButton.disabled = true;
-  });
-})();
-</script>
+
 </body>
 </html>
