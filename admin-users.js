@@ -107,6 +107,7 @@
     ["usuario", "Alunos"],
     ["instrutor", "Instrutores"],
     ["admin", "Administradores"],
+    ["parceiro", "Parceiros"],
   ];
   let activeUserFilter = "todos";
 
@@ -256,19 +257,22 @@
           });
           info.append(access);
         }
-        const role = create("span", { class: "users-role" }, user.role === "admin" ? "Administrador" : user.role === "instrutor" ? "Instrutor" : user.role === "usuario" ? "Aluno" : "Sem perfil");
+        const role = create("span", { class: "users-role" }, user.role === "admin" ? "Administrador" : user.role === "instrutor" ? "Instrutor" : user.role === "usuario" ? "Aluno" : user.role === "parceiro" ? "Parceiro" : "Sem perfil");
         const controls = create("div", { class: "users-item-actions" });
         const roleEditor = create("select", { "aria-label": "Alterar tipo de acesso de " + (user.nome || user.email) });
         [
           ["instrutor", "Instrutor"],
           ["usuario", "Aluno"],
           ["admin", "Administrador"],
+          ["parceiro", "Parceiro"],
         ].forEach(([value, label]) => {
           const option = create("option", { value }, label);
           if (value === user.role) option.selected = true;
           roleEditor.append(option);
         });
+        if (user.role === "parceiro") roleEditor.disabled = true;
         const saveRole = create("button", { class: "users-resend", type: "button" }, "Salvar acesso");
+        if (user.role === "parceiro") saveRole.disabled = true;
         const resend = create("button", { class: "users-resend", type: "button" }, "Reenviar acesso");
         let activate = null;
         if (user.role === "instrutor") {
