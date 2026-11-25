@@ -1,0 +1,39 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261125074414
+-- name: allow_instructors_to_refund_sale_items
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+
+DO $$
+DECLARE
+  v_name text;
+  v_def text;
+BEGIN
+  FOREACH v_name IN ARRAY ARRAY['admin_refund_sale_product', 'admin_refund_sale_lessons']
+  LOOP
+    SELECT pg_get_functiondef(p.oid)
+      INTO v_def
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = v_name
+    ORDER BY p.oid
+    LIMIT 1;
+
+    IF v_def IS NULL THEN
+      RAISE EXCEPTION 'Função % não encontrada', v_name;
+    END IF;
+
+    IF position('private.current_app_role() IS DISTINCT FROM ''admin''' in v_def) = 0 THEN
+      RAISE EXCEPTION 'Regra de acesso inesperada na função %; migração interrompida', v_name;
+    END IF;
+
+    v_def := replace(
+      v_def,
+      'private.current_app_role() IS DISTINCT FROM ''admin''',
+      'coalesce(private.current_app_role(), '''') NOT IN (''admin'', ''instrutor'')'
+    );
+
+    EXECUTE v_def;
+  END LOOP;
+END $$;
