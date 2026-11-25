@@ -7,35 +7,36 @@
   <meta name="description" content="Área do instrutor - Central do Instrutor">
   <title>Área do Instrutor | Central do Instrutor</title>
   <link rel="stylesheet" href="instrutor.css?v=central-logo-1">
+  <link rel="stylesheet" href="style.css?v=central-logo-1">
   <link rel="stylesheet" href="admin-visual.css?v=admin-visual-1">
 </head>
 <body class="autenticado">
-  <div class="app-shell">
+  <div id="app">
     <header class="topbar">
       <div class="brand">
         <img class="brand-logo" src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Central do Instrutor">
       </div>
       <div class="account-area">
         <span id="nomeInstrutor">Carregando perfil...</span>
-        <button id="btnSair" class="button button-outline" type="button">Sair</button>
+        <button id="btnSair" class="icon-button" type="button">Sair</button>
       </div>
     </header>
 
-    <main class="content">
+    <main id="mainContent" class="content">
       <div id="avisoValidadeAcesso" class="access-expiry-banner" role="status" aria-live="polite"></div>
-      <section class="intro" data-view="inicio">
+      <section class="intro page active" data-view="inicio">
         <span class="eyebrow">ÁREA DO INSTRUTOR</span>
         <h2>Meus alunos e relatórios</h2>
         <p>Cadastre seus alunos, mantenha os dados atualizados e consulte suas aulas.</p>
       </section>
 
-      <section class="summary-grid" data-view="inicio" aria-label="Resumo das aulas">
+      <section class="summary-grid page active" data-view="inicio" aria-label="Resumo das aulas">
         <article class="summary-card"><span>Total de alunos</span><strong id="totalAlunos">—</strong></article>
         <article class="summary-card"><span>Aulas realizadas</span><strong id="totalRealizadas">—</strong></article>
         <article class="summary-card"><span>Aulas agendadas</span><strong id="totalAgendadas">—</strong></article>
       </section>
 
-      <section class="panel dashboard-lessons" data-view="inicio">
+      <section class="panel dashboard-lessons page active" data-view="inicio">
         <div class="section-heading">
           <div>
             <h3>Aulas agendadas</h3>
@@ -48,7 +49,7 @@
         </div>
       </section>
 
-      <section class="panel students-panel" data-view="alunos">
+      <section class="panel students-panel page" data-view="alunos">
         <div class="section-heading">
           <div>
             <h3>Meus alunos</h3>
@@ -116,7 +117,7 @@
         </div>
       </section>
 
-      <section class="panel students-panel" data-view="alunos-vinculados">
+      <section class="panel students-panel page" data-view="alunos-vinculados">
         <div class="section-heading">
           <div>
             <h3>Gerenciamento de usuários</h3>
@@ -131,7 +132,7 @@
         </div>
       </section>
 
-      <section class="panel vehicles-panel" data-view="veiculos">
+      <section class="panel vehicles-panel page" data-view="veiculos">
         <div class="section-heading">
           <div>
             <h3>Meus veículos</h3>
@@ -181,7 +182,7 @@
         </div>
       </section>
 
-      <section class="panel lessons-panel" data-view="aulas">
+      <section class="panel lessons-panel page" data-view="aulas">
         <div class="section-heading">
           <div>
             <h3>Agendamento e gerenciamento de aulas</h3>
@@ -272,7 +273,7 @@
         </div>
       </section>
 
-      <section class="panel products-panel" data-view="produtos">
+      <section class="panel products-panel page" data-view="produtos">
         <div class="section-heading"><div><h3>Produtos e serviços</h3><p>Cadastre pacotes de aulas, serviços e outros itens que você oferece.</p></div><button id="btnNovoProduto" class="button button-primary" type="button">+ Novo item</button></div>
         <form id="formProduto" class="student-form" hidden>
           <h4 id="tituloFormProduto">Cadastrar produto ou serviço</h4>
@@ -300,7 +301,7 @@
         <div id="listaProdutos" class="product-cards"><div class="empty-state">Carregando produtos...</div></div>
       </section>
 
-      <section class="panel sales-panel" data-view="vendas">
+      <section class="panel sales-panel page" data-view="vendas">
         <div class="section-heading"><div><h3>Vendas</h3><p>Registre novas vendas e acompanhe o histórico. A entrada financeira e o saldo de aulas são atualizados automaticamente.</p></div><button id="btnNovaVenda" class="button button-primary" type="button">+ Nova venda</button></div>
         <form id="formVenda" class="student-form" hidden>
           <h4>Registrar venda</h4>
@@ -335,7 +336,7 @@
         <div id="listaVendas" class="sales-list"><div class="empty-state">Carregando vendas...</div></div>
       </section>
 
-      <section class="panel finance-panel" data-view="financeiro">
+      <section class="panel finance-panel page" data-view="financeiro">
         <div class="section-heading">
           <div>
             <h3>Meu financeiro</h3>
@@ -368,7 +369,7 @@
         <div id="listaMovimentacoes" class="finance-list"><div class="empty-state">Carregando movimentações...</div></div>
       </section>
 
-      <section class="panel settings-panel" data-view="cadastro">
+      <section class="panel settings-panel page" data-view="cadastro">
         <div class="section-heading">
           <div><h3>Meu cadastro</h3><p>Seus dados pessoais e de contato serão utilizados automaticamente nos contratos e no WhatsApp dos seus alunos.</p></div>
         </div>
@@ -389,7 +390,7 @@
         </div>
       </section>
 
-      <section class="panel settings-panel" data-view="configuracoes">
+      <section class="panel settings-panel page" data-view="configuracoes">
         <div class="section-heading">
           <div><h3>Meu perfil e aparência</h3><p>Altere seu nome e personalize as cores da sua própria área de instrutor.</p></div>
         </div>
@@ -415,7 +416,7 @@
         </div>
       </section>
 
-      <section class="report-grid" data-view="relatorios">
+      <section class="report-grid page" data-view="relatorios">
         <article class="panel">
           <h3>Relatório por aluno</h3>
           <label for="filtroAluno">Aluno</label>
@@ -440,11 +441,11 @@
         </article>
       </section>
 
-      <section id="resultado" data-view="relatorios" class="panel result-panel" aria-live="polite">
+      <section id="resultado" data-view="relatorios" class="panel result-panel page" aria-live="polite">
         <div class="empty-state">Escolha um dos relatórios acima para começar.</div>
       </section>
 
-      <section class="panel" data-view="backup">
+      <section class="panel page" data-view="backup">
         <div class="section-heading">
           <div><h3>Backup dos meus dados</h3><p>Exporte uma cópia dos registros vinculados exclusivamente à sua conta de instrutor.</p></div>
         </div>
@@ -456,7 +457,7 @@
         <p class="contract-note">Guarde o arquivo em local seguro. A restauração será habilitada após validação do formato e das relações entre os registros, para evitar sobrescrever dados de outras contas.</p>
       </section>
 
-      <section class="panel contract-panel" data-view="contratos">
+      <section class="panel contract-panel page" data-view="contratos">
         <div class="section-heading">
           <div><h3>Contrato de prestação de serviços</h3><p>Gere um contrato com os dados dos seus alunos e a sua identificação de instrutor.</p></div>
         </div>
@@ -491,8 +492,8 @@
 
       <p id="mensagem" class="message" role="status" aria-live="polite"></p>
     </main>
-    <nav class="bottom-menu" aria-label="Menu principal do instrutor">
-      <button type="button" data-instructor-page="inicio" class="menu-item active"><span class="menu-icon">⌂</span><span>Início</span></button>
+    <nav class="bottom-menu" aria-label="Menu principal">
+      <button type="button" data-page="inicio" data-instructor-page="inicio" data-instructor-page="inicio" class="menu-item active"><span class="menu-icon">⌂</span><span>Início</span></button>
       <button type="button" data-instructor-page="alunos" class="menu-item"><span class="menu-icon">♙</span><span>Alunos</span></button>
       <button type="button" data-instructor-page="alunos-vinculados" class="menu-item"><span class="menu-icon">♧</span><span>Gerenciar usuários</span></button>
       <button type="button" data-instructor-page="veiculos" class="menu-item"><span class="menu-icon">▣</span><span>Veículos</span></button>
