@@ -70,9 +70,7 @@
         var choice = await installPrompt.userChoice;
         installPrompt = null;
         if (choice && choice.outcome === "accepted") {
-          status.textContent = "Instalação confirmada. Esta tela será encerrada.";
-          // O evento appinstalled confirma que o navegador concluiu a instalação.
-          // Se o navegador bloquear window.close(), a página fica em branco, sem redirecionar.
+          encerrarPaginaInstalacao();
           return;
         } else {
           status.textContent = "Instalação cancelada. Você pode tocar no botão novamente quando quiser.";
