@@ -421,11 +421,16 @@
 
       <section id="page-contratos" class="page">
         <div class="page-heading"><div><span class="eyebrow">DOCUMENTOS</span><h2>Contratos</h2></div></div>
-        <button id="btnAbrirGeradorContrato" class="primary-button" type="button">+ Novo contrato</button>
+        <div class="contract-action-grid">
+          <button id="btnAbrirContratoAluno" class="primary-button" type="button">Novo contrato de aluno</button>
+          <button id="btnAbrirContratoParceiro" class="primary-button" type="button">Novo contrato de parceiro</button>
+          <button id="btnListaContratosAluno" class="secondary-button" type="button">Contratos de alunos gerados</button>
+          <button id="btnListaContratosParceiro" class="secondary-button" type="button">Contratos de parceiros gerados</button>
+        </div>
         <dialog id="modalGeradorContrato" class="contrato-modal">
         <div class="panel">
           <div class="partner-modal-head"><h3 id="tituloTipoContrato">Contrato de cliente</h3><button id="btnFecharGeradorContrato" class="secondary-button" type="button">Fechar</button></div>
-          <div class="contrato-tipos"><button type="button" class="primary-button active" data-tipo-contrato="cliente" onclick="try{if(typeof tipoC!=='function')throw new Error('A função tipoC não foi carregada');tipoC('cliente')}catch(e){document.getElementById('tituloTipoContrato').textContent='ERRO: '+e.message;console.error(e)}">Cliente</button><button type="button" class="secondary-button" data-tipo-contrato="parceiro" onclick="try{if(typeof tipoC!=='function')throw new Error('A função tipoC não foi carregada');tipoC('parceiro')}catch(e){document.getElementById('tituloTipoContrato').textContent='ERRO: '+e.message;console.error(e)}">Parceiro</button></div>
+
           <p class="form-hint">Os dados do responsável são preenchidos automaticamente pelo cadastro em <strong>Meu cadastro</strong>. Confira as informações antes de gerar o contrato.</p>
           <div id="formContratoCliente">
             <label for="contratoAluno">Usar aluno cadastrado</label><select id="contratoAluno"><option value="">Preencher manualmente</option></select>
@@ -453,6 +458,12 @@
         </div>
         <div id="contratoPreview" class="contrato-preview"><div class="empty-state">Preencha os dados e gere a pré-visualização do contrato.</div></div>
       </dialog>
+        <dialog id="modalListaContratos" class="contrato-modal">
+          <div class="panel">
+            <div class="partner-modal-head"><h3 id="tituloListaContratos">Contratos gerados</h3><button id="btnFecharListaContratos" class="secondary-button" type="button">Fechar</button></div>
+            <div id="listaContratosGerados" class="list-container"><div class="empty-state">Carregando contratos…</div></div>
+          </div>
+        </dialog>
       </section>
     </main>
 
