@@ -296,8 +296,9 @@ async function atualizarProximosExamesPainel() {
             : quando.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
           const telefone = String(exame.students?.telefone || "").trim();
           const numeroDiscagem = telefone.replace(/\D/g, "");
+          const numeroWhatsApp = numeroDiscagem && (numeroDiscagem.length === 10 || numeroDiscagem.length === 11) ? "55" + numeroDiscagem : numeroDiscagem;
           const contato = numeroDiscagem
-            ? `<a class="exame-telefone" href="tel:${escapar(numeroDiscagem)}">Telefone: ${escapar(telefone)} · Ligar</a>`
+            ? `<a class="exame-telefone" href="tel:${escapar(numeroDiscagem)}">Telefone: ${escapar(telefone)} · Ligar</a>${numeroWhatsApp ? ` <a class="exame-whatsapp" href="https://wa.me/${escapar(numeroWhatsApp)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ""}`
             : `<span class="form-hint">Telefone não informado</span>`;
           return `<div class="record exame-painel-item">
             <div><strong>${escapar(exame.students?.nome || "Aluno")}</strong><p>${escapar(dataHora)}</p><p>${contato}</p><span class="form-hint">Exame prático agendado</span></div>
@@ -421,11 +422,15 @@ function atualizarPainel() {
       .slice(0, 12);
 
     proximas.innerHTML = aulas.length
-      ? aulas.map(a => `
+      ? aulas.map(a => {
+          const aluno = db.alunos.find(item => String(item.id) === String(a.alunoId));
+          const telefoneAluno = String(aluno?.telefone || "").replace(/\D/g, "");
+          const whatsappAluno = telefoneAluno && (telefoneAluno.length === 10 || telefoneAluno.length === 11) ? "55" + telefoneAluno : telefoneAluno;
+          return `
           <div class="record">
             <strong>${escapar(nomeAluno(a.alunoId))}</strong>
             <p>${formatarData(a.data)} • ${escapar(a.horario)}</p>
-
+            ${whatsappAluno ? `<p><a class="exame-whatsapp" href="https://wa.me/${escapar(whatsappAluno)}" target="_blank" rel="noopener noreferrer">WhatsApp do aluno</a></p>` : '<p class="form-hint">WhatsApp não disponível: telefone não informado.</p>'}
             <div class="record-actions">
               <button
                 type="button"
@@ -444,7 +449,7 @@ function atualizarPainel() {
               </button>
             </div>
           </div>
-        `).join("")
+        `}).join("")
       : '<div class="empty-state">Nenhuma aula agendada para hoje.</div>';
 
     proximas.onclick = evento => {
