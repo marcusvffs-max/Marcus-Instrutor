@@ -2155,19 +2155,32 @@ async function salvarVenda(evento, itensCarrinho) {
 
     if (error) throw error;
 
-    await carregarDadosAdminSupabase();
-    fecharModal();
-    listarAlunos();
-    listarMovimentacoes();
-    atualizarFinanceiro();
-    atualizarPainel();
-
-    const aulas = Number(data?.aulas_adicionadas || 0);
-    mostrarAviso(
-      aulas > 0
-        ? `Venda registrada! ${aulas} aulas adicionadas ao aluno. Total recebido: ${moeda(data?.total)}.`
-        : `Venda registrada! Total recebido: ${moeda(data?.total)}.`
-    );
+    // A função SQL grava venda, itens, saldo do aluno e lançamento financeiro
+    // em uma única transação. Uma falha posterior de atualização da tela não
+    // deve ser apresentada como se a venda tivesse falhado.
+    const saleTotal = Number.isFinite(Number(data?.total))
+      ? Number(data.total)
+      : Math.max(0, subtotalBruto - (descontoTipo === "percentual"
+          ? Math.round(subtotalServicos * descontoValor) / 100
+          : descontoValor));
+    try {
+      await carregarDadosAdminSupabase();
+      listarAlunos();
+      listarMovimentacoes();
+      atualizarFinanceiro();
+      atualizarPainel();
+      fecharModal();
+      const aulas = Number(data?.aulas_adicionadas || 0);
+      mostrarAviso(
+        aulas > 0
+          ? `Venda registrada! ${aulas} aulas adicionadas ao aluno. Total recebido: ${moeda(saleTotal)}.`
+          : `Venda registrada! Total recebido: ${moeda(saleTotal)}.`
+      );
+    } catch (refreshError) {
+      console.error("Venda confirmada no banco, mas a atualização da tela falhou:", refreshError);
+      fecharModal();
+      mostrarAviso(`Venda registrada no Supabase por ${moeda(saleTotal)}. A tela não conseguiu atualizar; recarregue o aplicativo para conferir o saldo.`);
+    }
   } catch (erro) {
     console.error("Falha ao registrar venda no Supabase:", erro);
     mostrarAviso(erro.message || "Não foi possível registrar a venda.");
