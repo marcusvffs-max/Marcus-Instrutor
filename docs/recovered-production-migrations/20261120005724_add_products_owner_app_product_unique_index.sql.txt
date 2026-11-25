@@ -1,0 +1,7 @@
+-- RECOVERED FROM PRODUCTION DATABASE MIGRATION HISTORY
+-- version: 20261120005724
+-- name: add_products_owner_app_product_unique_index
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against QA and production schemas before creating an executable migration.
+
+create unique index if not exists products_owner_app_product_id_uidx on public.products (owner_id, app_product_id) where app_product_id is not null;
