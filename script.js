@@ -1741,14 +1741,9 @@ function editarProduto(id = null) {
       <input name="nome" required
         value="${escapar(produto.nome || "")}">
 
-      <label>Classificação</label>
+      <label>Tipo</label>
       <select name="tipo" required>
-        <option value="servico" ${tipoAtual === "servico" ? "selected" : ""}>
-          Serviço
-        </option>
-        <option value="produto" ${tipoAtual === "produto" ? "selected" : ""}>
-          Produto
-        </option>
+        <option value="servico" selected>Serviço</option>
       </select>
 
       <label>Valor (R$)</label>
@@ -1785,8 +1780,8 @@ async function salvarProduto(evento) {
   const preco = numero(dados.preco);
   const tipo = dados.tipo;
 
-  if (!nome || preco <= 0 || !["servico", "produto"].includes(tipo)) {
-    mostrarAviso("Confira o nome, a classificação e o valor.");
+  if (!nome || preco <= 0) {
+    mostrarAviso("Confira o nome e o valor.");
     return;
   }
 
@@ -1821,7 +1816,7 @@ async function salvarProduto(evento) {
   }
 
   try {
-    const payload = { nome, preco, tipo };
+    const payload = { nome, preco, tipo: "servico" };
 
     let resposta;
     if (produtoAnterior) {
@@ -1848,7 +1843,7 @@ async function salvarProduto(evento) {
       id: salvo.id,
       nome: salvo.nome || "",
       preco: Number(salvo.preco || 0),
-      tipo: salvo.tipo === "produto" ? "produto" : "servico",
+      tipo: "servico",
       quantidadeAulas: salvo.quantidade_aulas ?? produtoAnterior?.quantidadeAulas ?? null
     };
 
