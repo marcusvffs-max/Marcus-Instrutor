@@ -24,6 +24,7 @@ This branch is an isolated preparation branch based on the production applicatio
 ## Verification completed
 - Confirmed all expected source markers and routing branches exist in the branch copy.
 - Confirmed the regression scripts contain assertions for first-contact routing, legacy `aguardando`, preserved greeting reactivation, owner-scoped RLS, role restriction, and read-only grants.
+- Added a GitHub Actions workflow and verified its first run completed successfully (run 45627095674). Both source-regression scripts passed. This is static source validation, not an end-to-end WhatsApp or live-database test.
 - Confirmed the production helper `private.current_app_role()` exists.
 - Confirmed QA's live rental-credit policy matches the intended owner and role restrictions.
 
