@@ -252,6 +252,10 @@
         email: $("novoParceiroEmail").value,
         telefone: $("novoParceiroTelefone").value,
         cpf_cnpj: $("novoParceiroDocumento").value,
+        nacionalidade: $("novoParceiroNacionalidade").value,
+        estado_civil: $("novoParceiroEstadoCivil").value,
+        profissao: $("novoParceiroProfissao").value,
+        endereco: $("novoParceiroEndereco").value,
         commission_percent: Number($("novaComissaoParceiro").value)
       });
       form.reset();
