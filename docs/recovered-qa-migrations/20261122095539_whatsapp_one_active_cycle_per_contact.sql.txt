@@ -1,0 +1,7 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261122095539
+-- name: whatsapp_one_active_cycle_per_contact
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+create unique index if not exists whatsapp_conversations_one_active_cycle_idx on public.whatsapp_conversations (owner_id, telefone) where status not in ('atendimento_humano', 'encerrada');
