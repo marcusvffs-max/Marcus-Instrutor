@@ -54,7 +54,7 @@ button {
   align-items: center;
   justify-content: space-between;
   min-height: 70px;
-  padding: 12px 18px;
+  padding: 12px;
   color: #fff;
   background: var(--primary);
   box-shadow: 0 3px 12px rgba(0,0,0,.12);
