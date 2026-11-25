@@ -1,0 +1,8 @@
+-- RECOVERED FROM PRODUCTION DATABASE MIGRATION HISTORY
+-- version: 20261119145917
+-- name: allow_whatsapp_service_statuses
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against QA and production schemas before creating an executable migration.
+
+ALTER TABLE public.whatsapp_conversations DROP CONSTRAINT whatsapp_conversations_status_check;
+ALTER TABLE public.whatsapp_conversations ADD CONSTRAINT whatsapp_conversations_status_check CHECK (status = ANY (ARRAY['aberta'::text, 'aguardando'::text, 'encerrada'::text, 'aguardando_escolha'::text, 'atendimento_ia'::text, 'atendimento_humano'::text]));
