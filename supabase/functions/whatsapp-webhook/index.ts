@@ -1855,6 +1855,8 @@ Deno.serve(async (req: Request) => {
             Number(message.timestamp ?? Date.now() / 1000) * 1000,
           ).toISOString();
 
+          let isNewConversation = false;
+
           if (!conversation) {
             const { data: created, error: createError } = await supabase
               .from("whatsapp_conversations")
@@ -1881,6 +1883,7 @@ Deno.serve(async (req: Request) => {
             } else {
               conversation = created;
               conversationError = createError;
+              isNewConversation = Boolean(created && !createError);
             }
           } else {
             const { error: updateConversationError } = await supabase
@@ -1940,6 +1943,35 @@ Deno.serve(async (req: Request) => {
             continue;
           }
           stored++;
+
+          // Primeiro contato e conversas legadas em "aguardando" recebem o menu
+          // inicial automaticamente, sem exigir que o cliente digite "Olá".
+          if (isNewConversation || conversationStatus === "aguardando") {
+            const { error: firstContactStateError } = await supabase
+              .from("whatsapp_conversations")
+              .update({
+                status: "aguardando_escolha",
+                ai_paused_until: null,
+                ai_pause_reason: null,
+                quote_state: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", conversation.id)
+              .eq("owner_id", OWNER_ID);
+            if (firstContactStateError) {
+              console.error("First-contact assistant activation failed:", firstContactStateError.message);
+              continue;
+            }
+            await clearPendingOtherDetails(supabase, conversation.id, "first_contact_assistant_activation");
+            await updateMessageMetadata(supabase, providerId, {
+              menu_choice: "first_contact_opened_assistant_menu",
+              ai_status: "waiting_for_service_choice",
+              assistant_activation_reason: isNewConversation ? "new_contact_first_message" : "legacy_aguardando",
+            });
+            await sendInitialMenuSelection(supabase, conversation.id, phone);
+            menusSent++;
+            continue;
+          }
 
           const normalizedCustomerCommand = typeof content === "string"
             ? content.normalize("NFKC").trim().toLocaleLowerCase("pt-BR")
