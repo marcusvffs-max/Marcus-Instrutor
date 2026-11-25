@@ -97,82 +97,76 @@ document.getElementById("contratoPreview").innerHTML=paginaC(p1+p2);aplicarLogoC
 }
 }
 function imprimirDocumentoContrato(html,nome){
-  // Imprime dentro da própria página, sem abrir nova aba ou janela.
-  const titulo=escapeC(nome||"Contrato");
-  const htmlPreparado=(()=>{
-    const raiz=document.createElement("div");
-    raiz.innerHTML=String(html||"");
-    const folha=raiz.querySelector(".contrato-folha.contrato-aluno");
-    if(!folha)return raiz.innerHTML;
+  // Usa a própria página e o diálogo nativo de impressão: não abre aba, link ou iframe.
+  if(window.__contratoPrintEmAndamento){
+    mostrarAviso("A impressão do contrato já está aberta.");
+    return;
+  }
+  const raiz=document.createElement("div");
+  raiz.innerHTML=String(html||"");
+  const folha=raiz.querySelector(".contrato-folha.contrato-aluno");
+  if(folha){
     const bloco=folha.querySelector(".contrato-assinaturas-aluno");
-    if(!bloco)return raiz.innerHTML;
-    const data=bloco.querySelector(".contrato-data-assinatura")?.textContent?.trim()||"Governador Valadares - ______/______/_________";
-    bloco.innerHTML=
-      "<p class='contrato-data-assinatura'>"+escapeC(data)+"</p>"+
-      "<section class='contrato-assinatura-parte'><div class='contrato-linhas-em-branco' aria-hidden='true'>"+Array.from({length:6},()=>"<div class='contrato-linha-vazia'></div>").join("")+"</div>"+
-      "<p><b>___________________________________________</b><br>MARCUS VINICIUS FELIPE DA FONSECA SILVA<br>CPF: 01523019689</p></section>"+
-      "<section class='contrato-assinatura-parte'><div class='contrato-linhas-em-branco' aria-hidden='true'>"+Array.from({length:6},()=>"<div class='contrato-linha-vazia'></div>").join("")+"</div>"+
-      "<p><b>___________________________________________</b><br>MARCUS VINICIUS FELIPE DA FONSECA SILVA<br>CPF: F</p></section>";
-    return raiz.innerHTML;
-  })();
-  const estilos=`<style>
-    @page{size:A4 portrait;margin:12mm}
-    *{box-sizing:border-box}
-    html,body{margin:0;padding:0;width:100%;font-family:Arial,sans-serif;color:#111}
-    body{font-size:8.5pt;line-height:1.2}
-    .contrato-folha{display:block;width:100%;max-width:100%;min-height:0;margin:0;padding:0;background:#fff;box-shadow:none;box-sizing:border-box}
-    .contrato-folha main{display:block;width:100%;margin:0;padding:0}
-    .contrato-folha p{font-size:8.5pt;line-height:1.2;text-align:justify;margin:0 0 1.5mm;orphans:2;widows:2}
-    .contrato-folha h1{font-size:11pt;line-height:1.15;margin:0 0 2.5mm;text-align:center}
-    .contrato-folha h3{font-size:8.8pt;line-height:1.15;margin:2mm 0 1mm;break-after:avoid}
-    .contrato-cabecalho{display:flex;width:100%;align-items:center;gap:5mm;margin:0 0 3mm!important;padding:0 0 2mm!important;border-bottom:1px solid #333}
-    .contrato-cabecalho .identificacao-relatorio{flex:1;min-width:0}
-    .contrato-logo{display:block;width:auto!important;max-width:25mm!important;max-height:18mm!important;object-fit:contain}
-    .contrato-parceiro{break-inside:auto}
-    .contrato-aluno{break-inside:auto}
-    .contrato-aluno p,.contrato-aluno h3{break-inside:auto}
-    .contrato-assinaturas-aluno{display:block;margin-top:2mm;break-inside:avoid;page-break-inside:avoid}
-    .contrato-data-assinatura{margin:0 0 1mm!important;text-align:left!important}
-    .contrato-assinatura-parte{min-width:0;margin:0;break-inside:avoid;page-break-inside:avoid}
-    .contrato-linhas-em-branco{display:flex!important;flex-direction:column!important;width:100%!important;height:48mm!important;min-height:48mm!important;max-height:48mm!important;margin:0!important;padding:0!important;overflow:hidden!important;break-inside:avoid!important;page-break-inside:avoid!important}.contrato-linha-vazia{display:block!important;flex:0 0 8mm!important;width:100%!important;height:8mm!important;min-height:8mm!important;max-height:8mm!important;margin:0!important;padding:0!important;border:0!important;line-height:8mm!important}
-    .contrato-assinatura-parte p{text-align:center!important;font-size:8pt!important;line-height:1.25!important;margin:0 0 1mm!important}
-    .contrato-parceiro p{font-size:7.5pt;line-height:1.08;margin:0 0 .8mm}
-    .contrato-parceiro h1{font-size:10pt;line-height:1.08;margin:0 0 1.5mm}
-    .contrato-parceiro h3{font-size:7.8pt;line-height:1.08;margin:1.2mm 0 .6mm}
-    .contrato-parceiro .contrato-cabecalho{margin-bottom:1.5mm!important;padding-bottom:1mm!important}
-    .contrato-parceiro .contrato-espaco-assinatura{margin:0;padding:0}
-    @media screen{
-      @page{margin:12mm}
-      body{width:auto;padding:12px;background:#f2f4f7}
-      .contrato-folha{width:min(100%,850px);margin:16px auto;padding:18px;background:#fff;box-shadow:0 2px 12px #0002}
+    if(bloco){
+      const data=bloco.querySelector(".contrato-data-assinatura")?.textContent?.trim()||"Governador Valadares - ______/______/_________";
+      const espaco=()=>"<div class='contrato-linhas-em-branco' aria-hidden='true'>"+Array.from({length:6},()=>"<div class='contrato-linha-vazia'></div>").join("")+"</div>";
+      const assinatura=(cpf)=>"<section class='contrato-assinatura-parte'>"+espaco()+"<p><b>___________________________________________</b><br>MARCUS VINICIUS FELIPE DA FONSECA SILVA<br>CPF: "+cpf+"</p></section>";
+      bloco.innerHTML="<p class='contrato-data-assinatura'>"+escapeC(data)+"</p>"+assinatura("01523019689")+assinatura("F");
     }
-  </style>`;
-  const iframe=document.createElement("iframe");
-  iframe.setAttribute("title","Área de impressão do contrato");
-  iframe.setAttribute("aria-hidden","true");
-  iframe.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
-  document.body.appendChild(iframe);
-  const doc=iframe.contentDocument;
-  if(!doc){iframe.remove();mostrarAviso("Não foi possível preparar a impressão do contrato.");return;}
+  }
+  const estilos="<style>"+[
+    "@page{size:A4 portrait;margin:12mm}",
+    "*{box-sizing:border-box}",
+    "html,body{margin:0;padding:0;width:100%;font-family:Arial,sans-serif;color:#111}",
+    "body{font-size:8.5pt;line-height:1.2}",
+    ".contrato-folha{display:block;width:100%;max-width:100%;min-height:0;margin:0;padding:0;background:#fff;box-shadow:none;box-sizing:border-box}",
+    ".contrato-folha main{display:block;width:100%;margin:0;padding:0}",
+    ".contrato-folha p{font-size:8.5pt;line-height:1.2;text-align:justify;margin:0 0 1.5mm;orphans:2;widows:2}",
+    ".contrato-folha h1{font-size:11pt;line-height:1.15;margin:0 0 2.5mm;text-align:center}",
+    ".contrato-folha h3{font-size:8.8pt;line-height:1.15;margin:2mm 0 1mm;break-after:avoid}",
+    ".contrato-cabecalho{display:flex;width:100%;align-items:center;gap:5mm;margin:0 0 3mm!important;padding:0 0 2mm!important;border-bottom:1px solid #333}",
+    ".contrato-cabecalho .identificacao-relatorio{flex:1;min-width:0}",
+    ".contrato-logo{display:block;width:auto!important;max-width:25mm!important;max-height:18mm!important;object-fit:contain}",
+    ".contrato-parceiro{break-inside:auto}",
+    ".contrato-aluno{break-inside:auto}",
+    ".contrato-aluno p,.contrato-aluno h3{break-inside:auto}",
+    ".contrato-assinaturas-aluno{display:block;margin-top:2mm;break-inside:avoid;page-break-inside:avoid}",
+    ".contrato-data-assinatura{margin:0 0 1mm!important;text-align:left!important}",
+    ".contrato-assinatura-parte{min-width:0;margin:0;break-inside:avoid;page-break-inside:avoid}",
+    ".contrato-linhas-em-branco{display:flex!important;flex-direction:column!important;width:100%!important;height:48mm!important;min-height:48mm!important;max-height:48mm!important;margin:0!important;padding:0!important;overflow:hidden!important;break-inside:avoid!important;page-break-inside:avoid!important}",
+    ".contrato-linha-vazia{display:block!important;flex:0 0 8mm!important;width:100%!important;height:8mm!important;min-height:8mm!important;max-height:8mm!important;margin:0!important;padding:0!important;border:0!important;line-height:8mm!important}",
+    ".contrato-assinatura-parte p{text-align:center!important;font-size:8pt!important;line-height:1.25!important;margin:0 0 1mm!important}",
+    ".contrato-parceiro p{font-size:7.5pt;line-height:1.08;margin:0 0 .8mm}",
+    ".contrato-parceiro h1{font-size:10pt;line-height:1.08;margin:0 0 1.5mm}",
+    ".contrato-parceiro h3{font-size:7.8pt;line-height:1.08;margin:1.2mm 0 .6mm}",
+    ".contrato-parceiro .contrato-cabecalho{margin-bottom:1.5mm!important;padding-bottom:1mm!important}",
+    ".contrato-parceiro .contrato-espaco-assinatura{margin:0;padding:0}",
+    "#contrato-print-root{position:fixed;left:-100000px;top:0;width:100%;background:#fff;visibility:hidden;pointer-events:none}",
+    "@media print{html,body{margin:0!important;padding:0!important;width:100%!important;background:#fff!important}body>*:not(#contrato-print-root){display:none!important}#contrato-print-root{display:block!important;position:static!important;left:auto!important;top:auto!important;width:100%!important;margin:0!important;padding:0!important;visibility:visible!important;pointer-events:auto!important}#contrato-print-root *{visibility:visible!important}}"
+  ].join("")+"</style>";
+  const area=document.createElement("div");
+  area.id="contrato-print-root";
+  area.innerHTML=estilos+raiz.innerHTML;
+  document.body.appendChild(area);
+  window.__contratoPrintEmAndamento=true;
   let finalizado=false;
-  const limpar=()=>{if(finalizado)return;finalizado=true;setTimeout(()=>iframe.remove(),1000);};
-  iframe.contentWindow.addEventListener("afterprint",limpar,{once:true});
-  doc.open();
-  doc.write("<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>"+titulo+"</title>"+estilos+"</head><body>"+htmlPreparado+"</body></html>");
-  doc.close();
-  const imprimir=()=>{
-    try{
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      setTimeout(limpar,60000);
-    }catch(error){
-      console.error("Falha ao imprimir contrato:",error);
-      limpar();
-      mostrarAviso("Não foi possível abrir a impressão do contrato neste navegador.");
-    }
+  const limpar=()=>{
+    if(finalizado)return;
+    finalizado=true;
+    area.remove();
+    window.__contratoPrintEmAndamento=false;
+    window.removeEventListener("afterprint",limpar);
   };
-  iframe.contentWindow.addEventListener("load",()=>setTimeout(imprimir,250),{once:true});
-  setTimeout(()=>{if(!finalizado)imprimir();},1000);
+  window.addEventListener("afterprint",limpar,{once:true});
+  try{
+    // Chamada síncrona preserva o clique do usuário no navegador móvel.
+    window.print();
+    setTimeout(limpar,120000);
+  }catch(error){
+    console.error("Falha ao imprimir contrato:",error);
+    limpar();
+    mostrarAviso("Não foi possível abrir a impressão do contrato neste navegador.");
+  }
 }
 async function registrarContratoGerado(tipo,nome,documento,studentId,partnerId){
   const cliente=window.getMarcusSupabase?.();
