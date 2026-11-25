@@ -30,7 +30,17 @@ jobs:
           assert.ok(source.includes('messageError?.code === "23505"'));
           assert.ok(source.includes('conversationStatus === "atendimento_humano"'));
           assert.ok(source.includes("ai_paused_until"));
-          console.log("OK: WhatsApp first-contact routing.");
+          const initialMenu = source.slice(source.indexOf("async function sendInitialMenuSelection"), source.indexOf("async function sendServiceContinuationMenu"));
+          const serviceMenu = source.slice(source.indexOf("async function sendInteractiveServiceMenu"), source.indexOf("async function sendInitialMenuSelection"));
+          const continuationMenu = source.slice(source.indexOf("async function sendServiceContinuationMenu"), source.indexOf("async function sendAttendanceMenu"));
+          assert.ok(serviceMenu.includes('id: "service_app", title: "Aplicativo"'));
+          assert.ok(continuationMenu.includes('id: "service_app", title: "Aplicativo"'));
+          assert.ok(!initialMenu.includes('id: "service_app"'), "Aplicativo must not appear in the initial greeting");
+          assert.ok(source.includes('if (menuChoice === "service_app")'));
+          assert.ok(source.includes('reply_type: "student_app_access_information"'));
+          assert.ok(source.includes("if (sent) await sendServiceContinuationMenu(supabase, conversation.id, phone)"));
+          assert.ok(source.includes("Acompanhe suas aulas de direção de maneira simples e prática!"));
+          console.log("OK: WhatsApp first-contact routing and student app menu.");
           NODE
       - name: Check rental-credit RLS migration
         run: node test-student-rental-credit-rls-repair.mjs
