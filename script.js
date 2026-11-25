@@ -23,11 +23,7 @@ const estadoInicial = {
   alunos: [],
   veiculos: [],
   aulas: [],
-  produtos: [
-    { id: "bronze", nome: "Pacote Bronze", preco: 80 },
-    { id: "prata", nome: "Pacote Prata", preco: 75 },
-    { id: "ouro", nome: "Pacote Ouro", preco: 70 }
-  ],
+  produtos: [],
   vendas: [],
   movimentacoes: [],
   configuracoes: {
@@ -59,17 +55,12 @@ function carregarDados(chave) {
     if (!dados) return structuredClone(estadoInicial);
 
     const recuperado = JSON.parse(dados);
-    const produtosPadrao = structuredClone(estadoInicial.produtos);
-    const produtosAntigos = recuperado.produtos || [];
-
-    const manterProdutos = produtosAntigos.some(p =>
-      !["p1", "p2", "p3", "p4"].includes(p.id)
-    );
 
     return {
       ...structuredClone(estadoInicial),
       ...recuperado,
-      produtos: manterProdutos ? produtosAntigos : produtosPadrao,
+      // Produtos antigos salvos no navegador não devem reaparecer após a limpeza.
+      produtos: [],
       vendas: recuperado.vendas || [],
       movimentacoes: recuperado.movimentacoes || []
     };
