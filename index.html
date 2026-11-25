@@ -776,7 +776,7 @@
         mensagemRecuperacao.textContent = "";
         try {
           const { error } = await clienteSupabase.auth.resetPasswordForEmail(email, {
-            redirectTo: "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app/"
+            redirectTo: window.location.origin + "/"
           });
           if (error) throw error;
           mensagemRecuperacao.textContent = "Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha. Verifique também o spam.";
