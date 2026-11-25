@@ -1,0 +1,13 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261122011223
+-- name: prevent_duplicate_active_lesson_slots
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+BEGIN;
+CREATE UNIQUE INDEX IF NOT EXISTS lessons_owner_active_schedule_uidx
+ON public.lessons (owner_id, data_aula, horario)
+WHERE lower(coalesce(status, '')) <> 'cancelada';
+COMMENT ON INDEX public.lessons_owner_active_schedule_uidx IS
+  'Prevents more than one non-cancelled lesson per instructor, date and time.';
+COMMIT;
