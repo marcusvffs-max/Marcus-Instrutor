@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "central-instrutor-v43-install-flow-1";
+const CACHE_NAME = "central-instrutor-v44-install-flow-2";
 
 const ARQUIVOS = [
   "./",
@@ -15,7 +15,9 @@ const ARQUIVOS = [
   "./instrutor.css?v=central-logo-1",
   "./instrutor.js?v=unified-fixed-items-5",
   "./script.js?v=confirm-modal-green-3",
-  "./manifest.json"
+  "./manifest.json",
+  "./icon-192.png",
+  "./icon-512.png"
 ];
 
 const ARQUIVOS_ADMINISTRATIVOS = [
