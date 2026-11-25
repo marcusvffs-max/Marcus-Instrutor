@@ -502,6 +502,8 @@
         <button id="btnEntrar" class="login-button" type="submit">Entrar</button>
       </form>
       <button id="btnMostrarRecuperacao" type="button" class="login-recovery-link" style="display:block;margin:14px auto 0;background:none;border:0;color:#2563eb;text-decoration:underline;cursor:pointer;font:inherit;">Esqueci minha senha</button>
+      <button id="btnInstalarAplicativo" type="button" class="login-button" style="margin-top:14px;background:#123b72;">Instalar aplicativo</button>
+      <p id="mensagemInstalacao" class="login-description" role="status" aria-live="polite" style="margin-top:10px;font-size:13px;"></p>
       <form id="formRecuperarSenha" hidden>
         <p class="login-description">Informe seu e-mail. Enviaremos um link para cadastrar uma nova senha.</p>
         <label for="recuperarEmail">E-mail</label>
@@ -544,6 +546,47 @@
   <script>
     (function () {
       "use strict";
+      let deferredInstallPrompt = null;
+      const btnInstalarAplicativo = document.getElementById("btnInstalarAplicativo");
+      const mensagemInstalacao = document.getElementById("mensagemInstalacao");
+      const appJaInstalado = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      if (appJaInstalado && mensagemInstalacao) {
+        mensagemInstalacao.textContent = "O aplicativo já está instalado neste celular.";
+        if (btnInstalarAplicativo) btnInstalarAplicativo.textContent = "Aplicativo já instalado";
+      }
+      window.addEventListener("beforeinstallprompt", function (evento) {
+        evento.preventDefault();
+        deferredInstallPrompt = evento;
+        if (mensagemInstalacao) mensagemInstalacao.textContent = "Pronto para instalar. Toque em “Instalar aplicativo”.";
+      });
+      window.addEventListener("appinstalled", function () {
+        deferredInstallPrompt = null;
+        if (mensagemInstalacao) mensagemInstalacao.textContent = "Aplicativo instalado com sucesso.";
+        if (btnInstalarAplicativo) btnInstalarAplicativo.textContent = "Aplicativo instalado";
+      });
+      if (btnInstalarAplicativo) {
+        btnInstalarAplicativo.addEventListener("click", async function () {
+          if (appJaInstalado) {
+            if (mensagemInstalacao) mensagemInstalacao.textContent = "A Central do Instrutor já está instalada. Procure o ícone na tela inicial do celular.";
+            return;
+          }
+          if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            const escolha = await deferredInstallPrompt.userChoice;
+            deferredInstallPrompt = null;
+            if (mensagemInstalacao) mensagemInstalacao.textContent = escolha && escolha.outcome === "accepted"
+              ? "Instalação confirmada. Aguarde o Android concluir."
+              : "A instalação foi cancelada. Você pode tocar novamente quando quiser.";
+            return;
+          }
+          if (mensagemInstalacao) mensagemInstalacao.textContent = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+            ? "No iPhone: abra no Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”."
+            : "Se o aviso automático não aparecer: no Chrome, abra o menu ⋮ e escolha “Instalar aplicativo” ou “Adicionar à tela inicial”. Se essa opção não aparecer, atualize a página e tente novamente pelo Google Chrome.";
+        });
+      }
+      if (new URLSearchParams(window.location.search).has("instalar") && !appJaInstalado && mensagemInstalacao) {
+        mensagemInstalacao.textContent = "Para concluir a instalação, toque no botão “Instalar aplicativo” abaixo.";
+      }
       const hostPreview = window.location.hostname;
       const USAR_SUPABASE_QA = hostPreview === "marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app" ||
     hostPreview === "marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app" || /^marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(hostPreview);
