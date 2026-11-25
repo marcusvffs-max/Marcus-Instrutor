@@ -1,0 +1,34 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261124000410
+-- name: partner_foreign_key_indexes
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+
+create index if not exists partner_commission_lessons_commission_owner_fk_idx
+  on public.partner_commission_lessons(commission_id,owner_id);
+create index if not exists partner_commission_lessons_lesson_owner_fk_idx
+  on public.partner_commission_lessons(lesson_id,owner_id);
+create index if not exists partner_commissions_partner_owner_fk_idx
+  on public.partner_commissions(partner_id,owner_id);
+create index if not exists partner_commissions_payout_owner_fk_idx
+  on public.partner_commissions(payout_id,owner_id) where payout_id is not null;
+create index if not exists partner_commissions_sale_owner_fk_idx
+  on public.partner_commissions(sale_id,owner_id);
+create index if not exists partner_commissions_sale_item_owner_fk_idx
+  on public.partner_commissions(sale_item_id,owner_id);
+create index if not exists partner_commissions_student_owner_fk_idx
+  on public.partner_commissions(student_id,owner_id);
+create index if not exists partner_message_recipients_message_owner_fk_idx
+  on public.partner_message_recipients(message_id,owner_id);
+create index if not exists partner_message_recipients_partner_owner_fk_idx
+  on public.partner_message_recipients(partner_id,owner_id);
+create index if not exists partner_messages_owner_fk_idx
+  on public.partner_messages(owner_id);
+create index if not exists partner_payouts_owner_fk_idx
+  on public.partner_payouts(owner_id);
+create index if not exists partner_payouts_partner_owner_fk_idx
+  on public.partner_payouts(partner_id,owner_id);
+create index if not exists students_partner_owner_fk_idx
+  on public.students(partner_id,owner_id) where partner_id is not null;
+
