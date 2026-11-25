@@ -1862,3 +1862,12 @@ body.autenticado .login-screen {
     widows: 2 !important;
   }
 }
+
+
+/* Alinhamento solicitado: a marca começa exatamente na borda esquerda. */
+@media screen {
+  .topbar { padding-left: 0 !important; }
+  .topbar > .brand { margin-left: 0 !important; padding-left: 0 !important; }
+  .login-brand { width: auto; height: auto; margin: 0 auto 20px; padding: 0; border-radius: 0; color: inherit; background: transparent; }
+  .login-brand .login-logo { display:block; width:min(280px, 76vw); max-height:100px; height:auto; object-fit:contain; }
+}
