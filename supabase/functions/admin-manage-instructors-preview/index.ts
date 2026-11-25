@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCompletionFallbackOutcome, getReservationStatus } from "./student-link-rules.mjs";
 
-const APP_ORIGIN = "https://marcusinstrutor.vercel.app";
+const APP_ORIGIN = "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app";
 const PREVIEW_ORIGIN_PATTERN = /^https:\/\/marcusinstrutor-[a-z0-9-]+-marcusvffs-2839\.vercel\.app$/;
 
 function isAllowedOrigin(origin: string) {
@@ -47,7 +47,7 @@ Deno.serve(async (req: Request) => {
   if (origin && !isAllowedOrigin(origin)) {
     return new Response("Origem não autorizada.", { status: 403, headers: requestCorsHeaders });
   }
-  const requestAppUrl = (origin && PREVIEW_ORIGIN_PATTERN.test(origin) ? origin : APP_ORIGIN) + "/";
+  const requestAppUrl = APP_ORIGIN + "/";
 
   try {
     const authorization = req.headers.get("Authorization") ?? "";
