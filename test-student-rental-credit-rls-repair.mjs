@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const sql = readFileSync(new URL("./supabase/migrations/20261125110000_repair_student_rental_credit_rls_drift.sql", import.meta.url), "utf8");
+const sql = readFileSync(new URL("./supabase/migrations/20261125161302_repair_student_rental_credit_rls_drift.sql", import.meta.url), "utf8");
 assert.match(sql, /DROP POLICY IF EXISTS student_rental_credits_owner_select/);
 assert.match(sql, /FOR SELECT\s+TO authenticated/);
 assert.match(sql, /owner_id = \(SELECT auth\.uid\(\)\)/);
