@@ -1,11 +1,11 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v41-expired-access-gate-1";
+const CACHE_NAME = "central-instrutor-v42-app-icon-1";
 
 const ARQUIVOS = [
   "./",
   "./index.html",
-  "./central-instrutor-logo.svg",
+  "./central-instrutor-logo.svg",\n  "./central-app-icon.svg",
   "./instrutor.html",
   "./parceiro.html",
   "./parceiro.js?v=partner-portal-11",
