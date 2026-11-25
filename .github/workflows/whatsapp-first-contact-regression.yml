@@ -24,6 +24,8 @@ jobs:
           assert.ok(source.includes('if (isNewConversation || conversationStatus === "aguardando")'));
           assert.ok(source.includes('status: "aguardando_escolha"'));
           assert.ok(source.includes("sendInitialMenuSelection(supabase, conversation.id, phone)"));
+          assert.ok(source.includes("async function sendInitialMenuSelection("));
+          assert.ok(!source.includes("async async function sendInitialMenuSelection("));
           assert.ok(source.includes('assistant_activation_reason: isNewConversation ? "new_contact_first_message" : "legacy_aguardando"'));
           assert.ok(source.includes('messageError?.code === "23505"'));
           assert.ok(source.includes('conversationStatus === "atendimento_humano"'));
