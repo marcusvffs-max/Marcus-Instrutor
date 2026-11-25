@@ -198,7 +198,25 @@
         openModal("modalGerenciarParceiro");
       });
       card.append(manage);
-      if (!partner.user_id) card.append(make("small","partner-admin-warning","Convite ainda não vinculado a uma conta."));
+      if (!partner.user_id) {
+        const inviteButton = make("button","button button-primary","Enviar convite de acesso");
+        inviteButton.type = "button";
+        inviteButton.addEventListener("click", async () => {
+          inviteButton.disabled = true;
+          inviteButton.textContent = "Enviando convite…";
+          try {
+            const result = await invoke("invite", { partner_id: partner.id });
+            say(result.message || "Convite enviado.");
+            await loadPartners();
+          } catch (error) {
+            say(error.message, true);
+            inviteButton.disabled = false;
+            inviteButton.textContent = "Enviar convite de acesso";
+          }
+        });
+        card.append(inviteButton);
+        card.append(make("small","partner-admin-warning","Acesso ainda não vinculado. Envie o convite para liberar o vínculo."));
+      }
       listEl.append(card);
     });
   }
@@ -241,13 +259,14 @@
     } catch (error) { target.append(make("p", "empty-state", error.message)); }
   }
 
-  async function invitePartner(event) {
+  async function savePartner(event) {
     event.preventDefault();
     const form = event.currentTarget;
     const button = form.querySelector('[type="submit"]');
     button.disabled = true;
+    button.textContent = "Salvando…";
     try {
-      const result = await invoke("invite", {
+      const result = await invoke("create", {
         nome: $("novoParceiroNome").value,
         email: $("novoParceiroEmail").value,
         telefone: $("novoParceiroTelefone").value,
@@ -261,11 +280,10 @@
       form.reset();
       $("novaComissaoParceiro").value = "5";
       closeModal("modalCadastroParceiro");
-      closeModal("modalCadastroParceiro");
-      say(result.message || "Convite enviado.");
+      say(result.message || "Parceiro cadastrado com sucesso.");
       await loadPartners();
     } catch (error) { say(error.message, true); }
-    finally { button.disabled = false; }
+    finally { button.disabled = false; button.textContent = "Salvar parceiro"; }
   }
 
   async function sendMessage(event) {
@@ -483,7 +501,7 @@
     $("btnFecharGerenciarParceiro").addEventListener("click",() => closeModal("modalGerenciarParceiro"));
     $("modalGerenciarParceiro").addEventListener("click",e => { if(e.target.hasAttribute("data-close-manage-partner")) closeModal("modalGerenciarParceiro"); });
     $("formGerenciarParceiro").addEventListener("submit",savePartnerManagement);
-    invite.addEventListener("submit",invitePartner); message.addEventListener("submit",sendMessage); payout.addEventListener("submit",recordPayout);
+    invite.addEventListener("submit",savePartner); message.addEventListener("submit",sendMessage); payout.addEventListener("submit",recordPayout);
     $("btnRelatorioPagamentosParceiros").addEventListener("click",openPayoutReport);
     $("btnFecharRelatorioPagamentosParceiros").addEventListener("click",() => closeModal("modalRelatorioPagamentosParceiros"));
     reportModal.addEventListener("click",e => { if(e.target.hasAttribute("data-close-report")) closeModal("modalRelatorioPagamentosParceiros"); });
