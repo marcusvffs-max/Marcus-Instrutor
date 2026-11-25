@@ -1,5 +1,13 @@
 
 <!DOCTYPE html>
+<style>
+ dialog.contrato-modal{width:min(960px,calc(100% - 24px));max-width:960px;max-height:90vh;overflow:auto;border:0;border-radius:18px;padding:18px;background:#f8fafc;color:#172033;box-shadow:0 24px 70px rgba(0,0,0,.28)}
+ dialog.contrato-modal::backdrop{background:rgba(15,23,42,.62)}
+ dialog.contrato-modal .panel{margin:0}
+ dialog.contrato-modal .partner-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+ @media(max-width:600px){dialog.contrato-modal{padding:10px;max-height:94vh}}
+</style>
+
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -413,8 +421,10 @@
 
       <section id="page-contratos" class="page">
         <div class="page-heading"><div><span class="eyebrow">DOCUMENTOS</span><h2>Contratos</h2></div></div>
+        <button id="btnAbrirGeradorContrato" class="primary-button" type="button">+ Novo contrato</button>
+        <dialog id="modalGeradorContrato" class="contrato-modal">
         <div class="panel">
-          <h3 id="tituloTipoContrato">Contrato de cliente</h3>
+          <div class="partner-modal-head"><h3 id="tituloTipoContrato">Contrato de cliente</h3><button id="btnFecharGeradorContrato" class="secondary-button" type="button">Fechar</button></div>
           <div class="contrato-tipos"><button type="button" class="primary-button active" data-tipo-contrato="cliente" onclick="try{if(typeof tipoC!=='function')throw new Error('A função tipoC não foi carregada');tipoC('cliente')}catch(e){document.getElementById('tituloTipoContrato').textContent='ERRO: '+e.message;console.error(e)}">Cliente</button><button type="button" class="secondary-button" data-tipo-contrato="parceiro" onclick="try{if(typeof tipoC!=='function')throw new Error('A função tipoC não foi carregada');tipoC('parceiro')}catch(e){document.getElementById('tituloTipoContrato').textContent='ERRO: '+e.message;console.error(e)}">Parceiro</button></div>
           <p class="form-hint">Os dados do responsável são preenchidos automaticamente pelo cadastro em <strong>Meu cadastro</strong>. Confira as informações antes de gerar o contrato.</p>
           <div id="formContratoCliente">
@@ -441,6 +451,7 @@
           <div class="contrato-acoes"><button id="btnGerarContrato" class="primary-button" type="button">Gerar pré-visualização</button><button id="btnImprimirContrato" class="secondary-button" type="button">Imprimir / Salvar PDF</button></div>
         </div>
         <div id="contratoPreview" class="contrato-preview"><div class="empty-state">Preencha os dados e gere a pré-visualização do contrato.</div></div>
+      </dialog>
       </section>
     </main>
 
