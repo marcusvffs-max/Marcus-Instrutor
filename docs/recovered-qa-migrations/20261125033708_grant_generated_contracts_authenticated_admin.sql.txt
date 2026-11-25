@@ -1,0 +1,10 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261125033708
+-- name: grant_generated_contracts_authenticated_admin
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+grant select, insert, update, delete on table public.generated_contracts to authenticated;
+
+-- RLS continua restringindo todas as operações ao próprio administrador.
+alter table public.generated_contracts enable row level security;
