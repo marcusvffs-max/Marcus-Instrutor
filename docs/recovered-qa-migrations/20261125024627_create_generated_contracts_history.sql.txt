@@ -1,0 +1,29 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261125024627
+-- name: create_generated_contracts_history
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+create table if not exists public.generated_contracts (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  contract_type text not null check (contract_type in ('aluno','parceiro')),
+  party_name text not null,
+  party_document text,
+  student_id uuid,
+  partner_id uuid,
+  document_html text not null,
+  created_at timestamptz not null default now(),
+  constraint generated_contracts_student_fk foreign key (student_id, owner_id)
+    references public.students(id, owner_id) on delete set null (student_id),
+  constraint generated_contracts_partner_fk foreign key (partner_id, owner_id)
+    references public.partners(id, owner_id) on delete set null (partner_id)
+);
+create index if not exists generated_contracts_owner_type_created_idx
+  on public.generated_contracts(owner_id, contract_type, created_at desc);
+alter table public.generated_contracts enable row level security;
+drop policy if exists generated_contracts_owner_admin on public.generated_contracts;
+create policy generated_contracts_owner_admin
+  on public.generated_contracts for all to authenticated
+  using (owner_id = auth.uid() and private.current_app_role() = 'admin')
+  with check (owner_id = auth.uid() and private.current_app_role() = 'admin');
