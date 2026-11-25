@@ -2438,10 +2438,13 @@
 
     function navigateInstructorPage(page) {
       document.querySelectorAll("[data-view]").forEach(section => {
-        section.classList.toggle("active-view", section.dataset.view === page);
+        const active = section.dataset.view === page;
+        section.classList.toggle("active-view", active);
+        section.classList.toggle("active", active);
       });
       document.querySelectorAll("[data-instructor-page]").forEach(button => {
-        button.classList.toggle("active", button.dataset.instructorPage === page);
+        const active = button.dataset.instructorPage === page;
+        button.classList.toggle("active", active);
       });
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
