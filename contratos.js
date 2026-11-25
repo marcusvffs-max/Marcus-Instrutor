@@ -96,6 +96,31 @@ const p2="<h3>5. DAS OBRIGAÇÕES DAS PARTES</h3><p>5.1. Do(a) CONTRATADO(A): Pr
 document.getElementById("contratoPreview").innerHTML=paginaC(p1+p2);aplicarLogoContrato();void registrarContratoGerado("parceiro",nome,doc,null,document.getElementById("contratoParceiroSelecionar")?.value||null);
 }
 }
+function imprimirDocumentoContrato(html,nome){
+  const win=window.open("","_blank","width=900,height=1000");
+  if(!win){mostrarAviso("Permita a abertura de janelas para imprimir o contrato.");return;}
+  const titulo=escapeC(nome||"Contrato");
+  const estilos=`<style>
+    @page{size:A4 portrait;margin:5mm}
+    html,body{margin:0;padding:0;width:222mm;font-family:Arial,sans-serif;color:#111;font-size:7.4pt;line-height:1.12}
+    body{zoom:.9}
+    .contrato-folha{width:222mm;max-width:none;min-height:0;margin:0;padding:0;box-sizing:border-box;background:#fff;box-shadow:none}
+    .contrato-folha main{margin:0;padding:0}
+    .contrato-folha p{font-size:7.4pt;line-height:1.12;text-align:justify;margin:0 0 1mm;orphans:2;widows:2}
+    .contrato-folha h1{font-size:10pt;line-height:1.1;margin:0 0 2mm;text-align:center}
+    .contrato-folha h3{font-size:7.8pt;line-height:1.1;margin:1.4mm 0 .6mm;break-after:avoid}
+    .contrato-cabecalho{margin:0 0 2mm!important;padding:0!important}
+    .contrato-logo{max-height:14mm!important;max-width:28mm!important}
+    .contrato-folha p,.contrato-folha h3{break-inside:avoid}
+    @media screen{body{width:auto;zoom:1}.contrato-folha{width:min(100%,850px);margin:16px auto;padding:18px;box-shadow:0 2px 12px #0002}}
+  </style>`;
+  win.document.open();
+  win.document.write("<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>"+titulo+"</title>"+estilos+"</head><body>"+html+"</body></html>");
+  win.document.close();
+  const imprimir=()=>{try{win.focus();win.print();}catch(error){console.error("Falha ao abrir impressão do contrato:",error);}};
+  win.addEventListener("load",()=>setTimeout(imprimir,350),{once:true});
+  setTimeout(imprimir,900);
+}
 async function registrarContratoGerado(tipo,nome,documento,studentId,partnerId){
   const cliente=window.getMarcusSupabase?.();
   if(!cliente){mostrarAviso("Contrato gerado, mas não foi possível salvar o histórico: conexão indisponível.");return;}
@@ -134,13 +159,7 @@ async function carregarListaContratosGerados(tipo){
       const date=document.createElement("p");date.textContent=new Date(item.created_at).toLocaleString("pt-BR");
       const actions=document.createElement("div");actions.className="contract-record-actions";
       const open=document.createElement("button");open.type="button";open.className="secondary-button";open.textContent="Abrir / Imprimir";
-      open.addEventListener("click",()=>{
-        const win=window.open("","_blank");
-        if(!win){mostrarAviso("Permita a abertura de janelas para visualizar o contrato.");return;}
-        win.document.open();
-        win.document.write("<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><title>Contrato - "+String(item.party_name||"").replace(/[<>&"]/g,"")+"</title><style>body{font-family:Arial,sans-serif;margin:20px;color:#111}.contrato-folha{max-width:850px;margin:0 auto 20px;padding:28px;box-sizing:border-box;background:#fff}.contrato-folha p{line-height:1.5;text-align:justify}.contrato-folha h1,.contrato-folha h3{text-align:center}@media print{body{margin:0}.contrato-folha{margin:0;box-shadow:none}}</style></head><body>"+item.document_html+"</body></html>");
-        win.document.close();
-      });
+      open.addEventListener("click",()=>imprimirDocumentoContrato(item.document_html,item.party_name));
       const del=document.createElement("button");del.type="button";del.className="secondary-button";del.textContent="Excluir";
       del.addEventListener("click",async()=>{
         if(!window.confirm("Excluir este contrato do histórico?"))return;
@@ -163,10 +182,12 @@ function iniciarContratos(){
   document.getElementById("btnListaContratosAluno")?.addEventListener("click",()=>carregarListaContratosGerados("aluno"));
   document.getElementById("btnListaContratosParceiro")?.addEventListener("click",()=>carregarListaContratosGerados("parceiro"));
   document.getElementById("contratoAluno")?.addEventListener("change",selecionarAlunoContrato);
+  document.getElementById("contratoParceiroSelecionar")?.addEventListener("change",selecionarParceiroContrato);
   document.getElementById("btnGerarContrato")?.addEventListener("click",gerarC);
   document.getElementById("btnImprimirContrato")?.addEventListener("click",()=>{
-    if(!document.querySelector(".contrato-folha")){mostrarAviso("Gere a pré-visualização antes de imprimir.");return;}
-    document.body.classList.add("contrato-impressao");window.print();
+    const folha=document.querySelector("#contratoPreview .contrato-folha");
+    if(!folha){mostrarAviso("Gere a pré-visualização antes de imprimir.");return;}
+    imprimirDocumentoContrato(folha.outerHTML,tipoContratoAtual==="cliente"?"Contrato de aluno":"Contrato de parceiro");
   });
 }
 window.addEventListener("afterprint",()=>document.body.classList.remove("contrato-impressao"));
