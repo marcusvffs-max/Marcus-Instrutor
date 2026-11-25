@@ -31,6 +31,7 @@
     .users-filters{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 8px}
     .users-filter{border:1px solid #cbd5e1;background:#f8fafc;color:#334155;border-radius:20px;padding:8px 12px;font:inherit;font-size:.84rem;font-weight:600;cursor:pointer}
     .users-filter.active{background:#12345a;border-color:#12345a;color:#fff}
+    .users-search{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit;margin:12px 0}
   `;
   document.head.appendChild(style);
 
@@ -99,6 +100,8 @@
     ["parceiro", "Parceiros"],
   ];
   let activeUserFilter = "todos";
+  const searchUsers = create("input", { class: "users-search", type: "search", placeholder: "Pesquisar por nome ou e-mail", "aria-label": "Pesquisar usuários por nome ou e-mail" });
+  searchUsers.addEventListener("input", applyUserFilter);
 
   function applyUserFilter() {
     filters.querySelectorAll("button[data-user-filter]").forEach((filterButton) => {
@@ -106,8 +109,11 @@
       filterButton.classList.toggle("active", selected);
       filterButton.setAttribute("aria-pressed", selected ? "true" : "false");
     });
+    const term = String(searchUsers.value || "").trim().toLocaleLowerCase("pt-BR");
     list.querySelectorAll(".users-item[data-role]").forEach((item) => {
-      item.hidden = activeUserFilter !== "todos" && item.dataset.role !== activeUserFilter;
+      const roleMatches = activeUserFilter === "todos" || item.dataset.role === activeUserFilter;
+      const textMatches = !term || (item.dataset.search || "").includes(term);
+      item.hidden = !roleMatches || !textMatches;
     });
   }
 
@@ -125,7 +131,7 @@
     filters.append(filterButton);
   });
 
-  dialog.append(head, message, actions, list);
+  dialog.append(head, message, actions, searchUsers, list);
   overlay.append(dialog);
   document.body.append(overlay);
 
@@ -218,7 +224,7 @@
         return;
       }
       result.users.forEach((user) => {
-        const item = create("div", { class: "users-item", "data-role": user.role || "sem-perfil" });
+        const item = create("div", { class: "users-item", "data-role": user.role || "sem-perfil", "data-search": String((user.nome || "") + " " + (user.email || "")).toLocaleLowerCase("pt-BR") });
         const info = create("div", { class: "users-item-info" });
         info.append(create("strong", {}, user.nome || "Sem nome"));
         info.append(create("small", {}, user.email || "Sem e-mail"));
