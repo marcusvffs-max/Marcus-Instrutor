@@ -1,0 +1,7 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261125022125
+-- name: add_partner_personal_details
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+alter table public.partners add column if not exists nacionalidade text; alter table public.partners add column if not exists estado_civil text; alter table public.partners add column if not exists profissao text;
