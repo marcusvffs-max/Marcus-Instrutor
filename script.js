@@ -280,7 +280,7 @@ async function atualizarProximosExamesPainel() {
   try {
     const { data, error } = await cliente
       .from("student_practical_exams")
-      .select("id,scheduled_at,students(nome)")
+      .select("id,scheduled_at,students(nome,telefone)")
       .eq("owner_id", adminSupabaseUserId)
       .eq("status", "agendado")
       .order("scheduled_at", { ascending: true })
@@ -294,8 +294,13 @@ async function atualizarProximosExamesPainel() {
           const dataHora = Number.isNaN(quando.getTime())
             ? "Data não disponível"
             : quando.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+          const telefone = String(exame.students?.telefone || "").trim();
+          const numeroDiscagem = telefone.replace(/\D/g, "");
+          const contato = numeroDiscagem
+            ? `<a class="exame-telefone" href="tel:${escapar(numeroDiscagem)}">Telefone: ${escapar(telefone)} · Ligar</a>`
+            : `<span class="form-hint">Telefone não informado</span>`;
           return `<div class="record exame-painel-item">
-            <div><strong>${escapar(exame.students?.nome || "Aluno")}</strong><p>${escapar(dataHora)}</p><span class="form-hint">Exame prático agendado</span></div>
+            <div><strong>${escapar(exame.students?.nome || "Aluno")}</strong><p>${escapar(dataHora)}</p><p>${contato}</p><span class="form-hint">Exame prático agendado</span></div>
             <div class="exame-painel-acoes">
               <button type="button" class="primary-button" data-exame-resultado="aprovado" data-exame-id="${escapar(exame.id)}">Aprovado</button>
               <button type="button" class="secondary-button" data-exame-resultado="reprovado" data-exame-id="${escapar(exame.id)}">Reprovado</button>
