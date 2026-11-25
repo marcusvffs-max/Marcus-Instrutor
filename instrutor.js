@@ -120,12 +120,11 @@
         style.textContent = `
           .marcus-confirm-overlay{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.62)}
           .marcus-confirm-dialog{width:min(100%,440px);padding:22px;border-radius:16px;background:#fff;color:#172033;box-shadow:0 20px 60px rgba(0,0,0,.25)}
-          .marcus-confirm-dialog h2{margin:0 0 12px;font-size:19px}
           .marcus-confirm-dialog p{margin:0;white-space:pre-line;overflow-wrap:anywhere;line-height:1.5}
           .marcus-confirm-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
           .marcus-confirm-actions button{border:0;border-radius:9px;padding:11px 16px;font:inherit;font-weight:650;cursor:pointer}
           .marcus-confirm-cancel{background:#e8edf3;color:#172033}
-          .marcus-confirm-ok{background:#12345a;color:#fff}
+          .marcus-confirm-ok{background:#198754;color:#fff;border:1px solid #198754}
         `;
         document.head.appendChild(style);
       }
@@ -136,11 +135,10 @@
       dialog.className = "marcus-confirm-dialog";
       dialog.setAttribute("role", "dialog");
       dialog.setAttribute("aria-modal", "true");
-      dialog.setAttribute("aria-labelledby", "marcusConfirmTitle");
+      dialog.setAttribute("aria-describedby", "marcusConfirmText");
       const title = document.createElement("h2");
-      title.id = "marcusConfirmTitle";
-      title.textContent = "Confirmação";
       const text = document.createElement("p");
+      text.id = "marcusConfirmText";
       text.textContent = semLinksIndesejados(message);
       const actions = document.createElement("div");
       actions.className = "marcus-confirm-actions";
@@ -153,7 +151,7 @@
       accept.className = "marcus-confirm-ok";
       accept.textContent = "Confirmar";
       actions.append(cancel, accept);
-      dialog.append(title, text, actions);
+      dialog.append(text, actions);
       overlay.append(dialog);
       document.body.appendChild(overlay);
 
