@@ -167,6 +167,8 @@ async function sendInteractiveServiceMenu(
     { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
     { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
     { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
+    { id: "service_app", title: "Aplicativo", description: "Conheça o acesso exclusivo para acompanhar suas aulas." },
+    { id: "menu_close_assistant", title: "Encerrar assistente", description: "Finalize e pause a assistente por 48 horas." },
   ];
 
   const menu = {
@@ -343,7 +345,7 @@ function readMenuChoice(message: any, content: unknown): string | null {
     "service_packages", "service_contract", "service_schedule",
     "service_balance", "service_reschedule", "service_documents",
     "service_registration_fee", "service_medical", "service_free_theory_course", "service_theory_fee",
-    "service_driving_fee", "service_other", "menu_close_assistant",
+    "service_driving_fee", "service_other", "service_app", "menu_close_assistant",
   ]);
   if (validChoices.has(choiceId)) {
     if (choiceId === "menu_talk_marcus") return "humano";
@@ -370,6 +372,7 @@ function readMenuChoice(message: any, content: unknown): string | null {
   if (/^(emitir taxa exame legislação( \\(detran-mg\\))?|taxa exame legislação)$/i.test(text)) return "service_theory_fee";
   if (/^(emitir taxa exame direção( \\(detran-mg\\))?|taxa exame direção)$/i.test(text)) return "service_driving_fee";
   if (/^(outros|outros assuntos)$/i.test(text)) return "service_other";
+  if (/^(aplicativo|app|acesso aluno)$/i.test(text)) return "service_app";
   return null;
 }
 
@@ -387,6 +390,7 @@ function serviceChoiceLabel(choice: string): string {
     service_theory_fee: "Emitir taxa exame Legislação (Detran-MG)",
     service_driving_fee: "Emitir taxa exame direção (Detran-MG)",
     service_other: "Outros",
+    service_app: "Aplicativo",
   };
   return labels[choice] ?? "Atendimento";
 }
@@ -2152,6 +2156,28 @@ Deno.serve(async (req: Request) => {
                 await updateMessageMetadata(supabase, providerId, {
                   other_details_prompt_sent: sent,
                 });
+                continue;
+              }
+
+              if (menuChoice === "service_app") {
+                const appAccessReply =
+                  "📱 APLICATIVO DO ALUNO\n\n" +
+                  "Acompanhe suas aulas de direção de maneira simples e prática!\n\n" +
+                  "Com seu acesso exclusivo, você pode consultar suas aulas agendadas diretamente pelo celular, com mais facilidade para se organizar e acompanhar seus próximos horários.\n\n" +
+                  "🚗 Mais praticidade para acompanhar sua jornada rumo à CNH!";
+                const sent = await sendWhatsAppText(
+                  supabase,
+                  conversation.id,
+                  phone,
+                  appAccessReply,
+                  true,
+                );
+                await updateMessageMetadata(supabase, providerId, {
+                  ai_status: sent ? "static_service_reply_sent" : "static_service_reply_failed",
+                  reply_type: "student_app_access_information",
+                  reply_sent: sent,
+                });
+                if (sent) await sendServiceContinuationMenu(supabase, conversation.id, phone);
                 continue;
               }
 
