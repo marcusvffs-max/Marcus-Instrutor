@@ -29,7 +29,7 @@ This branch is an isolated preparation branch based on the production applicatio
 - Confirmed QA's live rental-credit policy matches the intended owner and role restrictions.
 
 ## Not yet verified
-- The Node regression scripts have not been executed in a configured test runner; checks so far are source-level assertions.
+- Both Node regression scripts were executed by GitHub Actions and passed; they are source-level assertions, not behavioral or integration tests.
 - WhatsApp end-to-end delivery has not been tested. QA currently lacks the production owner/configuration and its webhook is not a valid WhatsApp test target.
 - The rental-credit repair migration has not been applied to either environment.
 - No Edge Function deployment, database migration, Vercel deployment, alias change, or production data change has been performed.
