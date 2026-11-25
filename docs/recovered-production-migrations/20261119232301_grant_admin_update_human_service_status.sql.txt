@@ -1,0 +1,7 @@
+-- RECOVERED FROM PRODUCTION DATABASE MIGRATION HISTORY
+-- version: 20261119232301
+-- name: grant_admin_update_human_service_status
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against QA and production schemas before creating an executable migration.
+
+grant update (atendimento_status) on table public.ai_requests to authenticated;
