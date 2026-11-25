@@ -13,7 +13,7 @@
 
   body.autenticado .topbar {
     min-height: 76px;
-    padding: 14px max(18px, calc((100% - 1120px) / 2));
+    padding: 14px 12px;
     color: #172536;
     background: #fff;
     border-bottom: 1px solid #dce4ed;
