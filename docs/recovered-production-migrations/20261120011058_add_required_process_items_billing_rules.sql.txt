@@ -1,0 +1,21 @@
+-- RECOVERED FROM PRODUCTION DATABASE MIGRATION HISTORY
+-- version: 20261120011058
+-- name: add_required_process_items_billing_rules
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against QA and production schemas before creating an executable migration.
+
+alter table public.products add column if not exists forma_cobranca text, add column if not exists obrigatorio_conclusao boolean not null default false;
+
+insert into public.products (owner_id, nome, tipo, descricao, preco, ativo, app_product_id, forma_cobranca, obrigatorio_conclusao)
+values
+  ('8da26777-dad7-46dd-a332-4b5b80b027c7', 'Aluguel do veículo', 'produto', 'Cobrança única por exame. Item obrigatório para a conclusão do processo de habilitação.', 150.00, true, 'aluguel-veiculo-exame', 'por_exame', true),
+  ('8da26777-dad7-46dd-a332-4b5b80b027c7', 'Cartão Moto Pista (30 dias)', 'produto', 'Válido por 30 dias. Item obrigatório para a conclusão do processo de habilitação.', 120.00, true, 'cartao-moto-pista-30-dias', 'por_periodo_30_dias', true)
+on conflict (owner_id, app_product_id) do update set
+  nome = excluded.nome,
+  tipo = excluded.tipo,
+  descricao = excluded.descricao,
+  preco = excluded.preco,
+  ativo = excluded.ativo,
+  forma_cobranca = excluded.forma_cobranca,
+  obrigatorio_conclusao = excluded.obrigatorio_conclusao,
+  updated_at = now();
