@@ -1,0 +1,11 @@
+-- RECOVERED FROM PRODUCTION DATABASE MIGRATION HISTORY
+-- version: 20261120005346
+-- name: fix_products_sync_upsert_conflict_target
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against QA and production schemas before creating an executable migration.
+
+
+drop index if exists public.products_owner_app_product_id_uidx;
+create unique index products_owner_app_product_id_uidx
+  on public.products (owner_id, app_product_id);
+
