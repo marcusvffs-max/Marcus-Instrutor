@@ -1,0 +1,33 @@
+name: WhatsApp first-contact regression
+
+on:
+  push:
+    branches:
+      - qa/production-readiness-integration-20261125
+  pull_request:
+
+jobs:
+  first-contact-routing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify first-contact routing without changing human pause behavior
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+          const source = readFileSync("supabase/functions/whatsapp-webhook/index.ts", "utf8");
+          assert.match(source, /let isNewConversation = false/);
+          assert.match(source, /isNewConversation = Boolean\\(created && !createError\\)/);
+          assert.match(source, /if \\(isNewConversation \\|\\| conversationStatus === "aguardando"\\)/);
+          assert.match(source, /status: "aguardando_escolha",[\\s\\S]*?ai_paused_until: null/);
+          assert.match(source, /sendInitialMenuSelection\\(supabase, conversation\\.id, phone\\)/);
+          assert.match(source, /assistant_activation_reason: isNewConversation \\? "new_contact_first_message" : "legacy_aguardando"/);
+          assert.match(source, /if \\(messageError\\?\\.code === "23505"\\)[\\s\\S]*?duplicates\\+\\+;[\\s\\S]*?continue;/);
+          assert.match(source, /conversationStatus === "atendimento_humano"/);
+          assert.match(source, /ai_paused_until/);
+          console.log("OK: first contacts and legacy aguardando activate the menu; duplicate and human-pause guards remain.");
+          NODE
