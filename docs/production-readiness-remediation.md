@@ -49,6 +49,10 @@ This branch is an isolated preparation branch based on the production applicatio
 - Additional live-schema check: QA contains both `central_access_sync_events` and `central_access_state_sync_events` plus their RPCs. Production contains neither ledger nor either RPC. The recovered `sync-central-access` function therefore cannot be promoted to production until the versioned sync schema/RPC is reconciled and installed.
 - No secret values were copied into the repository; these functions continue to read service credentials and the HMAC secret from Edge Function environment variables.
 
+### Partner Edge Function source recovery
+- Recovered QA `admin-manage-partners` version 11 and `partner-portal` version 6 into `supabase/functions/`, with their deployed JWT-verification settings reflected in config.
+- These functions are now versioned in the isolated branch, but they are not ready for production deployment: production still lacks the partner tables, role allowance, personal-detail fields, RLS/grants, and supporting RPC/function migrations.
+
 ## Remaining production blockers
 1. Establish a QA WhatsApp owner/configuration that is isolated from production and can receive a real test webhook.
 2. Execute behavioral tests for first contact, existing `aguardando`, duplicate webhook delivery, expired pause, active 48-hour pause, and explicit greeting reactivation.
