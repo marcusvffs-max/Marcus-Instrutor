@@ -279,7 +279,7 @@ async function sendServiceContinuationMenu(
     type: "interactive",
     interactive: {
       type: "list",
-      body: { text: "O que mais você gostaria de consultar? 😊\\n\\nPara falar diretamente com Marcus, digite “Falar com Instrutor”." },
+      body: { text: "O que mais você gostaria de consultar? 😊\n\nPara falar diretamente com Marcus, digite “Falar com Instrutor”." },
       footer: { text: "Atendimento do Instrutor Marcus." },
       action: {
         button: "Ver opções",
@@ -2128,9 +2128,9 @@ Deno.serve(async (req: Request) => {
 
               if (menuChoice === "service_app") {
                 const appAccessReply =
-                  "📱 APLICATIVO DO ALUNO\\n\\n" +
-                  "Acompanhe suas aulas de direção de maneira simples e prática!\\n\\n" +
-                  "Com seu acesso exclusivo, você pode consultar suas aulas agendadas diretamente pelo celular, com mais facilidade para se organizar e acompanhar seus próximos horários.\\n\\n" +
+                  "📱 APLICATIVO DO ALUNO\n\n" +
+                  "Acompanhe suas aulas de direção de maneira simples e prática!\n\n" +
+                  "Com seu acesso exclusivo, você pode consultar suas aulas agendadas diretamente pelo celular, com mais facilidade para se organizar e acompanhar seus próximos horários.\n\n" +
                   "🚗 Mais praticidade para acompanhar sua jornada rumo à CNH!";
                 const sent = await sendWhatsAppText(supabase, conversation.id, phone, appAccessReply, true);
                 await updateMessageMetadata(supabase, providerId, {
