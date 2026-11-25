@@ -3,7 +3,16 @@ let tipoContratoAtual="cliente";
 function escapeC(v){return String(v||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function carregarAlunosContrato(){const s=document.getElementById("contratoAluno");if(!s)return;s.innerHTML='<option value="">Preencher manualmente</option>'+(db.alunos||[]).map(a=>'<option value="'+escapeC(a.id)+'">'+escapeC(a.nome)+'</option>').join("");}
 function selecionarAlunoContrato(){const a=(db.alunos||[]).find(x=>String(x.id)===document.getElementById("contratoAluno").value);if(!a)return;document.getElementById("clienteNome").value=a.nome||"";document.getElementById("clienteCpf").value=a.cpf||"";document.getElementById("clienteCategoria").value=a.categoria||"";}
-function tipoC(t){tipoContratoAtual=t;const cliente=document.getElementById("formContratoCliente");const parceiro=document.getElementById("formContratoParceiro");cliente.hidden=t!=="cliente";parceiro.hidden=t!=="parceiro";cliente.style.display=t==="cliente"?"block":"none";parceiro.style.display=t==="parceiro"?"block":"none";document.getElementById("tituloTipoContrato").textContent=t==="cliente"?"Contrato de cliente":"Contrato de parceiro";document.getElementById("contratoPreview").innerHTML="";document.querySelectorAll("[data-tipo-contrato]").forEach(b=>{const ativo=b.dataset.tipoContrato===t;b.classList.toggle("active",ativo);b.classList.toggle("primary-button",ativo);b.classList.toggle("secondary-button",!ativo);});}
+function tipoC(t){
+if(window.MARCUS_PANEL_ROLE==="instrutor"&&t!=="cliente")return;
+tipoContratoAtual=t;
+const cliente=document.getElementById("formContratoCliente"),parceiro=document.getElementById("formContratoParceiro");
+if(cliente){cliente.hidden=t!=="cliente";cliente.style.display=t==="cliente"?"block":"none";}
+if(parceiro){parceiro.hidden=t!=="parceiro";parceiro.style.display=t==="parceiro"?"block":"none";}
+const titulo=document.getElementById("tituloTipoContrato");if(titulo)titulo.textContent=t==="cliente"?"Contrato de cliente":"Contrato de parceiro";
+const preview=document.getElementById("contratoPreview");if(preview)preview.innerHTML="";
+document.querySelectorAll("[data-tipo-contrato]").forEach(b=>{const ativo=b.dataset.tipoContrato===t;b.classList.toggle("active",ativo);b.classList.toggle("primary-button",ativo);b.classList.toggle("secondary-button",!ativo);});
+}
 window.tipoC = tipoC;
 
 async function carregarParceirosContrato(){
