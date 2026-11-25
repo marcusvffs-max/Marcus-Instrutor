@@ -1,4 +1,4 @@
-name: WhatsApp first-contact regression
+name: Production readiness source checks
 
 on:
   push:
@@ -7,16 +7,15 @@ on:
   pull_request:
 
 jobs:
-  first-contact-routing:
+  static-regressions:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Verify first-contact routing without changing human pause behavior
-        run: |
-          node --input-type=module <<'NODE'
+      - name: Check WhatsApp first-contact routing
+        run: node --input-type=module <<'NODE'
           import assert from "node:assert/strict";
           import { readFileSync } from "node:fs";
           const source = readFileSync("supabase/functions/whatsapp-webhook/index.ts", "utf8");
@@ -29,5 +28,7 @@ jobs:
           assert.ok(source.includes('messageError?.code === "23505"'));
           assert.ok(source.includes('conversationStatus === "atendimento_humano"'));
           assert.ok(source.includes("ai_paused_until"));
-          console.log("OK: first contacts and legacy aguardando activate the menu; duplicate and human-pause guards remain.");
+          console.log("OK: WhatsApp first-contact routing.");
           NODE
+      - name: Check rental-credit RLS migration
+        run: node test-student-rental-credit-rls-repair.mjs
