@@ -79,6 +79,15 @@ test("as duas Edge Functions exigem JWT no config do Supabase", () => {
 const partnerSchemaMigration = read("../supabase/migrations/20261124045002_partner_module_schema_and_commissions.sql");
 const partnerIndexesMigration = read("../supabase/migrations/20261124045125_partner_referral_fk_indexes.sql");
 
+test("schema de parceiros inclui as chaves compostas e campos usados pelo portal", () => {
+  assert.match(partnerSchemaMigration, /sale_items_id_owner_partner_key/);
+  assert.match(partnerSchemaMigration, /lessons_id_owner_partner_key/);
+  assert.match(partnerSchemaMigration, /ADD COLUMN IF NOT EXISTS nacionalidade text/);
+  assert.match(partnerSchemaMigration, /ADD COLUMN IF NOT EXISTS estado_civil text/);
+  assert.match(partnerSchemaMigration, /ADD COLUMN IF NOT EXISTS profissao text/);
+  assert.match(partnerSchemaMigration, /CHECK \\(role IN \\('admin', 'instrutor', 'usuario', 'parceiro'\\)\\)/);
+});
+
 test("PIX é controlado pelo administrador e somente leitura no portal", () => {
   assert.match(adminJs, /update_pix_key/);
   assert.match(adminEdge, /body\.action === "update_pix_key"/);
