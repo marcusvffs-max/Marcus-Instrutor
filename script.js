@@ -154,12 +154,12 @@ function confirmar(mensagem) {
     dialog.className = "modal-box";
     dialog.setAttribute("role", "dialog");
     dialog.setAttribute("aria-modal", "true");
-    dialog.setAttribute("aria-labelledby", "tituloConfirmacao");
+    dialog.setAttribute("aria-describedby", "textoConfirmacao");
 
     const titulo = document.createElement("h2");
     titulo.id = "tituloConfirmacao";
-    titulo.textContent = "Confirmação";
     const texto = document.createElement("p");
+    texto.id = "textoConfirmacao";
     texto.style.whiteSpace = "pre-line";
     texto.textContent = textoSemLinks(mensagem);
 
@@ -172,9 +172,12 @@ function confirmar(mensagem) {
     const confirmarBotao = document.createElement("button");
     confirmarBotao.type = "button";
     confirmarBotao.className = "primary-button";
+    confirmarBotao.style.backgroundColor = "#198754";
+    confirmarBotao.style.color = "#ffffff";
+    confirmarBotao.style.borderColor = "#198754";
     confirmarBotao.textContent = "Confirmar";
     acoes.append(cancelar, confirmarBotao);
-    dialog.append(titulo, texto, acoes);
+    dialog.append(texto, acoes);
     overlay.append(dialog);
     container.replaceChildren(overlay);
 
@@ -198,6 +201,8 @@ function confirmar(mensagem) {
     cancelar.focus();
   });
 }
+
+window.MarcusConfirm = confirmar;
 
 /* =========================================
    NAVEGAÇÃO
@@ -303,7 +308,7 @@ async function atualizarProximosExamesPainel() {
         const resultado = botao.dataset.exameResultado;
         const exameId = botao.dataset.exameId;
         const label = resultado === "aprovado" ? "APROVADO" : "REPROVADO";
-        if (!window.confirm("Confirmar resultado " + label + "? Esta ação consumirá 1 Aluguel de Veículo e não poderá ser desfeita.")) return;
+        if (!(await confirmar("Confirmar resultado " + label + "? Esta ação consumirá 1 Aluguel de Veículo e não poderá ser desfeita."))) return;
         const botoes = host.querySelectorAll("[data-exame-resultado]");
         botoes.forEach(b => b.disabled = true);
         try {
