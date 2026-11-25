@@ -1,0 +1,9 @@
+-- RECOVERED FROM PRODUCTION DATABASE MIGRATION HISTORY
+-- version: 20261120005935
+-- name: products_owner_access_policies
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against QA and production schemas before creating an executable migration.
+
+create policy "products_select_own" on public.products for select to authenticated using (owner_id = auth.uid());
+create policy "products_insert_own" on public.products for insert to authenticated with check (owner_id = auth.uid());
+create policy "products_update_own" on public.products for update to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
