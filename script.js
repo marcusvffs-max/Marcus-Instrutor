@@ -2244,7 +2244,9 @@ function abrirDevolucao() {
     <h2>Devolução por venda</h2>
     <p class="refund-modal-intro">Primeiro selecione a venda. Depois escolha somente os itens pertencentes a ela.</p>
     <form id="formDevolucao">
-      <label for="devolucaoVenda">Venda</label>
+      <label for="buscaVendaDevolucao">Pesquisar venda</label>
+      <input id="buscaVendaDevolucao" type="search" placeholder="Buscar por aluno, data ou pagamento">
+      <label for="devolucaoVenda">Vendas disponíveis</label>
       <select name="vendaId" id="devolucaoVenda" required>
         <option value="">Selecione uma venda</option>
         ${vendasDisponiveis.map(grupo => {
@@ -2271,6 +2273,12 @@ function abrirDevolucao() {
   const formulario = document.getElementById("formDevolucao");
   const seletorVenda = formulario.elements.vendaId;
   const seletorItem = formulario.elements.itemVenda;
+  const buscaVenda = document.getElementById("buscaVendaDevolucao");
+  buscaVenda.addEventListener("input", () => {
+    const termo = buscaVenda.value.trim().toLocaleLowerCase("pt-BR");
+    [...seletorVenda.options].forEach((option, index) => { if (index > 0) option.hidden = !!termo && !option.textContent.toLocaleLowerCase("pt-BR").includes(termo); });
+    if (seletorVenda.selectedOptions[0]?.hidden) { seletorVenda.value = ""; seletorVenda.dispatchEvent(new Event("change")); }
+  });
   const campoQuantidade = formulario.elements.quantidade;
   const rotuloQuantidade = document.getElementById("devolucaoRotuloQuantidade");
   const previa = document.getElementById("devolucaoPrevia");
@@ -2350,10 +2358,10 @@ async function salvarDevolucao(evento) {
   }
   botao.disabled = true;
   botao.textContent = "Registrando...";
+  let concluidos = 0;
   try {
     const cliente = window.getMarcusSupabase?.();
     if (!cliente) throw new Error("Conexão com o Supabase indisponível.");
-    let concluidos = 0;
     for (const item of selecionados) {
       const nomeRpc = item.tipo === "produto" ? "admin_refund_sale_product" : "admin_refund_sale_lessons";
       const { error } = await cliente.rpc(nomeRpc, { p_sale_item_id: item.saleItemId, p_quantidade: quantidade });
