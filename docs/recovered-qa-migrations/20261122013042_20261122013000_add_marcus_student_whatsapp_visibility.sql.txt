@@ -1,0 +1,48 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261122013042
+-- name: 20261122013000_add_marcus_student_whatsapp_visibility
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+-- Expose the WhatsApp assistant link only to student accounts linked to Marcus.
+-- The WhatsApp integration is currently single-owner and uses the same fixed owner
+-- configured by the webhook. Keep the lookup in the non-exposed private schema.
+BEGIN;
+
+CREATE OR REPLACE FUNCTION private.can_show_marcus_whatsapp_assistant_internal()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $function$
+  SELECT
+    auth.uid() IS NOT NULL
+    AND EXISTS (
+      SELECT 1
+      FROM public.profiles p
+      JOIN public.students s ON s.user_id = p.id
+      WHERE p.id = auth.uid()
+        AND p.role = 'usuario'
+        AND s.owner_id = '8da26777-dad7-46dd-a332-4b5b80b027c7'::uuid
+    );
+$function$;
+
+REVOKE ALL ON FUNCTION private.can_show_marcus_whatsapp_assistant_internal() FROM PUBLIC, anon;
+GRANT USAGE ON SCHEMA private TO authenticated;
+GRANT EXECUTE ON FUNCTION private.can_show_marcus_whatsapp_assistant_internal() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.can_show_marcus_whatsapp_assistant()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = ''
+AS $function$
+  SELECT private.can_show_marcus_whatsapp_assistant_internal();
+$function$;
+
+REVOKE ALL ON FUNCTION public.can_show_marcus_whatsapp_assistant() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.can_show_marcus_whatsapp_assistant() TO authenticated;
+
+COMMIT;
