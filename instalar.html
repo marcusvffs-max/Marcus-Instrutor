@@ -70,20 +70,17 @@
         var choice = await installPrompt.userChoice;
         installPrompt = null;
         if (choice && choice.outcome === "accepted") {
-          encerrarPaginaInstalacao();
+          voltarAoSite();
           return;
         } else {
           status.textContent = "Instalação cancelada. Você pode tocar no botão novamente quando quiser.";
           button.disabled = false;
         }
       });
-      function encerrarPaginaInstalacao(){
-        document.title = "Instalação concluída";
-        document.body.replaceChildren();
-        document.body.style.background = "#ffffff";
-        window.close();
+      function voltarAoSite(){
+        window.location.replace("https://central-do-instrutor.pages.dev/");
       }
-      window.addEventListener("appinstalled", encerrarPaginaInstalacao);
+      window.addEventListener("appinstalled", voltarAoSite);
     })();
   </script>
 </body>
