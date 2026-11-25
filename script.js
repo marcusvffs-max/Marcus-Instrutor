@@ -282,13 +282,11 @@ async function atualizarProximosExamesPainel() {
   }
   host.textContent = "Carregando exames...";
   try {
-    const agora = new Date().toISOString();
     const { data, error } = await cliente
       .from("student_practical_exams")
       .select("id,scheduled_at,students(nome)")
       .eq("owner_id", adminSupabaseUserId)
       .eq("status", "agendado")
-      .gte("scheduled_at", agora)
       .order("scheduled_at", { ascending: true })
       .limit(12);
     if (error) throw error;
@@ -300,9 +298,39 @@ async function atualizarProximosExamesPainel() {
           const dataHora = Number.isNaN(quando.getTime())
             ? "Data não disponível"
             : quando.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
-          return `<div class="record"><strong>${escapar(exame.students?.nome || "Aluno")}</strong><p>${escapar(dataHora)}</p><span class="form-hint">Exame prático agendado</span></div>`;
+          return `<div class="record exame-painel-item">
+            <div><strong>${escapar(exame.students?.nome || "Aluno")}</strong><p>${escapar(dataHora)}</p><span class="form-hint">Exame prático agendado</span></div>
+            <div class="exame-painel-acoes">
+              <button type="button" class="primary-button" data-exame-resultado="aprovado" data-exame-id="${escapar(exame.id)}">Aprovado</button>
+              <button type="button" class="secondary-button" data-exame-resultado="reprovado" data-exame-id="${escapar(exame.id)}">Reprovado</button>
+            </div>
+          </div>`;
         }).join("")
-      : "Nenhum exame agendado.";
+      : "Nenhum exame aguardando resultado.";
+    host.querySelectorAll("[data-exame-resultado]").forEach(botao => {
+      botao.addEventListener("click", async () => {
+        const resultado = botao.dataset.exameResultado;
+        const exameId = botao.dataset.exameId;
+        const label = resultado === "aprovado" ? "APROVADO" : "REPROVADO";
+        if (!window.confirm("Confirmar resultado " + label + "? Esta ação consumirá 1 Aluguel de Veículo e não poderá ser desfeita.")) return;
+        const botoes = host.querySelectorAll("[data-exame-resultado]");
+        botoes.forEach(b => b.disabled = true);
+        try {
+          const { error: rpcError } = await cliente.rpc("record_student_practical_exam_result", {
+            p_exam_id: exameId,
+            p_resultado: resultado
+          });
+          if (rpcError) throw rpcError;
+          mostrarAviso("Resultado " + label.toLowerCase() + " registrado. Um aluguel foi consumido.");
+          await atualizarProximosExamesPainel();
+          atualizarPainel();
+        } catch (erro) {
+          console.error("Falha ao registrar resultado do exame:", erro);
+          mostrarAviso(erro?.message || "Não foi possível registrar o resultado do exame.");
+          botoes.forEach(b => b.disabled = false);
+        }
+      });
+    });
   } catch (erro) {
     console.error("Erro ao carregar próximos exames:", erro);
     host.textContent = "Não foi possível carregar os exames agendados.";
