@@ -618,6 +618,29 @@ await carregarScript("instrutor-users.js?v=linked-students-only-1");
         auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage }
       });
       window.getMarcusSupabase = function () { return clienteSupabase; };
+      function atualizarContadorValidade(validade) {
+        const aviso = document.getElementById("avisoValidadeAcesso");
+        if (!aviso) return;
+        const atualizar = () => {
+          const fim = validade ? new Date(validade).getTime() : 0;
+          if (!fim || !Number.isFinite(fim)) {
+            aviso.textContent = "Não foi possível consultar a validade do acesso.";
+            return;
+          }
+          const restante = fim - Date.now();
+          if (restante <= 0) {
+            aviso.textContent = "Acesso expirado · regularize na Central do Instrutor.";
+            aviso.classList.add("access-expiry-warning");
+            return;
+          }
+          const dias = Math.ceil(restante / 86400000);
+          aviso.textContent = "Autorização ativa · faltam " + dias + (dias === 1 ? " dia para o bloqueio automático." : " dias para o bloqueio automático.");
+          aviso.classList.toggle("access-expiry-warning", dias <= 3);
+        };
+        atualizar();
+        if (window.__marcusAccessCountdownTimer) clearInterval(window.__marcusAccessCountdownTimer);
+        window.__marcusAccessCountdownTimer = setInterval(atualizar, 60000);
+      }
       async function conferirPerfil(usuario) {
         if (modoRecuperacao) {
           mostrarFormularioRecuperacao();
@@ -625,7 +648,7 @@ await carregarScript("instrutor-users.js?v=linked-students-only-1");
         }
         if (!usuario || !usuario.id) { mostrarLogin("Entre com sua conta para continuar."); return false; }
         const { data: perfil, error } = await clienteSupabase.from("profiles")
-          .select("id, role").eq("id", usuario.id).maybeSingle();
+          .select("id, role, instructor_access_until").eq("id", usuario.id).maybeSingle();
         if (error) {
           await clienteSupabase.auth.signOut({ scope: "local" });
           mostrarLogin("Não foi possível validar seu acesso. Confira a conexão e tente novamente.");
@@ -654,6 +677,7 @@ await carregarScript("instrutor-users.js?v=linked-students-only-1");
           return false;
         }
         await mostrarAplicativo(usuario);
+        atualizarContadorValidade(perfil.instructor_access_until);
         const botaoSair = document.getElementById("btnLogout");
         if (botaoSair) {
           botaoSair.onclick = async function () {
