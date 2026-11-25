@@ -1742,6 +1742,58 @@
     window.print();
   }
 
+  async function exportInstructorBackup() {
+    const button = el("btnExportarBackupInstrutor");
+    if (!button || !state.user) return;
+    button.disabled = true;
+    button.textContent = "Preparando backup...";
+    try {
+      const { data: transactions, error: transactionsError } = await state.supabase
+        .from("financial_transactions")
+        .select("id,tipo,descricao,valor,data_movimento,status,student_id,sale_id,created_at")
+        .eq("owner_id", state.user.id);
+      if (transactionsError) throw transactionsError;
+      const { data: settings, error: settingsError } = await state.supabase
+        .from("app_settings")
+        .select("nome_empresa,cor_principal,cor_secundaria,logo_url,contratante_nome,contratante_documento,contratante_celular,contratante_endereco,aluguel_veiculo_preco,cartao_moto_pista_preco")
+        .eq("owner_id", state.user.id).maybeSingle();
+      if (settingsError) throw settingsError;
+      const payload = {
+        format: "central-do-instrutor-instructor-backup",
+        version: 1,
+        exported_at: new Date().toISOString(),
+        owner_id: state.user.id,
+        profile: { id: state.profile?.id || state.user.id, nome: state.profile?.nome || null, email: state.user.email || null },
+        app_settings: settings || {},
+        data: {
+          students: state.students,
+          lessons: state.lessons,
+          vehicles: state.vehicles,
+          products: state.products,
+          sales: state.sales,
+          sale_items: state.saleItems,
+          financial_transactions: transactions || []
+        }
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "backup-central-instrutor-" + localToday() + ".json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showMessage("Backup da sua conta exportado com sucesso.", false);
+    } catch (error) {
+      console.error("Falha ao exportar backup do instrutor:", error);
+      showMessage("Não foi possível exportar o backup. Confira suas permissões e tente novamente.");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Exportar meu backup";
+    }
+  }
+
   async function loadOwnData() {
     // Escopo explícito por proprietário: o painel do instrutor nunca deve
     // montar listas com registros de outra conta, mesmo além das políticas RLS.
