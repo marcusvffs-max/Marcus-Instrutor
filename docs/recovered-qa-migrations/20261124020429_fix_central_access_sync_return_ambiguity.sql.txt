@@ -1,0 +1,47 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261124020429
+-- name: fix_central_access_sync_return_ambiguity
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+create or replace function public.apply_central_access_sync(p_central_event_id uuid, p_central_instructor_id uuid, p_app_user_id uuid, p_period_ends_at timestamptz)
+returns table(applied boolean, instructor_access_until timestamptz)
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_existing timestamptz;
+  v_current timestamptz;
+begin
+  select e.period_ends_at into v_existing
+  from public.central_access_sync_events e
+  where e.central_event_id = p_central_event_id;
+
+  if found then
+    return query select false, v_existing;
+    return;
+  end if;
+
+  select p.instructor_access_until into v_current
+  from public.profiles p
+  where p.id = p_app_user_id
+  for update;
+
+  if not found then
+    raise exception 'Perfil do instrutor não encontrado';
+  end if;
+
+  insert into public.central_access_sync_events(central_event_id, central_instructor_id, app_user_id, period_ends_at)
+  values (p_central_event_id, p_central_instructor_id, p_app_user_id, p_period_ends_at);
+
+  update public.profiles p
+  set instructor_access_until = greatest(coalesce(v_current, p_period_ends_at), p_period_ends_at)
+  where p.id = p_app_user_id;
+
+  return query
+  select true, p.instructor_access_until
+  from public.profiles p
+  where p.id = p_app_user_id;
+end;
+$function$;
