@@ -300,6 +300,15 @@
       say("Dados atualizados.");
     } catch (error) { say(error.message, true); }
   }
+  $("btnPartnerRefresh")?.addEventListener("click", async () => {
+    const button = $("btnPartnerRefresh");
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    const original = button.textContent;
+    button.textContent = "Atualizando…";
+    try { await load(); }
+    finally { button.disabled = false; button.textContent = original; }
+  });
   $("partnerStudentForm").addEventListener("submit", async event => {
     event.preventDefault();
     const form = event.currentTarget;
