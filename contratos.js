@@ -97,10 +97,8 @@ document.getElementById("contratoPreview").innerHTML=paginaC(p1+p2);aplicarLogoC
 }
 }
 function imprimirDocumentoContrato(html,nome){
-  const win=window.open("","_blank","width=900,height=1000");
-  if(!win){mostrarAviso("Permita a abertura de janelas para imprimir o contrato.");return;}
+  // Imprime dentro da própria página, sem abrir nova aba ou janela.
   const titulo=escapeC(nome||"Contrato");
-  // Normaliza contratos de aluno novos e antigos salvos no histórico.
   const htmlPreparado=(()=>{
     const raiz=document.createElement("div");
     raiz.innerHTML=String(html||"");
@@ -149,13 +147,32 @@ function imprimirDocumentoContrato(html,nome){
       .contrato-folha{width:min(100%,850px);margin:16px auto;padding:18px;background:#fff;box-shadow:0 2px 12px #0002}
     }
   </style>`;
-  win.document.open();
-  win.document.write("<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>"+titulo+"</title>"+estilos+"</head><body>"+htmlPreparado+"</body></html>");
-  win.document.close();
-  let jaImprimiu=false;
-  const imprimir=()=>{if(jaImprimiu)return;jaImprimiu=true;try{win.focus();win.print();}catch(error){console.error("Falha ao abrir impressão do contrato:",error);}};
-  win.addEventListener("load",()=>setTimeout(imprimir,350),{once:true});
-  setTimeout(imprimir,900);
+  const iframe=document.createElement("iframe");
+  iframe.setAttribute("title","Área de impressão do contrato");
+  iframe.setAttribute("aria-hidden","true");
+  iframe.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+  document.body.appendChild(iframe);
+  const doc=iframe.contentDocument;
+  if(!doc){iframe.remove();mostrarAviso("Não foi possível preparar a impressão do contrato.");return;}
+  let finalizado=false;
+  const limpar=()=>{if(finalizado)return;finalizado=true;setTimeout(()=>iframe.remove(),1000);};
+  iframe.contentWindow.addEventListener("afterprint",limpar,{once:true});
+  doc.open();
+  doc.write("<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>"+titulo+"</title>"+estilos+"</head><body>"+htmlPreparado+"</body></html>");
+  doc.close();
+  const imprimir=()=>{
+    try{
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      setTimeout(limpar,60000);
+    }catch(error){
+      console.error("Falha ao imprimir contrato:",error);
+      limpar();
+      mostrarAviso("Não foi possível abrir a impressão do contrato neste navegador.");
+    }
+  };
+  iframe.contentWindow.addEventListener("load",()=>setTimeout(imprimir,250),{once:true});
+  setTimeout(()=>{if(!finalizado)imprimir();},1000);
 }
 async function registrarContratoGerado(tipo,nome,documento,studentId,partnerId){
   const cliente=window.getMarcusSupabase?.();
