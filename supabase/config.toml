@@ -13,3 +13,9 @@ verify_jwt = true
 
 [functions.sync-central-access]
 verify_jwt = false
+
+[functions.admin-manage-partners]
+verify_jwt = false
+
+[functions.partner-portal]
+verify_jwt = true
