@@ -33,6 +33,13 @@ This branch is an isolated preparation branch based on the production applicatio
 - The rental-credit repair migration has not been applied to either environment.
 - No Edge Function deployment, database migration, Vercel deployment, alias change, or production data change has been performed.
 
+### Migration-history recovery
+- Read the full migration records from both Supabase projects, including the SQL statement arrays stored in each remote migration history.
+- Archived 17 QA-only migration statement sets in `docs/recovered-qa-migrations/` and 32 production migration statement sets in `docs/recovered-production-migrations-archive.md`.
+- The archives are intentionally outside `supabase/migrations`; they are evidence for reconciliation, not executable migration files.
+- The remote histories contain 80 QA records and 71 production records, with substantial differences in migration names and applied versions. Matching by filename alone is insufficient because some migrations were renamed or applied under different version identifiers.
+- Historical SQL includes one-time data updates and cleanup statements, so none of the archived SQL is being replayed automatically.
+
 ## Remaining production blockers
 1. Establish a QA WhatsApp owner/configuration that is isolated from production and can receive a real test webhook.
 2. Execute behavioral tests for first contact, existing `aguardando`, duplicate webhook delivery, expired pause, active 48-hour pause, and explicit greeting reactivation.
