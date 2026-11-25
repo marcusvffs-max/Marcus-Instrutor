@@ -202,7 +202,7 @@ async function sendInteractiveServiceMenu(
   }
 }
 
-async async function sendInitialMenuSelection(
+async function sendInitialMenuSelection(
   supabase: ReturnType<typeof getAdminClient>,
   conversationId: string,
   recipient: string,
