@@ -714,8 +714,22 @@
         botaoEntrar.textContent = "Verificando...";
         mostrarErro("");
         try {
-          const { data, error } = await clienteSupabase.auth.signInWithPassword({ email, password });
-          if (error) { mostrarErro("Não foi possível entrar. Confira o e-mail e a senha."); return; }
+          let { data, error } = await clienteSupabase.auth.signInWithPassword({ email, password });
+          if (error) {
+            // Instrutores cadastrados na Central usam as mesmas credenciais no APP.
+            // O servidor valida a senha na Central, provisiona a conta do APP e conclui o vínculo.
+            const { data: provisionamento, error: erroProvisionamento } = await clienteSupabase.functions.invoke("provision-central-instructor", {
+              body: { email, password }
+            });
+            if (erroProvisionamento || !provisionamento?.ok) {
+              mostrarErro(provisionamento?.error || "Não foi possível entrar. Confira o e-mail e a senha.");
+              return;
+            }
+            const novoLogin = await clienteSupabase.auth.signInWithPassword({ email, password });
+            data = novoLogin.data;
+            error = novoLogin.error;
+          }
+          if (error || !data?.user) { mostrarErro("Não foi possível entrar. Confira o e-mail e a senha."); return; }
           const autorizado = await conferirPerfil(data.user);
           if (!autorizado) campoSenha.value = "";
         } catch (erro) {
