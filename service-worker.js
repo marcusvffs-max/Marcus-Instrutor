@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "central-instrutor-v42-app-icon-1";
+const CACHE_NAME = "central-instrutor-v43-install-flow-1";
 
 const ARQUIVOS = [
   "./",
