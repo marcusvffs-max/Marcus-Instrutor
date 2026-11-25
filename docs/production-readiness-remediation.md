@@ -40,6 +40,12 @@ This branch is an isolated preparation branch based on the production applicatio
 - The remote histories contain 80 QA records and 71 production records, with substantial differences in migration names and applied versions. Matching by filename alone is insufficient because some migrations were renamed or applied under different version identifiers.
 - Historical SQL includes one-time data updates and cleanup statements, so none of the archived SQL is being replayed automatically.
 
+### Central-instructor function source recovery
+- Recovered the deployed QA source for `provision-central-instructor` (version 1), `complete-central-link` (version 3), and `sync-central-access` (version 4) into `supabase/functions/`.
+- Added their deployed `verify_jwt` settings to `supabase/config.toml` (false, true, false respectively).
+- The Central Supabase project was rechecked and remains `INACTIVE`; the account-provisioning fallback cannot be end-to-end tested while that project is paused.
+- No secret values were copied into the repository; these functions continue to read service credentials and the HMAC secret from Edge Function environment variables.
+
 ## Remaining production blockers
 1. Establish a QA WhatsApp owner/configuration that is isolated from production and can receive a real test webhook.
 2. Execute behavioral tests for first contact, existing `aguardando`, duplicate webhook delivery, expired pause, active 48-hour pause, and explicit greeting reactivation.
