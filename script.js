@@ -2255,10 +2255,10 @@ function abrirDevolucao() {
       </select>
       <div id="devolucaoResumoVenda" class="refund-sale-summary">Selecione uma venda para visualizar seus itens.</div>
       <label for="devolucaoItemVenda">Item desta venda</label>
-      <select name="itemVenda" id="devolucaoItemVenda" required disabled>
+      <select name="itemVenda" id="devolucaoItemVenda" multiple size="5" required disabled>
         <option value="">Selecione primeiro uma venda</option>
       </select>
-      <label id="devolucaoRotuloQuantidade" for="devolucaoQuantidade">Quantidade para devolver</label>
+      <label id="devolucaoRotuloQuantidade" for="devolucaoQuantidade">Quantidade para devolver de cada item selecionado</label>
       <input name="quantidade" id="devolucaoQuantidade" type="number" min="1" step="1" required disabled>
       <div id="devolucaoPrevia" class="refund-preview"><strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p></div>
       <div class="modal-actions">
@@ -2278,24 +2278,26 @@ function abrirDevolucao() {
   let opcoesAtuais = [];
 
   const atualizarPrevia = () => {
-    const opcao = opcoesAtuais.find(item => item.valor === seletorItem.value);
-    if (!opcao) {
+    const selecionadas = [...seletorItem.selectedOptions].map(option => opcoesAtuais.find(item => item.valor === option.value)).filter(Boolean);
+    if (!selecionadas.length) {
       campoQuantidade.value = "";
       campoQuantidade.disabled = true;
       campoQuantidade.removeAttribute("max");
-      previa.innerHTML = "<strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p>";
+      previa.innerHTML = "<strong>Resumo da devolução</strong><p>Marque um ou mais itens e informe a quantidade por item.</p>";
       return;
     }
-    rotuloQuantidade.textContent = opcao.item.fixedItemKey === "aluguel_veiculo" ? "Aluguéis para devolver" : opcao.tipo === "produto" ? "Unidades para devolver" : "Aulas para devolver";
+    rotuloQuantidade.textContent = "Quantidade para devolver de cada item selecionado";
     campoQuantidade.disabled = false;
-    campoQuantidade.max = String(opcao.disponiveis);
+    campoQuantidade.max = String(Math.min(...selecionadas.map(item => item.disponiveis)));
     const quantidade = Number(campoQuantidade.value || 0);
-    const valida = Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= opcao.disponiveis;
-    const restante = Math.max(0, Number(opcao.item.valorLiquido ?? opcao.item.total ?? 0) - Number(opcao.item.valorDevolvido || 0));
-    const estimado = valida ? Math.min(opcao.valorUnitario * quantidade, restante) : 0;
+    const valida = Number.isInteger(quantidade) && quantidade >= 1 && selecionadas.every(item => quantidade <= item.disponiveis);
+    const estimado = valida ? selecionadas.reduce((total, opcao) => {
+      const restante = Math.max(0, Number(opcao.item.valorLiquido ?? opcao.item.total ?? 0) - Number(opcao.item.valorDevolvido || 0));
+      return total + Math.min(opcao.valorUnitario * quantidade, restante);
+    }, 0) : 0;
     previa.innerHTML = valida
-      ? `<strong>Resumo da devolução</strong><p>${opcao.item.fixedItemKey === "aluguel_veiculo" ? "Aluguéis" : opcao.tipo === "produto" ? "Unidades" : "Aulas"}: <strong>${quantidade}</strong> de ${opcao.disponiveis} disponíveis</p><p>Valor unitário: <strong>${moeda(opcao.valorUnitario)}</strong></p><p class="refund-preview-total">Estorno estimado: <strong>${moeda(estimado)}</strong></p>`
-      : `<strong>Resumo da devolução</strong><p>Informe uma quantidade inteira entre 1 e ${opcao.disponiveis}.</p>`;
+      ? "<strong>Resumo da devolução</strong><p>Itens selecionados: <strong>" + selecionadas.length + "</strong></p><p>Quantidade por item: <strong>" + quantidade + "</strong></p><p class=\"refund-preview-total\">Estorno estimado: <strong>" + moeda(estimado) + "</strong></p>"
+      : "<strong>Resumo da devolução</strong><p>Informe uma quantidade válida para cada item selecionado.</p>";
   };
 
   seletorVenda.addEventListener("change", () => {
@@ -2316,12 +2318,12 @@ function abrirDevolucao() {
   campoQuantidade.addEventListener("input", atualizarPrevia);
 
   formulario.onsubmit = evento => {
-    const opcao = opcoesAtuais.find(item => item.valor === seletorItem.value);
+    const selecionadas = [...seletorItem.selectedOptions].map(option => opcoesAtuais.find(item => item.valor === option.value)).filter(Boolean);
     const quantidade = Number(campoQuantidade.value);
-    if (!seletorVenda.value || !opcao || !Number.isInteger(quantidade) ||
-        quantidade < 1 || quantidade > opcao.disponiveis) {
+    if (!seletorVenda.value || !selecionadas.length || !Number.isInteger(quantidade) ||
+        quantidade < 1 || selecionadas.some(item => quantidade > item.disponiveis)) {
       evento.preventDefault();
-      mostrarAviso("Selecione uma venda, um item dessa venda e uma quantidade válida.");
+      mostrarAviso("Selecione uma venda, um ou mais itens e uma quantidade válida para cada item.");
       return;
     }
     salvarDevolucao(evento);
@@ -2330,49 +2332,45 @@ function abrirDevolucao() {
 
 async function salvarDevolucao(evento) {
   evento.preventDefault();
-
   const formulario = evento.currentTarget;
-  const [tipoItem, saleItemId] = (formulario.elements.itemVenda.value || ":").split(":");
+  const selecionados = [...formulario.elements.itemVenda.selectedOptions].map(option => {
+    const partes = (option.value || ":").split(":");
+    return { tipo: partes[0], saleItemId: partes[1] };
+  });
   const quantidade = numero(formulario.elements.quantidade.value);
   const botao = formulario.querySelector('button[type="submit"]');
-
-  if (!saleItemId || !["produto", "servico"].includes(tipoItem) ||
+  if (!selecionados.length || selecionados.some(item => !item.saleItemId || !["produto", "servico"].includes(item.tipo)) ||
       !Number.isInteger(quantidade) || quantidade < 1) {
-    mostrarAviso("Informe um item e uma quantidade válida.");
+    mostrarAviso("Informe um ou mais itens e uma quantidade válida para cada item.");
     return;
   }
   if (!adminAlunosSupabaseAtivo) {
     mostrarAviso("A conexão administrativa com o Supabase não está ativa.");
     return;
   }
-
   botao.disabled = true;
   botao.textContent = "Registrando...";
-
   try {
     const cliente = window.getMarcusSupabase?.();
     if (!cliente) throw new Error("Conexão com o Supabase indisponível.");
-
-    const nomeRpc = tipoItem === "produto"
-      ? "admin_refund_sale_product"
-      : "admin_refund_sale_lessons";
-    const parametros = tipoItem === "produto"
-      ? { p_sale_item_id: saleItemId, p_quantidade: quantidade }
-      : { p_sale_item_id: saleItemId, p_quantidade: quantidade };
-
-    const { error } = await cliente.rpc(nomeRpc, parametros);
-    if (error) throw error;
-
+    let concluidos = 0;
+    for (const item of selecionados) {
+      const nomeRpc = item.tipo === "produto" ? "admin_refund_sale_product" : "admin_refund_sale_lessons";
+      const { error } = await cliente.rpc(nomeRpc, { p_sale_item_id: item.saleItemId, p_quantidade: quantidade });
+      if (error) throw error;
+      concluidos++;
+    }
     await carregarDadosAdminSupabase();
     fecharModal();
     listarAlunos();
     listarMovimentacoes();
     atualizarFinanceiro();
     atualizarPainel();
-    mostrarAviso("Devolução registrada e valores atualizados.");
+    mostrarAviso("Devolução dos itens selecionados registrada e valores atualizados.");
   } catch (erro) {
     console.error("Falha ao registrar devolução:", erro);
-    mostrarAviso(erro.message || "Não foi possível registrar a devolução.");
+    if (erro && typeof erro === "object" && erro.message) mostrarAviso((concluidos > 0 ? "Devolução parcial: " + concluidos + " item(ns) registrados. Confira o histórico. " : "") + erro.message);
+    else mostrarAviso("Não foi possível registrar a devolução.");
     botao.disabled = false;
     botao.textContent = "Confirmar devolução";
   }
