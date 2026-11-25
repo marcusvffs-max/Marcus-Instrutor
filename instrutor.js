@@ -1743,16 +1743,21 @@
   }
 
   async function loadOwnData() {
+    // Escopo explícito por proprietário: o painel do instrutor nunca deve
+    // montar listas com registros de outra conta, mesmo além das políticas RLS.
     const [studentsResult, lessonsResult, vehiclesResult] = await Promise.all([
       state.supabase.from("students")
         .select("id,nome,email,telefone,cpf,endereco,categoria,status,aulas_compradas,aulas_restantes,alugueis_comprados,alugueis_disponiveis")
+        .eq("owner_id", state.user.id)
         .order("nome", { ascending: true }),
       state.supabase.from("lessons")
         .select("id,student_id,data_aula,horario,numero_aula,status,vehicle_id,observacoes")
+        .eq("owner_id", state.user.id)
         .order("data_aula", { ascending: true })
         .order("horario", { ascending: true }),
       state.supabase.from("vehicles")
         .select("id,nome,tipo,categoria,placa")
+        .eq("owner_id", state.user.id)
         .order("tipo", { ascending: true })
     ]);
 
@@ -1764,6 +1769,7 @@
     if (state.students.length) {
       const linkFieldsResult = await state.supabase.from("students")
         .select("id,user_id,invited_at")
+        .eq("owner_id", state.user.id)
         .in("id", state.students.map(student => student.id));
       if (linkFieldsResult.error) {
         const errorCode = String(linkFieldsResult.error.code || "");
