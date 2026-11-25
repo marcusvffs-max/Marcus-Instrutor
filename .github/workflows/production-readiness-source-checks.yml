@@ -1,0 +1,22 @@
+name: Production readiness source checks
+
+on:
+  push:
+    branches:
+      - hotfix/whatsapp-first-message-20261125
+  pull_request:
+
+jobs:
+  source-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify WhatsApp first-contact routing
+        run: node test-whatsapp-first-message.mjs
+      - name: Verify rental-credit RLS repair
+        run: node test-student-rental-credit-rls-repair.mjs
