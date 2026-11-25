@@ -32,3 +32,5 @@ jobs:
           NODE
       - name: Check rental-credit RLS migration
         run: node test-student-rental-credit-rls-repair.mjs
+      - name: Check partner module regressions
+        run: node --test scripts/test-partner-module.mjs
