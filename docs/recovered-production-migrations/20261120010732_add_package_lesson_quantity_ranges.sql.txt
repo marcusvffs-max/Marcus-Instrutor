@@ -1,0 +1,14 @@
+-- RECOVERED FROM PRODUCTION DATABASE MIGRATION HISTORY
+-- version: 20261120010732
+-- name: add_package_lesson_quantity_ranges
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against QA and production schemas before creating an executable migration.
+
+alter table public.products add column if not exists quantidade_aulas_min integer, add column if not exists quantidade_aulas_max integer;
+
+update public.products
+set quantidade_aulas_min = case app_product_id when 'bronze' then 1 when 'prata' then 6 when 'ouro' then 11 else quantidade_aulas_min end,
+    quantidade_aulas_max = case app_product_id when 'bronze' then 5 when 'prata' then 10 when 'ouro' then null else quantidade_aulas_max end,
+    updated_at = now()
+where owner_id = '8da26777-dad7-46dd-a332-4b5b80b027c7'
+  and app_product_id in ('bronze','prata','ouro');
