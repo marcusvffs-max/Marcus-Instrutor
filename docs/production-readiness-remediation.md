@@ -53,6 +53,10 @@ This branch is an isolated preparation branch based on the production applicatio
 - Recovered QA `admin-manage-partners` version 11 and `partner-portal` version 6 into `supabase/functions/`, with their deployed JWT-verification settings reflected in config.
 - These functions are now versioned in the isolated branch, but they are not ready for production deployment: production still lacks the partner tables, role allowance, personal-detail fields, RLS/grants, and supporting RPC/function migrations.
 
+### Release integration caveat
+- This preparation branch is based on the production commit, not the current Preview branch. It intentionally does not contain the 251 frontend commits currently ahead in Preview.
+- Do not deploy this preparation branch as the app release. The WhatsApp source and schema fixes must be integrated into the Preview code line after reviewing its current tree, preserving the newer UI and app behavior.
+
 ## Remaining production blockers
 1. Establish a QA WhatsApp owner/configuration that is isolated from production and can receive a real test webhook.
 2. Execute behavioral tests for first contact, existing `aguardando`, duplicate webhook delivery, expired pause, active 48-hour pause, and explicit greeting reactivation.
