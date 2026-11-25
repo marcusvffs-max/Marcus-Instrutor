@@ -135,10 +135,25 @@
     filters.append(filterButton);
   });
 
-  dialog.append(head, form, message, list);
+  const newUserButton = create("button", { class: "users-primary", type: "button" }, "Novo usuário");
+  head.append(newUserButton);
+  dialog.append(head, message, list);
   form.append(nameLabel, nameInput, emailLabel, emailInput, roleLabel, roleSelect, actions);
+  const createOverlay = create("div", { class: "users-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "usersCreateTitle" });
+  createOverlay.hidden = true;
+  const createDialog = create("div", { class: "users-dialog" });
+  const createHead = create("div", { class: "users-head" });
+  createHead.append(create("h2", { id: "usersCreateTitle" }, "Convidar usuário"));
+  const createClose = create("button", { class: "users-close", type: "button", "aria-label": "Fechar formulário" }, "✕");
+  createHead.append(createClose);
+  createDialog.append(createHead, form);
+  createOverlay.append(createDialog);
   overlay.append(dialog);
-  document.body.append(overlay);
+  document.body.append(overlay, createOverlay);
+  newUserButton.addEventListener("click", () => { form.reset(); createOverlay.hidden = false; nameInput.focus(); });
+  createClose.addEventListener("click", () => { createOverlay.hidden = true; });
+  createOverlay.addEventListener("click", event => { if (event.target === createOverlay) createOverlay.hidden = true; });
+  document.addEventListener("keydown", event => { if (event.key === "Escape") createOverlay.hidden = true; });
 
   function closeModal() {
     overlay.hidden = true;
@@ -378,7 +393,6 @@
     message.textContent = "";
     await loadUsers();
     if (!overlay.hidden) startAccessCountdownRefresh();
-    nameInput.focus();
   });
 
   refresh.addEventListener("click", loadUsers);
@@ -395,6 +409,7 @@
       });
       message.textContent = result.message || "Convite enviado com sucesso.";
       form.reset();
+      createOverlay.hidden = true;
       await loadUsers();
     } catch (error) {
       message.textContent = error.message;
