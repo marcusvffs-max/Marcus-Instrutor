@@ -1,0 +1,11 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261122095312
+-- name: whatsapp_conversation_cycles_and_history
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+alter table public.whatsapp_conversations drop constraint if exists whatsapp_conversations_owner_id_telefone_key;
+create index if not exists whatsapp_conversations_owner_phone_created_idx
+  on public.whatsapp_conversations (owner_id, telefone, created_at desc);
+create index if not exists whatsapp_messages_conversation_created_idx
+  on public.whatsapp_messages (conversation_id, created_at desc);
