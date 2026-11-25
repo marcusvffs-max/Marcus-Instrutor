@@ -40,6 +40,7 @@
         <img class="brand-logo" src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Central do Instrutor">
       </div>
       <div id="avisoValidadeAcesso" class="access-expiry-banner header-access-expiry" role="status" aria-live="polite">Consultando validade do acesso...</div>
+      <button id="btnInstalarAplicativoHeader" class="secondary-button" type="button" style="margin-left:8px;">Instalar app</button>
       <button id="btnLogout" class="icon-button" type="button">Sair</button>
     </header>
 
@@ -547,12 +548,12 @@
     (function () {
       "use strict";
       let deferredInstallPrompt = null;
-      const btnInstalarAplicativo = document.getElementById("btnInstalarAplicativo");
+      const botoesInstalar = document.querySelectorAll("#btnInstalarAplicativo, #btnInstalarAplicativoHeader");
       const mensagemInstalacao = document.getElementById("mensagemInstalacao");
       const appJaInstalado = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
       if (appJaInstalado && mensagemInstalacao) {
         mensagemInstalacao.textContent = "O aplicativo já está instalado neste celular.";
-        if (btnInstalarAplicativo) btnInstalarAplicativo.textContent = "Aplicativo já instalado";
+        botoesInstalar.forEach(botao => botao.textContent = "Aplicativo já instalado");
       }
       window.addEventListener("beforeinstallprompt", function (evento) {
         evento.preventDefault();
@@ -562,9 +563,9 @@
       window.addEventListener("appinstalled", function () {
         deferredInstallPrompt = null;
         if (mensagemInstalacao) mensagemInstalacao.textContent = "Aplicativo instalado com sucesso.";
-        if (btnInstalarAplicativo) btnInstalarAplicativo.textContent = "Aplicativo instalado";
+        botoesInstalar.forEach(botao => botao.textContent = "Aplicativo instalado");
       });
-      if (btnInstalarAplicativo) {
+      botoesInstalar.forEach(btnInstalarAplicativo => {
         btnInstalarAplicativo.addEventListener("click", async function () {
           if (appJaInstalado) {
             if (mensagemInstalacao) mensagemInstalacao.textContent = "A Central do Instrutor já está instalada. Procure o ícone na tela inicial do celular.";
@@ -583,7 +584,7 @@
             ? "No iPhone: abra no Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”."
             : "Se o aviso automático não aparecer: no Chrome, abra o menu ⋮ e escolha “Instalar aplicativo” ou “Adicionar à tela inicial”. Se essa opção não aparecer, atualize a página e tente novamente pelo Google Chrome.";
         });
-      }
+      });
       if (new URLSearchParams(window.location.search).has("instalar") && !appJaInstalado && mensagemInstalacao) {
         mensagemInstalacao.textContent = "Para concluir a instalação, toque no botão “Instalar aplicativo” abaixo.";
       }
