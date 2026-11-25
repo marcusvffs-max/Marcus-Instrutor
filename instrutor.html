@@ -641,6 +641,13 @@ await carregarScript("instrutor-users.js?v=linked-students-only-1");
         if (window.__marcusAccessCountdownTimer) clearInterval(window.__marcusAccessCountdownTimer);
         window.__marcusAccessCountdownTimer = setInterval(atualizar, 60000);
       }
+      function mostrarAcessoBloqueado() {
+        document.body.innerHTML = '<main style="min-height:100vh;display:grid;place-items:center;padding:24px;background:#f1f5f9;font-family:Arial,sans-serif;color:#172033"><section style="width:min(100%,460px);padding:28px;border-radius:18px;background:#fff;box-shadow:0 12px 40px rgba(15,23,42,.12);text-align:center"><div style="font-size:42px" aria-hidden="true">🔒</div><h1 style="margin:12px 0">Acesso temporariamente bloqueado</h1><p>Sua autorização na Central do Instrutor venceu ou ainda não foi liberada.</p><p>Seu cadastro e seus dados continuam salvos. Para liberar ou renovar o acesso, regularize seu plano na Central do Instrutor.</p><p><a href="https://central-do-instrutor.pages.dev/" target="_blank" rel="noopener noreferrer">Abrir Central do Instrutor</a></p><button id="btnSairAcessoBloqueado" type="button" style="margin-top:18px;padding:12px 24px;border:0;border-radius:10px;background:#12345a;color:#fff;font-weight:700">Sair</button></section></main>';
+        document.getElementById("btnSairAcessoBloqueado").addEventListener("click", async function () {
+          await clienteSupabase.auth.signOut({ scope: "local" });
+          window.location.replace("index.html");
+        });
+      }
       async function conferirPerfil(usuario) {
         if (modoRecuperacao) {
           mostrarFormularioRecuperacao();
@@ -674,6 +681,11 @@ await carregarScript("instrutor-users.js?v=linked-students-only-1");
         if (perfil.role !== "instrutor") {
           await clienteSupabase.auth.signOut({ scope: "local" });
           mostrarLogin("Esta área é exclusiva para instrutores autorizados.");
+          return false;
+        }
+        const validadeAcesso = perfil.instructor_access_until ? new Date(perfil.instructor_access_until).getTime() : 0;
+        if (!Number.isFinite(validadeAcesso) || validadeAcesso <= Date.now()) {
+          mostrarAcessoBloqueado();
           return false;
         }
         await mostrarAplicativo(usuario);
