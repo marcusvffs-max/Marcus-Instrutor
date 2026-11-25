@@ -3560,8 +3560,9 @@ async function carregarDadosAdminSupabase() {
     .maybeSingle();
 
   if (erroPerfil) throw erroPerfil;
-  if (perfil?.role !== "admin") {
-    throw new Error("A conta atual não possui permissão administrativa.");
+  const papelEsperado = window.MARCUS_PANEL_ROLE === "instrutor" ? "instrutor" : "admin";
+  if (perfil?.role !== papelEsperado) {
+    throw new Error("A conta atual não possui permissão para esta área.");
   }
 
   const chaveEsperada = `${STORAGE_KEY}:user:${usuario.id}`;
