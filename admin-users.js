@@ -43,19 +43,21 @@
 
   function confirmAction(message) {
     return new Promise(resolve => {
-      const overlayConfirm = create("div", { class: "users-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "usersConfirmTitle" });
+      const overlayConfirm = create("div", { class: "users-overlay", role: "dialog", "aria-modal": "true", "aria-describedby": "usersConfirmMessage" });
       const dialogConfirm = create("div", { class: "users-dialog" });
-      const titleConfirm = create("h2", { id: "usersConfirmTitle" }, "Confirmação");
       const safeMessage = String(message ?? "").replace(/\b(?:https?:\/\/|www\.)[^\s<]+/gi, "[link ocultado]");
-      const textConfirm = create("p", {}, safeMessage);
+      const textConfirm = create("p", { id: "usersConfirmMessage" }, safeMessage);
       textConfirm.style.whiteSpace = "pre-line";
       textConfirm.style.overflowWrap = "anywhere";
       const actionsConfirm = create("div", { class: "users-actions" });
       actionsConfirm.style.justifyContent = "flex-end";
       const cancelConfirm = create("button", { class: "users-secondary", type: "button" }, "Cancelar");
       const acceptConfirm = create("button", { class: "users-primary", type: "button" }, "Confirmar");
+      acceptConfirm.style.backgroundColor = "#198754";
+      acceptConfirm.style.color = "#ffffff";
+      acceptConfirm.style.borderColor = "#198754";
       actionsConfirm.append(cancelConfirm, acceptConfirm);
-      dialogConfirm.append(titleConfirm, textConfirm, actionsConfirm);
+      dialogConfirm.append(textConfirm, actionsConfirm);
       overlayConfirm.append(dialogConfirm);
       document.body.append(overlayConfirm);
 
