@@ -44,6 +44,8 @@ This branch is an isolated preparation branch based on the production applicatio
 - Recovered the deployed QA source for `provision-central-instructor` (version 1), `complete-central-link` (version 3), and `sync-central-access` (version 4) into `supabase/functions/`.
 - Added their deployed `verify_jwt` settings to `supabase/config.toml` (false, true, false respectively).
 - The Central Supabase project was rechecked and remains `INACTIVE`; the account-provisioning fallback cannot be end-to-end tested while that project is paused.
+
+- Additional live-schema check: QA contains both `central_access_sync_events` and `central_access_state_sync_events` plus their RPCs. Production contains neither ledger nor either RPC. The recovered `sync-central-access` function therefore cannot be promoted to production until the versioned sync schema/RPC is reconciled and installed.
 - No secret values were copied into the repository; these functions continue to read service credentials and the HMAC secret from Edge Function environment variables.
 
 ## Remaining production blockers
