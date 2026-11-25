@@ -27,6 +27,8 @@
 .exame-painel-acoes,.contract-record-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .exame-painel-acoes button,.contract-record-actions button{min-height:38px}
 @media(max-width:560px){.contract-action-grid{grid-template-columns:1fr}.exame-painel-acoes{width:100%}.exame-painel-acoes button{flex:1}}
+.header-access-expiry{flex:1;max-width:380px;margin:0;text-align:center;line-height:1.35}
+@media(max-width:640px){.topbar{flex-wrap:wrap}.header-access-expiry{order:3;flex-basis:100%;max-width:none}.topbar .icon-button{margin-left:auto}}
 </style></head>
 
 <body>
@@ -37,6 +39,7 @@
       <div class="brand">
         <img class="brand-logo" src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Central do Instrutor">
       </div>
+      <div id="avisoValidadeAcesso" class="access-expiry-banner header-access-expiry" role="status" aria-live="polite">Consultando validade do acesso...</div>
       <button id="btnLogout" class="icon-button" type="button">Sair</button>
     </header>
 
