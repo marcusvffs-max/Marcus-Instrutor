@@ -1,0 +1,7 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261125072858
+-- name: restrict_products_to_services
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+ALTER TABLE public.products ALTER COLUMN tipo SET DEFAULT 'servico'; ALTER TABLE public.products DROP CONSTRAINT products_tipo_check; ALTER TABLE public.products ADD CONSTRAINT products_tipo_check CHECK (tipo = 'servico');
