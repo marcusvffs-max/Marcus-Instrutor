@@ -35,6 +35,10 @@ jobs:
           const continuationMenu = source.slice(source.indexOf("async function sendServiceContinuationMenu"), source.indexOf("async function sendAttendanceMenu"));
           assert.ok(serviceMenu.includes('id: "service_app", title: "Aplicativo"'));
           assert.ok(continuationMenu.includes('id: "service_app", title: "Aplicativo"'));
+          assert.ok((serviceMenu.match(/id: "/g) ?? []).length <= 10, "Service menu exceeds WhatsApp's 10-row limit");
+          assert.ok((continuationMenu.match(/id: "/g) ?? []).length <= 10, "Continuation menu exceeds WhatsApp's 10-row limit");
+          assert.ok(!continuationMenu.includes('id: "menu_talk_marcus"'));
+          assert.ok(continuationMenu.includes('digite “Falar com Instrutor”'));
           assert.ok(!initialMenu.includes('id: "service_app"'), "Aplicativo must not appear in the initial greeting");
           assert.ok(source.includes('if (menuChoice === "service_app")'));
           assert.ok(source.includes('reply_type: "student_app_access_information"'));
