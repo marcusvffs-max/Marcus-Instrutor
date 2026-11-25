@@ -264,7 +264,6 @@ async function sendServiceContinuationMenu(
   recipient: string,
 ) {
   const rows = [
-    { id: "menu_talk_marcus", title: "Falar com Instrutor", description: "Solicite atendimento direto com Marcus." },
     { id: "service_packages", title: "Pacotes e valores", description: "Consulte os pacotes disponíveis e seus preços." },
     { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
     { id: "service_registration_fee", title: "Taxa de inscrição", description: "Informações para emitir a taxa da primeira habilitação." },
@@ -281,7 +280,7 @@ async function sendServiceContinuationMenu(
     type: "interactive",
     interactive: {
       type: "list",
-      body: { text: "O que mais você gostaria de consultar? 😊" },
+      body: { text: "O que mais você gostaria de consultar? 😊\n\nPara falar diretamente com Marcus, digite “Falar com Instrutor”." },
       footer: { text: "Atendimento do Instrutor Marcus." },
       action: {
         button: "Ver opções",
@@ -303,7 +302,7 @@ async function sendServiceContinuationMenu(
       supabase,
       conversationId,
       recipient,
-      `O que mais você gostaria de consultar? 😊\n\n${fallback}\n\nResponda com o número da opção desejada. Para encerrar, escolha "Encerrar assistente" ou digite Encerrar.`,
+      `O que mais você gostaria de consultar? 😊\n\n${fallback}\n\nResponda com o número da opção desejada. Para falar diretamente com Marcus, digite “Falar com Instrutor”. Para encerrar, escolha "Encerrar assistente" ou digite Encerrar.`,
     );
   }
 }
