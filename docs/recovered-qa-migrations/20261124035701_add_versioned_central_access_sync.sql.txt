@@ -1,0 +1,87 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261124035701
+-- name: add_versioned_central_access_sync
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS central_access_revision bigint NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS public.central_access_state_sync_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  central_event_id uuid NOT NULL UNIQUE,
+  central_instructor_id uuid NOT NULL,
+  app_user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  access_until timestamptz,
+  access_revision bigint NOT NULL,
+  received_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS central_access_state_sync_events_user_revision_idx
+  ON public.central_access_state_sync_events(app_user_id, access_revision DESC);
+
+ALTER TABLE public.central_access_state_sync_events ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.central_access_state_sync_events FROM anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.apply_central_access_state_sync(
+  p_central_event_id uuid,
+  p_central_instructor_id uuid,
+  p_app_user_id uuid,
+  p_access_until timestamptz,
+  p_access_revision bigint
+)
+RETURNS TABLE(applied boolean, instructor_access_until timestamptz, current_revision bigint)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_current_until timestamptz;
+  v_current_revision bigint;
+BEGIN
+  IF p_access_revision IS NULL OR p_access_revision < 1 THEN
+    RAISE EXCEPTION 'Revisão de acesso inválida';
+  END IF;
+
+  SELECT p.instructor_access_until, p.central_access_revision
+  INTO v_current_until, v_current_revision
+  FROM public.profiles p
+  WHERE p.id = p_app_user_id AND p.role = 'instrutor'
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Perfil do instrutor não encontrado';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM public.central_access_state_sync_events e
+    WHERE e.central_event_id = p_central_event_id
+  ) THEN
+    RETURN QUERY SELECT false, v_current_until, v_current_revision;
+    RETURN;
+  END IF;
+
+  INSERT INTO public.central_access_state_sync_events(
+    central_event_id, central_instructor_id, app_user_id, access_until, access_revision
+  ) VALUES (
+    p_central_event_id, p_central_instructor_id, p_app_user_id, p_access_until, p_access_revision
+  );
+
+  IF p_access_revision <= v_current_revision THEN
+    RETURN QUERY SELECT false, v_current_until, v_current_revision;
+    RETURN;
+  END IF;
+
+  UPDATE public.profiles
+  SET instructor_access_until = p_access_until,
+      central_access_revision = p_access_revision
+  WHERE id = p_app_user_id;
+
+  RETURN QUERY SELECT true, p_access_until, p_access_revision;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.apply_central_access_state_sync(uuid,uuid,uuid,timestamptz,bigint) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_central_access_state_sync(uuid,uuid,uuid,timestamptz,bigint) TO service_role;
+
