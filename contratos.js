@@ -6,6 +6,34 @@ function selecionarAlunoContrato(){const a=(db.alunos||[]).find(x=>String(x.id)=
 function tipoC(t){tipoContratoAtual=t;const cliente=document.getElementById("formContratoCliente");const parceiro=document.getElementById("formContratoParceiro");cliente.hidden=t!=="cliente";parceiro.hidden=t!=="parceiro";cliente.style.display=t==="cliente"?"block":"none";parceiro.style.display=t==="parceiro"?"block":"none";document.getElementById("tituloTipoContrato").textContent=t==="cliente"?"Contrato de cliente":"Contrato de parceiro";document.getElementById("contratoPreview").innerHTML="";document.querySelectorAll("[data-tipo-contrato]").forEach(b=>{const ativo=b.dataset.tipoContrato===t;b.classList.toggle("active",ativo);b.classList.toggle("primary-button",ativo);b.classList.toggle("secondary-button",!ativo);});}
 window.tipoC = tipoC;
 
+async function carregarParceirosContrato(){
+  const select=document.getElementById("contratoParceiroSelecionar");
+  if(!select)return;
+  const anterior=select.value;
+  const cliente=window.getMarcusSupabase?.();
+  if(!cliente)return;
+  try{
+    const {data,error}=await cliente.functions.invoke("admin-manage-partners",{body:{action:"list"}});
+    if(error)throw error;
+    const rows=Array.isArray(data?.partners)?data.partners:[];
+    select.innerHTML='<option value="">Preencher manualmente</option>'+rows.map(p=>'<option value="'+escapeC(p.id)+'">'+escapeC(p.nome)+'</option>').join("");
+    if(rows.some(p=>String(p.id)===String(anterior)))select.value=anterior;
+    select.dataset.partnerRows=JSON.stringify(rows.map(p=>({id:p.id,nome:p.nome,nacionalidade:p.nacionalidade,estado_civil:p.estado_civil,profissao:p.profissao,cpf_cnpj:p.cpf_cnpj,endereco:p.endereco,commission_percent:p.commission_percent})));
+  }catch(error){console.warn("Não foi possível carregar parceiros para o contrato:",error);}
+}
+function selecionarParceiroContrato(){
+  const select=document.getElementById("contratoParceiroSelecionar");
+  let rows=[];try{rows=JSON.parse(select?.dataset.partnerRows||"[]");}catch(_){rows=[];}
+  const p=rows.find(x=>String(x.id)===String(select?.value));
+  if(!p)return;
+  document.getElementById("parceiroNome").value=p.nome||"";
+  document.getElementById("parceiroNacionalidade").value=p.nacionalidade||"";
+  document.getElementById("parceiroCivil").value=p.estado_civil||"";
+  document.getElementById("parceiroProfissao").value=p.profissao||"";
+  document.getElementById("parceiroDocumento").value=p.cpf_cnpj||"";
+  document.getElementById("parceiroEndereco").value=p.endereco||"";
+  document.getElementById("parceiroComissao").value=String(p.commission_percent??5);
+}
 function numeroPorExtensoC(valor){const unidades=["zero","um","dois","três","quatro","cinco","seis","sete","oito","nove"];const especiais=["dez","onze","doze","treze","quatorze","quinze","dezesseis","dezessete","dezoito","dezenove"];const dezenas=["","","vinte","trinta","quarenta","cinquenta","sessenta","setenta","oitenta","noventa"];function inteiro(n){if(n<10)return unidades[n];if(n<20)return especiais[n-10];if(n<100){const d=Math.floor(n/10),u=n%10;return dezenas[d]+(u?" e "+unidades[u]:"");}return "cem";}const partes=valor.toFixed(2).split(".");const base=Number(partes[0]),dec=Number(partes[1]);return inteiro(base)+(dec?" vírgula "+inteiro(dec):"");}
 function inteiroExtensoMoedaC(n){
   const u=["zero","um","dois","três","quatro","cinco","seis","sete","oito","nove"];
@@ -69,6 +97,6 @@ document.getElementById("contratoPreview").innerHTML=paginaC(p1+p2);aplicarLogoC
 }
 }
 async function iniciarPerfilContratanteAdmin(){const perfil=window.MarcusContractorProfile;if(!perfil)return;const obterCliente=()=>window.getMarcusSupabase?.();const obterUsuario=()=>window.sessionStorage.getItem("marcus_admin_user_id");try{await perfil.carregar(obterCliente(),obterUsuario());}catch(erro){console.error("Não foi possível carregar os dados do contratante:",erro);const status=document.getElementById("statusDadosContratante");if(status)status.textContent="Não foi possível carregar seus dados salvos. Você ainda pode preencher e salvar novamente.";}perfil.vincular(obterCliente,obterUsuario);}
-function iniciarContratos(){carregarAlunosContrato();iniciarPerfilContratanteAdmin();const modal=document.getElementById("modalGeradorContrato");document.getElementById("btnAbrirGeradorContrato")?.addEventListener("click",()=>{carregarAlunosContrato();if(modal&&!modal.open)modal.showModal();});document.getElementById("btnFecharGeradorContrato")?.addEventListener("click",()=>modal?.close());document.addEventListener("click",evento=>{const botao=evento.target.closest("[data-page=\"contratos\"]");if(botao){carregarAlunosContrato();}});document.querySelectorAll("[data-tipo-contrato]").forEach(b=>b.addEventListener("click",()=>tipoC(b.dataset.tipoContrato)));document.getElementById("contratoAluno").addEventListener("change",selecionarAlunoContrato);document.getElementById("btnGerarContrato").addEventListener("click",gerarC);document.getElementById("btnImprimirContrato").addEventListener("click",()=>{if(!document.querySelector(".contrato-folha")){mostrarAviso("Gere a pré-visualização antes de imprimir.");return;}document.body.classList.add("contrato-impressao");window.print();});}
+function iniciarContratos(){carregarAlunosContrato();carregarParceirosContrato();iniciarPerfilContratanteAdmin();document.getElementById("contratoParceiroSelecionar")?.addEventListener("change",selecionarParceiroContrato);const modal=document.getElementById("modalGeradorContrato");document.getElementById("btnAbrirGeradorContrato")?.addEventListener("click",()=>{carregarAlunosContrato();if(modal&&!modal.open)modal.showModal();});document.getElementById("btnFecharGeradorContrato")?.addEventListener("click",()=>modal?.close());document.addEventListener("click",evento=>{const botao=evento.target.closest("[data-page=\"contratos\"]");if(botao){carregarAlunosContrato();}});document.querySelectorAll("[data-tipo-contrato]").forEach(b=>b.addEventListener("click",()=>tipoC(b.dataset.tipoContrato)));document.getElementById("contratoAluno").addEventListener("change",selecionarAlunoContrato);document.getElementById("btnGerarContrato").addEventListener("click",gerarC);document.getElementById("btnImprimirContrato").addEventListener("click",()=>{if(!document.querySelector(".contrato-folha")){mostrarAviso("Gere a pré-visualização antes de imprimir.");return;}document.body.classList.add("contrato-impressao");window.print();});}
 window.addEventListener("afterprint",()=>document.body.classList.remove("contrato-impressao"));
 if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",iniciarContratos,{once:true});}else{iniciarContratos();}
