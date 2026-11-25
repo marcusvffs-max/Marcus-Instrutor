@@ -102,13 +102,13 @@ function imprimirDocumentoContrato(html,nome){
   const titulo=escapeC(nome||"Contrato");
   const estilos=`<style>
     @page{size:A4 portrait;margin:5mm}
-    html,body{margin:0;padding:0;width:222mm;font-family:Arial,sans-serif;color:#111;font-size:7.4pt;line-height:1.12}
+    html,body{margin:0;padding:0;width:222mm;font-family:Arial,sans-serif;color:#111;font-size:8pt;line-height:1.12}
     body{zoom:.9}
     .contrato-folha{width:222mm;max-width:none;min-height:0;margin:0;padding:0;box-sizing:border-box;background:#fff;box-shadow:none}
     .contrato-folha main{margin:0;padding:0}
-    .contrato-folha p{font-size:7.4pt;line-height:1.12;text-align:justify;margin:0 0 1mm;orphans:2;widows:2}
+    .contrato-folha p{font-size:8pt;line-height:1.12;text-align:justify;margin:0 0 1mm;orphans:2;widows:2}
     .contrato-folha h1{font-size:10pt;line-height:1.1;margin:0 0 2mm;text-align:center}
-    .contrato-folha h3{font-size:7.8pt;line-height:1.1;margin:1.4mm 0 .6mm;break-after:avoid}
+    .contrato-folha h3{font-size:8.4pt;line-height:1.1;margin:1.4mm 0 .6mm;break-after:avoid}
     .contrato-cabecalho{margin:0 0 2mm!important;padding:0!important}
     .contrato-logo{max-height:14mm!important;max-width:28mm!important}
     .contrato-folha p,.contrato-folha h3{break-inside:avoid}
@@ -117,7 +117,8 @@ function imprimirDocumentoContrato(html,nome){
   win.document.open();
   win.document.write("<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>"+titulo+"</title>"+estilos+"</head><body>"+html+"</body></html>");
   win.document.close();
-  const imprimir=()=>{try{win.focus();win.print();}catch(error){console.error("Falha ao abrir impressão do contrato:",error);}};
+  let jaImprimiu=false;
+  const imprimir=()=>{if(jaImprimiu)return;jaImprimiu=true;try{win.focus();win.print();}catch(error){console.error("Falha ao abrir impressão do contrato:",error);}};
   win.addEventListener("load",()=>setTimeout(imprimir,350),{once:true});
   setTimeout(imprimir,900);
 }
