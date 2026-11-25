@@ -1,0 +1,52 @@
+-- RECOVERED FROM PRODUCTION DATABASE MIGRATION HISTORY
+-- version: 20261120000802
+-- name: add_admin_ai_runtime_toggle
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against QA and production schemas before creating an executable migration.
+
+create table if not exists public.ai_runtime_settings (
+   owner_id uuid primary key references auth.users(id) on delete cascade,
+   enabled boolean not null default false,
+   updated_at timestamptz not null default now()
+ );
+
+ alter table public.ai_runtime_settings enable row level security;
+
+ grant select, update on public.ai_runtime_settings to authenticated;
+
+ drop policy if exists ai_runtime_settings_admin_select_own on public.ai_runtime_settings;
+ create policy ai_runtime_settings_admin_select_own
+ on public.ai_runtime_settings
+ for select
+ to authenticated
+ using (
+   owner_id = auth.uid()
+   and exists (
+     select 1 from public.profiles p
+     where p.id = auth.uid() and p.role = 'admin'
+   )
+ );
+
+ drop policy if exists ai_runtime_settings_admin_update_own on public.ai_runtime_settings;
+ create policy ai_runtime_settings_admin_update_own
+ on public.ai_runtime_settings
+ for update
+ to authenticated
+ using (
+   owner_id = auth.uid()
+   and exists (
+     select 1 from public.profiles p
+     where p.id = auth.uid() and p.role = 'admin'
+   )
+ )
+ with check (
+   owner_id = auth.uid()
+   and exists (
+     select 1 from public.profiles p
+     where p.id = auth.uid() and p.role = 'admin'
+   )
+ );
+
+ insert into public.ai_runtime_settings (owner_id, enabled)
+ values ('8da26777-dad7-46dd-a332-4b5b80b027c7', false)
+ on conflict (owner_id) do nothing;
