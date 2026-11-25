@@ -111,9 +111,9 @@ function imprimirDocumentoContrato(html,nome){
     const data=bloco.querySelector(".contrato-data-assinatura")?.textContent?.trim()||"Governador Valadares - ______/______/_________";
     bloco.innerHTML=
       "<p class='contrato-data-assinatura'>"+escapeC(data)+"</p>"+
-      "<section class='contrato-assinatura-parte'><div class='contrato-linhas-em-branco' aria-hidden='true'>&nbsp;</div>"+
+      "<section class='contrato-assinatura-parte'><div class='contrato-linhas-em-branco' aria-hidden='true'>"+Array.from({length:6},()=>"<div class='contrato-linha-vazia'></div>").join("")+"</div>"+
       "<p><b>___________________________________________</b><br>MARCUS VINICIUS FELIPE DA FONSECA SILVA<br>CPF: 01523019689</p></section>"+
-      "<section class='contrato-assinatura-parte'><div class='contrato-linhas-em-branco' aria-hidden='true'>&nbsp;</div>"+
+      "<section class='contrato-assinatura-parte'><div class='contrato-linhas-em-branco' aria-hidden='true'>"+Array.from({length:6},()=>"<div class='contrato-linha-vazia'></div>").join("")+"</div>"+
       "<p><b>___________________________________________</b><br>MARCUS VINICIUS FELIPE DA FONSECA SILVA<br>CPF: F</p></section>";
     return raiz.innerHTML;
   })();
@@ -136,7 +136,7 @@ function imprimirDocumentoContrato(html,nome){
     .contrato-assinaturas-aluno{display:block;margin-top:2mm;break-inside:avoid;page-break-inside:avoid}
     .contrato-data-assinatura{margin:0 0 1mm!important;text-align:left!important}
     .contrato-assinatura-parte{min-width:0;margin:0;break-inside:avoid;page-break-inside:avoid}
-    .contrato-linhas-em-branco{display:block!important;width:100%!important;height:48mm!important;min-height:48mm!important;max-height:48mm!important;line-height:48mm!important;font-size:1pt!important;white-space:nowrap!important;margin:0!important;padding:0!important;overflow:hidden!important;break-inside:avoid!important;page-break-inside:avoid!important}
+    .contrato-linhas-em-branco{display:flex!important;flex-direction:column!important;width:100%!important;height:48mm!important;min-height:48mm!important;max-height:48mm!important;margin:0!important;padding:0!important;overflow:hidden!important;break-inside:avoid!important;page-break-inside:avoid!important}.contrato-linha-vazia{display:block!important;flex:0 0 8mm!important;width:100%!important;height:8mm!important;min-height:8mm!important;max-height:8mm!important;margin:0!important;padding:0!important;border:0!important;line-height:8mm!important}
     .contrato-assinatura-parte p{text-align:center!important;font-size:8pt!important;line-height:1.25!important;margin:0 0 1mm!important}
     .contrato-parceiro p{font-size:7.5pt;line-height:1.08;margin:0 0 .8mm}
     .contrato-parceiro h1{font-size:10pt;line-height:1.08;margin:0 0 1.5mm}
