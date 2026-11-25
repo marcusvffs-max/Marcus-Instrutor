@@ -1,0 +1,18 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261124062928
+-- name: grant_partner_tables_to_service_role
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+GRANT USAGE ON SCHEMA public TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+  public.partners,
+  public.partner_students,
+  public.partner_quotes,
+  public.partner_quote_items,
+  public.partner_messages,
+  public.partner_message_recipients,
+  public.partner_commissions,
+  public.partner_payouts,
+  public.partner_commission_lessons
+TO service_role;
