@@ -37,7 +37,7 @@
       <div class="brand">
         <img class="brand-logo" src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Central do Instrutor">
       </div>
-      <button id="btnLogout" class="icon-button" type="button">Sair</button>
+      <div class="topbar-actions"><button id="btnInstalarApp" class="secondary-button" type="button">Instalar app</button><button id="btnLogout" class="icon-button" type="button">Sair</button></div>
     </header>
 
     <main id="mainContent">
@@ -522,6 +522,62 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
   <!-- O painel administrativo só será carregado após validar role=admin. -->
+
+  <script>
+    (function () {
+      "use strict";
+      var botaoInstalar = document.getElementById("btnInstalarApp");
+      var instalacaoPendente = null;
+      var appInstalado = window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true;
+
+      function atualizarBotao() {
+        if (!botaoInstalar) return;
+        if (appInstalado) {
+          botaoInstalar.textContent = "App instalado";
+          botaoInstalar.disabled = true;
+          botaoInstalar.setAttribute("aria-label", "Central do Instrutor já está instalado");
+        }
+      }
+
+      window.addEventListener("beforeinstallprompt", function (evento) {
+        evento.preventDefault();
+        instalacaoPendente = evento;
+        if (botaoInstalar && !appInstalado) {
+          botaoInstalar.hidden = false;
+          botaoInstalar.textContent = "Instalar app";
+        }
+      });
+
+      window.addEventListener("appinstalled", function () {
+        appInstalado = true;
+        instalacaoPendente = null;
+        atualizarBotao();
+      });
+
+      if (botaoInstalar) {
+        botaoInstalar.addEventListener("click", async function () {
+          if (appInstalado) return;
+          if (instalacaoPendente) {
+            instalacaoPendente.prompt();
+            var escolha = await instalacaoPendente.userChoice;
+            instalacaoPendente = null;
+            if (escolha && escolha.outcome === "accepted") {
+              botaoInstalar.textContent = "Concluindo instalação...";
+              botaoInstalar.disabled = true;
+            }
+            return;
+          }
+          var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+          var mensagem = ios
+            ? 'Para instalar a Central do Instrutor no iPhone/iPad, toque em Compartilhar e depois em "Adicionar à Tela de Início".'
+            : 'Para instalar a Central do Instrutor, abra este site no Google Chrome e use o menu ⋮ > Instalar aplicativo ou Adicionar à tela inicial.';
+          window.alert(mensagem);
+        });
+      }
+      atualizarBotao();
+    })();
+  </script>
 
   <script>
     if ("serviceWorker" in navigator) {
