@@ -5,7 +5,8 @@ const CACHE_NAME = "central-instrutor-v44-install-flow-2";
 const ARQUIVOS = [
   "./",
   "./index.html",
-  "./central-instrutor-logo.svg",\n  "./central-app-icon.svg",
+  "./central-instrutor-logo.svg",
+  "./central-app-icon.svg",
   "./instrutor.html",
   "./parceiro.html",
   "./parceiro.js?v=partner-portal-11",
