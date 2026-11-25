@@ -283,3 +283,9 @@
 
 /* A logomarca individual da conta não deve ocupar o cabeçalho da tela inicial. */
 @media screen { body.autenticado:has(#page-inicio.active) .brand-icon:has(img) { display:none !important; } }
+
+
+@media screen {
+  body.autenticado .topbar { padding-left: 0 !important; }
+  body.autenticado .topbar > .brand { margin-left: 0 !important; padding-left: 0 !important; }
+}
