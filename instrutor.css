@@ -814,3 +814,9 @@ body.instructor-modal-open { overflow: hidden; }
     margin-top: 4px !important;
   }
 }
+
+
+@media screen {
+  .topbar { padding-left: 0 !important; }
+  .topbar > .brand { margin-left: 0 !important; padding-left: 0 !important; }
+}
