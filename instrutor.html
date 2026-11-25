@@ -1,518 +1,832 @@
+
 <!DOCTYPE html>
+<style>
+ dialog.contrato-modal{width:min(960px,calc(100% - 24px));max-width:960px;max-height:90vh;overflow:auto;border:0;border-radius:18px;padding:18px;background:#f8fafc;color:#172033;box-shadow:0 24px 70px rgba(0,0,0,.28)}
+ dialog.contrato-modal::backdrop{background:rgba(15,23,42,.62)}
+ dialog.contrato-modal .panel{margin:0}
+ dialog.contrato-modal .partner-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+ @media(max-width:600px){dialog.contrato-modal{padding:10px;max-height:94vh}}
+</style>
+
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#12345a">
-  <meta name="description" content="Área do instrutor - Central do Instrutor">
-  <title>Área do Instrutor | Central do Instrutor</title>
-  <link rel="stylesheet" href="instrutor.css?v=central-logo-1">
+  <meta name="description" content="Sistema de gerenciamento de aulas, alunos e financeiro - Central do Instrutor">
+  <title>Central do Instrutor | Área do Instrutor</title>
+
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css?v=central-logo-1">
   <link rel="stylesheet" href="admin-visual.css?v=admin-visual-1">
-</head>
-<body class="autenticado">
+  <link rel="stylesheet" href="admin-visual.css?v=admin-visual-1">
+  <link rel="icon" href="icon-192.png" type="image/png">
+<style id="marcus-ui-requested-updates">
+.contract-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0}
+.exame-painel-item{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.exame-painel-acoes,.contract-record-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.exame-painel-acoes button,.contract-record-actions button{min-height:38px}
+@media(max-width:560px){.contract-action-grid{grid-template-columns:1fr}.exame-painel-acoes{width:100%}.exame-painel-acoes button{flex:1}}
+</style></head>
+
+<body>
+<script>window.MARCUS_PANEL_ROLE='instrutor';</script>
   <div id="app">
+
     <header class="topbar">
       <div class="brand">
         <img class="brand-logo" src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Central do Instrutor">
       </div>
-      <div class="account-area">
-        <span id="nomeInstrutor">Carregando perfil...</span>
-        <button id="btnSair" class="icon-button" type="button">Sair</button>
-      </div>
+      <button id="btnLogout" class="icon-button" type="button">Sair</button>
     </header>
 
-    <main id="mainContent" class="content">
-      <div id="avisoValidadeAcesso" class="access-expiry-banner" role="status" aria-live="polite"></div>
-      <section class="intro page active" data-view="inicio">
-        <span class="eyebrow">ÁREA DO INSTRUTOR</span>
-        <h2>Meus alunos e relatórios</h2>
-        <p>Cadastre seus alunos, mantenha os dados atualizados e consulte suas aulas.</p>
-      </section>
+    <main id="mainContent">
 
-      <section class="summary-grid page active" data-view="inicio" aria-label="Resumo das aulas">
-        <article class="summary-card"><span>Total de alunos</span><strong id="totalAlunos">—</strong></article>
-        <article class="summary-card"><span>Aulas realizadas</span><strong id="totalRealizadas">—</strong></article>
-        <article class="summary-card"><span>Aulas agendadas</span><strong id="totalAgendadas">—</strong></article>
-      </section>
+      <section id="page-inicio" class="page active">
+        <div class="welcome">
+          <span class="eyebrow">PAINEL PRINCIPAL</span>
+          <h2>Bem-vindo!</h2>
+          <p>Gerencie seus alunos, aulas, veículos e financeiro.</p>
+        </div>
 
-      <section class="panel dashboard-lessons page active" data-view="inicio">
+        <div class="dashboard-grid">
+          <article class="dashboard-card">
+            <span class="card-label">Alunos cadastrados</span>
+            <strong id="totalAlunos">0</strong>
+          </article>
+          <article class="dashboard-card">
+            <span class="card-label">Aulas agendadas</span>
+            <strong id="totalAgendadas">0</strong>
+          </article>
+          <article class="dashboard-card">
+            <span class="card-label">Aulas realizadas</span>
+            <strong id="totalRealizadas">0</strong>
+          </article>
+          <article class="dashboard-card">
+            <span class="card-label">Saldo do dia</span>
+            <strong id="saldoCaixa">R$ 0,00</strong>
+          </article>
+        </div>
+
         <div class="section-heading">
-          <div>
-            <h3>Aulas agendadas</h3>
-            <p>Confirme aqui as aulas realizadas ou cancele quando necessário.</p>
-          </div>
-          <button id="btnAgendarInicio" class="button button-primary" type="button">+ Agendar aula</button>
+          <h3>Acesso rápido</h3>
         </div>
-        <div id="proximasAulas" class="upcoming-lessons">
-          <div class="empty-state">Carregando aulas agendadas...</div>
+
+        <div class="quick-actions">
+          <button type="button" data-page="alunos">+ Novo aluno</button>
+          <button type="button" data-page="aulas">+ Agendar aula</button>
+          <button type="button" data-page="financeiro">Financeiro</button>
+          
+        </div>
+
+        <div class="panel">
+          <h3>Próximas aulas</h3>
+          <div id="proximasAulas" class="empty-state">
+            Nenhuma aula agendada.
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Próximos exames</h3>
+          <div id="proximosExames" class="empty-state">
+            Nenhum exame agendado.
+          </div>
         </div>
       </section>
 
-      <section class="panel students-panel page" data-view="alunos">
-        <div class="section-heading">
+      <section id="page-alunos" class="page">
+        <div class="page-heading">
           <div>
-            <h3>Meus alunos</h3>
-            <p>Os alunos cadastrados aqui pertencem somente à sua conta de instrutor.</p>
-          </div>
-          <button id="btnNovoAluno" class="button button-primary" type="button">+ Novo aluno</button>
-        </div>
-
-        <form id="formAluno" class="student-form" hidden>
-          <h4 id="tituloFormAluno">Cadastrar aluno</h4>
-          <div class="student-form-grid">
-            <div>
-              <label for="alunoNome">Nome completo *</label>
-              <input id="alunoNome" name="nome" type="text" maxlength="160" required>
-            </div>
-            <div>
-              <label for="alunoEmail">E-mail</label>
-              <input id="alunoEmail" name="email" type="email" maxlength="254" autocomplete="email">
-              <small>O e-mail será usado para enviar o convite. Depois que o aluno aceitar e entrar pela primeira vez, as aulas deste cadastro ficarão vinculadas automaticamente à conta.</small>
-            </div>
-            <div>
-              <label for="alunoTelefone">Telefone</label>
-              <input id="alunoTelefone" name="telefone" type="tel" maxlength="40">
-            </div>
-            <div>
-              <label for="alunoCpf">CPF</label>
-              <input id="alunoCpf" name="cpf" type="text" maxlength="20">
-            </div>
-            <div>
-              <label for="alunoEndereco">Endereço</label>
-              <input id="alunoEndereco" name="endereco" type="text" maxlength="240">
-            </div>
-            <div>
-              <label for="alunoCategoria">Categoria em andamento</label>
-              <select id="alunoCategoria" name="categoria">
-                <option value="">Selecione</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="AB">AB</option>
-              </select>
-            </div>
-            <div>
-              <label for="alunoStatus">Situação</label>
-              <select id="alunoStatus" name="status">
-                <option value="em_aberto">Em aberto</option>
-                <option value="finalizado">Finalizado</option>
-                <option value="aprovado">Aprovado</option>
-              </select>
-            </div>
-            <div>
-              <label for="alunoAulasCompradas">Aulas contratadas *</label>
-              <input id="alunoAulasCompradas" type="number" min="0" step="1" value="0" required>
-              <small>O saldo restante será calculado automaticamente pelas aulas realizadas.</small>
-            </div>
-          </div>
-          <div class="student-form-actions">
-            <button id="btnCancelarAluno" class="button button-outline" type="button">Cancelar</button>
-            <button id="btnSalvarAluno" class="button button-primary" type="submit">Salvar aluno</button>
-          </div>
-        </form>
-
-        <div class="list-toolbar"><div class="list-toolbar-copy"><strong>Seus alunos</strong><span id="contadorAlunos">0 cadastrados</span></div><label class="search-field" for="filtroBuscaAlunos"><span>⌕</span><input id="filtroBuscaAlunos" type="search" placeholder="Buscar por nome, telefone, CPF ou categoria" autocomplete="off"></label></div>
-        <div id="listaAlunos" class="student-cards">
-          <div class="empty-state">Carregando seus alunos...</div>
-        </div>
-      </section>
-
-      <section class="panel students-panel page" data-view="alunos-vinculados">
-        <div class="section-heading">
-          <div>
-            <h3>Gerenciamento de usuários</h3>
-            <p>Você visualizará somente os alunos vinculados à sua conta de instrutor. Não há acesso à administração de outros instrutores ou usuários.</p>
-          </div>
-        </div>
-        <div class="list-toolbar">
-          <div class="list-toolbar-copy"><strong>Alunos vinculados</strong><span id="contadorAlunosVinculados">0 contas</span></div>
-        </div>
-        <div id="listaAlunosVinculados" class="student-cards">
-          <div class="empty-state">Carregando alunos vinculados...</div>
-        </div>
-      </section>
-
-      <section class="panel vehicles-panel page" data-view="veiculos">
-        <div class="section-heading">
-          <div>
-            <h3>Meus veículos</h3>
-            <p>Cadastre os veículos que você utiliza nas aulas. Os registros ficam vinculados à sua conta.</p>
-          </div>
-          <button id="btnNovoVeiculo" class="button button-primary" type="button">+ Novo veículo</button>
-        </div>
-
-        <form id="formVeiculo" class="student-form" hidden>
-          <h4 id="tituloFormVeiculo">Cadastrar veículo</h4>
-          <div class="student-form-grid">
-            <div>
-              <label for="veiculoTipo">Tipo de veículo *</label>
-              <select id="veiculoTipo" required>
-                <option value="">Selecione</option>
-                <option value="Carro">Carro</option>
-                <option value="Motocicleta">Motocicleta</option>
-              </select>
-            </div>
-            <div>
-              <label for="veiculoCategoria">Categoria *</label>
-              <select id="veiculoCategoria" required>
-                <option value="">Selecione</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="AB">AB</option>
-              </select>
-            </div>
-            <div>
-              <label for="veiculoPlaca">Placa</label>
-              <input id="veiculoPlaca" type="text" maxlength="10" placeholder="ABC1D23">
-            </div>
-            <div>
-              <label for="veiculoNome">Identificação (opcional)</label>
-              <input id="veiculoNome" type="text" maxlength="120" placeholder="Ex.: Yamaha Factor ou Onix">
-            </div>
-          </div>
-          <div class="student-form-actions">
-            <button id="btnCancelarVeiculo" class="button button-outline" type="button">Cancelar</button>
-            <button id="btnSalvarVeiculo" class="button button-primary" type="submit">Salvar veículo</button>
-          </div>
-        </form>
-
-        <div class="list-toolbar"><div class="list-toolbar-copy"><strong>Seus veículos</strong><span id="contadorVeiculos">0 cadastrados</span></div><label class="search-field" for="filtroBuscaVeiculos"><span>⌕</span><input id="filtroBuscaVeiculos" type="search" placeholder="Buscar por identificação, tipo, categoria ou placa" autocomplete="off"></label></div>
-        <div id="listaVeiculos" class="vehicle-cards">
-          <div class="empty-state">Carregando seus veículos...</div>
-        </div>
-      </section>
-
-      <section class="panel lessons-panel page" data-view="aulas">
-        <div class="section-heading">
-          <div>
-            <h3>Agendamento e gerenciamento de aulas</h3>
-            <p>Agende aulas vinculadas aos seus alunos e veículos. A confirmação de aula realizada desconta o saldo automaticamente.</p>
+            <span class="eyebrow">CADASTROS</span>
+            <h2>Alunos</h2>
           </div>
           <div class="heading-actions">
-            <button id="btnNovaAula" class="button button-primary" type="button">+ Agendar aula</button>
-            <button id="btnAgendarLote" class="button button-outline" type="button">Agendar várias aulas</button>
+            <button id="btnAtualizarConvites" class="secondary-button" type="button">Atualizar convites</button>
+            <button id="btnNovoAluno" class="primary-button" type="button">
+              + Novo aluno
+            </button>
           </div>
         </div>
 
-        <form id="formAula" class="student-form" hidden>
-          <h4 id="tituloFormAula">Agendar aula</h4>
-          <div class="student-form-grid">
-            <div>
-              <label for="aulaAluno">Aluno *</label>
-              <select id="aulaAluno" required><option value="">Selecione um aluno</option></select>
-            </div>
-            <div>
-              <label for="aulaData">Data *</label>
-              <input id="aulaData" type="date" required>
-            </div>
-            <div>
-              <label for="aulaHorario">Horário de início *</label>
-              <input id="aulaHorario" type="time" step="60" required>
-              <small>Informe o horário de início da aula de 50 minutos.</small>
-            </div>
-            <div>
-              <label for="aulaVeiculo">Veículo</label>
-              <select id="aulaVeiculo"><option value="">Sem veículo definido</option></select>
-            </div>
-            <div>
-              <label for="aulaStatus">Situação *</label>
-              <select id="aulaStatus" required>
-                <option value="agendada">Agendada</option>
-                <option value="realizada">Realizada</option>
-                <option value="cancelada">Cancelada</option>
-              </select>
-            </div>
-            <div>
-              <label for="aulaObservacoes">Observações</label>
-              <input id="aulaObservacoes" type="text" maxlength="500">
-            </div>
-          </div>
-          <div id="saldoAlunoAula" class="lesson-balance-hint"></div>
-          <div class="student-form-actions">
-            <button id="btnCancelarAula" class="button button-outline" type="button">Cancelar</button>
-            <button id="btnSalvarAula" class="button button-primary" type="submit">Salvar aula</button>
-          </div>
-        </form>
+        <input id="buscaAlunos" class="search-input" type="search"
+          placeholder="Buscar aluno pelo nome ou CPF">
 
-        <form id="formAulasLote" class="student-form batch-lesson-form" hidden>
-          <h4>Agendar várias aulas de uma vez</h4>
-          <p class="form-help">Escolha a primeira data, o horário e o intervalo. As datas serão preenchidas automaticamente e você poderá ajustar cada aula antes de salvar.</p>
-          <div class="student-form-grid">
-            <div><label for="loteAluno">Aluno *</label><select id="loteAluno" required><option value="">Selecione um aluno</option></select></div>
-            <div><label for="loteVeiculo">Veículo</label><select id="loteVeiculo"><option value="">Sem veículo definido</option></select></div>
-            <div><label for="loteDataInicial">Data da primeira aula *</label><input id="loteDataInicial" type="date" required></div>
-            <div><label for="loteHorarioInicial">Horário inicial *</label><input id="loteHorarioInicial" type="time" value="08:00" required></div>
-            <div><label for="loteQuantidade">Quantidade de aulas</label><input id="loteQuantidade" type="number" min="2" max="20" value="4" required></div>
-            <div><label for="loteIntervaloDias">Intervalo entre aulas (dias)</label><input id="loteIntervaloDias" type="number" min="1" max="90" value="7" required></div>
-          </div>
-          <button id="btnGerarDatasLote" class="button button-outline" type="button">Gerar / atualizar datas</button>
-          <div id="listaDatasAulasLote" class="batch-lesson-list"></div>
-          <div class="student-form-actions">
-            <button id="btnCancelarAulasLote" class="button button-outline" type="button">Cancelar</button>
-            <button id="btnSalvarAulasLote" class="button button-primary" type="submit">Agendar todas as aulas</button>
-          </div>
-        </form>
-
-        <div class="list-toolbar lesson-toolbar">
-          <div class="list-toolbar-copy">
-            <strong>Suas aulas</strong>
-            <span id="contadorAulas">0 aulas cadastradas</span>
-          </div>
-          <div class="lesson-filters">
-            <label class="search-field" for="filtroBuscaAulas"><span>⌕</span><input id="filtroBuscaAulas" type="search" placeholder="Buscar aluno, veículo, data ou horário" autocomplete="off"></label>
-            <select id="filtroStatusAulas" aria-label="Filtrar aulas por situação">
-              <option value="">Todas as situações</option>
-              <option value="agendada">Agendadas</option>
-              <option value="realizada">Realizadas</option>
-              <option value="cancelada">Canceladas</option>
-            </select>
-          </div>
-        </div>
-        <div id="listaAulas" class="lesson-cards">
-          <div class="empty-state">Carregando suas aulas...</div>
+        <div id="listaAlunos" class="list-container">
+          <div class="empty-state">Nenhum aluno cadastrado.</div>
         </div>
       </section>
 
-      <section class="panel products-panel page" data-view="produtos">
-        <div class="section-heading"><div><h3>Produtos e serviços</h3><p>Cadastre pacotes de aulas, serviços e outros itens que você oferece.</p></div><button id="btnNovoProduto" class="button button-primary" type="button">+ Novo item</button></div>
-        <form id="formProduto" class="student-form" hidden>
-          <h4 id="tituloFormProduto">Cadastrar produto ou serviço</h4>
-          <div class="student-form-grid">
-            <div><label for="produtoNome">Nome *</label><input id="produtoNome" maxlength="160" required placeholder="Ex.: Pacote com 10 aulas"></div>
-            <div><label for="produtoTipo">Tipo *</label><select id="produtoTipo" required><option value="servico">Serviço</option><option value="pacote">Pacote</option><option value="produto">Produto</option></select></div>
-            <div><label for="produtoPreco">Preço (R$) *</label><input id="produtoPreco" type="number" min="0" step="0.01" required></div>
-            <div><label for="produtoAulas">Quantidade de aulas</label><input id="produtoAulas" type="number" min="0" step="1" placeholder="Ex.: 10"><small>Preencha para serviços ou pacotes que acrescentam aulas ao saldo.</small></div>
-            <div class="form-full"><label for="produtoDescricao">Descrição</label><input id="produtoDescricao" maxlength="500" placeholder="Detalhes opcionais"></div>
-            <div><label for="produtoAtivo">Situação</label><select id="produtoAtivo"><option value="true">Ativo</option><option value="false">Inativo</option></select></div>
-          </div>
-          <div class="student-form-actions"><button id="btnCancelarProduto" class="button button-outline" type="button">Cancelar</button><button id="btnSalvarProduto" class="button button-primary" type="submit">Salvar item</button></div>
-        </form>
-        <div class="list-toolbar"><div class="list-toolbar-copy"><strong>Seus produtos e serviços</strong><span id="contadorProdutos">0 itens</span></div><label class="search-field" for="filtroBuscaProdutos"><span>⌕</span><input id="filtroBuscaProdutos" type="search" placeholder="Buscar produto ou serviço"></label></div>
-        <div class="panel fixed-item-prices">
-          <h4>Preços de itens fixos</h4>
-          <p>Aluguel e Cartão Moto Pista são vendidos junto com os demais produtos e serviços.</p>
-          <div class="student-form-grid">
-            <div><label for="precoAluguelFixoInstrutor">Aluguel de Veículo (R$)</label><input id="precoAluguelFixoInstrutor" type="number" min="0" step="0.01"></div>
-            <div><label for="precoCartaoFixoInstrutor">Cartão Moto Pista (R$)</label><input id="precoCartaoFixoInstrutor" type="number" min="0" step="0.01"></div>
-          </div>
-          <button id="btnSalvarPrecosFixosInstrutor" class="button button-outline" type="button">Salvar preços</button>
-          <p id="statusPrecosFixosInstrutor" role="status"></p>
-        </div>
-        <div id="listaProdutos" class="product-cards"><div class="empty-state">Carregando produtos...</div></div>
-      </section>
-
-      <section class="panel sales-panel page" data-view="vendas">
-        <div class="section-heading"><div><h3>Vendas</h3><p>Registre novas vendas e acompanhe o histórico. A entrada financeira e o saldo de aulas são atualizados automaticamente.</p></div><button id="btnNovaVenda" class="button button-primary" type="button">+ Nova venda</button></div>
-        <form id="formVenda" class="student-form" hidden>
-          <h4>Registrar venda</h4>
-          <div class="student-form-grid">
-            <div><label for="vendaAluno">Aluno *</label><select id="vendaAluno" required><option value="">Selecione um aluno</option></select></div>
-            <div><label for="vendaPagamento">Forma de pagamento</label><select id="vendaPagamento"><option value="">Não informado</option><option>Dinheiro</option><option>Pix</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option><option>Outro</option></select></div>
-            <div><label for="vendaProduto">Produto ou serviço *</label><select id="vendaProduto"><option value="">Selecione um item</option></select></div>
-            <div><label for="vendaQuantidade">Quantidade *</label><input id="vendaQuantidade" type="number" min="1" step="1" value="1" required></div>
-          </div>
-          <div class="sale-add-row"><button id="btnAdicionarItemVenda" class="button button-outline" type="button">+ Adicionar item</button></div>
-          <div id="itensCarrinhoVenda" class="sale-cart"><div class="empty-state">Adicione produtos ou serviços à venda.</div></div>
-          <div class="sale-total"><span>Total da venda</span><strong id="totalVenda">R$ 0,00</strong></div>
-          <div><label for="vendaObservacoes">Observações</label><input id="vendaObservacoes" maxlength="500" placeholder="Observações opcionais"></div>
-          <div class="student-form-actions"><button id="btnSalvarVenda" class="button button-primary" type="submit" disabled>Confirmar venda</button></div>
-        </form>
-        <form id="formDevolucaoInstrutor" class="student-form" hidden>
-          <h4 id="tituloDevolucaoInstrutor">Devolução de produtos e serviços</h4>
-          <label for="devolucaoVendaInstrutor">Venda *</label>
-          <select id="devolucaoVendaInstrutor" required><option value="">Selecione uma venda</option></select>
-          <div id="resumoVendaDevolucaoInstrutor" class="refund-sale-summary">Selecione uma venda para visualizar os itens disponíveis.</div>
-          <label for="devolucaoItemInstrutor">Item desta venda *</label>
-          <select id="devolucaoItemInstrutor" required><option value="">Selecione um item</option></select>
-          <label for="devolucaoQuantidadeInstrutor">Quantidade para devolver *</label>
-          <input id="devolucaoQuantidadeInstrutor" type="number" min="1" step="1" required disabled>
-          <div id="devolucaoPreviaInstrutor" class="refund-preview"><strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p></div>
-          <div class="student-form-actions">
-            <button id="btnCancelarDevolucaoInstrutor" class="button button-outline" type="button">Cancelar</button>
-            <button id="btnConfirmarDevolucaoInstrutor" class="button button-primary" type="submit">Confirmar devolução</button>
-          </div>
-        </form>
-        <div class="list-toolbar"><div class="list-toolbar-copy"><strong>Histórico de vendas</strong><span id="contadorVendas">0 vendas</span></div></div>
-        <div id="listaVendas" class="sales-list"><div class="empty-state">Carregando vendas...</div></div>
-      </section>
-
-      <section class="panel finance-panel page" data-view="financeiro">
-        <div class="section-heading">
+      <section id="page-veiculos" class="page">
+        <div class="page-heading">
           <div>
-            <h3>Meu financeiro</h3>
-            <p>Acompanhe suas entradas, despesas e saldo. Os dados são exclusivos da sua conta.</p>
+            <span class="eyebrow">CADASTROS</span>
+            <h2>Veículos</h2>
           </div>
-          <div class="finance-actions">
-            <button id="btnDevolucaoFinanceiro" class="button button-outline" type="button">↩ Devolução</button>
-            <button id="btnNovaMovimentacao" class="button button-primary" type="button">+ Nova movimentação</button>
+          <button id="btnNovoVeiculo" class="primary-button" type="button">
+            + Novo veículo
+          </button>
+        </div>
+
+        <input id="buscaVeiculos" class="search-input" type="search"
+          placeholder="Buscar por modelo ou placa">
+
+        <div id="listaVeiculos" class="list-container">
+          <div class="empty-state">Nenhum veículo cadastrado.</div>
+        </div>
+      </section>
+
+      <section id="page-aulas" class="page">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">AGENDA</span>
+            <h2>Aulas</h2>
+          </div>
+
+          <div class="heading-actions">
+            <button id="btnNovaAula" class="primary-button" type="button">
+              + Agendar aula
+            </button>
+
+            <button id="btnAgendamentoLote" class="primary-button" type="button">
+              + Agendar várias aulas
+            </button>
           </div>
         </div>
+
+        <div class="filter-row">
+          <input id="filtroDataAulas" type="date" aria-label="Filtrar por data">
+          <select id="filtroAlunoAulas" aria-label="Filtrar por aluno">
+            <option value="">Todos os alunos</option>
+          </select>
+        </div>
+
+        <div id="listaAulas" class="list-container">
+          <div class="empty-state">Nenhuma aula cadastrada.</div>
+        </div>
+      </section>
+
+      <section id="page-financeiro" class="page">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">CONTROLE FINANCEIRO</span>
+            <h2>Financeiro</h2>
+          </div>
+        </div>
+
+
         <div class="finance-summary">
-          <article class="finance-summary-card"><span>Entradas</span><strong id="financeEntradas">R$ 0,00</strong></article>
-          <article class="finance-summary-card"><span>Despesas</span><strong id="financeDespesas">R$ 0,00</strong></article>
-          <article class="finance-summary-card finance-balance-card"><span>Saldo</span><strong id="financeSaldo">R$ 0,00</strong></article>
+          <article class="dashboard-card">
+            <span class="card-label">Entradas no período</span>
+            <strong id="totalEntradas">R$ 0,00</strong>
+          </article>
+          <article class="dashboard-card">
+            <span class="card-label">Despesas no período</span>
+            <strong id="totalDespesas">R$ 0,00</strong>
+          </article>
+          <article class="dashboard-card">
+            <span class="card-label">Saldo do período</span>
+            <strong id="saldoFinanceiro">R$ 0,00</strong>
+          </article>
         </div>
-        <form id="formMovimentacao" class="student-form" hidden>
-          <h4>Registrar movimentação</h4>
-          <div class="student-form-grid">
-            <div><label for="movimentoTipo">Tipo *</label><select id="movimentoTipo" required><option value="entrada">Entrada</option><option value="saida">Despesa</option></select></div>
-            <div><label for="movimentoDescricao">Descrição *</label><input id="movimentoDescricao" type="text" maxlength="180" required placeholder="Ex.: combustível, pagamento de aula"></div>
-            <div><label for="movimentoValor">Valor (R$) *</label><input id="movimentoValor" type="number" min="0.01" step="0.01" required></div>
-            <div><label for="movimentoData">Data *</label><input id="movimentoData" type="date" required></div>
+
+        <div class="quick-actions">
+          <button id="btnNovaVenda" type="button">+ Nova venda</button>
+          <button id="btnNovaDespesa" type="button">+ Nova despesa</button>
+          <button id="btnDevolucao" type="button">↩ Devolução</button>
+          <button id="btnProdutos" type="button">Produtos e serviços</button>
+        </div>
+
+        <div class="panel">
+          <h3>Consultar movimentações</h3>
+
+          <label for="filtroFinanceiroTipo">Período</label>
+          <select id="filtroFinanceiroTipo">
+            <option value="diario">Diário</option>
+            <option value="mensal">Mensal</option>
+            <option value="anual">Anual</option>
+          </select>
+
+          <div id="filtroFinanceiroDia">
+            <label for="dataFinanceiroDia">Escolha o dia</label>
+            <input type="date" id="dataFinanceiroDia">
           </div>
-          <div class="student-form-actions"><button class="button button-primary" id="btnSalvarMovimentacao" type="submit">Registrar movimentação</button></div>
-        </form>
-        <div class="list-toolbar">
-          <div class="list-toolbar-copy"><strong>Histórico financeiro</strong><span id="contadorMovimentacoes">0 movimentações</span></div>
-          <label class="search-field" for="filtroBuscaFinanceiro"><span>⌕</span><input id="filtroBuscaFinanceiro" type="search" placeholder="Buscar descrição, tipo ou data" autocomplete="off"></label>
+
+          <div id="filtroFinanceiroMes" hidden>
+            <label for="dataFinanceiroMes">Escolha o mês</label>
+            <input type="month" id="dataFinanceiroMes">
+          </div>
+
+          <div id="filtroFinanceiroAno" hidden>
+            <label for="dataFinanceiroAno">Escolha o ano</label>
+            <input type="number" id="dataFinanceiroAno" min="2000" max="2100">
+          </div>
+
+          <button id="btnImprimirRelatorioFinanceiro"
+            class="primary-button" type="button">
+            Imprimir relatório financeiro
+          </button>
         </div>
-        <div id="listaMovimentacoes" class="finance-list"><div class="empty-state">Carregando movimentações...</div></div>
+
+        <div class="panel">
+          <h3>Movimentações</h3>
+          <div id="listaMovimentacoes" class="empty-state">
+            Nenhuma movimentação registrada.
+          </div>
+        </div>
+
       </section>
 
-      <section class="panel settings-panel page" data-view="cadastro">
-        <div class="section-heading">
-          <div><h3>Meu cadastro</h3><p>Seus dados pessoais e de contato serão utilizados automaticamente nos contratos e no WhatsApp dos seus alunos.</p></div>
-        </div>
-        <div class="student-form">
-          <div class="student-form-grid">
-            <div><label for="contratanteNome">Nome completo / razão social *</label><input id="contratanteNome" maxlength="160" autocomplete="name"></div>
-            <div><label for="contratanteDocumento">CPF / CNPJ *</label><input id="contratanteDocumento" maxlength="24" inputmode="numeric" autocomplete="off"></div>
-            <div><label for="contratanteCelular">Celular / WhatsApp *</label><input id="contratanteCelular" type="tel" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="(00) 00000-0000"></div>
-            <div><label for="contratanteNacionalidade">Nacionalidade</label><input id="contratanteNacionalidade" maxlength="80"></div>
-            <div><label for="contratanteCivil">Estado civil</label><input id="contratanteCivil" maxlength="80"></div>
-            <div><label for="contratanteProfissao">Profissão</label><input id="contratanteProfissao" maxlength="100"></div>
-            <div class="form-full"><label for="contratanteEndereco">Endereço completo</label><textarea id="contratanteEndereco" rows="2" maxlength="300"></textarea></div>
+      <section id="page-produtos" class="page">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">GERENCIAMENTO</span>
+            <h2>Produtos e Serviços</h2>
           </div>
-          <div class="student-form-actions">
-            <button id="btnSalvarDadosContratante" class="button button-primary" type="button">Salvar cadastro</button>
-            <p id="statusDadosContratante" class="contract-note" role="status" aria-live="polite">Esses dados serão usados nos seus contratos e no contato do WhatsApp dos alunos vinculados.</p>
+
+          <button id="btnNovoProduto" class="primary-button" type="button">
+            + Novo produto
+          </button>
+        </div>
+
+        <div class="panel" id="precosItensFixosProdutos">
+          <h3>Preços de itens fixos</h3>
+          <p>Aluguel de Veículo e Cartão Moto Pista aparecem junto com os demais itens na hora de fazer uma venda.</p>
+          <div class="form-grid">
+            <div><label for="precoAluguelFixo">Aluguel de Veículo (R$)</label><input id="precoAluguelFixo" type="number" min="0" step="0.01"></div>
+            <div><label for="precoCartaoFixo">Cartão Moto Pista (R$)</label><input id="precoCartaoFixo" type="number" min="0" step="0.01"></div>
+          </div>
+          <button id="btnSalvarPrecosFixos" class="secondary-button" type="button">Salvar preços</button>
+          <p id="statusPrecosFixos" class="form-hint" role="status"></p>
+        </div>
+
+        <input
+          id="buscaProdutos"
+          class="search-input"
+          type="search"
+          placeholder="Buscar produto ou serviço"
+        >
+
+        <div id="listaProdutos" class="list-container">
+          <div class="empty-state">
+            Carregando produtos...
           </div>
         </div>
       </section>
 
-      <section class="panel settings-panel page" data-view="configuracoes">
-        <div class="section-heading">
-          <div><h3>Meu perfil e aparência</h3><p>Altere seu nome e personalize as cores da sua própria área de instrutor.</p></div>
-        </div>
-        <div class="student-form">
-          <div class="student-form-grid">
-            <div class="form-full">
-              <label for="nomePerfilInstrutor">Seu nome / nome do instrutor</label>
-              <input id="nomePerfilInstrutor" type="text" maxlength="120" autocomplete="name" required>
-            </div>
-            <div><label for="corPrincipalInstrutor">Cor principal</label><input id="corPrincipalInstrutor" type="color" value="#12345a"></div>
-            <div><label for="corSecundariaInstrutor">Cor de fundo</label><input id="corSecundariaInstrutor" type="color" value="#f3f6fa"></div>
-            <div class="form-full">
-              <label for="logoInstrutorArquivo">Sua logomarca</label>
-              <input id="logoInstrutorArquivo" type="file" accept="image/png,image/jpeg,image/webp">
-              <small>PNG, JPG ou WEBP · máximo 2 MB. Ela aparecerá nos seus contratos e na área dos seus alunos vinculados.</small>
-              <img id="logoInstrutorPreview" alt="Prévia da sua logomarca" hidden style="max-width:180px;max-height:110px;object-fit:contain;margin:12px 0;border-radius:10px;">
-              <button id="btnRemoverLogoInstrutor" class="button button-outline" type="button" hidden>Remover logomarca</button>
-            </div>
-          </div>
-          <div class="student-form-actions">
-            <button id="btnSalvarConfiguracoesInstrutor" class="button button-primary" type="button">Salvar alterações</button>
+      <section id="page-relatorios" class="page">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">CONSULTAS E IMPRESSÃO</span>
+            <h2>Relatórios</h2>
           </div>
         </div>
-      </section>
 
-      <section class="report-grid page" data-view="relatorios">
-        <article class="panel">
+        <div class="panel">
           <h3>Relatório por aluno</h3>
-          <label for="filtroAluno">Aluno</label>
-          <select id="filtroAluno"><option value="">Selecione um aluno</option></select>
-          <button id="btnRelatorioAluno" class="button button-primary" type="button">Gerar relatório</button>
-        </article>
+          <select id="relatorioAluno">
+            <option value="">Selecione um aluno</option>
+          </select>
+          <button id="btnRelatorioAluno" class="primary-button" type="button">
+            Gerar relatório
+          </button>
+        </div>
 
-        <article class="panel">
+        <div class="panel">
           <h3>Relatório por período</h3>
-          <label for="dataInicio">Data inicial</label>
-          <input id="dataInicio" type="date">
-          <label for="dataFim">Data final</label>
-          <input id="dataFim" type="date">
-          <button id="btnRelatorioPeriodo" class="button button-primary" type="button">Gerar relatório</button>
-        </article>
+          <label for="relatorioInicio">Data inicial</label>
+          <input id="relatorioInicio" type="date">
+          <label for="relatorioFim">Data final</label>
+          <input id="relatorioFim" type="date">
+          <button id="btnRelatorioPeriodo" class="primary-button" type="button">
+            Gerar relatório
+          </button>
+        </div>
 
-        <article class="panel">
+        <div class="panel">
           <h3>Lista diária de aulas</h3>
-          <label for="dataDiaria">Data</label>
-          <input id="dataDiaria" type="date">
-          <button id="btnRelatorioDiario" class="button button-primary" type="button">Gerar lista diária</button>
-        </article>
+          <input id="relatorioData" type="date">
+          <button id="btnRelatorioDiario" class="primary-button" type="button">
+            Gerar lista diária
+          </button>
+        </div>
+
+        <div id="resultadoRelatorio"></div>
       </section>
 
-      <section id="resultado" data-view="relatorios" class="panel result-panel page" aria-live="polite">
-        <div class="empty-state">Escolha um dos relatórios acima para começar.</div>
-      </section>
-
-      <section class="panel page" data-view="backup">
-        <div class="section-heading">
-          <div><h3>Backup dos meus dados</h3><p>Exporte uma cópia dos registros vinculados exclusivamente à sua conta de instrutor.</p></div>
-        </div>
-        <div class="student-form">
-          <h4>Exportar dados</h4>
-          <p>O arquivo inclui alunos, aulas, veículos, produtos, vendas, itens vendidos, movimentações financeiras e configurações da sua conta.</p>
-          <button id="btnExportarBackupInstrutor" class="button button-primary" type="button">Exportar meu backup</button>
-        </div>
-        <p class="contract-note">Guarde o arquivo em local seguro. A restauração será habilitada após validação do formato e das relações entre os registros, para evitar sobrescrever dados de outras contas.</p>
-      </section>
-
-      <section class="panel contract-panel page" data-view="contratos">
-        <div class="section-heading">
-          <div><h3>Contrato de prestação de serviços</h3><p>Gere um contrato com os dados dos seus alunos e a sua identificação de instrutor.</p></div>
-        </div>
-        <div class="student-form contract-form">
-          <p>Os dados do instrutor são preenchidos automaticamente pelo cadastro em <strong>Meu cadastro</strong>. Confira as informações antes de gerar o documento.</p>
-          <h4>Dados do contrato do aluno</h4>
-          <div class="student-form-grid">
-            <div class="form-full">
-              <label for="contratoAlunoInstrutor">Usar aluno cadastrado</label>
-              <select id="contratoAlunoInstrutor"><option value="">Preencher manualmente</option></select>
-            </div>
-            <div><label for="contratoNomeAluno">Nome completo do aluno *</label><input id="contratoNomeAluno" maxlength="160"></div>
-            <div><label for="contratoCpfAluno">CPF do aluno *</label><input id="contratoCpfAluno" maxlength="20"></div>
-            <div><label for="contratoCategoriaAluno">Categoria *</label><select id="contratoCategoriaAluno"><option value="">Selecione</option><option value="A">A</option><option value="B">B</option><option value="AB">AB</option></select></div>
-            <div><label for="contratoQuantidadeAulas">Quantidade de aulas *</label><input id="contratoQuantidadeAulas" type="number" min="1" step="1" placeholder="Ex.: 20"></div>
-            <div><label for="contratoValor">Valor do pacote (R$) *</label><input id="contratoValor" type="number" min="0.01" step="0.01"></div>
-            <div><label for="contratoPagamento">Forma de pagamento *</label><input id="contratoPagamento" maxlength="100" placeholder="Ex.: Pix, dinheiro ou cartão"></div>
-            <div><label for="contratoCidade">Cidade</label><input id="contratoCidade" maxlength="100" placeholder="Cidade onde será assinado"></div>
-          </div>
-          <div class="contract-options">
-            <label class="contract-check"><input id="contratoCartaoMoto" type="checkbox" checked> Incluir Cartão Moto Pista</label>
-            <label class="contract-check"><input id="contratoAluguelVeiculo" type="checkbox" checked> Incluir aluguel do veículo para exame</label>
-          </div>
-          <div class="student-form-actions">
-            <button id="btnGerarContratoInstrutor" class="button button-primary" type="button">Gerar pré-visualização</button>
-            <button id="btnImprimirContratoInstrutor" class="button button-outline" type="button">Imprimir / Salvar PDF</button>
+      <section id="page-backup" class="page">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">SEGURANÇA DOS DADOS</span>
+            <h2>Backup</h2>
           </div>
         </div>
-        <div id="contratoPreviewInstrutor" class="contract-preview"><div class="empty-state">Preencha os dados e gere a pré-visualização do contrato.</div></div>
-        <p class="contract-note">O documento é gerado para conferência e impressão. Revise as condições e os dados antes da assinatura.</p>
+
+        <div class="panel">
+          <h3>Exportar dados</h3>
+          <p>Salve uma cópia dos dados do aplicativo em um arquivo.</p>
+          <button id="btnExportarBackup" class="primary-button" type="button">
+            Exportar backup
+          </button>
+        </div>
+
+        <div class="panel">
+          <h3>Restaurar dados</h3>
+          <p>Importe um backup salvo anteriormente.</p>
+          <input id="arquivoBackup" type="file" accept=".json,application/json">
+          <button id="btnImportarBackup" class="primary-button" type="button">
+            Restaurar backup
+          </button>
+        </div>
       </section>
 
-      <p id="mensagem" class="message" role="status" aria-live="polite"></p>
+      <section id="page-cadastro" class="page">
+        <div class="page-heading">
+          <div><span class="eyebrow">IDENTIFICAÇÃO</span><h2>Meu cadastro</h2><p>Seus dados serão usados automaticamente nos contratos e no contato do WhatsApp dos alunos vinculados.</p></div>
+        </div>
+        <div class="panel">
+          <h3>Dados do administrador / responsável</h3>
+          <label for="contratanteNome">Nome completo / razão social *</label>
+          <input id="contratanteNome" type="text" maxlength="160" autocomplete="name">
+          <label for="contratanteDocumento">CPF / CNPJ *</label>
+          <input id="contratanteDocumento" type="text" maxlength="24" inputmode="numeric" autocomplete="off">
+          <label for="contratanteCelular">Celular / WhatsApp *</label>
+          <input id="contratanteCelular" type="tel" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="(00) 00000-0000">
+          <label for="contratanteNacionalidade">Nacionalidade</label>
+          <input id="contratanteNacionalidade" type="text" maxlength="80">
+          <label for="contratanteCivil">Estado civil</label>
+          <input id="contratanteCivil" type="text" maxlength="80">
+          <label for="contratanteProfissao">Profissão</label>
+          <input id="contratanteProfissao" type="text" maxlength="100">
+          <label for="contratanteEndereco">Endereço completo</label>
+          <textarea id="contratanteEndereco" rows="2" maxlength="300"></textarea>
+          <button id="btnSalvarDadosContratante" class="primary-button" type="button">Salvar cadastro</button>
+          <p id="statusDadosContratante" class="form-hint" role="status" aria-live="polite">Esses dados serão usados nos contratos e no WhatsApp dos alunos vinculados.</p>
+        </div>
+      </section>
+
+      <section id="page-configuracoes" class="page">
+        <div class="page-heading">
+          <div>
+            <span class="eyebrow">PERSONALIZAÇÃO</span>
+            <h2>Configurações</h2>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>Aparência do aplicativo</h3>
+
+          <label for="nomeEmpresa">Nome do aplicativo</label>
+          <input id="nomeEmpresa" type="text" value="Central do Instrutor">
+
+          <label for="corPrincipal">Cor principal</label>
+          <input id="corPrincipal" type="color" value="#12345a">
+
+          <label for="corSecundaria">Cor secundária</label>
+          <input id="corSecundaria" type="color" value="#e8edf3">
+
+          <label for="logoEmpresa">Logomarca desta conta</label>
+          <input id="logoEmpresa" type="file" accept="image/png,image/jpeg,image/webp">
+          <p class="muted">PNG, JPG ou WEBP · máximo 2 MB. A logomarca será exibida nos contratos e na área dos alunos vinculados a esta conta.</p>
+          <img id="logoEmpresaPreview" alt="Prévia da logomarca da conta" hidden style="max-width:180px;max-height:110px;object-fit:contain;margin:12px 0;border-radius:10px;">
+          <button id="btnRemoverLogoEmpresa" class="secondary-button" type="button" hidden>Remover logomarca</button>
+
+          <button id="btnSalvarConfiguracoes" class="primary-button" type="button">
+            Salvar configurações
+          </button>
+        </div>
+
+        <div class="panel">
+          <h3>Gerenciamento de usuários</h3>
+<p>Consulte somente os alunos que já estão vinculados à sua conta de instrutor. Nenhum outro instrutor ou usuário será exibido.</p>
+<div class="filter-row"><input id="buscaAlunosVinculados" class="search-input" type="search" placeholder="Buscar aluno vinculado"><span id="totalAlunosVinculados" class="form-hint" aria-live="polite">Carregando...</span></div>
+<div id="listaAlunosVinculados" class="list-container"><div class="empty-state">Carregando alunos vinculados...</div></div>
+        </div>
+      </section>
+
+      
+
+      <section id="page-contratos" class="page">
+        <div class="page-heading"><div><span class="eyebrow">DOCUMENTOS</span><h2>Contratos</h2></div></div>
+        <div class="contract-action-grid">
+          <button id="btnAbrirContratoAluno" class="primary-button" type="button">Novo contrato de aluno</button>
+          <button id="btnListaContratosAluno" class="secondary-button" type="button">Contratos de alunos gerados</button>
+        </div>
+        <dialog id="modalGeradorContrato" class="contrato-modal">
+        <div class="panel">
+          <div class="partner-modal-head"><h3 id="tituloTipoContrato">Contrato de cliente</h3><button id="btnFecharGeradorContrato" class="secondary-button" type="button">Fechar</button></div>
+
+          <p class="form-hint">Os dados do responsável são preenchidos automaticamente pelo cadastro em <strong>Meu cadastro</strong>. Confira as informações antes de gerar o contrato.</p>
+          <div id="formContratoCliente">
+            <label for="contratoAluno">Usar aluno cadastrado</label><select id="contratoAluno"><option value="">Preencher manualmente</option></select>
+            <label for="clienteNome">Nome completo</label><input id="clienteNome" type="text">
+            <label for="clienteCpf">CPF</label><input id="clienteCpf" type="text">
+            <label for="clienteCategoria">Categoria desejada</label><select id="clienteCategoria"><option value="">Selecione</option><option>A</option><option>B</option><option>AB</option></select>
+            <label for="clienteAulas">Quantidade de aulas</label><input id="clienteAulas" type="number" min="1" placeholder="Ex.: 20">
+            <label class="contrato-check"><input id="clienteCartao" type="checkbox" checked> Cartão Moto Pista</label>
+            <label class="contrato-check"><input id="clienteAluguel" type="checkbox" checked> Aluguel do veículo para exame</label>
+            <label for="clienteValor">Valor do pacote (R$)</label><input id="clienteValor" type="number" min="0" step="0.01">
+            <label for="clientePagamento">Forma de pagamento</label><input id="clientePagamento" type="text" placeholder="Ex.: Pix, dinheiro, cartão...">
+          </div>
+          
+          <div class="contrato-acoes"><button id="btnGerarContrato" class="primary-button" type="button">Gerar pré-visualização</button><button id="btnImprimirContrato" class="secondary-button" type="button">Imprimir / Salvar PDF</button></div>
+        </div>
+        <div id="contratoPreview" class="contrato-preview"><div class="empty-state">Preencha os dados e gere a pré-visualização do contrato.</div></div>
+      </dialog>
+        <dialog id="modalListaContratos" class="contrato-modal">
+          <div class="panel">
+            <div class="partner-modal-head"><h3 id="tituloListaContratos">Contratos gerados</h3><button id="btnFecharListaContratos" class="secondary-button" type="button">Fechar</button></div>
+            <div id="listaContratosGerados" class="list-container"><div class="empty-state">Carregando contratos…</div></div>
+          </div>
+        </dialog>
+      </section>
     </main>
+
     <nav class="bottom-menu" aria-label="Menu principal">
-      <button type="button"  class="menu-item active" data-page="inicio" data-instructor-page="inicio"><span class="menu-icon">⌂</span><span>Início</span></button>
-      <button type="button"  class="menu-item" data-page="alunos" data-instructor-page="alunos"><span class="menu-icon">♙</span><span>Alunos</span></button>
-      <button type="button"  class="menu-item" data-page="alunos-vinculados" data-instructor-page="alunos-vinculados"><span class="menu-icon">♧</span><span>Gerenciar usuários</span></button>
-      <button type="button"  class="menu-item" data-page="veiculos" data-instructor-page="veiculos"><span class="menu-icon">▣</span><span>Veículos</span></button>
-      <button type="button"  class="menu-item" data-page="aulas" data-instructor-page="aulas"><span class="menu-icon">▦</span><span>Aulas</span></button>
-      <button type="button"  class="menu-item" data-page="produtos" data-instructor-page="produtos"><span class="menu-icon">▧</span><span>Produtos</span></button>
-      <button type="button"  class="menu-item" data-page="vendas" data-instructor-page="vendas"><span class="menu-icon">＋</span><span>Vendas</span></button>
-      <button type="button"  class="menu-item" data-page="financeiro" data-instructor-page="financeiro"><span class="menu-icon">＄</span><span>Financeiro</span></button>
-      <button type="button"  class="menu-item" data-page="relatorios" data-instructor-page="relatorios"><span class="menu-icon">▤</span><span>Relatórios</span></button>
-      <button type="button"  class="menu-item" data-page="contratos" data-instructor-page="contratos"><span class="menu-icon">▧</span><span>Contratos</span></button>
-      <button type="button"  class="menu-item" data-page="cadastro" data-instructor-page="cadastro"><span class="menu-icon">♙</span><span>Meu cadastro</span></button>
-      <button type="button"  class="menu-item" data-page="backup" data-instructor-page="backup"><span class="menu-icon">⇧</span><span>Backup</span></button>
-      <button type="button"  class="menu-item" data-page="configuracoes" data-instructor-page="configuracoes"><span class="menu-icon">⚙</span><span>Ajustes</span></button>
+      <button type="button" data-page="inicio" class="menu-item active">
+        <span class="menu-icon">⌂</span>
+        <span>Início</span>
+      </button>
+      <button type="button" data-page="alunos" class="menu-item">
+        <span class="menu-icon">♙</span>
+        <span>Alunos</span>
+      </button>
+      <button type="button" data-page="veiculos" class="menu-item">
+        <span class="menu-icon">▣</span>
+        <span>Veículos</span>
+      </button>
+      <button type="button" data-page="aulas" class="menu-item">
+        <span class="menu-icon">▦</span>
+        <span>Aulas</span>
+      </button>
+      <button type="button" data-page="financeiro" class="menu-item">
+        <span class="menu-icon">$</span>
+        <span>Financeiro</span>
+      </button>
+      <button type="button" data-page="relatorios" class="menu-item">
+        <span class="menu-icon">▤</span>
+        <span>Relatórios</span>
+      </button>
+
+      <button type="button" data-page="contratos" class="menu-item"><span class="menu-icon">▧</span><span>Contratos</span></button>
+      <button type="button" data-page="cadastro" class="menu-item"><span class="menu-icon">♙</span><span>Meu cadastro</span></button>
+      <button type="button" data-page="backup" class="menu-item">
+        <span class="menu-icon">⇧</span>
+        <span>Backup</span>
+      </button>
+      <button type="button" data-page="configuracoes" class="menu-item">
+        <span class="menu-icon">⚙</span>
+        <span>Ajustes</span>
+      </button>
     </nav>
-    <footer>Central do Instrutor · Área restrita</footer>
+
+    <div id="modalContainer"></div>
+    <div id="toastContainer" aria-live="polite"></div>
+
   </div>
 
+  <section id="telaLogin" class="login-screen" aria-labelledby="loginTitulo">
+    <div class="login-card">
+      <div class="login-brand">MI</div>
+      <span class="login-eyebrow">ÁREA RESTRITA</span>
+      <h1 id="loginTitulo">Central do Instrutor</h1>
+      <p class="login-description">Entre com sua conta autorizada para acessar o sistema.</p>
+      <form id="formLogin">
+        <label for="loginEmail">E-mail</label>
+        <input id="loginEmail" name="email" type="email" autocomplete="username" placeholder="Seu e-mail" required>
+        <label for="loginSenha">Senha</label>
+        <input id="loginSenha" name="password" type="password" autocomplete="current-password" placeholder="Sua senha" required>
+        <p id="loginMensagem" class="login-message" role="alert" aria-live="polite"></p>
+        <button id="btnEntrar" class="login-button" type="submit">Entrar</button>
+      </form>
+      <button id="btnMostrarRecuperacao" type="button" class="login-recovery-link" style="display:block;margin:14px auto 0;background:none;border:0;color:#2563eb;text-decoration:underline;cursor:pointer;font:inherit;">Esqueci minha senha</button>
+      <form id="formRecuperarSenha" hidden>
+        <p class="login-description">Informe seu e-mail. Enviaremos um link para cadastrar uma nova senha.</p>
+        <label for="recuperarEmail">E-mail</label>
+        <input id="recuperarEmail" name="email" type="email" autocomplete="email" placeholder="Seu e-mail" required>
+        <p id="recuperarMensagem" class="login-message" role="alert" aria-live="polite"></p>
+        <button id="btnEnviarRecuperacao" class="login-button" type="submit">Enviar link de recuperação</button>
+        <button id="btnVoltarLogin" type="button" class="login-recovery-link" style="display:block;margin:14px auto 0;background:none;border:0;color:#2563eb;text-decoration:underline;cursor:pointer;font:inherit;">Voltar ao login</button>
+      </form>
+      <form id="formNovaSenha" hidden>
+        <p class="login-description">Crie uma nova senha para sua conta.</p>
+        <label for="novaSenha">Nova senha</label>
+        <input id="novaSenha" type="password" autocomplete="new-password" minlength="8" placeholder="Mínimo de 8 caracteres" required>
+        <label for="confirmarNovaSenha">Confirmar nova senha</label>
+        <input id="confirmarNovaSenha" type="password" autocomplete="new-password" minlength="8" placeholder="Repita a nova senha" required>
+        <p id="novaSenhaMensagem" class="login-message" role="alert" aria-live="polite"></p>
+        <button id="btnSalvarNovaSenha" class="login-button" type="submit">Salvar nova senha</button>
+      </form>
+      <p class="login-security">Acesso permitido somente a contas autorizadas.</p>
+    </div>
+  </section>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
-  <script src="contratante-perfil.js?v=2-cellphone"></script>
-  <script src="instrutor.js?v=admin-shell-2"></script>
-  <script src="exames-alugueis.js?v=exams-status-filter-1"></script>
+  <!-- O painel administrativo só será carregado após validar role=admin. -->
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("./service-worker.js?v=qa-preview-isolated-3", { updateViaCache: "none" })
+          .then(function (registro) {
+            return registro.update();
+          })
+          .catch(function (error) {
+            console.error("Erro ao registrar o aplicativo:", error);
+          });
+      });
+    }
+  </script>
+
+
+  <script>
+    (function () {
+      "use strict";
+      const hostPreview = window.location.hostname;
+      const USAR_SUPABASE_QA = hostPreview === "marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app" ||
+    hostPreview === "marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app" || /^marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(hostPreview);
+      const SUPABASE_URL = USAR_SUPABASE_QA ? "https://voyjssflroiwdyaacthh.supabase.co" : "https://ydyqagqsuqntuibzgwzd.supabase.co";
+      const SUPABASE_PUBLISHABLE_KEY = USAR_SUPABASE_QA ? "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9" : "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
+      const formularioLogin = document.getElementById("formLogin");
+      const campoEmail = document.getElementById("loginEmail");
+      const campoSenha = document.getElementById("loginSenha");
+      const mensagemLogin = document.getElementById("loginMensagem");
+      const botaoEntrar = document.getElementById("btnEntrar");
+      const formRecuperarSenha = document.getElementById("formRecuperarSenha");
+      const formNovaSenha = document.getElementById("formNovaSenha");
+      const mensagemRecuperacao = document.getElementById("recuperarMensagem");
+      const mensagemNovaSenha = document.getElementById("novaSenhaMensagem");
+      const btnMostrarRecuperacao = document.getElementById("btnMostrarRecuperacao");
+      const parametrosUrl = new URLSearchParams(window.location.search);
+      const parametrosHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      let modoRecuperacao = parametrosUrl.has("code") || ["recovery", "invite"].includes(parametrosUrl.get("type")) || ["recovery", "invite"].includes(parametrosHash.get("type"));
+      function mostrarLogin(mensagem) {
+        document.body.classList.remove("autenticado");
+        if (mensagemLogin) mensagemLogin.textContent = mensagem || "";
+        if (campoSenha) campoSenha.value = "";
+      }
+      function mostrarErro(mensagem) { if (mensagemLogin) mensagemLogin.textContent = mensagem; }
+      let painelAdminCarregado = false;
+      function carregarScript(src) {
+        return new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = src;
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Falha ao carregar " + src));
+          document.body.appendChild(script);
+        });
+      }
+      async function carregarPainelInstrutor() {
+        if (painelAdminCarregado) return;
+        await carregarScript("script.js?v=shared-admin-shell-instructor-1");
+await carregarScript("contratante-perfil.js?v=2-cellphone");
+await carregarScript("contratos.js?v=instructor-client-contract-only-1");
+await carregarScript("exames-alugueis.js?v=exams-status-filter-1");
+await carregarScript("instrutor-users.js?v=linked-students-only-1");
+        painelAdminCarregado = true;
+      }
+      async function mostrarAplicativo(usuario) {
+        if (!usuario || !usuario.id) {
+          mostrarLogin("Não foi possível identificar a conta administrativa.");
+          return;
+        }
+        const chaveUsuarioAtual = "marcus_admin_user_id";
+        const usuarioAnterior = window.sessionStorage.getItem(chaveUsuarioAtual);
+        if (usuarioAnterior && usuarioAnterior !== usuario.id) {
+          window.sessionStorage.setItem(chaveUsuarioAtual, usuario.id);
+          window.location.reload();
+          return;
+        }
+        window.sessionStorage.setItem(chaveUsuarioAtual, usuario.id);
+        await carregarPainelInstrutor();
+        const botaoSair = document.getElementById("btnLogout");
+        if (botaoSair) {
+          botaoSair.disabled = false;
+          botaoSair.textContent = "Sair";
+        }
+        document.body.classList.add("autenticado");
+        if (mensagemLogin) mensagemLogin.textContent = "";
+        window.dispatchEvent(new Event("marcus-authenticated"));
+      }
+      if (!window.supabase || typeof window.supabase.createClient !== "function") {
+        mostrarLogin("Não foi possível carregar a autenticação. Verifique sua conexão e atualize a página.");
+        return;
+      }
+      const clienteSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+        auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage }
+      });
+      window.getMarcusSupabase = function () { return clienteSupabase; };
+      async function conferirPerfil(usuario) {
+        if (modoRecuperacao) {
+          mostrarFormularioRecuperacao();
+          return false;
+        }
+        if (!usuario || !usuario.id) { mostrarLogin("Entre com sua conta para continuar."); return false; }
+        const { data: perfil, error } = await clienteSupabase.from("profiles")
+          .select("id, role").eq("id", usuario.id).maybeSingle();
+        if (error) {
+          await clienteSupabase.auth.signOut({ scope: "local" });
+          mostrarLogin("Não foi possível validar seu acesso. Confira a conexão e tente novamente.");
+          return false;
+        }
+        if (!perfil) {
+          await clienteSupabase.auth.signOut({ scope: "local" });
+          mostrarLogin("Não foi encontrado um perfil autorizado para esta conta.");
+          return false;
+        }
+        if (perfil.role === "usuario") {
+          window.location.replace("usuario.html");
+          return false;
+        }
+        if (perfil.role === "admin") {
+          window.location.replace("index.html");
+          return false;
+        }
+        if (perfil.role === "parceiro") {
+          window.location.replace("parceiro.html");
+          return false;
+        }
+        if (perfil.role !== "instrutor") {
+          await clienteSupabase.auth.signOut({ scope: "local" });
+          mostrarLogin("Esta área é exclusiva para instrutores autorizados.");
+          return false;
+        }
+        await mostrarAplicativo(usuario);
+        const botaoSair = document.getElementById("btnLogout");
+        if (botaoSair) {
+          botaoSair.onclick = async function () {
+            botaoSair.disabled = true;
+            botaoSair.textContent = "Saindo...";
+            try {
+              const { error: erroSaida } = await clienteSupabase.auth.signOut({ scope: "local" });
+              if (erroSaida) throw erroSaida;
+              mostrarLogin("Sessão encerrada com segurança.");
+            } catch (erro) {
+              console.error("Erro ao encerrar sessão:", erro);
+              mostrarErro("Não foi possível encerrar a sessão. Tente novamente.");
+            } finally {
+              botaoSair.disabled = false;
+              botaoSair.textContent = "Sair";
+            }
+          };
+        }
+        return true;
+      }
+      formularioLogin.addEventListener("submit", async function (evento) {
+        evento.preventDefault();
+        const email = campoEmail.value.trim(), password = campoSenha.value;
+        if (!email || !password) { mostrarErro("Informe seu e-mail e sua senha."); return; }
+        botaoEntrar.disabled = true;
+        botaoEntrar.textContent = "Verificando...";
+        mostrarErro("");
+        try {
+          let { data, error } = await clienteSupabase.auth.signInWithPassword({ email, password });
+          if (error) {
+            // Instrutores cadastrados na Central usam as mesmas credenciais no APP.
+            // O servidor valida a senha na Central, provisiona a conta do APP e conclui o vínculo.
+            const { data: provisionamento, error: erroProvisionamento } = await clienteSupabase.functions.invoke("provision-central-instructor", {
+              body: { email, password }
+            });
+            if (erroProvisionamento || !provisionamento?.ok) {
+              mostrarErro(provisionamento?.error || "Não foi possível entrar. Confira o e-mail e a senha.");
+              return;
+            }
+            const novoLogin = await clienteSupabase.auth.signInWithPassword({ email, password });
+            data = novoLogin.data;
+            error = novoLogin.error;
+          }
+          if (error || !data?.user) { mostrarErro("Não foi possível entrar. Confira o e-mail e a senha."); return; }
+          const autorizado = await conferirPerfil(data.user);
+          if (!autorizado) campoSenha.value = "";
+        } catch (erro) {
+          console.error("Erro ao realizar login:", erro);
+          mostrarErro("Ocorreu um erro ao entrar. Verifique sua conexão e tente novamente.");
+        } finally {
+          botaoEntrar.disabled = false;
+          botaoEntrar.textContent = "Entrar";
+        }
+      });
+      function mostrarFormularioRecuperacao() {
+        document.body.classList.remove("autenticado");
+        formLogin.hidden = true;
+        formRecuperarSenha.hidden = true;
+        formNovaSenha.hidden = false;
+        btnMostrarRecuperacao.hidden = true;
+        document.querySelector(".login-security").hidden = true;
+        if (mensagemNovaSenha) mensagemNovaSenha.textContent = "";
+      }
+
+      btnMostrarRecuperacao.addEventListener("click", function () {
+        formLogin.hidden = true;
+        formRecuperarSenha.hidden = false;
+        formNovaSenha.hidden = true;
+        btnMostrarRecuperacao.hidden = true;
+        if (mensagemRecuperacao) mensagemRecuperacao.textContent = "";
+        document.getElementById("recuperarEmail").value = campoEmail.value.trim();
+      });
+
+      document.getElementById("btnVoltarLogin").addEventListener("click", function () {
+        formRecuperarSenha.hidden = true;
+        formNovaSenha.hidden = true;
+        formLogin.hidden = false;
+        btnMostrarRecuperacao.hidden = false;
+      });
+
+      formRecuperarSenha.addEventListener("submit", async function (evento) {
+        evento.preventDefault();
+        const email = document.getElementById("recuperarEmail").value.trim();
+        const botao = document.getElementById("btnEnviarRecuperacao");
+        if (!email) return;
+        botao.disabled = true;
+        botao.textContent = "Enviando...";
+        mensagemRecuperacao.textContent = "";
+        try {
+          const { error } = await clienteSupabase.auth.resetPasswordForEmail(email, {
+            redirectTo: "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app/"
+          });
+          if (error) throw error;
+          mensagemRecuperacao.textContent = "Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha. Verifique também o spam.";
+        } catch (erro) {
+          console.error("Erro ao solicitar recuperação:", erro);
+          mensagemRecuperacao.textContent = "Não foi possível enviar o link. Verifique a conexão e tente novamente.";
+        } finally {
+          botao.disabled = false;
+          botao.textContent = "Enviar link de recuperação";
+        }
+      });
+
+      formNovaSenha.addEventListener("submit", async function (evento) {
+        evento.preventDefault();
+        const senha = document.getElementById("novaSenha").value;
+        const confirmacao = document.getElementById("confirmarNovaSenha").value;
+        const botao = document.getElementById("btnSalvarNovaSenha");
+        if (senha.length < 8) {
+          mensagemNovaSenha.textContent = "A senha precisa ter pelo menos 8 caracteres.";
+          return;
+        }
+        if (senha !== confirmacao) {
+          mensagemNovaSenha.textContent = "As senhas não conferem.";
+          return;
+        }
+        botao.disabled = true;
+        botao.textContent = "Salvando...";
+        mensagemNovaSenha.textContent = "";
+        try {
+          const { error } = await clienteSupabase.auth.updateUser({ password: senha });
+          if (error) throw error;
+          modoRecuperacao = false;
+          window.history.replaceState({}, document.title, window.location.pathname);
+          await clienteSupabase.auth.signOut({ scope: "local" });
+          formNovaSenha.hidden = true;
+          formLogin.hidden = false;
+          btnMostrarRecuperacao.hidden = false;
+          document.querySelector(".login-security").hidden = false;
+          mensagemLogin.textContent = "Senha alterada com sucesso. Entre com sua nova senha.";
+          document.getElementById("novaSenha").value = "";
+          document.getElementById("confirmarNovaSenha").value = "";
+        } catch (erro) {
+          console.error("Erro ao atualizar senha:", erro);
+          mensagemNovaSenha.textContent = "Não foi possível alterar a senha. Solicite um novo link de recuperação.";
+        } finally {
+          botao.disabled = false;
+          botao.textContent = "Salvar nova senha";
+        }
+      });
+
+      clienteSupabase.auth.onAuthStateChange(function (evento, sessao) {
+        if (evento === "PASSWORD_RECOVERY") {
+          modoRecuperacao = true;
+          mostrarFormularioRecuperacao();
+          return;
+        }
+        if (evento === "SIGNED_OUT") {
+          window.sessionStorage.removeItem("marcus_admin_user_id");
+          window.dispatchEvent(new Event("marcus-unauthenticated"));
+          window.location.reload();
+          return;
+        }
+        if (!sessao) {
+          mostrarLogin("Sua sessão foi encerrada. Entre novamente para continuar.");
+          window.dispatchEvent(new Event("marcus-unauthenticated"));
+        }
+      });
+      (async function iniciarAutenticacao() {
+        try {
+          if (modoRecuperacao) {
+            mostrarFormularioRecuperacao();
+            return;
+          }
+          const { data, error } = await clienteSupabase.auth.getSession();
+          if (error) { mostrarLogin("Não foi possível recuperar sua sessão. Entre novamente."); return; }
+          if (data.session && data.session.user) await conferirPerfil(data.session.user);
+          else mostrarLogin("Entre com sua conta para continuar.");
+        } catch (erro) {
+          console.error("Erro ao verificar sessão:", erro);
+          mostrarLogin("Não foi possível verificar sua sessão. Atualize a página e tente novamente.");
+        }
+      })();
+    })();
+  </script>
+
+<!-- Atualização de interface do módulo Parceiros -->
 </body>
 </html>
