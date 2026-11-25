@@ -239,6 +239,7 @@ function atualizarTela(nome) {
   switch (nome) {
     case "inicio":
       atualizarPainel();
+      atualizarProximosExamesPainel();
       break;
     case "alunos":
       listarAlunos();
@@ -270,6 +271,43 @@ function atualizarTela(nome) {
 ========================================= */
 
 
+
+async function atualizarProximosExamesPainel() {
+  const host = document.getElementById("proximosExames");
+  if (!host) return;
+  const cliente = window.getMarcusSupabase?.();
+  if (!cliente || !adminSupabaseUserId) {
+    host.textContent = "Não foi possível carregar os exames agendados.";
+    return;
+  }
+  host.textContent = "Carregando exames...";
+  try {
+    const agora = new Date().toISOString();
+    const { data, error } = await cliente
+      .from("student_practical_exams")
+      .select("id,scheduled_at,students(nome)")
+      .eq("owner_id", adminSupabaseUserId)
+      .eq("status", "agendado")
+      .gte("scheduled_at", agora)
+      .order("scheduled_at", { ascending: true })
+      .limit(12);
+    if (error) throw error;
+    const exames = data || [];
+    host.classList.toggle("empty-state", exames.length === 0);
+    host.innerHTML = exames.length
+      ? exames.map(exame => {
+          const quando = new Date(exame.scheduled_at);
+          const dataHora = Number.isNaN(quando.getTime())
+            ? "Data não disponível"
+            : quando.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+          return `<div class="record"><strong>${escapar(exame.students?.nome || "Aluno")}</strong><p>${escapar(dataHora)}</p><span class="form-hint">Exame prático agendado</span></div>`;
+        }).join("")
+      : "Nenhum exame agendado.";
+  } catch (erro) {
+    console.error("Erro ao carregar próximos exames:", erro);
+    host.textContent = "Não foi possível carregar os exames agendados.";
+  }
+}
 
 function atualizarPainel() {
   const totalAlunos = document.getElementById("totalAlunos");
@@ -3839,27 +3877,4 @@ async function limparTodosRegistros() {
   mostrarAviso("Todos os registros foram apagados.");
 }
 
-const painelBackup = document.querySelector("#page-backup");
-
-if (painelBackup) {
-  const painelLimpeza = document.createElement("div");
-
-  painelLimpeza.className = "panel";
-  painelLimpeza.innerHTML = `
-    <h3>Limpar todos os registros</h3>
-    <p>Apaga alunos, veículos, aulas, vendas e despesas.</p>
-    <button
-      id="btnLimparRegistros"
-      type="button"
-      class="primary-button"
-      style="background:#b42318"
-    >
-      Limpar todos os registros
-    </button>
-  `;
-
-  painelBackup.appendChild(painelLimpeza);
-
-  document.getElementById("btnLimparRegistros").onclick =
-    limparTodosRegistros;
-}
+// A limpeza de dados é executada somente mediante solicitação administrativa explícita.
