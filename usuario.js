@@ -2,6 +2,7 @@
 
 (function () {
   const hostPreview = window.location.hostname;
+  const USAR_SUPABASE_QA = hostPreview === "marcusinstrutor-git-qa-production-readin-52425c-marcusvffs-2839.vercel.app" ||
   const USAR_SUPABASE_QA = hostPreview === "marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app" ||
     hostPreview === "marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app" || /^marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(hostPreview);
   const SUPABASE_URL = USAR_SUPABASE_QA ? "https://voyjssflroiwdyaacthh.supabase.co" : "https://ydyqagqsuqntuibzgwzd.supabase.co";
