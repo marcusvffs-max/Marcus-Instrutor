@@ -10,7 +10,7 @@ ALTER TABLE public.profiles
   DROP CONSTRAINT IF EXISTS profiles_role_check;
 ALTER TABLE public.profiles
   ADD CONSTRAINT profiles_role_check
-  CHECK (role = ANY (ARRAY['admin'::text, 'instrutor'::text, 'usuario'::text, 'parceiro'::text));
+  CHECK (role IN ('admin', 'instrutor', 'usuario', 'parceiro'));
 
 -- Estrutura persistente do módulo de parceiros, com isolamento por proprietário.
 CREATE TABLE IF NOT EXISTS public.partners (
