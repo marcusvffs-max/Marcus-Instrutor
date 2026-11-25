@@ -1257,8 +1257,8 @@
 
   async function loadProductsAndSales() {
     const [productsResult, salesResult, saleItemsResult, fixedPricesResult, rentalCreditsResult] = await Promise.all([
-      state.supabase.from("products").select("id,nome,tipo,descricao,preco,quantidade_aulas,ativo").order("nome", { ascending: true }),
-      state.supabase.from("sales").select("id,student_id,data_venda,total,forma_pagamento,status,observacoes,created_at").order("data_venda", { ascending: false }).order("created_at", { ascending: false }),
+      state.supabase.from("products").select("id,nome,tipo,descricao,preco,quantidade_aulas,ativo").eq("owner_id", state.user.id).order("nome", { ascending: true }),
+      state.supabase.from("sales").select("id,student_id,data_venda,total,forma_pagamento,status,observacoes,created_at").eq("owner_id", state.user.id).order("data_venda", { ascending: false }).order("created_at", { ascending: false }),
       state.supabase.from("sale_items").select("id,sale_id,descricao,quantidade,tipo_item,aulas_contratadas,aulas_devolvidas,valor_por_aula,valor_liquido,valor_devolvido,quantidade_devolvida,subtotal,valor_unitario,fixed_item_key").eq("owner_id", state.user.id),
       state.supabase.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", state.user.id).maybeSingle(),
       state.supabase.from("student_rental_credits").select("sale_item_id,quantity_purchased,quantity_refunded,quantity_consumed")
@@ -1526,6 +1526,7 @@
   async function loadFinancialData() {
     const { data, error } = await state.supabase.from("financial_transactions")
       .select("id,tipo,descricao,valor,data_movimento,status,student_id,sale_id,created_at")
+      .eq("owner_id", state.user.id)
       .order("data_movimento", { ascending: false })
       .order("created_at", { ascending: false });
     if (error) throw error;
