@@ -228,8 +228,17 @@ CREATE TABLE IF NOT EXISTS public.partner_commission_lessons (
 CREATE INDEX IF NOT EXISTS partner_commission_lessons_owner_commission_idx
   ON public.partner_commission_lessons(owner_id, commission_id);
 
+-- Todas as tabelas do módulo ficam protegidas por RLS. As tabelas acessadas
+-- exclusivamente pelas Edge Functions não recebem políticas para authenticated;
+-- service_role mantém o acesso administrativo controlado no servidor.
 ALTER TABLE public.partners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_quotes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_quote_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_message_recipients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.partner_commissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_payouts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.partner_commission_lessons ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.partners, public.partner_students, public.partner_quotes,
   public.partner_quote_items, public.partner_messages, public.partner_message_recipients,
