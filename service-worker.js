@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v40-partner-portal-11";
+const CACHE_NAME = "marcus-instrutor-v41-expired-access-gate-1";
 
 const ARQUIVOS = [
   "./",
