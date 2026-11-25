@@ -1,0 +1,77 @@
+-- RECOVERED FROM PRODUCTION DATABASE MIGRATION HISTORY
+-- version: 20261120154116
+-- name: student_email_and_user_scheduled_lessons_by_email
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against QA and production schemas before creating an executable migration.
+
+
+ALTER TABLE public.students
+  ADD COLUMN IF NOT EXISTS email text;
+
+CREATE INDEX IF NOT EXISTS students_email_normalized_idx
+  ON public.students (lower(btrim(email)))
+  WHERE email IS NOT NULL AND btrim(email) <> '';
+
+CREATE OR REPLACE FUNCTION public.get_my_scheduled_lessons()
+RETURNS TABLE(
+  lesson_id uuid,
+  student_name text,
+  lesson_date date,
+  lesson_time time without time zone,
+  vehicle_name text,
+  vehicle_plate text,
+  lesson_status text
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+DECLARE
+  current_email text;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Autenticação necessária.' USING ERRCODE = '42501';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.profiles p
+    WHERE p.id = auth.uid()
+      AND p.role = 'usuario'
+  ) THEN
+    RAISE EXCEPTION 'Acesso permitido somente ao perfil Usuário.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  current_email := lower(btrim(COALESCE(auth.jwt() ->> 'email', '')));
+
+  IF current_email = '' THEN
+    RETURN;
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    l.id,
+    s.nome,
+    l.data_aula,
+    l.horario,
+    COALESCE(v.nome, v.tipo, 'Não informado'),
+    v.placa,
+    l.status
+  FROM public.students s
+  JOIN public.lessons l
+    ON l.student_id = s.id
+   AND l.owner_id = s.owner_id
+  LEFT JOIN public.vehicles v
+    ON v.id = l.vehicle_id
+   AND v.owner_id = l.owner_id
+  WHERE lower(btrim(COALESCE(s.email, ''))) = current_email
+    AND lower(btrim(COALESCE(l.status, ''))) = 'agendada'
+  ORDER BY l.data_aula, l.horario;
+END;
+$function$;
+
+REVOKE EXECUTE ON FUNCTION public.get_my_scheduled_lessons() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_my_scheduled_lessons() TO authenticated;
+
