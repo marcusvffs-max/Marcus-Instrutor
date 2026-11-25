@@ -273,6 +273,7 @@ async function sendServiceContinuationMenu(
     { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
     { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
     { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
+    { id: "service_app", title: "Aplicativo", description: "Conheça o acesso exclusivo para acompanhar suas aulas." },
     { id: "menu_close_assistant", title: "Encerrar assistente", description: "Finalize e pause a assistente por 48 horas." },
   ];
 
