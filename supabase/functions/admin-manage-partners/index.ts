@@ -51,7 +51,7 @@ Deno.serve(async (req: Request) => {
 
     if (body.action === "list") {
       const [partnersResult, referralsResult, quotesResult, studentsResult, commissionsResult] = await Promise.all([
-        db.from("partners").select("id,nome,email,telefone,cpf_cnpj,endereco,pix_key,commission_percent,status,approved_at,rejected_at,created_at,updated_at,user_id").eq("owner_id", ownerId).order("created_at", { ascending: false }),
+        db.from("partners").select("id,nome,email,telefone,cpf_cnpj,endereco,nacionalidade,estado_civil,profissao,pix_key,commission_percent,status,approved_at,rejected_at,created_at,updated_at,user_id").eq("owner_id", ownerId).order("created_at", { ascending: false }),
         db.from("partner_students").select("id,partner_id,nome,telefone,cpf,endereco,categoria,status,created_at").eq("owner_id", ownerId).order("created_at", { ascending: false }),
         db.from("partner_quotes").select("id,partner_id,partner_student_id,status,subtotal,total,observacoes,created_at").eq("owner_id", ownerId).eq("status", "pendente").order("created_at", { ascending: false }),
         db.from("students").select("id,nome,telefone,categoria,status,partner_id,created_at").eq("owner_id", ownerId).not("partner_id", "is", null).order("nome"),
