@@ -1576,7 +1576,7 @@ function listarMovimentacoes() {
          ${!possuiAluguel ? `<button type="button" class="secondary-button finance-action" data-delete-venda="${escapar(venda.id)}">Excluir venda</button>` : ""}`
       : "";
     return {
-      data: dataMaisRecente,
+      data: venda?.createdAt || venda?.data || dataMaisRecente,
       html: `<article class="finance-sale-card">
         <div class="finance-sale-heading">
           <div><span class="finance-kicker">VENDA</span><h4>${escapar(aluno?.nome || "Aluno não identificado")}</h4>
@@ -1602,7 +1602,11 @@ function listarMovimentacoes() {
     };
   });
 
-  const cartoes = [...cartoesVenda, ...cartoesAvulsos].sort((a, b) => b.data.localeCompare(a.data));
+  const cartoes = [...cartoesVenda, ...cartoesAvulsos].sort((a, b) => {
+    const dataA = Date.parse(a.data) || Date.parse(String(a.data || "") + "T00:00:00");
+    const dataB = Date.parse(b.data) || Date.parse(String(b.data || "") + "T00:00:00");
+    return dataB - dataA;
+  });
   lista.innerHTML = cartoes.map(item => item.html).join("") ||
     '<div class="empty-state">Nenhuma movimentação neste período.</div>';
 }
@@ -3756,6 +3760,7 @@ async function carregarDadosAdminSupabase() {
       valorTotal: Number(v.total || 0),
       valorDevolvido: itens.reduce((total, item) => total + Number(item.valorDevolvido || 0), 0),
       data: v.data_venda,
+      createdAt: v.created_at || null,
       formaPagamento: v.forma_pagamento || "",
       status: v.status || "confirmada",
       nomeAluno: aluno?.nome || ""
