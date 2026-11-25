@@ -1,0 +1,59 @@
+-- RECOVERED FROM QA DATABASE MIGRATION HISTORY
+-- version: 20261124005620
+-- name: add_central_access_sync_ledger
+-- ARCHIVE ONLY: not in supabase/migrations and must not be applied directly.
+-- Reconcile against production schema and migration history before creating an executable migration.
+
+
+create table if not exists public.central_access_sync_events (
+  id uuid primary key default gen_random_uuid(),
+  central_event_id uuid not null unique,
+  central_instructor_id uuid not null,
+  app_user_id uuid not null references auth.users(id) on delete cascade,
+  period_ends_at timestamptz not null,
+  received_at timestamptz not null default now()
+);
+alter table public.central_access_sync_events enable row level security;
+revoke all on public.central_access_sync_events from anon, authenticated;
+grant all on public.central_access_sync_events to service_role;
+
+create or replace function public.apply_central_access_sync(
+  p_central_event_id uuid,
+  p_central_instructor_id uuid,
+  p_app_user_id uuid,
+  p_period_ends_at timestamptz
+) returns table(applied boolean, instructor_access_until timestamptz)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_existing timestamptz;
+  v_current timestamptz;
+begin
+  select e.period_ends_at into v_existing
+    from public.central_access_sync_events e
+    where e.central_event_id = p_central_event_id;
+  if found then
+    return query select false, v_existing;
+    return;
+  end if;
+
+  select p.instructor_access_until into v_current
+    from public.profiles p where p.id = p_app_user_id for update;
+  if not found then raise exception 'Perfil do instrutor não encontrado'; end if;
+
+  insert into public.central_access_sync_events(
+    central_event_id, central_instructor_id, app_user_id, period_ends_at
+  ) values (p_central_event_id, p_central_instructor_id, p_app_user_id, p_period_ends_at);
+
+  update public.profiles
+    set instructor_access_until = greatest(coalesce(v_current, p_period_ends_at), p_period_ends_at)
+    where id = p_app_user_id;
+
+  return query select true, (select instructor_access_until from public.profiles where id = p_app_user_id);
+end;
+$$;
+revoke all on function public.apply_central_access_sync(uuid,uuid,uuid,timestamptz) from public, anon, authenticated;
+grant execute on function public.apply_central_access_sync(uuid,uuid,uuid,timestamptz) to service_role;
+
