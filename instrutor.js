@@ -606,6 +606,11 @@
     container.innerHTML = scheduled.slice(0, 12).map(lesson => {
       const student = state.students.find(item => item.id === lesson.student_id);
       const remaining = Number(student?.aulas_restantes || 0);
+      const phoneDigits = String(student?.telefone || "").replace(/\D/g, "");
+      const whatsappNumber = phoneDigits && (phoneDigits.length === 10 || phoneDigits.length === 11) ? "55" + phoneDigits : phoneDigits;
+      const whatsappAction = whatsappNumber
+        ? '<a class="button button-outline button-small" href="https://wa.me/' + escapeHtml(whatsappNumber) + '" target="_blank" rel="noopener noreferrer">WhatsApp</a>'
+        : '<span class="form-hint">Telefone não informado</span>';
       return '<article class="upcoming-lesson-card">' +
         '<div class="upcoming-lesson-date"><strong>' + escapeHtml(formatDate(lesson.data_aula)) +
         '</strong><span>' + escapeHtml(String(lesson.horario || "").slice(0, 5)) + '</span></div>' +
@@ -614,6 +619,7 @@
         '<small>Aula ' + escapeHtml(lesson.numero_aula ?? "—") +
         ' · Saldo: ' + escapeHtml(remaining) + '</small></div>' +
         '<div class="upcoming-lesson-actions">' +
+        whatsappAction +
         '<button class="button button-success button-small" type="button" data-dashboard-lesson-action="realizada" data-lesson-id="' +
         escapeHtml(lesson.id) + '"' + (remaining <= 0 ? ' disabled title="Aluno sem aulas restantes"' : '') +
         '>Realizada</button>' +
