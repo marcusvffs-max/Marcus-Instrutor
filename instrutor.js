@@ -1998,19 +1998,12 @@
     document.body.innerHTML = '<main class="access-blocked-page"><section class="access-blocked-card">' +
       '<div class="access-blocked-icon" aria-hidden="true">🔒</div>' +
       '<h1>Acesso temporariamente bloqueado</h1>' +
-      '<p>Sua autorização de acesso ainda não foi liberada ou já venceu.</p>' +
-      '<p>Para reativar, gere um código na sua conta da Central do Instrutor e informe-o abaixo.</p>' +
-      '<label for="codigoVinculoCentral">Código de 8 dígitos</label>' +
-      '<input id="codigoVinculoCentral" inputmode="numeric" autocomplete="one-time-code" maxlength="8" pattern="[0-9]{8}" placeholder="00000000">' +
-      '<button id="btnVincularCentral" type="button">Vincular minha conta</button>' +
-      '<p id="statusVinculoCentral" role="status" aria-live="polite">O código é válido por 10 minutos e só pode ser usado uma vez.</p>' +
+      '<p>Sua autorização ainda não foi liberada ou já venceu.</p>' +
+      '<p>Seu cadastro e sua conta são conectados automaticamente. Para liberar ou renovar o acesso, regularize seu plano na Central do Instrutor.</p>' +
+      '<p><a href="https://central-do-instrutor.pages.dev/" target="_blank" rel="noopener noreferrer">Abrir Central do Instrutor</a></p>' +
       '<button id="btnSairAcessoBloqueado" type="button">Sair</button>' +
       '</section></main>';
     el("btnSairAcessoBloqueado").addEventListener("click", signOut);
-    el("btnVincularCentral").addEventListener("click", linkCentralAccount);
-    el("codigoVinculoCentral").addEventListener("input", event => {
-      event.target.value = event.target.value.replace(/\D/g, "").slice(0, 8);
-    });
   }
 
   function renderAccessCountdown(accessUntil) {
@@ -2112,60 +2105,6 @@
     intervalId = window.setInterval(update, 60_000);
     refreshIntervalId = window.setInterval(() => void refreshAccess(), 60_000);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-  }
-
-  async function linkCentralAccount() {
-    const button = el("btnVincularCentral");
-    const codeInput = el("codigoVinculoCentral");
-    const status = el("statusVinculoCentral");
-    const code = String(codeInput?.value || "").replace(/\D/g, "");
-    if (!/^\d{8}$/.test(code)) {
-      status.textContent = "Informe o código completo de 8 dígitos.";
-      status.style.color = "#a12b2b";
-      codeInput?.focus();
-      return;
-    }
-    button.disabled = true;
-    button.textContent = "Vinculando...";
-    status.textContent = "Validando o código e sincronizando sua validade...";
-    status.style.color = "";
-    try {
-      const { data, error } = await state.supabase.functions.invoke("complete-central-link", { body: { code } });
-      if (error) {
-        let detail = data?.error;
-        if (!detail && typeof error.context?.json === "function") {
-          const body = await error.context.json().catch(() => null);
-          detail = body?.error;
-        }
-        throw new Error(detail || error.message || "Não foi possível concluir o vínculo.");
-      }
-      if (!data?.linked || !data?.access_synced) {
-        throw new Error(data?.error || "O vínculo não foi confirmado com a sincronização de acesso.");
-      }
-      codeInput.value = "";
-      const { data: profile, error: profileError } = await state.supabase.from("profiles")
-        .select("id,nome,role,instructor_access_until").eq("id", state.user.id).maybeSingle();
-      if (profileError) throw profileError;
-      if (!profile || profile.role !== "instrutor") throw new Error("Não foi possível atualizar seu perfil de acesso.");
-      state.profile = profile;
-      if (typeof state.refreshAccessCountdown === "function") {
-        state.refreshAccessCountdown(profile.instructor_access_until);
-      } else {
-        status.textContent = "Vínculo concluído. Atualizando o aplicativo...";
-        window.location.reload();
-        return;
-      }
-      status.textContent = "Conta vinculada e validade sincronizada com sucesso.";
-      status.style.color = "#16794b";
-      showMessage("Conta Central vinculada com sucesso.", false);
-    } catch (error) {
-      console.error("Falha ao vincular a Central:", error);
-      status.textContent = error.message || "Não foi possível vincular a conta.";
-      status.style.color = "#a12b2b";
-    } finally {
-      button.disabled = false;
-      button.textContent = "Vincular minha conta";
-    }
   }
 
   async function initialize() {
@@ -2331,10 +2270,6 @@
     el("btnCancelarAulasLote").addEventListener("click", resetBatchLessonForm);
     el("formAulasLote").addEventListener("submit", saveBatchLessons);
     el("btnSalvarConfiguracoesInstrutor").addEventListener("click", saveInstructorSettings);
-    el("btnVincularCentral").addEventListener("click", linkCentralAccount);
-    el("codigoVinculoCentral").addEventListener("input", event => {
-      event.target.value = event.target.value.replace(/\D/g, "").slice(0, 8);
-    });
     el("btnRemoverLogoInstrutor").addEventListener("click", removeInstructorLogo);
     el("btnAgendarInicio").addEventListener("click", () => {
       navigateInstructorPage("aulas");
