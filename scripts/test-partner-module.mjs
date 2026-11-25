@@ -86,6 +86,9 @@ test("schema de parceiros inclui as chaves compostas e campos usados pelo portal
   assert.match(partnerSchemaMigration, /ADD COLUMN IF NOT EXISTS estado_civil text/);
   assert.match(partnerSchemaMigration, /ADD COLUMN IF NOT EXISTS profissao text/);
   assert.match(partnerSchemaMigration, /CHECK \(role IN \('admin', 'instrutor', 'usuario', 'parceiro'\)\)/);
+  for (const table of ["partners", "partner_students", "partner_quotes", "partner_quote_items", "partner_messages", "partner_message_recipients", "partner_commissions", "partner_payouts", "partner_commission_lessons"]) {
+    assert.ok(partnerSchemaMigration.includes("ALTER TABLE public." + table + " ENABLE ROW LEVEL SECURITY"), "RLS ausente: " + table);
+  }
 });
 
 test("PIX é controlado pelo administrador e somente leitura no portal", () => {
