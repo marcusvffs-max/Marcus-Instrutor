@@ -3,3 +3,13 @@
 # inside the handler, not with a Supabase user JWT.
 [functions.whatsapp-webhook]
 verify_jwt = false
+
+# Central account linking uses its own authenticated/HMAC checks.
+[functions.provision-central-instructor]
+verify_jwt = false
+
+[functions.complete-central-link]
+verify_jwt = true
+
+[functions.sync-central-access]
+verify_jwt = false
