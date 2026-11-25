@@ -82,22 +82,9 @@
   head.append(create("h2", { id: "usersTitle" }, "Gerenciar usuários"));
   const close = create("button", { class: "users-close", type: "button", "aria-label": "Fechar" }, "✕");
   head.append(close);
-  const form = create("form", { class: "users-form" });
-  const nameLabel = create("label", { for: "usersName" }, "Nome completo");
-  const nameInput = create("input", { id: "usersName", name: "nome", type: "text", maxlength: "100", required: "required", placeholder: "Nome do usuário" });
-  const emailLabel = create("label", { for: "usersEmail" }, "E-mail");
-  const emailInput = create("input", { id: "usersEmail", name: "email", type: "email", maxlength: "254", required: "required", placeholder: "email@exemplo.com" });
-  const roleLabel = create("label", { for: "usersRole" }, "Tipo de acesso");
-  const roleSelect = create("select", { id: "usersRole", name: "role" });
-  roleSelect.append(
-    create("option", { value: "instrutor" }, "Instrutor"),
-    create("option", { value: "usuario" }, "Aluno"),
-    create("option", { value: "admin" }, "Administrador")
-  );
-  const actions = create("div", { class: "users-actions" });
-  const send = create("button", { class: "users-primary", type: "submit" }, "Enviar convite");
   const refresh = create("button", { class: "users-secondary", type: "button" }, "Atualizar lista");
-  actions.append(send, refresh);
+  const actions = create("div", { class: "users-actions" });
+  actions.append(refresh);
   const message = create("p", { class: "users-message", role: "status", "aria-live": "polite" });
   const list = create("div", { class: "users-list" });
   list.append(create("strong", {}, "Usuários cadastrados"));
@@ -136,25 +123,9 @@
     filters.append(filterButton);
   });
 
-  const newUserButton = create("button", { class: "users-primary", type: "button" }, "Novo usuário");
-  head.append(newUserButton);
-  dialog.append(head, message, list);
-  form.append(nameLabel, nameInput, emailLabel, emailInput, roleLabel, roleSelect, actions);
-  const createOverlay = create("div", { class: "users-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "usersCreateTitle" });
-  createOverlay.hidden = true;
-  const createDialog = create("div", { class: "users-dialog" });
-  const createHead = create("div", { class: "users-head" });
-  createHead.append(create("h2", { id: "usersCreateTitle" }, "Convidar usuário"));
-  const createClose = create("button", { class: "users-close", type: "button", "aria-label": "Fechar formulário" }, "✕");
-  createHead.append(createClose);
-  createDialog.append(createHead, form);
-  createOverlay.append(createDialog);
+  dialog.append(head, message, actions, list);
   overlay.append(dialog);
-  document.body.append(overlay, createOverlay);
-  newUserButton.addEventListener("click", () => { form.reset(); createOverlay.hidden = false; nameInput.focus(); });
-  createClose.addEventListener("click", () => { createOverlay.hidden = true; });
-  createOverlay.addEventListener("click", event => { if (event.target === createOverlay) createOverlay.hidden = true; });
-  document.addEventListener("keydown", event => { if (event.key === "Escape") createOverlay.hidden = true; });
+  document.body.append(overlay);
 
   function closeModal() {
     overlay.hidden = true;
@@ -400,26 +371,4 @@
   });
 
   refresh.addEventListener("click", loadUsers);
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    send.disabled = true;
-    send.textContent = "Enviando...";
-    message.textContent = "";
-    try {
-      const result = await call("invite", {
-        nome: nameInput.value.trim(),
-        email: emailInput.value.trim(),
-        role: roleSelect.value,
-      });
-      message.textContent = result.message || "Convite enviado com sucesso.";
-      form.reset();
-      createOverlay.hidden = true;
-      await loadUsers();
-    } catch (error) {
-      message.textContent = error.message;
-    } finally {
-      send.disabled = false;
-      send.textContent = "Enviar convite";
-    }
-  });
 })();
