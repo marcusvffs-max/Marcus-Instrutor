@@ -1696,16 +1696,13 @@ function listarProdutos() {
 
   lista.innerHTML = produtos.length
     ? produtos.map(p => {
-        const tipo = p.tipo ||
-          (/pacote\s*(bronze|prata|ouro)|aula avulsa/i.test(p.nome || "")
-            ? "servico"
-            : "produto");
+        const tipo = "servico";
 
         return `
           <div class="record">
             <div class="record-info">
               <strong>${escapar(p.nome)}</strong>
-              <p>Classificação: <strong>${tipo === "servico" ? "Serviço" : "Produto"}</strong></p>
+              <p>Tipo: <strong>Serviço</strong></p>
               <p>Valor: <strong>${moeda(p.preco)}</strong></p>
             </div>
 
@@ -1728,10 +1725,7 @@ function editarProduto(id = null) {
   idProdutoEditando = id;
   const produto = db.produtos.find(p => String(p.id) === String(id)) || {};
 
-  const tipoAtual = produto.tipo ||
-    (/pacote\s*(bronze|prata|ouro)|aula avulsa/i.test(produto.nome || "")
-      ? "servico"
-      : "produto");
+  const tipoAtual = "servico";
 
   abrirModal(`
     <h2>${id ? "Editar produto" : "Cadastrar produto"}</h2>
@@ -1778,7 +1772,7 @@ async function salvarProduto(evento) {
   const dados = Object.fromEntries(new FormData(formulario).entries());
   const nome = String(dados.nome || "").trim();
   const preco = numero(dados.preco);
-  const tipo = dados.tipo;
+  const tipo = "servico";
 
   if (!nome || preco <= 0) {
     mostrarAviso("Confira o nome e o valor.");
