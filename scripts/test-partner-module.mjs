@@ -85,7 +85,7 @@ test("schema de parceiros inclui as chaves compostas e campos usados pelo portal
   assert.match(partnerSchemaMigration, /ADD COLUMN IF NOT EXISTS nacionalidade text/);
   assert.match(partnerSchemaMigration, /ADD COLUMN IF NOT EXISTS estado_civil text/);
   assert.match(partnerSchemaMigration, /ADD COLUMN IF NOT EXISTS profissao text/);
-  assert.match(partnerSchemaMigration, /CHECK \\(role IN \\('admin', 'instrutor', 'usuario', 'parceiro'\\)\\)/);
+  assert.match(partnerSchemaMigration, /CHECK (role IN ('admin', 'instrutor', 'usuario', 'parceiro'))/);
 });
 
 test("PIX é controlado pelo administrador e somente leitura no portal", () => {
