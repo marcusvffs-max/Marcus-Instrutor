@@ -70,17 +70,22 @@
         var choice = await installPrompt.userChoice;
         installPrompt = null;
         if (choice && choice.outcome === "accepted") {
-          status.textContent = "Solicitação de instalação confirmada. Aguarde o ícone aparecer na tela inicial.";
+          status.textContent = "Instalação confirmada. Esta tela será encerrada.";
+          // O evento appinstalled confirma que o navegador concluiu a instalação.
+          // Se o navegador bloquear window.close(), a página fica em branco, sem redirecionar.
+          return;
         } else {
           status.textContent = "Instalação cancelada. Você pode tocar no botão novamente quando quiser.";
           button.disabled = false;
         }
       });
-      window.addEventListener("appinstalled", function(){
-        button.textContent = "Aplicativo instalado";
-        button.disabled = true;
-        status.textContent = "Pronto! O aplicativo foi instalado neste dispositivo.";
-      });
+      function encerrarPaginaInstalacao(){
+        document.title = "Instalação concluída";
+        document.body.replaceChildren();
+        document.body.style.background = "#ffffff";
+        window.close();
+      }
+      window.addEventListener("appinstalled", encerrarPaginaInstalacao);
     })();
   </script>
 </body>
