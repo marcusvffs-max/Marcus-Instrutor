@@ -218,7 +218,7 @@ async function carregarListaContratosGerados(tipo){
       open.addEventListener("click",()=>imprimirDocumentoContrato(item.document_html,item.party_name));
       const del=document.createElement("button");del.type="button";del.className="secondary-button";del.textContent="Excluir";
       del.addEventListener("click",async()=>{
-        if(!window.confirm("Excluir este contrato do histórico?"))return;
+        if(!(await window.MarcusConfirm("Excluir este contrato do histórico?")))return;
         del.disabled=true;
         try{const {error}=await cliente.from("generated_contracts").delete().eq("id",item.id).eq("owner_id",auth.user.id);if(error)throw error;await carregarListaContratosGerados(tipo);}
         catch(error){mostrarAviso(error.message||"Não foi possível excluir o contrato.");del.disabled=false;}
