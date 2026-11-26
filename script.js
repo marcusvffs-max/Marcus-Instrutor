@@ -2406,7 +2406,7 @@ async function abrirDetalhesOrcamento(id){
  const {data:q,error}=await client.from("sales_quotes").select("*").eq("id",id).eq("owner_id",adminSupabaseUserId).single();
  if(error||!q){mostrarAviso("Não foi possível abrir este orçamento.");return;}
  const rows=(q.items||[]).map(x=>'<div class="quote-editor-row"><div><strong>'+escapar(x.descricao)+'</strong><small>'+Number(x.quantidade)+' × '+moeda(x.preco_unitario)+'</small></div><strong>'+moeda(x.subtotal)+'</strong></div>').join("");
- abrirModal('<span class="eyebrow">ORÇAMENTO</span><h2>'+escapar(q.client_name)+'</h2><p>'+new Date(q.created_at).toLocaleDateString("pt-BR")+'</p><div class="quote-detail-items">'+rows+'</div><div class="quote-detail-totals"><div>Subtotal <strong>'+moeda(q.subtotal)+'</strong></div><div>Desconto <strong>'+moeda(q.discount)+'</strong></div><div class="quote-total-final">Total <strong>'+moeda(q.total)+'</strong></div></div>'+(q.notes?'<p><strong>Observações:</strong> '+escapar(q.notes)+'</p>':'')+(q.converted_sale_id?'<p class="form-hint">Este orçamento já foi convertido em venda.</p>':'')+'<div class="modal-actions quote-actions"><button type="button" class="secondary-button" data-close>Fechar</button><button type="button" class="secondary-button" data-print-quote="'+q.id+'">Imprimir / PDF</button>'+(q.converted_sale_id?'':'<button type="button" class="primary-button" data-convert-quote="'+q.id+'">Converter em venda</button>')+'<button type="button" class="danger-button" data-delete-quote="'+q.id+'">Excluir orçamento</button></div>');
+ abrirModal('<span class="eyebrow">ORÇAMENTO</span><h2>'+escapar(q.client_name)+'</h2><p>'+new Date(q.created_at).toLocaleDateString("pt-BR")+'</p><div class="quote-detail-items">'+rows+'</div><div class="quote-detail-totals"><div>Subtotal <strong>'+moeda(q.subtotal)+'</strong></div><div>Desconto <strong>'+moeda(q.discount)+'</strong></div><div class="quote-total-final">Total <strong>'+moeda(q.total)+'</strong></div></div>'+(q.notes?'<p><strong>Observações:</strong> '+escapar(q.notes)+'</p>':'')+(q.converted_sale_id?'<p class="form-hint">Este orçamento já foi convertido em venda.</p>':'')+'<div class="modal-actions quote-actions"><button type="button" class="secondary-button" data-close>Fechar</button><button type="button" class="secondary-button" data-print-quote="'+q.id+'">Imprimir / PDF</button>'+(q.converted_sale_id?'':'<button type="button" class="primary-button quote-convert-button" style="background:#198754;color:#fff;border-color:#198754" data-convert-quote="'+q.id+'">Converter em venda</button>')+'<button type="button" class="danger-button quote-delete-button" style="background:#fde7ef;color:#b42318;border-color:#f8c5d5" data-delete-quote="'+q.id+'">Excluir orçamento</button></div>');
 }
 
 async function excluirOrcamento(id){
@@ -3652,10 +3652,6 @@ if (botaoProdutos) {
 const buscaProdutos = document.getElementById("buscaProdutos");
 if (buscaProdutos) {
   buscaProdutos.addEventListener("input", listarProdutos);
-}
-const buscaAlunos = document.getElementById("buscaAlunos");
-if (buscaAlunos) {
-  buscaAlunos.addEventListener("input", listarAlunos);
 }
 const buscaOrcamentos = document.getElementById("buscaOrcamentos");
 if (buscaOrcamentos) {
