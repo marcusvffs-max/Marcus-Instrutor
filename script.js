@@ -1222,8 +1222,8 @@ function abrirAgendamentoLote() {
     return;
   }
 
-  if (!db.veiculos.length) {
-    mostrarAviso("Cadastre um veículo primeiro.");
+  if (!db.veiculos.some(v => v.ativo !== false)) {
+    mostrarAviso("Cadastre ou reative um veículo para agendar novas aulas.");
     return;
   }
 
