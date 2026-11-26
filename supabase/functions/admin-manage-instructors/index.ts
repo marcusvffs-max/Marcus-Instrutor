@@ -756,8 +756,8 @@ Deno.serve(async (req: Request) => {
                 : { nome },
             }
           : {}),
-        redirectTo: studentLegacyLinkUserId && studentInviteAttemptId
-          ? `${requestAppUrl}claim-student.html?attempt_id=${encodeURIComponent(studentInviteAttemptId)}`
+        redirectTo: isStudentInvite
+          ? `${requestAppUrl}claim-access.html?role=aluno&attempt_id=${encodeURIComponent(studentInviteAttemptId ?? "")}`
           : requestAppUrl,
       },
     });
