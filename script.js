@@ -777,9 +777,7 @@ function listarAlunos() {
   const alunos = db.alunos.filter(a => String(a.nome || "").toLocaleLowerCase("pt-BR").includes(busca));
   lista.innerHTML = alunos.length
     ? alunos.map(a => `
-        <div class="record">
-          <button type="button" data-open-aluno="${escapar(a.id)}" style="background:none;border:0;padding:0;color:inherit;font:inherit;font-weight:700;text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:3px">${escapar(a.nome)}</button>
-        </div>
+        <button type="button" class="quote-list-name student-list-name" data-open-aluno="${escapar(a.id)}"><span>${escapar(a.nome)}</span></button>
       `).join("")
     : '<div class="empty-state">Nenhum aluno encontrado.</div>';
 }
@@ -2027,14 +2025,16 @@ async function abrirVenda() {
 
   const produtosAtivos = db.produtos.filter(p => p.ativo !== false);
   const clientePrecos = window.getMarcusSupabase?.();
-  const { data: fx, error: fxError } = await clientePrecos.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco,taxa_inscricao_detran_preco,taxa_legislacao_detran_preco,taxa_direcao_detran_preco").eq("owner_id", adminSupabaseUserId).maybeSingle();
+  const { data: fx, error: fxError } = await clientePrecos.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco,taxa_inscricao_detran_preco,taxa_legislacao_detran_preco,taxa_direcao_detran_preco,exame_medico_preco,exame_psicotecnico_preco").eq("owner_id", adminSupabaseUserId).maybeSingle();
   if (fxError) { mostrarAviso("Não foi possível carregar os preços dos itens fixos."); return; }
   const itensFixos = [
     {key:"aluguel_veiculo",nome:"Aluguel de Veículo",preco:Number(fx?.aluguel_veiculo_preco||0)},
     {key:"cartao_moto_pista",nome:"Cartão Moto Pista",preco:Number(fx?.cartao_moto_pista_preco||0)},
     {key:"taxa_inscricao_detran",nome:"Taxa de inscrição (Detran)",preco:Number(fx?.taxa_inscricao_detran_preco||0)},
     {key:"taxa_legislacao_detran",nome:"Taxa de Legislação (Detran)",preco:Number(fx?.taxa_legislacao_detran_preco||0)},
-    {key:"taxa_direcao_detran",nome:"Taxa de direção (Detran)",preco:Number(fx?.taxa_direcao_detran_preco||0)}
+    {key:"taxa_direcao_detran",nome:"Taxa de direção (Detran)",preco:Number(fx?.taxa_direcao_detran_preco||0)},
+    {key:"exame_medico",nome:"Exame médico",preco:Number(fx?.exame_medico_preco||0)},
+    {key:"exame_psicotecnico",nome:"Exame psicotécnico",preco:Number(fx?.exame_psicotecnico_preco||0)}
   ].filter(x=>x.preco>0);
   if (!produtosAtivos.length && !itensFixos.length) { mostrarAviso("Cadastre produtos/serviços ou configure os preços em Produtos e Serviços."); return; }
 
@@ -2335,6 +2335,14 @@ async function salvarVenda(evento, itensCarrinho) {
 /* =========================================
    ORÇAMENTOS — MÓDULO INDEPENDENTE
 ========================================= */
+let orcamentosCache=[];
+function renderizarListaOrcamentos(){
+ const host=document.getElementById("listaOrcamentos");if(!host)return;
+ const termo=String(document.getElementById("buscaOrcamentos")?.value||"").trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
+ const filtrados=orcamentosCache.filter(q=>String(q.client_name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").includes(termo));
+ host.classList.toggle("empty-state",!filtrados.length);
+ host.innerHTML=filtrados.length?filtrados.map(q=>'<button type="button" class="quote-list-name" data-open-quote="'+q.id+'"><span>'+escapar(q.client_name)+'</span></button>').join(""):'<div class="empty-state">'+(orcamentosCache.length?'Nenhum orçamento encontrado.':'Nenhum orçamento salvo.')+'</div>';
+}
 async function listarOrcamentos(){
  const host=document.getElementById("listaOrcamentos");if(!host)return;
  const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId){host.textContent="Conexão indisponível.";return;}
@@ -2342,17 +2350,17 @@ async function listarOrcamentos(){
  try{
   const {data,error}=await client.from("sales_quotes").select("id,client_name,total,created_at,converted_sale_id").eq("owner_id",adminSupabaseUserId).order("created_at",{ascending:false});
   if(error)throw error;
-  host.classList.toggle("empty-state",!data?.length);
-  host.innerHTML=data?.length?data.map(q=>'<button type="button" class="quote-list-name" data-open-quote="'+q.id+'"><span>'+escapar(q.client_name)+'</span></button>').join(""):'<div class="empty-state">Nenhum orçamento salvo.</div>';
+  orcamentosCache=data||[];
+  renderizarListaOrcamentos();
  }catch(e){console.error(e);host.innerHTML='<div class="empty-state">Não foi possível carregar os orçamentos.</div>';}
 }
 
 async function abrirOrcamento(){
  const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId){mostrarAviso("Conexão com a nuvem indisponível.");return;}
- const {data:fx,error:fxError}=await client.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco,taxa_inscricao_detran_preco,taxa_legislacao_detran_preco,taxa_direcao_detran_preco").eq("owner_id",adminSupabaseUserId).maybeSingle();
+ const {data:fx,error:fxError}=await client.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco,taxa_inscricao_detran_preco,taxa_legislacao_detran_preco,taxa_direcao_detran_preco,exame_medico_preco,exame_psicotecnico_preco").eq("owner_id",adminSupabaseUserId).maybeSingle();
  if(fxError){mostrarAviso("Não foi possível carregar os preços dos itens fixos.");return;}
  const products=db.produtos.filter(p=>p.ativo!==false);
- const fixed=[{key:"aluguel_veiculo",nome:"Aluguel de Veículo",preco:Number(fx?.aluguel_veiculo_preco||0)},{key:"cartao_moto_pista",nome:"Cartão Moto Pista",preco:Number(fx?.cartao_moto_pista_preco||0)},{key:"taxa_inscricao_detran",nome:"Taxa de inscrição (Detran)",preco:Number(fx?.taxa_inscricao_detran_preco||0)},{key:"taxa_legislacao_detran",nome:"Taxa de Legislação (Detran)",preco:Number(fx?.taxa_legislacao_detran_preco||0)},{key:"taxa_direcao_detran",nome:"Taxa de direção (Detran)",preco:Number(fx?.taxa_direcao_detran_preco||0)}].filter(x=>x.preco>0);
+ const fixed=[{key:"aluguel_veiculo",nome:"Aluguel de Veículo",preco:Number(fx?.aluguel_veiculo_preco||0)},{key:"cartao_moto_pista",nome:"Cartão Moto Pista",preco:Number(fx?.cartao_moto_pista_preco||0)},{key:"taxa_inscricao_detran",nome:"Taxa de inscrição (Detran)",preco:Number(fx?.taxa_inscricao_detran_preco||0)},{key:"taxa_legislacao_detran",nome:"Taxa de Legislação (Detran)",preco:Number(fx?.taxa_legislacao_detran_preco||0)},{key:"taxa_direcao_detran",nome:"Taxa de direção (Detran)",preco:Number(fx?.taxa_direcao_detran_preco||0)},{key:"exame_medico",nome:"Exame médico",preco:Number(fx?.exame_medico_preco||0)},{key:"exame_psicotecnico",nome:"Exame psicotécnico",preco:Number(fx?.exame_psicotecnico_preco||0)}].filter(x=>x.preco>0);
  if(!products.length&&!fixed.length){mostrarAviso("Cadastre produtos/serviços ou configure os preços antes de criar um orçamento.");return;}
  const items=[];
  const productOptions=products.map(p=>'<option value="'+p.id+'">'+escapar(p.nome)+' — '+moeda(p.preco)+'</option>').join("");
@@ -3645,6 +3653,14 @@ const buscaProdutos = document.getElementById("buscaProdutos");
 if (buscaProdutos) {
   buscaProdutos.addEventListener("input", listarProdutos);
 }
+const buscaAlunos = document.getElementById("buscaAlunos");
+if (buscaAlunos) {
+  buscaAlunos.addEventListener("input", listarAlunos);
+}
+const buscaOrcamentos = document.getElementById("buscaOrcamentos");
+if (buscaOrcamentos) {
+  buscaOrcamentos.addEventListener("input", renderizarListaOrcamentos);
+}
 
 const botaoDevolucao = document.getElementById("btnDevolucao");
 if (botaoDevolucao) {
@@ -4102,7 +4118,9 @@ const CONFIG_PRODUTOS_FIXOS = {
   cartao_moto_pista: {nome:"Cartão Moto Pista", coluna:"cartao_moto_pista_preco"},
   taxa_inscricao_detran: {nome:"Taxa de inscrição (Detran)", coluna:"taxa_inscricao_detran_preco"},
   taxa_legislacao_detran: {nome:"Taxa de Legislação (Detran)", coluna:"taxa_legislacao_detran_preco"},
-  taxa_direcao_detran: {nome:"Taxa de direção (Detran)", coluna:"taxa_direcao_detran_preco"}
+  taxa_direcao_detran: {nome:"Taxa de direção (Detran)", coluna:"taxa_direcao_detran_preco"},
+  exame_medico: {nome:"Exame médico", coluna:"exame_medico_preco"},
+  exame_psicotecnico: {nome:"Exame psicotécnico", coluna:"exame_psicotecnico_preco"}
 };
 
 async function carregarPrecosItensFixos() {
