@@ -712,6 +712,8 @@ Deno.serve(async (req: Request) => {
       console.error("Configuração SMTP incompleta ou inválida.");
       return response({ error: "O envio de e-mail ainda não está configurado corretamente." }, 500);
     }
+    const smtpFromAddress = smtpFrom.match(/<([^<>]+)>/)?.[1] ?? smtpFrom.trim();
+    const brandedSmtpFrom = `Central do Instrutor <${smtpFromAddress}>`;
 
     if (isStudentInvite && studentInviteId && !studentRecoveryUserId) {
       const clearStaleQuery = admin.from("students")
