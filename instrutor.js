@@ -1362,15 +1362,15 @@
   style.textContent = `
     @media print {
       @page { size: A4; margin: 16mm; }
-      body.printing-receipt > * { visibility: hidden !important; }
-      body.printing-receipt #reciboImpressao,
-      body.printing-receipt #reciboImpressao * { visibility: visible !important; }
-      body.printing-receipt #reciboImpressao {
-        display:block !important; position:absolute !important; left:0 !important; top:0 !important;
-        width:100% !important; margin:0 !important; padding:0 !important;
+      html, body { height:auto !important; min-height:0 !important; margin:0 !important; padding:0 !important; overflow:visible !important; }
+      body.printing-receipt > *:not(#reciboImpressao) { display:none !important; }
+      body.printing-receipt > #reciboImpressao {
+        display:block !important; position:static !important; width:auto !important;
+        height:auto !important; min-height:0 !important; margin:0 !important; padding:0 !important;
         background:#fff !important; color:#17212f !important;
-        font:12px Arial,sans-serif !important; z-index:2147483647 !important;
+        font:12px Arial,sans-serif !important;
         -webkit-print-color-adjust:exact; print-color-adjust:exact;
+        break-after:avoid-page !important; page-break-after:avoid !important;
       }
       #reciboImpressao table { width:100%; border-collapse:collapse; margin-top:20px; }
       #reciboImpressao th,#reciboImpressao td { padding:9px 7px; border-bottom:1px solid #dce2eb; text-align:left; }
