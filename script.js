@@ -1607,7 +1607,8 @@ async function imprimirReciboVendaAdmin(vendaId) {
   }));
   try {
     await abrirReciboComoPDF({
-      responsavel: perfil.nome, documento: perfil.documento, celular: perfil.celular, endereco: perfil.endereco,\n      logo: db.configuracoes?.logo || "",
+      responsavel: perfil.nome, documento: perfil.documento, celular: perfil.celular, endereco: perfil.endereco,
+      logo: db.configuracoes?.logo || "",
       aluno: aluno?.nome || venda.nomeAluno || "Aluno",
       data: formatarData(venda.data), pagamento: venda.formaPagamento || "Não informada",
       status: String(venda.status || "confirmada").toLowerCase() === "confirmada" ? "CONFIRMADA" : "CANCELADA",
