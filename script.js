@@ -3334,10 +3334,10 @@ async function salvarConfiguracoes() {
       const caminho = caminhoLogoConta(adminSupabaseUserId);
       const { error: uploadError } = await cliente.storage
         .from("instructor-logos")
-        .upload(caminho, arquivo, { upsert: true, contentType: arquivo.type, cacheControl: "3600" });
+        .upload(caminho, arquivo, { upsert: true, contentType: arquivo.type, cacheControl: "0" });
       if (uploadError) throw uploadError;
       const { data: publicData } = cliente.storage.from("instructor-logos").getPublicUrl(caminho);
-      logoUrl = publicData?.publicUrl || null;
+      logoUrl = publicData?.publicUrl ? `${publicData.publicUrl}?v=${Date.now()}` : null;
       if (!logoUrl) throw new Error("Não foi possível obter o endereço da logomarca.");
     }
 
