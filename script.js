@@ -1541,9 +1541,6 @@ ${dados.observacoes ? `<p class="observacoes"><strong>Observações:</strong> ${
 <p class="muted">Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
 <div class="assinatura"><strong>${esc(dados.responsavel || "Responsável")}</strong><br>Responsável</div>
 </body></html>`;
-  tab.document.open();
-  tab.document.write(html);
-  tab.document.close();
   const imprimir = () => {
     try { tab.focus(); tab.print(); } catch (_) {}
   };
@@ -1553,6 +1550,9 @@ ${dados.observacoes ? `<p class="observacoes"><strong>Observações:</strong> ${
       img.onload = resolve; img.onerror = resolve;
     }))).then(() => setTimeout(imprimir, 250));
   }, { once: true });
+  tab.document.open();
+  tab.document.write(html);
+  tab.document.close();
 }
 async function imprimirReciboVendaAdmin(vendaId) {
   const venda = db.vendas.find(item => String(item.id) === String(vendaId));
