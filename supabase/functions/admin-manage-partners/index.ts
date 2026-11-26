@@ -175,23 +175,35 @@ Deno.serve(async (req: Request) => {
       const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
       const telefone = typeof body.telefone === "string" ? body.telefone.trim() : null;
       const cpfCnpj = typeof body.cpf_cnpj === "string" ? body.cpf_cnpj.trim() : null;
+      const nacionalidade = typeof body.nacionalidade === "string" ? body.nacionalidade.trim() : "";
+      const estadoCivil = typeof body.estado_civil === "string" ? body.estado_civil.trim() : "";
+      const profissao = typeof body.profissao === "string" ? body.profissao.trim() : "";
+      const endereco = typeof body.endereco === "string" ? body.endereco.trim() : "";
       const percentual = Number(body.commission_percent);
       if (nome.length < 2 || nome.length > 160 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
+          nacionalidade.length < 2 || nacionalidade.length > 80 ||
+          estadoCivil.length < 2 || estadoCivil.length > 80 ||
+          profissao.length < 2 || profissao.length > 120 ||
+          endereco.length < 5 || endereco.length > 300 ||
+          (telefone && telefone.length > 40) || (cpfCnpj && cpfCnpj.length > 30) ||
           !Number.isFinite(percentual) || percentual < 0 || percentual > 100) {
-        return response({ error: "Informe nome, e-mail válido e comissão entre 0 e 100%." }, 400);
+        return response({ error: "Informe nome, e-mail válido, nacionalidade, estado civil, profissão, endereço e comissão válida." }, 400);
       }
       const { data: partner, error: insertError } = await db.from("partners").insert({
         owner_id: ownerId, nome, email, telefone, cpf_cnpj: cpfCnpj,
+        nacionalidade, estado_civil: estadoCivil, profissao, endereco,
         commission_percent: percentual, status: "pendente",
       }).select("id").single();
       if (insertError?.code === "23505") return response({ error: "Já existe um parceiro cadastrado com este e-mail." }, 409);
       if (insertError) throw insertError;
 
       const requestOrigin = req.headers.get("origin") ?? "";
-      const safePreviewOrigin = requestOrigin === "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app" || /^https:\/\/marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(requestOrigin);
+      const safePreviewOrigin = requestOrigin === "https://marcusinstrutor-git-qa-production-readin-52425c-marcusvffs-2839.vercel.app" ||
+        requestOrigin === "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app" ||
+        /^https:\/\/marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(requestOrigin);
       const redirectTo = safePreviewOrigin
         ? requestOrigin + "/"
-        : "https://marcusinstrutor-4kaelu9se-marcusvffs-2839.vercel.app/";
+        : "https://marcusinstrutor.vercel.app/";
       const { data: invited, error: inviteError } = await db.auth.admin.inviteUserByEmail(email, {
         data: { nome, app_role: "parceiro" },
         redirectTo,
@@ -287,6 +299,27 @@ Deno.serve(async (req: Request) => {
         throw recipientError;
       }
       return response({ ok: true, recipients: recipients.length, message: "Mensagem enviada aos parceiros selecionados." });
+    }
+
+    if (body.action === "payout_report") {
+      const { data: payouts, error: payoutError } = await db.from("partner_payouts")
+        .select("id,partner_id,amount,payment_method,reference,paid_at,received_at")
+        .eq("owner_id", ownerId).order("paid_at", { ascending: false }).limit(500);
+      if (payoutError) throw payoutError;
+      const partnerIds = [...new Set((payouts ?? []).map((item: any) => item.partner_id))];
+      let partnerNames = new Map<string, string>();
+      if (partnerIds.length) {
+        const { data: rows, error: partnersError } = await db.from("partners")
+          .select("id,nome").eq("owner_id", ownerId).in("id", partnerIds);
+        if (partnersError) throw partnersError;
+        partnerNames = new Map((rows ?? []).map((item: any) => [item.id, item.nome]));
+      }
+      return response({
+        ok: true,
+        payouts: (payouts ?? []).map((item: any) => ({
+          ...item, partner_name: partnerNames.get(item.partner_id) ?? "Parceiro"
+        }))
+      });
     }
 
     if (body.action === "record_payout") {
