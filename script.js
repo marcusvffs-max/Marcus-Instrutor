@@ -1580,10 +1580,24 @@ async function abrirReciboComoPDF(dados) {
     doc.setDrawColor(60, 60, 60); doc.line(pageW / 2 - 35, y + 8, pageW / 2 + 35, y + 8);
     doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.text(dados.responsavel || "Responsável", pageW / 2, y + 13, { align: "center" });
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text("Responsável", pageW / 2, y + 18, { align: "center" });
-    // Entrega o PDF como documento application/pdf, sem URL blob nem página HTML.
-      doc.autoPrint();
-      const pdfDataUri = doc.output("datauristring");
-      tab.location.replace(pdfDataUri);
+    // Envia o arquivo por POST; a resposta HTTP é o próprio PDF (application/pdf).
+    doc.autoPrint();
+    const pdfDataUri = doc.output("datauristring");
+    const pdfBase64 = pdfDataUri.slice(pdfDataUri.indexOf(",") + 1);
+    tab.name = "recibo_pdf_" + Date.now();
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = new URL("/api/recibo-pdf", window.location.origin).href;
+    form.target = tab.name;
+    form.style.display = "none";
+    const campo = document.createElement("input");
+    campo.type = "hidden";
+    campo.name = "pdf";
+    campo.value = pdfBase64;
+    form.appendChild(campo);
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
   } catch (error) {
     tab.close();
     throw error;
