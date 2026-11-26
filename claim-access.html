@@ -43,7 +43,7 @@
   const form=document.getElementById("passwordForm");
   const say=(message,error=false)=>{status.textContent=message;status.classList.toggle("error",error)};
   const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if(!["aluno","parceiro"].includes(role)||(role==="aluno"&&!uuid.test(attemptId))){say("Este convite está incompleto ou inválido. Peça ao administrador ou instrutor para enviar um novo.",true);return}
+  if(!["aluno","parceiro"].includes(role)||(role==="aluno"&&attemptId&&!uuid.test(attemptId))){say("Este convite está incompleto ou inválido. Peça ao administrador ou instrutor para enviar um novo.",true);return}
   if(!window.supabase?.createClient){say("Não foi possível carregar a autenticação. Atualize a página.",true);return}
   const client=window.supabase.createClient(APP_URL,APP_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true,storage:window.sessionStorage}});
   try{
@@ -67,7 +67,7 @@
       try{
         const {error:updateError}=await client.auth.updateUser({password});
         if(updateError)throw updateError;
-        if(role==="aluno"){
+        if(role==="aluno"&&attemptId){
           const {data:linked,error:linkError}=await client.functions.invoke("admin-manage-instructors",{body:{action:"complete_student_link",attempt_id:attemptId}});
           if(linkError){let msg=linkError.message;try{const details=await linkError.context?.json?.();if(details?.error)msg=details.error}catch(_){}throw new Error(msg)}
           if(!linked?.ok)throw new Error(linked?.error||"Não foi possível concluir o vínculo do aluno.");
