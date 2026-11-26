@@ -126,9 +126,10 @@
             <span class="eyebrow">CADASTROS</span>
             <h2>Veículos</h2>
           </div>
-          <button id="btnNovoVeiculo" class="primary-button" type="button">
-            + Novo veículo
-          </button>
+          <div class="heading-actions">
+            <button id="btnAlternarVeiculosInativos" class="secondary-button" type="button">Mostrar veículos inativos</button>
+            <button id="btnNovoVeiculo" class="primary-button" type="button">+ Novo veículo</button>
+          </div>
         </div>
 
         <input id="buscaVeiculos" class="search-input" type="search"
@@ -582,7 +583,7 @@
       }
       async function carregarPainelInstrutor() {
         if (painelAdminCarregado) return;
-        await carregarScript("script.js?v=exam-cancel-1");
+        await carregarScript("script.js?v=final-alunos-veiculos-1");
 await carregarScript("contratante-perfil.js?v=2-cellphone");
 await carregarScript("contratos.js?v=confirm-modal-green-3");
 await carregarScript("exames-alugueis.js?v=confirm-modal-green-3");
