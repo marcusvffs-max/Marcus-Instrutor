@@ -1531,7 +1531,19 @@ async function abrirReciboComoPDF(dados) {
       doc.text(lines, opts.x || left, y);
       y += lines.length * step + (opts.after ?? 2);
     };
-    if (dados.logo && /^(https?:|data:image\\/)/i.test(dados.logo)) {\n      await new Promise(resolve => {\n        const img = new Image(); img.crossOrigin = "anonymous";\n        img.onload = () => { try { doc.addImage(img, undefined, right - 27, 8, 24, 18); y = 31; } catch (_) {} resolve(); };\n        img.onerror = resolve; img.src = dados.logo;\n      });\n    }\n    doc.setTextColor(23, 33, 47);
+    if (dados.logo && (dados.logo.startsWith("http") || dados.logo.startsWith("data:image/"))) {
+      await new Promise(resolve => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          try { doc.addImage(img, undefined, right - 27, 8, 24, 18); y = 31; } catch (_) {}
+          resolve();
+        };
+        img.onerror = resolve;
+        img.src = dados.logo;
+      });
+    }
+    doc.setTextColor(23, 33, 47);
     line(dados.responsavel || "Responsável", { size: 18, bold: true, after: 2 });
     if (dados.documento) line("CPF/CNPJ: " + dados.documento, { size: 9, after: 1 });
     if (dados.celular) line("WhatsApp: " + dados.celular, { size: 9, after: 1 });
