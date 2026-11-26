@@ -84,8 +84,6 @@
       const name = branding?.instructor_name || "";
       configureInstructorWhatsAppButton(branding?.instructor_cellphone);
       el("nomeInstrutorResponsavel").textContent = name || "Aguardando vínculo do instrutor";
-      const heading = el("nomeEmpresaInstrutor");
-      if (heading && name) heading.textContent = name;
       const logo = el("logoInstrutorResponsavel");
       if (logo && branding?.logo_url) {
         const image = document.createElement("img");
