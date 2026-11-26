@@ -246,13 +246,11 @@
         </div>
 
         <div class="panel" id="precosItensFixosProdutos">
-          <h3>Preços de itens fixos</h3>
-          <p>Aluguel de Veículo e Cartão Moto Pista aparecem junto com os demais itens na hora de fazer uma venda.</p>
-          <div class="form-grid">
-            <div><label for="precoAluguelFixo">Aluguel de Veículo (R$)</label><input id="precoAluguelFixo" type="number" min="0" step="0.01"></div>
-            <div><label for="precoCartaoFixo">Cartão Moto Pista (R$)</label><input id="precoCartaoFixo" type="number" min="0" step="0.01"></div>
+          <h3>Produtos fixos</h3>
+          <p>Selecione um produto pelo nome para abrir a edição do preço.</p>
+          <div id="listaPrecosFixos" class="list-container" aria-label="Produtos fixos">
+            <div class="empty-state">Carregando produtos fixos...</div>
           </div>
-          <button id="btnSalvarPrecosFixos" class="secondary-button" type="button">Salvar preços</button>
           <p id="statusPrecosFixos" class="form-hint" role="status"></p>
         </div>
 
