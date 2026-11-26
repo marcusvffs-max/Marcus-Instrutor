@@ -191,7 +191,7 @@ Deno.serve(async (req: Request) => {
       const safePreviewOrigin = requestOrigin === "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app" || /^https:\/\/marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(requestOrigin);
       const redirectTo = safePreviewOrigin
         ? requestOrigin + "/"
-        : "https://marcusinstrutor.vercel.app/";
+        : "https://marcusinstrutor-4kaelu9se-marcusvffs-2839.vercel.app/";
       const { data: invited, error: inviteError } = await db.auth.admin.inviteUserByEmail(email, {
         data: { nome, app_role: "parceiro" },
         redirectTo,
