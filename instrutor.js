@@ -1342,67 +1342,79 @@
     }).join("");
   }
 
-  async function abrirReciboComoPDF(dados) {
-  // Usa o mesmo fluxo de impressão já utilizado pelos contratos e relatórios.
-  const tab = window.open("", "_blank");
-  if (!tab) throw new Error("Permita a abertura da janela de impressão do recibo.");
+  function abrirReciboComoPDF(dados) {
+  // Mesmo mecanismo dos contratos/relatórios: imprime o documento atual com window.print().
   const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   })[char]);
   const itens = (dados.itens || []).map(item => `
-    <tr>
-      <td>${esc(item.descricao || "Item")}</td>
-      <td class="center">${esc(item.quantidade ?? 1)}</td>
-      <td class="right">${esc(item.unitario || "")}</td>
-      <td class="right">${esc(item.total || "")}</td>
-    </tr>`).join("");
-  const logo = dados.logo ? `<img class="logo" src="${esc(dados.logo)}" alt="Logo">` : "";
-  const html = `<!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Recibo de pagamento</title>
-<style>
-@page{size:A4;margin:16mm}
-*{box-sizing:border-box}body{font:12px Arial,sans-serif;color:#17212f;margin:0}
-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1e3a5f;padding-bottom:14px;margin-bottom:24px}
-.logo{max-width:105px;max-height:75px;object-fit:contain}
-h1{font-size:20px;margin:0 0 5px}h2{text-align:center;font-size:18px;margin:24px 0}
-p{margin:5px 0;line-height:1.4}.muted{color:#444}
-table{width:100%;border-collapse:collapse;margin-top:20px}th,td{padding:10px 7px;border-bottom:1px solid #dce2eb;text-align:left}
-th{background:#f3f6fa}.center{text-align:center}.right{text-align:right}
-.total{text-align:right;font-size:18px;font-weight:bold;margin:22px 0}
-.observacoes{margin-top:18px;white-space:pre-wrap}
-.assinatura{margin:65px auto 0;text-align:center;width:240px;border-top:1px solid #444;padding-top:8px}
-@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style></head><body>
-<header><div><h1>${esc(dados.responsavel || "Responsável")}</h1>
-${dados.documento ? `<p>CPF/CNPJ: ${esc(dados.documento)}</p>` : ""}
-${dados.celular ? `<p>WhatsApp: ${esc(dados.celular)}</p>` : ""}
-${dados.endereco ? `<p>${esc(dados.endereco)}</p>` : ""}</div>${logo}</header>
-<h2>RECIBO DE PAGAMENTO</h2>
-<p><strong>Recebemos de:</strong> ${esc(dados.aluno || "Aluno")}</p>
-<p><strong>Data da venda:</strong> ${esc(dados.data || "—")}</p>
-<p><strong>Forma de pagamento:</strong> ${esc(dados.pagamento || "Não informada")}</p>
-<p><strong>Situação:</strong> ${esc(dados.status || "CONFIRMADA")}</p>
-<table><thead><tr><th>Descrição</th><th class="center">Qtd.</th><th class="right">Valor unit.</th><th class="right">Total</th></tr></thead><tbody>${itens}</tbody></table>
-<div class="total">Total: ${esc(dados.total || "R$ 0,00")}</div>
-${dados.desconto ? `<p><strong>Desconto aplicado:</strong> ${esc(dados.desconto)}</p>` : ""}
-${dados.devolvido ? `<p><strong>Devoluções registradas:</strong> ${esc(dados.devolvido)}</p>` : ""}
-${dados.observacoes ? `<p class="observacoes"><strong>Observações:</strong> ${esc(dados.observacoes)}</p>` : ""}
-<p class="muted">Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
-<div class="assinatura"><strong>${esc(dados.responsavel || "Responsável")}</strong><br>Responsável</div>
-</body></html>`;
-  const imprimir = () => {
-    try { tab.focus(); tab.print(); } catch (_) {}
+    <tr><td>${esc(item.descricao || "Item")}</td>
+    <td class="center">${esc(item.quantidade ?? 1)}</td>
+    <td class="right">${esc(item.unitario || "")}</td>
+    <td class="right">${esc(item.total || "")}</td></tr>`).join("");
+  const logo = dados.logo ? `<img class="recibo-logo" src="${esc(dados.logo)}" alt="Logo">` : "";
+  let style = document.getElementById("estiloImpressaoRecibo");
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "estiloImpressaoRecibo";
+    document.head.appendChild(style);
+  }
+  style.textContent = `
+    @media print {
+      @page { size: A4; margin: 16mm; }
+      body.printing-receipt > * { visibility: hidden !important; }
+      body.printing-receipt #reciboImpressao,
+      body.printing-receipt #reciboImpressao * { visibility: visible !important; }
+      body.printing-receipt #reciboImpressao {
+        display:block !important; position:absolute !important; left:0 !important; top:0 !important;
+        width:100% !important; margin:0 !important; padding:0 !important;
+        background:#fff !important; color:#17212f !important;
+        font:12px Arial,sans-serif !important; z-index:2147483647 !important;
+        -webkit-print-color-adjust:exact; print-color-adjust:exact;
+      }
+      #reciboImpressao table { width:100%; border-collapse:collapse; margin-top:20px; }
+      #reciboImpressao th,#reciboImpressao td { padding:9px 7px; border-bottom:1px solid #dce2eb; text-align:left; }
+      #reciboImpressao th { background:#f3f6fa !important; }
+      #reciboImpressao .center { text-align:center; }
+      #reciboImpressao .right { text-align:right; }
+      #reciboImpressao .recibo-total { text-align:right; font-size:18px; font-weight:bold; margin:22px 0; }
+      #reciboImpressao .recibo-cabecalho { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1e3a5f; padding-bottom:14px; margin-bottom:24px; }
+      #reciboImpressao .recibo-logo { max-width:105px; max-height:75px; object-fit:contain; }
+      #reciboImpressao .recibo-assinatura { margin:65px auto 0; text-align:center; width:240px; border-top:1px solid #444; padding-top:8px; }
+      #reciboImpressao p { margin:5px 0; line-height:1.4; }
+    }
+  `;
+  const area = document.createElement("section");
+  area.id = "reciboImpressao";
+  area.innerHTML = `
+    <div class="recibo-cabecalho"><div><h1 style="font-size:20px;margin:0 0 5px">${esc(dados.responsavel || "Responsável")}</h1>
+    ${dados.documento ? `<p>CPF/CNPJ: ${esc(dados.documento)}</p>` : ""}
+    ${dados.celular ? `<p>WhatsApp: ${esc(dados.celular)}</p>` : ""}
+    ${dados.endereco ? `<p>${esc(dados.endereco)}</p>` : ""}</div>${logo}</div>
+    <h2 style="text-align:center;font-size:18px;margin:24px 0">RECIBO DE PAGAMENTO</h2>
+    <p><strong>Recebemos de:</strong> ${esc(dados.aluno || "Aluno")}</p>
+    <p><strong>Data da venda:</strong> ${esc(dados.data || "—")}</p>
+    <p><strong>Forma de pagamento:</strong> ${esc(dados.pagamento || "Não informada")}</p>
+    <p><strong>Situação:</strong> ${esc(dados.status || "CONFIRMADA")}</p>
+    <table><thead><tr><th>Descrição</th><th class="center">Qtd.</th><th class="right">Valor unit.</th><th class="right">Total</th></tr></thead><tbody>${itens}</tbody></table>
+    <div class="recibo-total">Total: ${esc(dados.total || "R$ 0,00")}</div>
+    ${dados.desconto ? `<p><strong>Desconto aplicado:</strong> ${esc(dados.desconto)}</p>` : ""}
+    ${dados.devolvido ? `<p><strong>Devoluções registradas:</strong> ${esc(dados.devolvido)}</p>` : ""}
+    ${dados.observacoes ? `<p style="white-space:pre-wrap"><strong>Observações:</strong> ${esc(dados.observacoes)}</p>` : ""}
+    <p>Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
+    <div class="recibo-assinatura"><strong>${esc(dados.responsavel || "Responsável")}</strong><br>Responsável</div>`;
+  const anterior = document.getElementById("reciboImpressao");
+  if (anterior) anterior.remove();
+  document.body.appendChild(area);
+  document.body.classList.add("printing-receipt");
+  const limpar = () => {
+    document.body.classList.remove("printing-receipt");
+    area.remove();
+    window.removeEventListener("afterprint", limpar);
   };
-  tab.addEventListener("load", () => {
-    const imagens = Array.from(tab.document.images);
-    Promise.all(imagens.map(img => img.complete ? Promise.resolve() : new Promise(resolve => {
-      img.onload = resolve; img.onerror = resolve;
-    }))).then(() => setTimeout(imprimir, 250));
-  }, { once: true });
-  tab.document.open();
-  tab.document.write(html);
-  tab.document.close();
+  window.addEventListener("afterprint", limpar, { once: true });
+  // Chamada direta, igual à impressão dos contratos e relatórios.
+  window.print();
 }
   async function printInstructorSaleReceipt(saleId) {
     const sale = state.sales.find(item => String(item.id) === String(saleId));
