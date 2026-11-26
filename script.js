@@ -2043,9 +2043,15 @@ async function abrirVenda() {
 
   const produtosAtivos = db.produtos.filter(p => p.ativo !== false);
   const clientePrecos = window.getMarcusSupabase?.();
-  const { data: fx, error: fxError } = await clientePrecos.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", adminSupabaseUserId).maybeSingle();
+  const { data: fx, error: fxError } = await clientePrecos.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco,taxa_inscricao_detran_preco,taxa_legislacao_detran_preco,taxa_direcao_detran_preco").eq("owner_id", adminSupabaseUserId).maybeSingle();
   if (fxError) { mostrarAviso("Não foi possível carregar os preços dos itens fixos."); return; }
-  const itensFixos = [{key:"aluguel_veiculo",nome:"Aluguel de Veículo",preco:Number(fx?.aluguel_veiculo_preco||0)},{key:"cartao_moto_pista",nome:"Cartão Moto Pista",preco:Number(fx?.cartao_moto_pista_preco||0)}].filter(x=>x.preco>0);
+  const itensFixos = [
+    {key:"aluguel_veiculo",nome:"Aluguel de Veículo",preco:Number(fx?.aluguel_veiculo_preco||0)},
+    {key:"cartao_moto_pista",nome:"Cartão Moto Pista",preco:Number(fx?.cartao_moto_pista_preco||0)},
+    {key:"taxa_inscricao_detran",nome:"Taxa de inscrição (Detran)",preco:Number(fx?.taxa_inscricao_detran_preco||0)},
+    {key:"taxa_legislacao_detran",nome:"Taxa de Legislação (Detran)",preco:Number(fx?.taxa_legislacao_detran_preco||0)},
+    {key:"taxa_direcao_detran",nome:"Taxa de direção (Detran)",preco:Number(fx?.taxa_direcao_detran_preco||0)}
+  ].filter(x=>x.preco>0);
   if (!produtosAtivos.length && !itensFixos.length) { mostrarAviso("Cadastre produtos/serviços ou configure os preços em Produtos e Serviços."); return; }
 
   const itensCarrinho = [];
@@ -3383,6 +3389,9 @@ document.addEventListener("click", evento => {
     return;
   }
 
+  const editarPrecoFixo = evento.target.closest("[data-edit-preco-fixo]");
+  if (editarPrecoFixo) { abrirEditorPrecoFixo(editarPrecoFixo.dataset.editPrecoFixo); return; }
+
   const abrirAluno = evento.target.closest("[data-open-aluno]");
   if (abrirAluno) {
     abrirDetalhesAluno(abrirAluno.dataset.openAluno);
@@ -3977,23 +3986,62 @@ async function prepararDadosAdmin() {
    INICIALIZAÇÃO
 ========================================= */
 
+const CONFIG_PRODUTOS_FIXOS = {
+  aluguel_veiculo: {nome:"Aluguel de Veículo", coluna:"aluguel_veiculo_preco"},
+  cartao_moto_pista: {nome:"Cartão Moto Pista", coluna:"cartao_moto_pista_preco"},
+  taxa_inscricao_detran: {nome:"Taxa de inscrição (Detran)", coluna:"taxa_inscricao_detran_preco"},
+  taxa_legislacao_detran: {nome:"Taxa de Legislação (Detran)", coluna:"taxa_legislacao_detran_preco"},
+  taxa_direcao_detran: {nome:"Taxa de direção (Detran)", coluna:"taxa_direcao_detran_preco"}
+};
+
 async function carregarPrecosItensFixos() {
   const client=window.getMarcusSupabase?.(); if(!client||!adminSupabaseUserId)return;
-  const {data,error}=await client.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id",adminSupabaseUserId).maybeSingle();
+  const colunas=Object.values(CONFIG_PRODUTOS_FIXOS).map(x=>x.coluna).join(",");
+  const {data,error}=await client.from("app_settings").select(colunas).eq("owner_id",adminSupabaseUserId).maybeSingle();
   const status=document.getElementById("statusPrecosFixos");
   if(error){if(status)status.textContent="Não foi possível carregar os preços.";return;}
-  const aluguel=document.getElementById("precoAluguelFixo"),cartao=document.getElementById("precoCartaoFixo");
-  if(aluguel)aluguel.value=Number(data?.aluguel_veiculo_preco||0).toFixed(2);
-  if(cartao)cartao.value=Number(data?.cartao_moto_pista_preco||0).toFixed(2);
+  const lista=document.getElementById("listaPrecosFixos");
+  if(lista)lista.innerHTML=Object.entries(CONFIG_PRODUTOS_FIXOS).map(([key,item])=>
+    `<button type="button" class="secondary-button" data-edit-preco-fixo="${key}" style="display:block;width:100%;text-align:left;margin:6px 0">${item.nome}</button>`
+  ).join("");
 }
-async function salvarPrecosItensFixos(){
-  const client=window.getMarcusSupabase?.(),aluguel=Number(document.getElementById("precoAluguelFixo")?.value),cartao=Number(document.getElementById("precoCartaoFixo")?.value);
-  const status=document.getElementById("statusPrecosFixos"),button=document.getElementById("btnSalvarPrecosFixos");
-  if(!client||!adminSupabaseUserId||!Number.isFinite(aluguel)||!Number.isFinite(cartao)||aluguel<0||cartao<0){if(status)status.textContent="Informe valores válidos.";return;}
-  if(button)button.disabled=true;
-  try{const {error}=await client.from("app_settings").upsert({owner_id:adminSupabaseUserId,aluguel_veiculo_preco:aluguel,cartao_moto_pista_preco:cartao},{onConflict:"owner_id"});if(error)throw error;if(status)status.textContent="Preços salvos nesta conta.";}
-  catch(error){console.error("Falha ao salvar preços fixos:",error);if(status)status.textContent=error.message||"Não foi possível salvar os preços.";}
-  finally{if(button)button.disabled=false;}
+function abrirEditorPrecoFixo(key){
+  const item=CONFIG_PRODUTOS_FIXOS[key]; if(!item)return;
+  const client=window.getMarcusSupabase?.();
+  if(!client||!adminSupabaseUserId){mostrarAviso("Não foi possível acessar os preços desta conta.");return;}
+  client.from("app_settings").select(item.coluna).eq("owner_id",adminSupabaseUserId).maybeSingle().then(({data,error})=>{
+    if(error){mostrarAviso("Não foi possível carregar o preço deste produto.");return;}
+    const valor=Number(data?.[item.coluna]||0).toFixed(2);
+    abrirModal(`
+      <h2>${item.nome}</h2>
+      <form id="formPrecoFixo">
+        <label for="valorPrecoFixo">Preço (R$)</label>
+        <input id="valorPrecoFixo" type="number" min="0" step="0.01" value="${valor}" required>
+        <button id="btnSalvarPrecoFixo" class="primary-button" type="submit">Salvar preço</button>
+        <p id="statusPrecoFixo" class="form-hint" role="status"></p>
+      </form>`);
+    document.getElementById("formPrecoFixo").addEventListener("submit",evento=>{
+      evento.preventDefault();
+      salvarPrecoFixo(key);
+    });
+  });
+}
+async function salvarPrecoFixo(key){
+  const item=CONFIG_PRODUTOS_FIXOS[key],client=window.getMarcusSupabase?.();
+  const campo=document.getElementById("valorPrecoFixo"),botao=document.getElementById("btnSalvarPrecoFixo"),status=document.getElementById("statusPrecoFixo");
+  const preco=Number(campo?.value);
+  if(!item||!client||!adminSupabaseUserId||!Number.isFinite(preco)||preco<0){if(status)status.textContent="Informe um preço válido.";return;}
+  if(botao){botao.disabled=true;botao.textContent="Salvando...";}
+  try{
+    const {error}=await client.from("app_settings").upsert({owner_id:adminSupabaseUserId,[item.coluna]:preco},{onConflict:"owner_id"});
+    if(error)throw error;
+    fecharModal();
+    mostrarAviso("Preço salvo com sucesso.");
+  }catch(error){
+    console.error("Falha ao salvar preço fixo:",error);
+    if(status)status.textContent=error.message||"Não foi possível salvar o preço.";
+    if(botao){botao.disabled=false;botao.textContent="Salvar preço";}
+  }
 }
 
 function iniciarAplicativo() {
