@@ -247,6 +247,9 @@ function atualizarTela(nome) {
     case "aulas":
       listarAulas();
       break;
+    case "orcamentos":
+      listarOrcamentos();
+      break;
     case "financeiro":
       listarMovimentacoes();
       atualizarFinanceiro();
@@ -2328,6 +2331,111 @@ async function salvarVenda(evento, itensCarrinho) {
   }
 }
 
+
+/* =========================================
+   ORÇAMENTOS — MÓDULO INDEPENDENTE
+========================================= */
+async function listarOrcamentos(){
+ const host=document.getElementById("listaOrcamentos");if(!host)return;
+ const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId){host.textContent="Conexão indisponível.";return;}
+ host.innerHTML='<div class="empty-state">Carregando orçamentos...</div>';
+ try{
+  const {data,error}=await client.from("sales_quotes").select("id,client_name,total,created_at,converted_sale_id").eq("owner_id",adminSupabaseUserId).order("created_at",{ascending:false});
+  if(error)throw error;
+  host.classList.toggle("empty-state",!data?.length);
+  host.innerHTML=data?.length?data.map(q=>'<button type="button" class="quote-list-name" data-open-quote="'+q.id+'"><span>'+escapar(q.client_name)+'</span>'+(q.converted_sale_id?'<small>Convertido em venda</small>':'')+'</button>').join(""):'<div class="empty-state">Nenhum orçamento salvo.</div>';
+ }catch(e){console.error(e);host.innerHTML='<div class="empty-state">Não foi possível carregar os orçamentos.</div>';}
+}
+
+async function abrirOrcamento(){
+ const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId){mostrarAviso("Conexão com a nuvem indisponível.");return;}
+ const {data:fx,error:fxError}=await client.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco,taxa_inscricao_detran_preco,taxa_legislacao_detran_preco,taxa_direcao_detran_preco").eq("owner_id",adminSupabaseUserId).maybeSingle();
+ if(fxError){mostrarAviso("Não foi possível carregar os preços dos itens fixos.");return;}
+ const products=db.produtos.filter(p=>p.ativo!==false);
+ const fixed=[{key:"aluguel_veiculo",nome:"Aluguel de Veículo",preco:Number(fx?.aluguel_veiculo_preco||0)},{key:"cartao_moto_pista",nome:"Cartão Moto Pista",preco:Number(fx?.cartao_moto_pista_preco||0)},{key:"taxa_inscricao_detran",nome:"Taxa de inscrição (Detran)",preco:Number(fx?.taxa_inscricao_detran_preco||0)},{key:"taxa_legislacao_detran",nome:"Taxa de Legislação (Detran)",preco:Number(fx?.taxa_legislacao_detran_preco||0)},{key:"taxa_direcao_detran",nome:"Taxa de direção (Detran)",preco:Number(fx?.taxa_direcao_detran_preco||0)}].filter(x=>x.preco>0);
+ if(!products.length&&!fixed.length){mostrarAviso("Cadastre produtos/serviços ou configure os preços antes de criar um orçamento.");return;}
+ const items=[];
+ const productOptions=products.map(p=>'<option value="'+p.id+'">'+escapar(p.nome)+' — '+moeda(p.preco)+'</option>').join("");
+ const fixedOptions=fixed.map(x=>'<option value="fixed:'+x.key+'">'+x.nome+' — '+moeda(x.preco)+'</option>').join("");
+ abrirModal('<h2>Novo orçamento</h2><form id="formOrcamento"><label for="orcamentoNome">Nome do cliente</label><input id="orcamentoNome" name="clientName" required maxlength="160" placeholder="Nome da pessoa" autocomplete="off"><label for="orcamentoProduto">Produto ou serviço</label><select id="orcamentoProduto"><option value="">Selecione</option>'+productOptions+fixedOptions+'</select><label for="orcamentoQuantidade">Quantidade</label><input id="orcamentoQuantidade" type="number" min="1" step="1" value="1"><button id="orcamentoAdicionarItem" type="button" class="secondary-button">Adicionar item</button><div class="panel quote-editor-items"><h3>Itens do orçamento</h3><div id="orcamentoItens"><div class="empty-state">Nenhum item adicionado.</div></div></div><label for="orcamentoTipoDesconto">Tipo de desconto</label><select id="orcamentoTipoDesconto"><option value="valor">Valor fixo (R$)</option><option value="percentual">Percentual (%)</option></select><label for="orcamentoValorDesconto">Desconto sobre serviços</label><input id="orcamentoValorDesconto" type="number" min="0" step="0.01" value="0"><div class="sale-total-card"><span>TOTAL DO ORÇAMENTO</span><strong id="orcamentoTotal">R$ 0,00</strong></div><label for="orcamentoObservacoes">Observações (opcional)</label><textarea id="orcamentoObservacoes" rows="2" maxlength="1000"></textarea><div class="modal-actions"><button type="button" class="secondary-button" data-close>Cancelar</button><button type="submit" class="primary-button">Salvar orçamento</button></div><p id="orcamentoStatus" class="form-hint" role="status"></p></form>');
+ const form=document.getElementById("formOrcamento"),productField=document.getElementById("orcamentoProduto"),qtyField=document.getElementById("orcamentoQuantidade"),discountField=document.getElementById("orcamentoValorDesconto"),discountType=document.getElementById("orcamentoTipoDesconto");
+ function calc(){
+  const gross=items.reduce((s,x)=>s+x.subtotal,0),services=items.filter(x=>x.tipo_item==="servico").reduce((s,x)=>s+x.subtotal,0),v=Number(discountField.value||0);let discount=0,valid=Number.isFinite(v)&&v>=0;
+  if(services<=0){if(v>0)valid=false;}else if(discountType.value==="percentual"){if(v>=100)valid=false;else discount=Math.round(services*v)/100;}else if(v>=services&&v>0)valid=false;else discount=Math.round(v*100)/100;
+  const total=Math.round((gross-discount)*100)/100;document.getElementById("orcamentoTotal").textContent=valid?moeda(total):"Desconto inválido";
+  return {gross,discount,total,valid};
+ }
+ function render(){
+  const host=document.getElementById("orcamentoItens");
+  host.innerHTML=items.length?items.map((x,i)=>'<div class="quote-editor-row"><div><strong>'+escapar(x.descricao)+'</strong><small>'+x.quantidade+' × '+moeda(x.preco_unitario)+'</small></div><strong>'+moeda(x.subtotal)+'</strong><button type="button" class="sale-remove-item" data-quote-remove="'+i+'">Remover</button></div>').join(""):'<div class="empty-state">Nenhum item adicionado.</div>';
+  calc();
+ }
+ document.getElementById("orcamentoAdicionarItem").onclick=()=>{
+  const val=productField.value,q=Number(qtyField.value),f=val.startsWith("fixed:")?fixed.find(x=>x.key===val.slice(6)):null,p=products.find(x=>String(x.id)===val);
+  if((!f&&!p)||!Number.isInteger(q)||q<1){mostrarAviso("Selecione um item e informe uma quantidade válida.");return;}
+  const type=f?"produto":(p.tipo||"servico"),price=f?f.preco:Number(p.preco),min=p?.quantidadeAulasMin,max=p?.quantidadeAulasMax;
+  if(!Number.isFinite(price)||price<=0){mostrarAviso("O item possui preço inválido.");return;}
+  if((min!=null&&q<Number(min))||(max!=null&&q>Number(max))){mostrarAviso("A quantidade está fora dos limites deste pacote.");return;}
+  const lessons=type==="servico"?(min!=null||max!=null?q:q*Math.max(1,Number(p?.quantidadeAulas||1))):0;
+  items.push({product_id:f?null:p.id,fixed_item_key:f?.key||null,descricao:f?.nome||p.nome,tipo_item:type,quantidade:q,preco_unitario:price,subtotal:Math.round(price*q*100)/100,aulas_contratadas:lessons});
+  productField.value="";qtyField.value="1";render();
+ };
+ document.getElementById("orcamentoItens").onclick=e=>{const b=e.target.closest("[data-quote-remove]");if(b){items.splice(Number(b.dataset.quoteRemove),1);render();}};
+ discountField.oninput=calc;discountType.onchange=calc;
+ form.onsubmit=async e=>{
+  e.preventDefault();const name=form.elements.clientName.value.trim(),r=calc(),status=document.getElementById("orcamentoStatus"),btn=form.querySelector('button[type="submit"]');
+  if(!name||!items.length||!r.valid||r.total<=0){mostrarAviso("Informe o nome, adicione itens e confira o desconto.");return;}
+  btn.disabled=true;btn.textContent="Salvando...";
+  try{
+   const {error}=await client.from("sales_quotes").insert({owner_id:adminSupabaseUserId,client_name:name,items,subtotal:r.gross,discount_type:discountType.value,discount_value:Number(discountField.value||0),discount:r.discount,total:r.total,notes:document.getElementById("orcamentoObservacoes").value.trim()||null});
+   if(error)throw error;fecharModal();await listarOrcamentos();mostrarAviso("Orçamento salvo. Nenhuma venda ou movimentação financeira foi criada.");
+  }catch(err){console.error(err);status.textContent=err.message||"Não foi possível salvar.";btn.disabled=false;btn.textContent="Salvar orçamento";}
+ };
+}
+
+async function abrirDetalhesOrcamento(id){
+ const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId)return;
+ const {data:q,error}=await client.from("sales_quotes").select("*").eq("id",id).eq("owner_id",adminSupabaseUserId).single();
+ if(error||!q){mostrarAviso("Não foi possível abrir este orçamento.");return;}
+ const rows=(q.items||[]).map(x=>'<div class="quote-editor-row"><div><strong>'+escapar(x.descricao)+'</strong><small>'+Number(x.quantidade)+' × '+moeda(x.preco_unitario)+'</small></div><strong>'+moeda(x.subtotal)+'</strong></div>').join("");
+ abrirModal('<span class="eyebrow">ORÇAMENTO</span><h2>'+escapar(q.client_name)+'</h2><p>'+new Date(q.created_at).toLocaleDateString("pt-BR")+'</p><div class="quote-detail-items">'+rows+'</div><div class="quote-detail-totals"><div>Subtotal <strong>'+moeda(q.subtotal)+'</strong></div><div>Desconto <strong>'+moeda(q.discount)+'</strong></div><div class="quote-total-final">Total <strong>'+moeda(q.total)+'</strong></div></div>'+(q.notes?'<p><strong>Observações:</strong> '+escapar(q.notes)+'</p>':'')+(q.converted_sale_id?'<p class="form-hint">Este orçamento já foi convertido em venda.</p>':'')+'<div class="modal-actions quote-actions"><button type="button" class="secondary-button" data-close>Fechar</button><button type="button" class="secondary-button" data-print-quote="'+q.id+'">Imprimir / PDF</button>'+(q.converted_sale_id?'':'<button type="button" class="primary-button" data-convert-quote="'+q.id+'">Converter em venda</button>')+'<button type="button" class="danger-button" data-delete-quote="'+q.id+'">Excluir orçamento</button></div>');
+}
+
+async function excluirOrcamento(id){
+ if(!(await confirmar("Deseja excluir este orçamento? Esta ação não afeta vendas nem o financeiro.")))return;
+ const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId)return;
+ const {error}=await client.from("sales_quotes").delete().eq("id",id).eq("owner_id",adminSupabaseUserId);
+ if(error){mostrarAviso(error.message||"Não foi possível excluir o orçamento.");return;}
+ fecharModal();await listarOrcamentos();mostrarAviso("Orçamento excluído.");
+}
+
+async function abrirConversaoOrcamento(id){
+ const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId)return;
+ const {data:q,error}=await client.from("sales_quotes").select("id,client_name,total").eq("id",id).eq("owner_id",adminSupabaseUserId).single();
+ if(error||!q){mostrarAviso("Não foi possível localizar o orçamento.");return;}
+ const options=db.alunos.map(a=>'<option value="'+a.id+'">'+escapar(a.nome)+'</option>').join("");
+ abrirModal('<h2>Converter orçamento em venda</h2><p>Cliente: <strong>'+escapar(q.client_name)+'</strong><br>Total: <strong>'+moeda(q.total)+'</strong></p><form id="formConverterOrcamento" data-quote-id="'+q.id+'"><label for="quoteStudent">Vincular a aluno já cadastrado (opcional)</label><select id="quoteStudent" name="studentId"><option value="">Cadastrar o cliente somente ao confirmar a venda</option>'+options+'</select><label for="quotePayment">Forma de pagamento</label><select id="quotePayment" name="payment" required><option value="">Selecione</option><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência bancária</option><option>Outro</option></select><div class="modal-actions"><button type="button" class="secondary-button" data-close>Cancelar</button><button type="submit" class="primary-button">Confirmar venda e lançar no financeiro</button></div><p class="form-hint">O aluno só será cadastrado se você confirmar a venda. Se cancelar, nenhum aluno será criado.</p></form>');
+ document.getElementById("formConverterOrcamento").onsubmit=async e=>{
+  e.preventDefault();const form=e.currentTarget,btn=form.querySelector('button[type="submit"]');if(!form.elements.payment.value){mostrarAviso("Selecione a forma de pagamento.");return;}
+  btn.disabled=true;btn.textContent="Registrando venda...";
+  try{
+   const {data,error}=await client.rpc("convert_sales_quote_to_sale",{p_quote_id:q.id,p_sale_id:crypto.randomUUID(),p_student_id:form.elements.studentId.value||null,p_payment_method:form.elements.payment.value});
+   if(error)throw error;await carregarDadosAdminSupabase();fecharModal();await listarOrcamentos();listarAlunos();listarMovimentacoes();atualizarFinanceiro();atualizarPainel();mostrarAviso("Venda confirmada e lançada no financeiro: "+moeda(data?.total??q.total)+".");
+  }catch(err){console.error(err);mostrarAviso(err.message||"Não foi possível converter o orçamento.");btn.disabled=false;btn.textContent="Confirmar venda e lançar no financeiro";}
+ };
+}
+
+async function imprimirOrcamento(id){
+ const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId)return;
+ const {data:q,error}=await client.from("sales_quotes").select("*").eq("id",id).eq("owner_id",adminSupabaseUserId).single();
+ if(error||!q){mostrarAviso("Não foi possível preparar o PDF.");return;}
+ const win=window.open("","_blank");if(!win){mostrarAviso("Permita a abertura da janela de impressão para gerar o PDF.");return;}
+ const rows=(q.items||[]).map(x=>'<tr><td>'+escapar(x.descricao)+'</td><td>'+Number(x.quantidade)+'</td><td>'+moeda(x.preco_unitario)+'</td><td>'+moeda(x.subtotal)+'</td></tr>').join("");
+ const logo=db.configuracoes?.logo||"https://central-do-instrutor.pages.dev/assets/logo-central.webp";
+ const doc='<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Orçamento - '+escapar(q.client_name)+'</title><style>body{font:14px Arial,sans-serif;color:#172033;margin:32px}header{display:flex;align-items:center;gap:18px;border-bottom:2px solid #12345a;padding-bottom:16px}header img{max-width:150px;max-height:70px;object-fit:contain}h1{font-size:24px;color:#12345a;margin:0}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{padding:10px;border-bottom:1px solid #d9e0e8;text-align:left}th{background:#eef3f8}.totais{margin:24px 0 0 auto;width:260px}.totais div{display:flex;justify-content:space-between;padding:6px}.total{font-size:20px;font-weight:bold;color:#12345a;border-top:2px solid #12345a}.obs{margin-top:28px}@media print{body{margin:15mm}}</style></head><body><header><img src="'+logo+'" alt="Central do Instrutor"><div><h1>ORÇAMENTO</h1><p>Proposta para: <strong>'+escapar(q.client_name)+'</strong><br>Data: '+new Date(q.created_at).toLocaleDateString("pt-BR")+'</p></div></header><table><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unitário</th><th>Subtotal</th></tr></thead><tbody>'+rows+'</tbody></table><div class="totais"><div><span>Subtotal</span><strong>'+moeda(q.subtotal)+'</strong></div><div><span>Desconto</span><strong>'+moeda(q.discount)+'</strong></div><div class="total"><span>Total</span><strong>'+moeda(q.total)+'</strong></div></div>'+(q.notes?'<div class="obs"><strong>Observações</strong><p>'+escapar(q.notes)+'</p></div>':'')+'<script>window.onload=function(){window.print();};</script></body></html>';
+ win.document.write(doc);win.document.close();
+}
+
 /* =========================================
    DEVOLUÇÕES
 ========================================= */
@@ -3467,6 +3575,15 @@ document.addEventListener("click", evento => {
     return;
   }
 
+  const abrirQuote = evento.target.closest("[data-open-quote]");
+  if(abrirQuote){abrirDetalhesOrcamento(abrirQuote.dataset.openQuote);return;}
+  const excluirQuote = evento.target.closest("[data-delete-quote]");
+  if(excluirQuote){excluirOrcamento(excluirQuote.dataset.deleteQuote);return;}
+  const converterQuote = evento.target.closest("[data-convert-quote]");
+  if(converterQuote){abrirConversaoOrcamento(converterQuote.dataset.convertQuote);return;}
+  const imprimirQuote = evento.target.closest("[data-print-quote]");
+  if(imprimirQuote){imprimirOrcamento(imprimirQuote.dataset.printQuote);return;}
+
   const excluirDespesaBotao = evento.target.closest("[data-delete-despesa]");
   if (excluirDespesaBotao) {
     excluirDespesa(excluirDespesaBotao.dataset.deleteDespesa);
@@ -3500,6 +3617,9 @@ const botaoAgendamentoLote = document.getElementById("btnAgendamentoLote");
 if (botaoAgendamentoLote) {
   botaoAgendamentoLote.onclick = abrirAgendamentoLote;
      }
+const botaoNovoOrcamento = document.getElementById("btnNovoOrcamento");
+if(botaoNovoOrcamento) botaoNovoOrcamento.onclick=abrirOrcamento;
+
 const botaoNovaVenda = document.getElementById("btnNovaVenda");
 if (botaoNovaVenda) {
   botaoNovaVenda.onclick = abrirVenda;
