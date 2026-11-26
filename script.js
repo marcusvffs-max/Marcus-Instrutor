@@ -2343,7 +2343,7 @@ async function listarOrcamentos(){
   const {data,error}=await client.from("sales_quotes").select("id,client_name,total,created_at,converted_sale_id").eq("owner_id",adminSupabaseUserId).order("created_at",{ascending:false});
   if(error)throw error;
   host.classList.toggle("empty-state",!data?.length);
-  host.innerHTML=data?.length?data.map(q=>'<button type="button" class="quote-list-name" data-open-quote="'+q.id+'"><span>'+escapar(q.client_name)+'</span>'+(q.converted_sale_id?'<small>Convertido em venda</small>':'')+'</button>').join(""):'<div class="empty-state">Nenhum orçamento salvo.</div>';
+  host.innerHTML=data?.length?data.map(q=>'<button type="button" class="quote-list-name" data-open-quote="'+q.id+'"><span>'+escapar(q.client_name)+'</span></button>').join(""):'<div class="empty-state">Nenhum orçamento salvo.</div>';
  }catch(e){console.error(e);host.innerHTML='<div class="empty-state">Não foi possível carregar os orçamentos.</div>';}
 }
 
@@ -2426,10 +2426,10 @@ async function abrirConversaoOrcamento(id){
 }
 
 async function imprimirOrcamento(id){
- const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId)return;
- const {data:q,error}=await client.from("sales_quotes").select("*").eq("id",id).eq("owner_id",adminSupabaseUserId).single();
- if(error||!q){mostrarAviso("Não foi possível preparar o PDF.");return;}
  const win=window.open("","_blank");if(!win){mostrarAviso("Permita a abertura da janela de impressão para gerar o PDF.");return;}
+ const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId){win.close();return;}
+ const {data:q,error}=await client.from("sales_quotes").select("*").eq("id",id).eq("owner_id",adminSupabaseUserId).single();
+ if(error||!q){win.close();mostrarAviso("Não foi possível preparar o PDF.");return;}
  const rows=(q.items||[]).map(x=>'<tr><td>'+escapar(x.descricao)+'</td><td>'+Number(x.quantidade)+'</td><td>'+moeda(x.preco_unitario)+'</td><td>'+moeda(x.subtotal)+'</td></tr>').join("");
  const logo=db.configuracoes?.logo||"https://central-do-instrutor.pages.dev/assets/logo-central.webp";
  const doc='<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Orçamento - '+escapar(q.client_name)+'</title><style>body{font:14px Arial,sans-serif;color:#172033;margin:32px}header{display:flex;align-items:center;gap:18px;border-bottom:2px solid #12345a;padding-bottom:16px}header img{max-width:150px;max-height:70px;object-fit:contain}h1{font-size:24px;color:#12345a;margin:0}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{padding:10px;border-bottom:1px solid #d9e0e8;text-align:left}th{background:#eef3f8}.totais{margin:24px 0 0 auto;width:260px}.totais div{display:flex;justify-content:space-between;padding:6px}.total{font-size:20px;font-weight:bold;color:#12345a;border-top:2px solid #12345a}.obs{margin-top:28px}@media print{body{margin:15mm}}</style></head><body><header><img src="'+logo+'" alt="Central do Instrutor"><div><h1>ORÇAMENTO</h1><p>Proposta para: <strong>'+escapar(q.client_name)+'</strong><br>Data: '+new Date(q.created_at).toLocaleDateString("pt-BR")+'</p></div></header><table><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unitário</th><th>Subtotal</th></tr></thead><tbody>'+rows+'</tbody></table><div class="totais"><div><span>Subtotal</span><strong>'+moeda(q.subtotal)+'</strong></div><div><span>Desconto</span><strong>'+moeda(q.discount)+'</strong></div><div class="total"><span>Total</span><strong>'+moeda(q.total)+'</strong></div></div>'+(q.notes?'<div class="obs"><strong>Observações</strong><p>'+escapar(q.notes)+'</p></div>':'')+'<script>window.onload=function(){window.print();};</script></body></html>';
