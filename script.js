@@ -1553,80 +1553,190 @@ function atualizarFinanceiro() {
 }
 
 
-function abrirReciboComoPDF(dados) {
-  // Mesmo mecanismo dos contratos/relatórios: imprime o documento atual com window.print().
-  const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-  })[char]);
-  const itens = (dados.itens || []).map(item => `
-    <tr><td>${esc(item.descricao || "Item")}</td>
-    <td class="center">${esc(item.quantidade ?? 1)}</td>
-    <td class="right">${esc(item.unitario || "")}</td>
-    <td class="right">${esc(item.total || "")}</td></tr>`).join("");
-  const logo = dados.logo ? `<img class="recibo-logo" src="${esc(dados.logo)}" alt="Logo">` : "";
-  let style = document.getElementById("estiloImpressaoRecibo");
-  if (!style) {
-    style = document.createElement("style");
-    style.id = "estiloImpressaoRecibo";
-    document.head.appendChild(style);
+async function abrirReciboComoPDF(dados) {
+  // Abre uma aba vazia imediatamente para preservar a permissão de pop-up do clique.
+  const pdfWindow = window.open("about:blank", "_blank");
+  if (!pdfWindow) {
+    throw new Error("O navegador bloqueou a abertura do PDF. Permita pop-ups para este aplicativo e tente novamente.");
   }
-  style.textContent = `
-    @media print {
-      @page { size: A4; margin: 16mm; }
-      html, body { height:auto !important; min-height:0 !important; margin:0 !important; padding:0 !important; overflow:visible !important; }
-      body.printing-receipt > *:not(#reciboImpressao) { display:none !important; }
-      body.printing-receipt > #reciboImpressao {
-        display:block !important; position:static !important; width:auto !important;
-        height:auto !important; min-height:0 !important; margin:0 !important; padding:0 !important;
-        background:#fff !important; color:#17212f !important;
-        font:12px Arial,sans-serif !important;
-        -webkit-print-color-adjust:exact; print-color-adjust:exact;
-        break-after:avoid-page !important; page-break-after:avoid !important;
-      }
-      #reciboImpressao table { width:100%; border-collapse:collapse; margin-top:20px; }
-      #reciboImpressao th,#reciboImpressao td { padding:9px 7px; border-bottom:1px solid #dce2eb; text-align:left; }
-      #reciboImpressao th { background:#f3f6fa !important; }
-      #reciboImpressao .center { text-align:center; }
-      #reciboImpressao .right { text-align:right; }
-      #reciboImpressao .recibo-total { text-align:right; font-size:18px; font-weight:bold; margin:22px 0; }
-      #reciboImpressao .recibo-cabecalho { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1e3a5f; padding-bottom:14px; margin-bottom:24px; }
-      #reciboImpressao .recibo-logo { max-width:105px; max-height:75px; object-fit:contain; }
-      #reciboImpressao .recibo-assinatura { margin:65px auto 0; text-align:center; width:240px; border-top:1px solid #444; padding-top:8px; }
-      #reciboImpressao p { margin:5px 0; line-height:1.4; }
+  try {
+    pdfWindow.document.title = "Gerando recibo em PDF";
+    pdfWindow.document.body.innerHTML = '<p style="font:16px Arial,sans-serif;padding:24px">Gerando recibo em PDF...</p>';
+
+    const carregarJsPDF = () => {
+      if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
+      if (window.__centralJsPdfPromise) return window.__centralJsPdfPromise;
+      window.__centralJsPdfPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js";
+        script.onload = () => window.jspdf && window.jspdf.jsPDF
+          ? resolve(window.jspdf.jsPDF)
+          : reject(new Error("A biblioteca de PDF não foi carregada."));
+        script.onerror = () => reject(new Error("Não foi possível carregar o gerador de PDF. Verifique sua conexão e tente novamente."));
+        document.head.appendChild(script);
+      });
+      return window.__centralJsPdfPromise;
+    };
+
+    const JsPDF = await carregarJsPDF();
+    const doc = new JsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const pageWidth = 210;
+    const margin = 16;
+    const contentWidth = pageWidth - margin * 2;
+    const right = pageWidth - margin;
+    let y = 18;
+
+    doc.setProperties({
+      title: "Recibo de pagamento - " + String(dados.aluno || "Aluno"),
+      subject: "Recibo de venda da Central do Instrutor",
+      creator: "Central do Instrutor"
+    });
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(23, 33, 47);
+
+    const responsavel = String(dados.responsavel || "Responsável");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text(doc.splitTextToSize(responsavel, 125), margin, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    y += 7;
+    for (const linha of [
+      dados.documento ? "CPF/CNPJ: " + dados.documento : "",
+      dados.celular ? "WhatsApp: " + dados.celular : "",
+      dados.endereco ? String(dados.endereco) : ""
+    ].filter(Boolean)) {
+      const linhas = doc.splitTextToSize(String(linha), 125);
+      doc.text(linhas, margin, y);
+      y += linhas.length * 4.2;
     }
-  `;
-  const area = document.createElement("section");
-  area.id = "reciboImpressao";
-  area.innerHTML = `
-    <div class="recibo-cabecalho"><div><h1 style="font-size:20px;margin:0 0 5px">${esc(dados.responsavel || "Responsável")}</h1>
-    ${dados.documento ? `<p>CPF/CNPJ: ${esc(dados.documento)}</p>` : ""}
-    ${dados.celular ? `<p>WhatsApp: ${esc(dados.celular)}</p>` : ""}
-    ${dados.endereco ? `<p>${esc(dados.endereco)}</p>` : ""}</div>${logo}</div>
-    <h2 style="text-align:center;font-size:18px;margin:24px 0">RECIBO DE PAGAMENTO</h2>
-    <p><strong>Recebemos de:</strong> ${esc(dados.aluno || "Aluno")}</p>
-    <p><strong>Data da venda:</strong> ${esc(dados.data || "—")}</p>
-    <p><strong>Forma de pagamento:</strong> ${esc(dados.pagamento || "Não informada")}</p>
-    <p><strong>Situação:</strong> ${esc(dados.status || "CONFIRMADA")}</p>
-    <table><thead><tr><th>Descrição</th><th class="center">Qtd.</th><th class="right">Valor unit.</th><th class="right">Total</th></tr></thead><tbody>${itens}</tbody></table>
-    <div class="recibo-total">Total: ${esc(dados.total || "R$ 0,00")}</div>
-    ${dados.desconto ? `<p><strong>Desconto aplicado:</strong> ${esc(dados.desconto)}</p>` : ""}
-    ${dados.devolvido ? `<p><strong>Devoluções registradas:</strong> ${esc(dados.devolvido)}</p>` : ""}
-    ${dados.observacoes ? `<p style="white-space:pre-wrap"><strong>Observações:</strong> ${esc(dados.observacoes)}</p>` : ""}
-    <p>Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
-    <div class="recibo-assinatura"><strong>${esc(dados.responsavel || "Responsável")}</strong><br>Responsável</div>`;
-  const anterior = document.getElementById("reciboImpressao");
-  if (anterior) anterior.remove();
-  document.body.appendChild(area);
-  document.body.classList.add("printing-receipt");
-  const limpar = () => {
-    document.body.classList.remove("printing-receipt");
-    area.remove();
-    window.removeEventListener("afterprint", limpar);
-  };
-  window.addEventListener("afterprint", limpar, { once: true });
-  // Chamada direta, igual à impressão dos contratos e relatórios.
-  window.print();
+
+    if (typeof dados.logo === "string" && /^data:image\/(png|jpe?g);base64,/i.test(dados.logo)) {
+      try {
+        const formato = /^data:image\/jpe?g/i.test(dados.logo) ? "JPEG" : "PNG";
+        doc.addImage(dados.logo, formato, 160, 15, 32, 24, undefined, "FAST");
+      } catch (logoError) {
+        console.warn("Não foi possível incluir a logo no PDF do recibo:", logoError);
+      }
+    }
+
+    y = Math.max(y + 4, 45);
+    doc.setDrawColor(30, 58, 95);
+    doc.setLineWidth(0.7);
+    doc.line(margin, y, right, y);
+    y += 12;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.text("RECIBO DE PAGAMENTO", pageWidth / 2, y, { align: "center" });
+    y += 11;
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Recebemos de:", margin, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(doc.splitTextToSize(String(dados.aluno || "Aluno"), 145), margin + 31, y);
+    y += 7;
+    const detalhes = [
+      ["Data da venda:", dados.data || "—"],
+      ["Forma de pagamento:", dados.pagamento || "Não informada"],
+      ["Situação:", dados.status || "CONFIRMADA"]
+    ];
+    for (const [rotulo, valor] of detalhes) {
+      doc.setFont("helvetica", "bold");
+      doc.text(rotulo, margin, y);
+      doc.setFont("helvetica", "normal");
+      doc.text(doc.splitTextToSize(String(valor), 130), margin + 39, y);
+      y += 6;
+    }
+    y += 4;
+
+    const desenharCabecalhoTabela = () => {
+      doc.setFillColor(243, 246, 250);
+      doc.rect(margin, y, contentWidth, 9, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text("Descrição", margin + 2, y + 6);
+      doc.text("Qtd.", 112, y + 6, { align: "center" });
+      doc.text("Valor unit.", 151, y + 6, { align: "right" });
+      doc.text("Total", right - 2, y + 6, { align: "right" });
+      y += 9;
+    };
+    desenharCabecalhoTabela();
+
+    const itens = Array.isArray(dados.itens) && dados.itens.length ? dados.itens : [
+      { descricao: "Item não informado", quantidade: 1, unitario: "", total: dados.total || "" }
+    ];
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    for (const item of itens) {
+      const descricao = doc.splitTextToSize(String(item.descricao || "Item"), 79);
+      const altura = Math.max(8, descricao.length * 4.2 + 3);
+      if (y + altura > 263) {
+        doc.addPage();
+        y = 20;
+        desenharCabecalhoTabela();
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+      }
+      doc.setDrawColor(220, 226, 235);
+      doc.line(margin, y + altura, right, y + altura);
+      doc.text(descricao, margin + 2, y + 5);
+      doc.text(String(item.quantidade ?? 1), 112, y + 5, { align: "center" });
+      doc.text(String(item.unitario || ""), 151, y + 5, { align: "right" });
+      doc.text(String(item.total || ""), right - 2, y + 5, { align: "right" });
+      y += altura;
+    }
+
+    y += 10;
+    if (y > 260) { doc.addPage(); y = 22; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Total: " + String(dados.total || "R$ 0,00"), right, y, { align: "right" });
+    y += 9;
+
+    const observacoes = [
+      dados.desconto ? ["Desconto aplicado:", dados.desconto] : null,
+      dados.devolvido ? ["Devoluções registradas:", dados.devolvido] : null,
+      dados.observacoes ? ["Observações:", dados.observacoes] : null
+    ].filter(Boolean);
+    doc.setFontSize(9);
+    for (const [rotulo, valor] of observacoes) {
+      const linhas = doc.splitTextToSize(String(rotulo) + " " + String(valor), contentWidth);
+      if (y + linhas.length * 4.5 > 267) { doc.addPage(); y = 22; }
+      doc.setFont("helvetica", "bold");
+      doc.text(linhas[0], margin, y);
+      if (linhas.length > 1) {
+        doc.setFont("helvetica", "normal");
+        doc.text(linhas.slice(1), margin, y + 4.5);
+      }
+      y += linhas.length * 4.5 + 2;
+    }
+
+    y += 8;
+    if (y > 265) { doc.addPage(); y = 35; }
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.text("Este recibo comprova o registro da venda acima. Guarde-o para seu controle.", margin, y);
+    y += 24;
+    doc.setDrawColor(90, 100, 115);
+    doc.line(55, y, 155, y);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(responsavel, pageWidth / 2, y + 5, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.text("Responsável", pageWidth / 2, y + 10, { align: "center" });
+
+    const blob = doc.output("blob");
+    const blobUrl = URL.createObjectURL(blob);
+    pdfWindow.location.replace(blobUrl);
+    window.setTimeout(() => URL.revokeObjectURL(blobUrl), 300000);
+  } catch (error) {
+    try { pdfWindow.close(); } catch (_) {}
+    throw error;
+  }
 }
+
 async function imprimirReciboVendaAdmin(vendaId) {
   const venda = db.vendas.find(item => String(item.id) === String(vendaId));
   if (!venda) return mostrarAviso("Venda não encontrada.");
