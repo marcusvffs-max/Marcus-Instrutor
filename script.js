@@ -1580,11 +1580,11 @@ async function abrirReciboComoPDF(dados) {
     doc.setDrawColor(60, 60, 60); doc.line(pageW / 2 - 35, y + 8, pageW / 2 + 35, y + 8);
     doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.text(dados.responsavel || "Responsável", pageW / 2, y + 13, { align: "center" });
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text("Responsável", pageW / 2, y + 18, { align: "center" });
-    const blobUrl = URL.createObjectURL(doc.output("blob"));
-    tab.document.open();
-    tab.document.write("<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Recibo em PDF</title><style>html,body{margin:0;width:100%;height:100%;overflow:hidden}iframe{border:0;width:100%;height:100%}</style></head><body><iframe title=\"Recibo em PDF\" src=\"" + blobUrl + "\"></iframe></body></html>");
-    tab.document.close();
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 10 * 60 * 1000);
+    const pdfBlob = doc.output("blob");
+      const pdfUrl = URL.createObjectURL(new Blob([pdfBlob], { type: "application/pdf" }));
+      // Abre o próprio PDF na aba criada pelo clique, sem página intermediária.
+      tab.location.href = pdfUrl;
+      setTimeout(() => URL.revokeObjectURL(pdfUrl), 10 * 60 * 1000);
   } catch (error) {
     tab.close();
     throw error;
