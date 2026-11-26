@@ -1871,3 +1871,45 @@ body.autenticado .login-screen {
   .login-brand { width: auto; height: auto; margin: 0 auto 20px; padding: 0; border-radius: 0; color: inherit; background: transparent; }
   .login-brand .login-logo { display:block; width:min(280px, 76vw); max-height:100px; height:auto; object-fit:contain; }
 }
+
+
+/* Resumo da venda: hierarquia visual clara no modal de nova venda */
+.sale-summary{display:block;margin:18px 0 20px;padding:16px;border:1px solid #dce4ed;border-radius:16px;background:#f7f9fc;color:#18324d}
+.sale-summary-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:13px;border-bottom:1px solid #e1e7ee}
+.sale-summary-heading h3{margin:3px 0 0;font-size:19px;font-weight:750;color:#12345a}
+.sale-eyebrow{font-size:10px;font-weight:800;letter-spacing:1.2px;color:#647b93}
+.sale-summary-tag{padding:5px 10px;border-radius:20px;background:#e8eef5;color:#34516f;font-size:11px;font-weight:700}
+.sale-items-section{padding:14px 0 12px}
+.sale-section-title{display:block;margin-bottom:9px;font-size:13px;color:#263f59}
+.sale-items-list{display:grid;gap:8px}
+.sale-empty{display:flex;align-items:center;gap:11px;padding:13px;border:1px dashed #c7d2df;border-radius:12px;background:#fff;color:#64748b}
+.sale-empty-icon{display:grid;place-items:center;flex:0 0 34px;height:34px;border-radius:10px;background:#edf2f7;color:#365675;font-size:22px;font-weight:400}
+.sale-empty span:last-child{display:grid;gap:3px}
+.sale-empty strong{font-size:12px;color:#40566d}
+.sale-empty small,.sale-item-main small{font-size:11px;color:#75869a}
+.sale-item-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border:1px solid #e1e7ee;border-radius:11px;background:#fff}
+.sale-item-main{display:grid;gap:4px;min-width:0}
+.sale-item-main>strong{font-size:13px;color:#1e354d;overflow-wrap:anywhere}
+.sale-item-kind{font-size:9px;font-weight:800;letter-spacing:.7px;color:#54718e}
+.sale-item-values{display:grid;justify-items:end;gap:5px;flex-shrink:0}
+.sale-item-values>strong{font-size:13px;color:#1d344b}
+.sale-remove-item{border:0!important;background:transparent!important;color:#a33b3b!important;padding:2px 0!important;font-size:11px!important;min-height:0!important}
+.sale-breakdown{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:2px 0 10px}
+.sale-breakdown-card{display:grid;gap:5px;padding:11px 12px;border:1px solid #e1e7ee;border-radius:11px;background:#fff}
+.sale-breakdown-card span{font-size:11px;color:#718196}
+.sale-breakdown-card strong{font-size:15px;color:#203b56}
+.sale-discount-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 2px;border-top:1px solid #e1e7ee}
+.sale-discount-row>span{display:grid;gap:3px}
+.sale-discount-row strong{font-size:12px;color:#344d67}
+.sale-discount-row small{font-size:10px;color:#78899b}
+.sale-total-card{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:3px;padding:15px;border-radius:12px;background:#12345a;color:#fff}
+.sale-total-card span{font-size:11px;font-weight:800;letter-spacing:.7px;color:#dbe7f3}
+.sale-total-card strong{font-size:22px;font-weight:800;color:#fff}
+.sale-lessons{display:flex;align-items:center;gap:10px;margin-top:10px;padding:11px 12px;border:1px solid #dce6df;border-radius:11px;background:#f1f7f2}
+.sale-lessons-icon{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#e0eee3;color:#376c48;font-size:18px}
+.sale-lessons>span:nth-child(2){display:grid;gap:3px;flex:1}
+.sale-lessons>span:nth-child(2)>strong{font-size:11px;color:#355341}
+.sale-lessons small{font-size:10px;color:#71877a}
+.sale-lessons>b{display:flex;align-items:baseline;gap:3px;color:#28583a}
+.sale-lessons>b>strong{font-size:19px}
+@media(max-width:420px){.sale-summary{padding:12px}.sale-breakdown{gap:7px}.sale-breakdown-card{padding:10px}.sale-total-card{padding:13px}.sale-total-card strong{font-size:20px}}
