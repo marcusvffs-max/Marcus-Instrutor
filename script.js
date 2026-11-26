@@ -1043,13 +1043,13 @@ function listarVeiculos() {
   const lista = document.getElementById("listaVeiculos");
   if (!lista) return;
   const busca = String(document.getElementById("buscaVeiculos")?.value || "").toLocaleLowerCase("pt-BR");
-  const todos = db.veiculos.filter(v => (v.ativo !== false) === !mostrarVeiculosInativos);
+  const todos = db.veiculos.filter(v => mostrarVeiculosInativos || v.ativo !== false);
   const veiculos = todos.filter(v =>
     String(v.modelo || "").toLocaleLowerCase("pt-BR").includes(busca) ||
     String(v.placa || "").toLocaleLowerCase("pt-BR").includes(busca)
   );
   const alternar = document.getElementById("btnAlternarVeiculosInativos");
-  if (alternar) alternar.textContent = mostrarVeiculosInativos ? "Mostrar veículos ativos" : "Mostrar veículos inativos";
+  if (alternar) alternar.textContent = mostrarVeiculosInativos ? "Ocultar veículos inativos" : "Mostrar veículos inativos";
   lista.innerHTML = veiculos.length
     ? veiculos.map(v => `
         <div class="record">
@@ -1063,7 +1063,7 @@ function listarVeiculos() {
           </div>
         </div>
       `).join("")
-    : '<div class="empty-state">' + (mostrarVeiculosInativos ? "Nenhum veículo inativo encontrado." : "Nenhum veículo ativo encontrado.") + '</div>';
+    : '<div class="empty-state">' + (mostrarVeiculosInativos ? "Nenhum veículo encontrado." : "Nenhum veículo ativo encontrado.") + '</div>';
 }
 
 async function alterarStatusVeiculo(id) {
