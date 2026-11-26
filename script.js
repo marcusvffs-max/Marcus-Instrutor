@@ -1554,79 +1554,60 @@ function atualizarFinanceiro() {
 
 
 function abrirReciboComoPDF(dados) {
-  // Mesmo mecanismo dos contratos/relatórios: imprime o documento atual com window.print().
+  // Recibo em documento isolado: evita que os estilos de impressão do aplicativo
+  // ocultem o conteúdo e produzam uma página/PDF em branco.
+  const popup = window.open("", "_blank");
+  if (!popup) throw new Error("O navegador bloqueou a abertura do recibo. Permita pop-ups e tente novamente.");
   const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
   })[char]);
   const itens = (dados.itens || []).map(item => `
     <tr><td>${esc(item.descricao || "Item")}</td>
     <td class="center">${esc(item.quantidade ?? 1)}</td>
     <td class="right">${esc(item.unitario || "")}</td>
     <td class="right">${esc(item.total || "")}</td></tr>`).join("");
-  const logo = dados.logo ? `<img class="recibo-logo" src="${esc(dados.logo)}" alt="Logo">` : "";
-  let style = document.getElementById("estiloImpressaoRecibo");
-  if (!style) {
-    style = document.createElement("style");
-    style.id = "estiloImpressaoRecibo";
-    document.head.appendChild(style);
-  }
-  style.textContent = `
-    @media print {
-      @page { size: A4; margin: 16mm; }
-      html, body { height:auto !important; min-height:0 !important; margin:0 !important; padding:0 !important; overflow:visible !important; }
-      body.printing-receipt > *:not(#reciboImpressao) { display:none !important; }
-      body.printing-receipt > #reciboImpressao {
-        display:block !important; position:static !important; width:auto !important;
-        height:auto !important; min-height:0 !important; margin:0 !important; padding:0 !important;
-        background:#fff !important; color:#17212f !important;
-        font:12px Arial,sans-serif !important;
-        -webkit-print-color-adjust:exact; print-color-adjust:exact;
-        break-after:avoid-page !important; page-break-after:avoid !important;
-      }
-      #reciboImpressao table { width:100%; border-collapse:collapse; margin-top:20px; }
-      #reciboImpressao th,#reciboImpressao td { padding:9px 7px; border-bottom:1px solid #dce2eb; text-align:left; }
-      #reciboImpressao th { background:#f3f6fa !important; }
-      #reciboImpressao .center { text-align:center; }
-      #reciboImpressao .right { text-align:right; }
-      #reciboImpressao .recibo-total { text-align:right; font-size:18px; font-weight:bold; margin:22px 0; }
-      #reciboImpressao .recibo-cabecalho { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1e3a5f; padding-bottom:14px; margin-bottom:24px; }
-      #reciboImpressao .recibo-logo { max-width:105px; max-height:75px; object-fit:contain; }
-      #reciboImpressao .recibo-assinatura { margin:65px auto 0; text-align:center; width:240px; border-top:1px solid #444; padding-top:8px; }
-      #reciboImpressao p { margin:5px 0; line-height:1.4; }
-    }
-  `;
-  const area = document.createElement("section");
-  area.id = "reciboImpressao";
-  area.innerHTML = `
-    <div class="recibo-cabecalho"><div><h1 style="font-size:20px;margin:0 0 5px">${esc(dados.responsavel || "Responsável")}</h1>
+  const logo = dados.logo ? `<img class="logo" src="${esc(dados.logo)}" alt="Logo">` : "";
+  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Recibo de pagamento</title>
+    <style>
+      @page{size:A4;margin:16mm}
+      *{box-sizing:border-box}
+      html,body{margin:0;padding:0;background:#fff;color:#17212f;font:12px Arial,Helvetica,sans-serif}
+      body{width:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .cabecalho{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:2px solid #1e3a5f;padding-bottom:14px;margin-bottom:24px}
+      h1{font-size:20px;margin:0 0 5px} h2{text-align:center;font-size:18px;margin:24px 0}
+      p{margin:5px 0;line-height:1.4}.logo{max-width:105px;max-height:75px;object-fit:contain}
+      table{width:100%;border-collapse:collapse;margin-top:20px}
+      th,td{padding:9px 7px;border-bottom:1px solid #dce2eb;text-align:left}
+      th{background:#f3f6fa}.center{text-align:center}.right{text-align:right}
+      .total{text-align:right;font-size:18px;font-weight:bold;margin:22px 0}
+      .assinatura{margin:65px auto 0;text-align:center;width:240px;border-top:1px solid #444;padding-top:8px}
+      @media screen{body{max-width:800px;margin:24px auto;padding:24px;box-shadow:0 1px 8px #0002}}
+    </style></head><body>
+    <div class="cabecalho"><div><h1>${esc(dados.responsavel || "Responsável")}</h1>
     ${dados.documento ? `<p>CPF/CNPJ: ${esc(dados.documento)}</p>` : ""}
     ${dados.celular ? `<p>WhatsApp: ${esc(dados.celular)}</p>` : ""}
     ${dados.endereco ? `<p>${esc(dados.endereco)}</p>` : ""}</div>${logo}</div>
-    <h2 style="text-align:center;font-size:18px;margin:24px 0">RECIBO DE PAGAMENTO</h2>
+    <h2>RECIBO DE PAGAMENTO</h2>
     <p><strong>Recebemos de:</strong> ${esc(dados.aluno || "Aluno")}</p>
     <p><strong>Data da venda:</strong> ${esc(dados.data || "—")}</p>
     <p><strong>Forma de pagamento:</strong> ${esc(dados.pagamento || "Não informada")}</p>
     <p><strong>Situação:</strong> ${esc(dados.status || "CONFIRMADA")}</p>
     <table><thead><tr><th>Descrição</th><th class="center">Qtd.</th><th class="right">Valor unit.</th><th class="right">Total</th></tr></thead><tbody>${itens}</tbody></table>
-    <div class="recibo-total">Total: ${esc(dados.total || "R$ 0,00")}</div>
+    <div class="total">Total: ${esc(dados.total || "R$ 0,00")}</div>
     ${dados.desconto ? `<p><strong>Desconto aplicado:</strong> ${esc(dados.desconto)}</p>` : ""}
     ${dados.devolvido ? `<p><strong>Devoluções registradas:</strong> ${esc(dados.devolvido)}</p>` : ""}
-    ${dados.observacoes ? `<p style="white-space:pre-wrap"><strong>Observações:</strong> ${esc(dados.observacoes)}</p>` : ""}
+    ${dados.observacoes ? `<p><strong>Observações:</strong> ${esc(dados.observacoes)}</p>` : ""}
     <p>Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
-    <div class="recibo-assinatura"><strong>${esc(dados.responsavel || "Responsável")}</strong><br>Responsável</div>`;
-  const anterior = document.getElementById("reciboImpressao");
-  if (anterior) anterior.remove();
-  document.body.appendChild(area);
-  document.body.classList.add("printing-receipt");
-  const limpar = () => {
-    document.body.classList.remove("printing-receipt");
-    area.remove();
-    window.removeEventListener("afterprint", limpar);
-  };
-  window.addEventListener("afterprint", limpar, { once: true });
-  // Chamada direta, igual à impressão dos contratos e relatórios.
-  window.print();
+    <div class="assinatura"><strong>${esc(dados.responsavel || "Responsável")}</strong><br>Responsável</div>
+    <script>window.onload=function(){var imgs=Array.from(document.images);Promise.all(imgs.map(function(i){return i.complete?Promise.resolve():new Promise(function(r){i.onload=i.onerror=r;});})).then(function(){setTimeout(function(){window.focus();window.print();},250);});};</script>
+    </body></html>`;
+  popup.document.open();
+  popup.document.write(html);
+  popup.document.close();
 }
+
 async function imprimirReciboVendaAdmin(vendaId) {
   const venda = db.vendas.find(item => String(item.id) === String(vendaId));
   if (!venda) return mostrarAviso("Venda não encontrada.");
