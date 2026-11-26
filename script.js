@@ -2064,15 +2064,25 @@ async function abrirVenda() {
         Adicionar item
       </button>
 
-      <div class="panel">
-        <strong>Itens da venda</strong>
-        <div id="itensCarrinhoVenda"><p>Nenhum item adicionado.</p></div>
-        <p>Subtotal de produtos: <strong id="subtotalProdutosVenda">R$ 0,00</strong></p>
-        <p>Subtotal de serviços: <strong id="subtotalServicosVenda">R$ 0,00</strong></p>
-        <p>Desconto aplicado somente aos serviços: <strong id="descontoAplicadoVenda">R$ 0,00</strong></p>
-        <p>Total final: <strong id="totalVenda">R$ 0,00</strong></p>
-        <p>Aulas que serão adicionadas: <strong id="aulasVenda">0</strong></p>
-      </div>
+      <section class="sale-summary" aria-label="Resumo da venda">
+        <div class="sale-summary-heading">
+          <div><span class="sale-eyebrow">CONFERÊNCIA</span><h3>Resumo da venda</h3></div>
+          <span class="sale-summary-tag">Pedido</span>
+        </div>
+        <div class="sale-items-section">
+          <strong class="sale-section-title">Itens adicionados</strong>
+          <div id="itensCarrinhoVenda" class="sale-items-list">
+            <div class="sale-empty"><span class="sale-empty-icon">＋</span><span><strong>Nenhum item adicionado</strong><small>Escolha um produto ou serviço acima.</small></span></div>
+          </div>
+        </div>
+        <div class="sale-breakdown">
+          <div class="sale-breakdown-card"><span>Produtos</span><strong id="subtotalProdutosVenda">R$ 0,00</strong></div>
+          <div class="sale-breakdown-card"><span>Serviços</span><strong id="subtotalServicosVenda">R$ 0,00</strong></div>
+        </div>
+        <div class="sale-discount-row"><span><strong>Desconto nos serviços</strong><small>Não altera o valor dos produtos</small></span><strong id="descontoAplicadoVenda">R$ 0,00</strong></div>
+        <div class="sale-total-card"><span>TOTAL DA VENDA</span><strong id="totalVenda">R$ 0,00</strong></div>
+        <div class="sale-lessons"><span class="sale-lessons-icon">▣</span><span><strong>Aulas que serão adicionadas</strong><small>Créditos de aulas incluídos nesta venda</small></span><b><strong id="aulasVenda">0</strong><small> aulas</small></b></div>
+      </section>
 
       <label>Tipo de desconto</label>
       <select id="tipoDescontoVenda" name="descontoTipo">
@@ -2133,16 +2143,16 @@ async function abrirVenda() {
     const lista = document.getElementById("itensCarrinhoVenda");
     lista.innerHTML = itensCarrinho.length
       ? itensCarrinho.map((item, indice) => `
-          <div class="record">
-            <strong>${escapar(item.nome)}</strong>
-            <p>Classificação: ${item.tipo === "servico" ? "Serviço" : "Produto"}</p>
-            <p>Quantidade: ${item.quantidade}</p>
-            ${item.aulasContratadas > 0 ? `<p>Aulas adicionadas: ${item.aulasContratadas}</p>` : ""}
-            <p>Subtotal: ${moeda(item.total)}</p>
-            <button type="button" data-remover-item="${indice}">Remover</button>
+          <div class="sale-item-row">
+            <div class="sale-item-main">
+              <span class="sale-item-kind">${item.tipo === "servico" ? "SERVIÇO" : "PRODUTO"}</span>
+              <strong>${escapar(item.nome)}</strong>
+              <small>${item.quantidade} ${item.quantidade === 1 ? "unidade" : "unidades"} · ${moeda(item.precoUnitario)} cada${item.aulasContratadas > 0 ? ` · ${item.aulasContratadas} aulas` : ""}</small>
+            </div>
+            <div class="sale-item-values"><strong>${moeda(item.total)}</strong><button type="button" class="sale-remove-item" data-remover-item="${indice}" aria-label="Remover ${escapar(item.nome)}">Remover</button></div>
           </div>
         `).join("")
-      : "<p>Nenhum item adicionado.</p>";
+      : '<div class="sale-empty"><span class="sale-empty-icon">＋</span><span><strong>Nenhum item adicionado</strong><small>Escolha um produto ou serviço acima.</small></span></div>';
 
     const subtotalProdutos = Math.round(itensCarrinho.filter(item => item.tipo === "produto").reduce((s, item) => s + item.total, 0) * 100) / 100;
     const subtotalServicos = Math.round(itensCarrinho.filter(item => item.tipo === "servico").reduce((s, item) => s + item.total, 0) * 100) / 100;
