@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer@^9";
-import { getCompletionFallbackOutcome, getReservationStatus } from "../_shared/student-link-rules.mjs";
+import { getCompletionFallbackOutcome, getReservationStatus } from "./student-link-rules.mjs";
 
 const APP_ORIGIN = "https://marcusinstrutor.vercel.app";
 const PREVIEW_ORIGIN_PATTERN = /^https:\/\/marcusinstrutor-[a-z0-9-]+-marcusvffs-2839\.vercel\.app$/;
