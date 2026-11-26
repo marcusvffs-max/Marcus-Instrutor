@@ -27,7 +27,7 @@ grant all on public.sales_quotes to service_role;
 create or replace function public.convert_sales_quote_to_sale(
   p_quote_id uuid, p_sale_id uuid, p_student_id uuid, p_payment_method text
 )
-returns jsonb language plpgsql security definer set search_path = ''
+returns jsonb language plpgsql security invoker set search_path = ''
 as $function$
 declare
   v_uid uuid := auth.uid();
