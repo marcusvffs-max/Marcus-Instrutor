@@ -305,6 +305,7 @@ async function atualizarProximosExamesPainel() {
             <div class="exame-painel-acoes">
               <button type="button" class="primary-button" data-exame-resultado="aprovado" data-exame-id="${escapar(exame.id)}">Aprovado</button>
               <button type="button" class="secondary-button" data-exame-resultado="reprovado" data-exame-id="${escapar(exame.id)}">Reprovado</button>
+              <button type="button" class="secondary-button" data-exame-cancelar="${escapar(exame.id)}">Cancelar</button>
             </div>
           </div>`;
         }).join("")
@@ -315,7 +316,7 @@ async function atualizarProximosExamesPainel() {
         const exameId = botao.dataset.exameId;
         const label = resultado === "aprovado" ? "APROVADO" : "REPROVADO";
         if (!(await confirmar("Confirmar resultado " + label + "? Esta ação consumirá 1 Aluguel de Veículo e não poderá ser desfeita."))) return;
-        const botoes = host.querySelectorAll("[data-exame-resultado]");
+        const botoes = host.querySelectorAll("[data-exame-resultado], [data-exame-cancelar]");
         botoes.forEach(b => b.disabled = true);
         try {
           const { error: rpcError } = await cliente.rpc("record_student_practical_exam_result", {
@@ -329,6 +330,27 @@ async function atualizarProximosExamesPainel() {
         } catch (erro) {
           console.error("Falha ao registrar resultado do exame:", erro);
           mostrarAviso(erro?.message || "Não foi possível registrar o resultado do exame.");
+          botoes.forEach(b => b.disabled = false);
+        }
+      });
+    });
+    host.querySelectorAll("[data-exame-cancelar]").forEach(botao => {
+      botao.addEventListener("click", async () => {
+        const exameId = botao.dataset.exameCancelar;
+        if (!(await confirmar("Cancelar este exame por não comparecimento do aluno? O exame ficará registrado como cancelado e nenhum aluguel será consumido."))) return;
+        const botoes = host.querySelectorAll("[data-exame-resultado], [data-exame-cancelar]");
+        botoes.forEach(b => b.disabled = true);
+        try {
+          const { error: rpcError } = await cliente.rpc("cancel_student_practical_exam", {
+            p_exam_id: exameId
+          });
+          if (rpcError) throw rpcError;
+          mostrarAviso("Exame cancelado. Nenhum aluguel foi consumido.");
+          await atualizarProximosExamesPainel();
+          atualizarPainel();
+        } catch (erro) {
+          console.error("Falha ao cancelar exame:", erro);
+          mostrarAviso(erro?.message || "Não foi possível cancelar o exame.");
           botoes.forEach(b => b.disabled = false);
         }
       });
