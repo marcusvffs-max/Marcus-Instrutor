@@ -42,6 +42,7 @@ let relatorioAtual = null;
 let adminSupabaseUserId = null;
 let adminAlunosSupabaseAtivo = false;
 let idProdutoEditando = null;
+let mostrarVeiculosInativos = false;
 
 /* =========================================
    FUNÇÕES BÁSICAS
@@ -769,39 +770,43 @@ async function atualizarStatusConvitesAlunos(mostrarMensagem = true) {
 function listarAlunos() {
   const lista = document.getElementById("listaAlunos");
   if (!lista) return;
-
-  const busca = (
-    document.getElementById("buscaAlunos")?.value || ""
-  ).toLowerCase();
-
-  const alunos = db.alunos.filter(a =>
-    a.nome.toLowerCase().includes(busca) ||
-    String(a.email || "").toLowerCase().includes(busca) ||
-    String(a.cpf || "").includes(busca)
-  );
-
+  const busca = String(document.getElementById("buscaAlunos")?.value || "").trim().toLocaleLowerCase("pt-BR");
+  const alunos = db.alunos.filter(a => String(a.nome || "").toLocaleLowerCase("pt-BR").includes(busca));
   lista.innerHTML = alunos.length
     ? alunos.map(a => `
         <div class="record">
-          <div class="record-info">
-            <strong>${escapar(a.nome)}</strong>
-            <p>E-mail: ${escapar(a.email || "Não informado")}</p>
-            <p>Telefone: ${escapar(a.telefone || "Não informado")}</p>
-            <p>Categoria: ${escapar(a.categoria)}</p>
-            <p>Situação: ${escapar(a.situacao)}</p>
-            <p>Aulas restantes: <strong>${Number(a.saldo || 0)}</strong></p>
-            <p>Aluguéis de veículo disponíveis: <strong>${Number(a.alugueisDisponiveis || 0)}</strong> de ${Number(a.alugueisComprados || 0)} comprados</p>
-          </div>
-          <div class="record-actions">
-            ${a.email ? `<button type="button" data-invite-aluno="${a.id}">${a.user_id ? "Reenviar acesso" : a.invited_at ? "Reenviar convite" : "Enviar convite"}</button>` : ""}
-            <button type="button" data-open-student-exams="${a.id}">Exames</button>
-            <button type="button" data-edit-aluno="${a.id}">Editar</button>
-            <button type="button" data-delete-aluno="${a.id}">Excluir</button>
-          </div>
-          ${a.email ? `<p class="student-invite-status">Acesso: ${a.user_id ? "Conta vinculada" : a.invited_at ? "Convite enviado ou aguardando confirmação" : "Ainda não convidado"}</p>` : ""}
+          <button type="button" data-open-aluno="${escapar(a.id)}" style="background:none;border:0;padding:0;color:inherit;font:inherit;font-weight:700;text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:3px">${escapar(a.nome)}</button>
         </div>
       `).join("")
     : '<div class="empty-state">Nenhum aluno encontrado.</div>';
+}
+
+function abrirDetalhesAluno(id) {
+  const aluno = db.alunos.find(item => String(item.id) === String(id));
+  if (!aluno) { mostrarAviso("Não foi possível localizar o aluno."); return; }
+  const acesso = aluno.user_id ? "Conta vinculada" : aluno.invited_at ? "Convite enviado ou aguardando confirmação" : "Ainda não convidado";
+  abrirModal(`
+    <h2>${escapar(aluno.nome)}</h2>
+    <div class="record-info">
+      <p><strong>E-mail:</strong> ${escapar(aluno.email || "Não informado")}</p>
+      <p><strong>Telefone:</strong> ${escapar(aluno.telefone || "Não informado")}</p>
+      <p><strong>CPF:</strong> ${escapar(aluno.cpf || "Não informado")}</p>
+      <p><strong>Endereço:</strong> ${escapar(aluno.endereco || "Não informado")}</p>
+      <p><strong>Categoria:</strong> ${escapar(aluno.categoria || "Não informada")}</p>
+      <p><strong>Situação:</strong> ${escapar(aluno.situacao || "Em aberto")}</p>
+      <p><strong>Aulas contratadas:</strong> ${Number(aluno.contratadas || 0)}</p>
+      <p><strong>Aulas restantes:</strong> ${Number(aluno.saldo || 0)}</p>
+      <p><strong>Aluguéis disponíveis:</strong> ${Number(aluno.alugueisDisponiveis || 0)} de ${Number(aluno.alugueisComprados || 0)} comprados</p>
+      <p><strong>Acesso do aluno:</strong> ${escapar(acesso)}</p>
+    </div>
+    <div class="record-actions">
+      ${aluno.email ? `<button type="button" data-invite-aluno="${escapar(aluno.id)}">${aluno.user_id ? "Reenviar acesso" : aluno.invited_at ? "Reenviar convite" : "Enviar convite"}</button>` : ""}
+      <button type="button" data-open-student-exams="${escapar(aluno.id)}">Exames</button>
+      <button type="button" data-edit-aluno="${escapar(aluno.id)}">Editar</button>
+      <button type="button" data-delete-aluno="${escapar(aluno.id)}">Excluir</button>
+      <button type="button" class="secondary-button" data-close>Fechar</button>
+    </div>
+  `);
 }
 
 async function enviarConviteAluno(id, botao) {
@@ -916,6 +921,12 @@ function abrirFormularioVeiculo(id = null) {
         ${opcoes(["A", "B"], veiculo.categoria || "B")}
       </select>
 
+      <label>Situação</label>
+      <select name="ativo">
+        <option value="true" ${veiculo.ativo !== false ? "selected" : ""}>Ativo</option>
+        <option value="false" ${veiculo.ativo === false ? "selected" : ""}>Inativo</option>
+      </select>
+
       <div class="modal-actions">
         <button type="button" class="secondary-button" data-close>Cancelar</button>
         <button type="submit" class="primary-button">Salvar veículo</button>
@@ -966,7 +977,8 @@ async function salvarVeiculo(evento) {
     tipo: dados.tipo,
     nome: modelo,
     placa,
-    categoria: dados.categoria
+    categoria: dados.categoria,
+    ativo: dados.ativo !== "false"
   };
 
   if (botaoSalvar) {
@@ -1000,7 +1012,8 @@ async function salvarVeiculo(evento) {
       tipo: salvo.tipo || "Carro",
       modelo: salvo.nome || "",
       placa: salvo.placa || "",
-      categoria: salvo.categoria || "B"
+      categoria: salvo.categoria || "B",
+      ativo: salvo.ativo !== false
     };
 
     if (veiculoEditando !== null) {
@@ -1029,29 +1042,55 @@ async function salvarVeiculo(evento) {
 function listarVeiculos() {
   const lista = document.getElementById("listaVeiculos");
   if (!lista) return;
-
-  const busca = (
-    document.getElementById("buscaVeiculos")?.value || ""
-  ).toLowerCase();
-
-  const veiculos = db.veiculos.filter(v =>
-    v.modelo.toLowerCase().includes(busca) ||
-    v.placa.toLowerCase().includes(busca)
+  const busca = String(document.getElementById("buscaVeiculos")?.value || "").toLocaleLowerCase("pt-BR");
+  const todos = db.veiculos.filter(v => (v.ativo !== false) === !mostrarVeiculosInativos);
+  const veiculos = todos.filter(v =>
+    String(v.modelo || "").toLocaleLowerCase("pt-BR").includes(busca) ||
+    String(v.placa || "").toLocaleLowerCase("pt-BR").includes(busca)
   );
-
+  const alternar = document.getElementById("btnAlternarVeiculosInativos");
+  if (alternar) alternar.textContent = mostrarVeiculosInativos ? "Mostrar veículos ativos" : "Mostrar veículos inativos";
   lista.innerHTML = veiculos.length
     ? veiculos.map(v => `
         <div class="record">
           <strong>${escapar(v.modelo)}</strong>
           <p>${escapar(v.tipo)} • Placa: ${escapar(v.placa)}</p>
-          <p>Categoria: ${escapar(v.categoria)}</p>
+          <p>Categoria: ${escapar(v.categoria)} · ${v.ativo === false ? "Inativo" : "Ativo"}</p>
           <div class="record-actions">
-            <button type="button" data-edit-veiculo="${v.id}">Editar</button>
-            <button type="button" data-delete-veiculo="${v.id}">Excluir</button>
+            <button type="button" data-edit-veiculo="${escapar(v.id)}">Editar</button>
+            <button type="button" data-toggle-veiculo="${escapar(v.id)}">${v.ativo === false ? "Reativar" : "Inativar"}</button>
+            <button type="button" data-delete-veiculo="${escapar(v.id)}">Excluir</button>
           </div>
         </div>
       `).join("")
-    : '<div class="empty-state">Nenhum veículo encontrado.</div>';
+    : '<div class="empty-state">' + (mostrarVeiculosInativos ? "Nenhum veículo inativo encontrado." : "Nenhum veículo ativo encontrado.") + '</div>';
+}
+
+async function alterarStatusVeiculo(id) {
+  const veiculo = db.veiculos.find(v => String(v.id) === String(id));
+  if (!veiculo) return;
+  const novoStatus = veiculo.ativo === false;
+  if (!novoStatus && !(await confirmar("Inativar este veículo? Ele deixará de aparecer em novos agendamentos. As aulas já registradas serão preservadas."))) return;
+  if (!adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
+    mostrarAviso("Não foi possível conectar ao Supabase. A situação do veículo não foi alterada.");
+    return;
+  }
+  const cliente = window.getMarcusSupabase?.();
+  if (!cliente) { mostrarAviso("Conexão com o Supabase indisponível."); return; }
+  try {
+    const { data, error } = await cliente.from("vehicles")
+      .update({ ativo: novoStatus })
+      .eq("id", id).eq("owner_id", adminSupabaseUserId)
+      .select("id,ativo").single();
+    if (error) throw error;
+    veiculo.ativo = data.ativo !== false;
+    listarVeiculos();
+    atualizarSeletoresAlunos();
+    mostrarAviso(novoStatus ? "Veículo reativado." : "Veículo inativado. As aulas anteriores foram preservadas.");
+  } catch (erro) {
+    console.error("Erro ao alterar situação do veículo:", erro);
+    mostrarAviso("Não foi possível alterar a situação do veículo. Tente novamente.");
+  }
 }
 
 async function excluirVeiculo(id) {
@@ -1105,8 +1144,8 @@ function abrirFormularioAula(id = null) {
     return;
   }
 
-  if (!db.veiculos.length) {
-    mostrarAviso("Cadastre um veículo primeiro.");
+  if (!db.veiculos.some(v => v.ativo !== false || String(v.id) === String(db.aulas.find(a => String(a.id) === String(id))?.veiculoId))) {
+    mostrarAviso("Cadastre ou reative um veículo para agendar uma nova aula.");
     return;
   }
 
@@ -1131,7 +1170,7 @@ function abrirFormularioAula(id = null) {
       <label>Veículo</label>
       <select name="veiculoId" required>
         <option value="">Selecione</option>
-        ${db.veiculos.map(v => `<option value="${v.id}" ${aula.veiculoId === v.id ? "selected" : ""}>${escapar(v.modelo)} - ${escapar(v.placa)}</option>`).join("")}
+        ${db.veiculos.filter(v => v.ativo !== false || String(v.id) === String(aula.veiculoId)).map(v => `<option value="${v.id}" ${aula.veiculoId === v.id ? "selected" : ""}>${escapar(v.modelo)} - ${escapar(v.placa)}${v.ativo === false ? " (Inativo · aula já vinculada)" : ""}</option>`).join("")}
       </select>
 
       <label>Situação</label>
@@ -1159,7 +1198,7 @@ async function salvarAula(evento) {
  const anterior=aulaEditando!==null?db.aulas.find(a=>String(a.id)===String(aulaEditando)):null;
  if(aulaEditando!==null&&!anterior){mostrarAviso("Não foi possível localizar a aula para edição.");return;}
  const alunoNovo=db.alunos.find(a=>String(a.id)===String(dados.alunoId)),veiculoNovo=db.veiculos.find(v=>String(v.id)===String(dados.veiculoId));
- if(!alunoNovo||!veiculoNovo){mostrarAviso("Selecione um aluno e um veículo válidos.");return;}
+ if(!alunoNovo||!veiculoNovo || (veiculoNovo.ativo === false && String(anterior?.veiculoId) !== String(veiculoNovo.id))){mostrarAviso("Selecione um aluno e um veículo ativo válido para novos agendamentos.");return;}
  const conflito=db.aulas.find(a=>String(a.id)!==String(aulaEditando)&&a.data===dados.data&&a.horario===dados.horario&&String(a.veiculoId)===String(dados.veiculoId)&&a.status!=="Cancelada"&&dados.status!=="Cancelada");
  if(conflito){mostrarAviso("Este veículo já possui uma aula neste dia e horário.");return;}
  const payload={owner_id:adminSupabaseUserId,student_id:dados.alunoId,vehicle_id:dados.veiculoId,data_aula:dados.data,horario:horarioTelaParaBanco(dados.horario),status:statusAulaParaBanco(dados.status),observacoes:String(dados.observacoes||"").trim()||null};
@@ -1206,7 +1245,7 @@ function abrirAgendamentoLote() {
       <label>Veículo para todas as aulas</label>
       <select name="veiculoId" required>
         <option value="">Selecione o veículo</option>
-        ${db.veiculos.map(v => `
+        ${db.veiculos.filter(v => v.ativo !== false).map(v => `
           <option value="${v.id}">
             ${escapar(v.modelo)} - ${escapar(v.placa)}
           </option>
@@ -1333,7 +1372,7 @@ function renderizarCamposAgendamentoLote(preservar = true) {
 async function salvarAgendamentoLote(evento) {
  evento.preventDefault();if(!adminAlunosSupabaseAtivo||!adminSupabaseUserId){mostrarAviso("Não foi possível conectar ao Supabase. As aulas não foram agendadas.");return;}
  const formulario=evento.currentTarget,botaoSalvar=formulario.querySelector('button[type="submit"]'),dados=new FormData(formulario),alunoId=dados.get("alunoId"),veiculoId=dados.get("veiculoId"),quantidade=Math.max(1,Math.min(50,Number(document.getElementById("quantidadeAulasLote").value)||1));
- if(!db.alunos.some(a=>String(a.id)===String(alunoId))){mostrarAviso("Selecione um aluno válido.");return;}if(!db.veiculos.some(v=>String(v.id)===String(veiculoId))){mostrarAviso("Selecione um veículo válido.");return;}
+ if(!db.alunos.some(a=>String(a.id)===String(alunoId))){mostrarAviso("Selecione um aluno válido.");return;}if(!db.veiculos.some(v=>String(v.id)===String(veiculoId) && v.ativo !== false)){mostrarAviso("Selecione um veículo ativo válido.");return;}
  const novasAulas=[];for(let i=0;i<quantidade;i++){const data=dados.get(`data_${i}`),horario=dados.get(`horario_${i}`);if(!data||!horario){mostrarAviso(`Preencha a data e o horário da aula ${i+1}.`);return;}
  if(db.aulas.some(a=>a.data===data&&a.horario===horario&&String(a.veiculoId)===String(veiculoId)&&a.status!=="Cancelada")){mostrarAviso(`Aula ${i+1}: este veículo já possui aula nessa data e horário.`);return;}
  if(novasAulas.some(a=>a.data_aula===data&&a.horario===horarioTelaParaBanco(horario))){mostrarAviso(`Aula ${i+1}: existe outra aula deste lote no mesmo dia e horário.`);return;}
@@ -3344,6 +3383,12 @@ document.addEventListener("click", evento => {
     return;
   }
 
+  const abrirAluno = evento.target.closest("[data-open-aluno]");
+  if (abrirAluno) {
+    abrirDetalhesAluno(abrirAluno.dataset.openAluno);
+    return;
+  }
+
   const abrirExamesAluno = evento.target.closest("[data-open-student-exams]");
   if (abrirExamesAluno) {
     if (window.MarcusExamsRentals?.openForStudent) window.MarcusExamsRentals.openForStudent(abrirExamesAluno.dataset.openStudentExams);
@@ -3366,6 +3411,12 @@ document.addEventListener("click", evento => {
   const editarVeiculo = evento.target.closest("[data-edit-veiculo]");
   if (editarVeiculo) {
     abrirFormularioVeiculo(editarVeiculo.dataset.editVeiculo);
+    return;
+  }
+
+  const alternarVeiculoBotao = evento.target.closest("[data-toggle-veiculo]");
+  if (alternarVeiculoBotao) {
+    alterarStatusVeiculo(alternarVeiculoBotao.dataset.toggleVeiculo);
     return;
   }
 
@@ -3561,6 +3612,13 @@ if (buscaAlunos) {
 const buscaVeiculos = document.getElementById("buscaVeiculos");
 if (buscaVeiculos) {
   buscaVeiculos.addEventListener("input", listarVeiculos);
+}
+const botaoAlternarVeiculosInativos = document.getElementById("btnAlternarVeiculosInativos");
+if (botaoAlternarVeiculosInativos) {
+  botaoAlternarVeiculosInativos.addEventListener("click", () => {
+    mostrarVeiculosInativos = !mostrarVeiculosInativos;
+    listarVeiculos();
+  });
 }
 
 const filtroDataAulas = document.getElementById("filtroDataAulas");
@@ -3760,7 +3818,8 @@ async function carregarDadosAdminSupabase() {
     tipo: v.tipo || "Carro",
     modelo: v.nome || "",
     placa: v.placa || "",
-    categoria: v.categoria || "B"
+    categoria: v.categoria || "B",
+    ativo: v.ativo !== false
   }));
 
   const aulas = dados.lessons.map(a => ({
