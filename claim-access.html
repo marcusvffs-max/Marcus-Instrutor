@@ -17,9 +17,9 @@
 </head>
 <body>
 <main>
-  <img src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Central do Instrutor">
+  <img src="/central-instrutor-logo.svg" alt="Central do Instrutor">
   <h1>Ative seu acesso</h1>
-  <p>Crie uma senha para sua conta. Depois de salvar, você será encaminhado ao site da Central do Instrutor para entrar e instalar o aplicativo.</p>
+  <p>Crie uma senha para sua conta. Depois de salvar, você será encaminhado à tela de instalação do aplicativo.</p>
   <form id="passwordForm">
     <label for="password">Criar senha</label>
     <input id="password" type="password" minlength="8" autocomplete="new-password" required placeholder="Mínimo de 8 caracteres">
@@ -34,7 +34,7 @@
 (async function(){
   const APP_URL="https://voyjssflroiwdyaacthh.supabase.co";
   const APP_KEY="sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9";
-  const SITE_URL="https://central-do-instrutor.pages.dev/acesso.html";
+  const INSTALL_URL="/instalar.html";
   const params=new URLSearchParams(location.search);
   const role=params.get("role");
   const attemptId=params.get("attempt_id")||"";
@@ -73,8 +73,8 @@
           if(!linked?.ok)throw new Error(linked?.error||"Não foi possível concluir o vínculo do aluno.");
         }
         await client.auth.signOut({scope:"local"});
-        say("Senha salva! Abrindo o site para você entrar…");
-        location.replace(SITE_URL+"?perfil="+role);
+        say("Senha salva! Abrindo a tela de instalação do aplicativo…");
+        location.replace(INSTALL_URL+"?perfil="+encodeURIComponent(role));
       }catch(error){console.error(error);say(error.message||"Não foi possível salvar sua senha. Tente novamente.",true);button.disabled=false}
     });
   }catch(error){console.error(error);say(error.message||"Não foi possível validar o convite.",true)}
