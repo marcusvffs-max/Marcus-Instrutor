@@ -1947,3 +1947,12 @@ body.autenticado .login-screen {
 .refund-sale-filters label{display:grid;gap:5px;font-size:.84rem;font-weight:600}
 .refund-sale-filters input,.refund-sale-filters select{width:100%;min-width:0;min-height:40px;padding:7px 9px;border:1px solid var(--border-color,#cbd5e1);border-radius:8px;font:inherit}
 @media(max-width:560px){.refund-sale-filters{grid-template-columns:1fr}}
+
+.refund-sale-list{display:grid;gap:10px;margin:10px 0 16px;max-height:340px;overflow:auto}
+.refund-sale-choice{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;border:1px solid var(--border-color,#d9e0e8);border-radius:12px;background:var(--card-bg,#fff)}
+.refund-sale-choice.is-selected{border:2px solid var(--primary,#12345a);background:var(--secondary,#f3f6fa)}
+.refund-sale-choice-main{display:grid;gap:4px;min-width:0}
+.refund-sale-choice-main>strong{font-size:1rem}
+.refund-sale-choice-main>span{font-size:.85rem;color:var(--muted,#64748b);overflow-wrap:anywhere}
+.refund-sale-choice>button{flex:0 0 auto;min-width:112px}
+@media(max-width:560px){.refund-sale-choice{align-items:stretch;flex-direction:column}.refund-sale-choice>button{width:100%}}
