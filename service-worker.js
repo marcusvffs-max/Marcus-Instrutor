@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "central-instrutor-v50-quote-student-search-20261127-1";
+const CACHE_NAME = "central-instrutor-v51-refund-batch-20261127-1";
 
 const ARQUIVOS = [
   "./",
@@ -14,8 +14,8 @@ const ARQUIVOS = [
   "./admin-visual.css?v=admin-visual-1",
   "./exames-alugueis.js?v=exam-search-phone-sync-1",
   "./instrutor.css?v=central-logo-1",
-  "./instrutor.js?v=unified-fixed-items-7",
-  "./script.js?v=central-correcoes-20261127-6",
+  "./instrutor.js?v=unified-fixed-items-8",
+  "./script.js?v=central-correcoes-20261127-7",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
