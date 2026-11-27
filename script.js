@@ -121,6 +121,19 @@ function formatarData(data) {
   return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
+function destacarBotaoAdicionarItem(botao, mensagem) {
+  if (!botao) return;
+  botao.classList.add("button-add-item-highlight");
+  botao.textContent = "＋ Adicionar item";
+  botao.style.cssText = "display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:50px;margin:12px 0 6px;padding:13px 18px;border:2px solid #12345a;border-radius:12px;background:#12345a;color:#fff;font-size:1rem;font-weight:800;letter-spacing:.2px;box-shadow:0 5px 0 rgba(18,52,90,.18),0 8px 18px rgba(18,52,90,.18);cursor:pointer";
+  if (botao.nextElementSibling?.classList.contains("add-item-guidance")) return;
+  const hint = document.createElement("p");
+  hint.className = "add-item-guidance";
+  hint.textContent = mensagem || "Toque aqui para incluir o item selecionado na lista.";
+  hint.style.cssText = "margin:0 0 12px;color:#40566d;font-size:.86rem;font-weight:600;line-height:1.4";
+  botao.insertAdjacentElement("afterend", hint);
+}
+
 function numero(valor) {
   return Number(String(valor || "0").replace(",", ".")) || 0;
 }
@@ -143,29 +156,18 @@ function mostrarAviso(mensagem) {
 
 function confirmar(mensagem) {
   return new Promise(resolve => {
-    const container = document.getElementById("modalContainer");
-    if (!container) {
-      resolve(false);
-      return;
-    }
-
-    const overlay = document.createElement("div");
-    overlay.className = "modal-overlay";
-    const dialog = document.createElement("div");
-    dialog.className = "modal-box";
-    dialog.setAttribute("role", "dialog");
+    const dialog = document.createElement("dialog");
+    dialog.className = "modal-box confirm-native-dialog";
     dialog.setAttribute("aria-modal", "true");
     dialog.setAttribute("aria-describedby", "textoConfirmacao");
-
-    const titulo = document.createElement("h2");
-    titulo.id = "tituloConfirmacao";
+    dialog.style.cssText = "width:min(92vw,520px);max-width:520px;max-height:85vh;overflow:auto;border:0;border-radius:18px;padding:24px 20px;margin:auto;background:#fff;color:#172033;box-shadow:0 18px 60px rgba(0,0,0,.32);font:inherit";
     const texto = document.createElement("p");
     texto.id = "textoConfirmacao";
     texto.style.whiteSpace = "pre-line";
     texto.textContent = textoSemLinks(mensagem);
-
     const acoes = document.createElement("div");
     acoes.className = "modal-actions";
+    acoes.style.cssText = "display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:22px";
     const cancelar = document.createElement("button");
     cancelar.type = "button";
     cancelar.className = "secondary-button";
@@ -173,33 +175,29 @@ function confirmar(mensagem) {
     const confirmarBotao = document.createElement("button");
     confirmarBotao.type = "button";
     confirmarBotao.className = "primary-button";
-    confirmarBotao.style.backgroundColor = "#198754";
-    confirmarBotao.style.color = "#ffffff";
-    confirmarBotao.style.borderColor = "#198754";
+    confirmarBotao.style.cssText = "background:#198754;color:#fff;border-color:#198754";
     confirmarBotao.textContent = "Confirmar";
     acoes.append(cancelar, confirmarBotao);
     dialog.append(texto, acoes);
-    overlay.append(dialog);
-    container.replaceChildren(overlay);
-
-    const overflowAnterior = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    document.body.append(dialog);
     let finalizado = false;
-    const finalizar = resultado => {
+    dialog.addEventListener("close", () => {
       if (finalizado) return;
       finalizado = true;
-      document.removeEventListener("keydown", aoTeclar);
-      container.replaceChildren();
-      document.body.style.overflow = overflowAnterior;
-      resolve(resultado);
-    };
-    const aoTeclar = evento => {
-      if (evento.key === "Escape") finalizar(false);
-    };
-    document.addEventListener("keydown", aoTeclar);
-    cancelar.addEventListener("click", () => finalizar(false));
-    confirmarBotao.addEventListener("click", () => finalizar(true));
-    cancelar.focus();
+      const confirmado = dialog.returnValue === "confirm";
+      dialog.remove();
+      resolve(confirmado);
+    }, { once: true });
+    cancelar.addEventListener("click", () => dialog.close("cancel"));
+    confirmarBotao.addEventListener("click", () => dialog.close("confirm"));
+    try {
+      dialog.showModal();
+      cancelar.focus();
+    } catch (error) {
+      console.error("Não foi possível abrir a confirmação:", error);
+      dialog.remove();
+      resolve(false);
+    }
   });
 }
 
@@ -2171,6 +2169,7 @@ async function abrirVenda() {
   const campoTipoDesconto = document.getElementById("tipoDescontoVenda");
   const campoValorDesconto = document.getElementById("valorDescontoVenda");
   const rotuloDesconto = document.getElementById("rotuloDescontoVenda");
+  destacarBotaoAdicionarItem(document.getElementById("adicionarItemVenda"), "Depois de escolher o produto ou serviço e a quantidade, toque aqui para incluí-lo na venda.");
 
   function obterResumoDesconto(subtotalServicos, subtotalGeral) {
     const tipo = campoTipoDesconto.value;
@@ -2417,6 +2416,7 @@ async function abrirOrcamento(){
  const productOptions=products.map(p=>'<option value="'+p.id+'">'+escapar(p.nome)+' — '+moeda(p.preco)+'</option>').join("");
  const fixedOptions=fixed.map(x=>'<option value="fixed:'+x.key+'">'+x.nome+' — '+moeda(x.preco)+'</option>').join("");
  abrirModal('<h2>Novo orçamento</h2><form id="formOrcamento"><label for="orcamentoNome">Nome do cliente</label><input id="orcamentoNome" name="clientName" required maxlength="160" placeholder="Nome da pessoa" autocomplete="off"><label for="orcamentoProduto">Produto ou serviço</label><select id="orcamentoProduto"><option value="">Selecione</option>'+productOptions+fixedOptions+'</select><label for="orcamentoQuantidade">Quantidade</label><input id="orcamentoQuantidade" type="number" min="1" step="1" value="1"><button id="orcamentoAdicionarItem" type="button" class="secondary-button">Adicionar item</button><div class="panel quote-editor-items"><h3>Itens do orçamento</h3><div id="orcamentoItens"><div class="empty-state">Nenhum item adicionado.</div></div></div><label for="orcamentoTipoDesconto">Tipo de desconto</label><select id="orcamentoTipoDesconto"><option value="valor">Valor fixo (R$)</option><option value="percentual">Percentual (%)</option></select><label for="orcamentoValorDesconto">Desconto sobre serviços</label><input id="orcamentoValorDesconto" type="number" min="0" step="0.01" value="0"><div class="sale-total-card"><span>TOTAL DO ORÇAMENTO</span><strong id="orcamentoTotal">R$ 0,00</strong></div><label for="orcamentoObservacoes">Observações (opcional)</label><textarea id="orcamentoObservacoes" rows="2" maxlength="1000"></textarea><div class="modal-actions"><button type="button" class="secondary-button" data-close>Cancelar</button><button type="submit" class="primary-button">Salvar orçamento</button></div><p id="orcamentoStatus" class="form-hint" role="status"></p></form>');
+ destacarBotaoAdicionarItem(document.getElementById("orcamentoAdicionarItem"), "Depois de escolher o produto ou serviço e a quantidade, toque aqui para incluí-lo no orçamento.");
  const form=document.getElementById("formOrcamento"),productField=document.getElementById("orcamentoProduto"),qtyField=document.getElementById("orcamentoQuantidade"),discountField=document.getElementById("orcamentoValorDesconto"),discountType=document.getElementById("orcamentoTipoDesconto");
  function calc(){
   const gross=items.reduce((s,x)=>s+x.subtotal,0),services=items.filter(x=>x.tipo_item==="servico").reduce((s,x)=>s+x.subtotal,0),v=Number(discountField.value||0);let discount=0,valid=Number.isFinite(v)&&v>=0;
