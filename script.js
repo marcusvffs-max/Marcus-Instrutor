@@ -2600,10 +2600,20 @@ async function abrirDevolucao() {
     if(ordenacao.value==="nome")grupos.sort((a,b)=>String(a.aluno?.nome||"").localeCompare(String(b.aluno?.nome||""),"pt-BR"));
     else grupos.sort((a,b)=>ordenacao.value==="antigas"?String(a.venda.data||"").localeCompare(String(b.venda.data||"")):String(b.venda.data||"").localeCompare(String(a.venda.data||"")));
     const host=document.getElementById("devolucaoListaVendas");
-    host.innerHTML=grupos.length?grupos.map(g=>{
-      const nomesItens=g.itens.map(o=>escapar(o.item.nome||"Item")).join(", ");
-      return '<article class="refund-sale-choice '+(String(g.venda.id)===anterior?'is-selected':'')+'"><div class="refund-sale-choice-main"><strong>'+escapar(g.aluno?.nome||"Cliente")+'</strong><span>Data: '+escapar(formatarData(g.venda.data))+'</span><span>Responsável: '+escapar(nomeResponsavel)+'</span><span>Pagamento: '+escapar(g.venda.formaPagamento||"Não informado")+'</span><span>Valor total: <strong>'+moeda(g.venda.valorTotal)+'</strong></span><span>Itens comprados: '+nomesItens+'</span></div><button type="button" class="secondary-button" data-select-refund-sale="'+escapar(g.venda.id)+'">'+(String(g.venda.id)===anterior?'Selecionada':'Selecionar venda')+'</button></article>';
-    }).join(""):'<div class="empty-state">Nenhuma venda encontrada com esses filtros.</div>';
+    if (anterior) {
+      grupos = grupos.filter(g => String(g.venda.id) === anterior);
+      host.innerHTML = grupos.map(g => {
+        const nomesItens=g.itens.map(o=>escapar(o.item.nome||"Item")).join(", ");
+        return '<article class="refund-sale-choice is-selected"><div class="refund-sale-choice-main"><strong>'+escapar(g.aluno?.nome||"Cliente")+'</strong><span>Data: '+escapar(formatarData(g.venda.data))+'</span><span>Responsável: '+escapar(nomeResponsavel)+'</span><span>Pagamento: '+escapar(g.venda.formaPagamento||"Não informado")+'</span><span>Valor total: <strong>'+moeda(g.venda.valorTotal)+'</strong></span><span>Itens comprados: '+nomesItens+'</span></div><button type="button" class="secondary-button" data-clear-refund-sale>Trocar venda</button></article>';
+      }).join("");
+    } else if (!termo && !dataInicio.value && !dataFim.value) {
+      host.innerHTML='<div class="empty-state">Digite o nome do aluno, a data ou a forma de pagamento para localizar uma venda.</div>';
+    } else {
+      host.innerHTML=grupos.length?grupos.map(g=>{
+        const nomesItens=g.itens.map(o=>escapar(o.item.nome||"Item")).join(", ");
+        return '<article class="refund-sale-choice"><div class="refund-sale-choice-main"><strong>'+escapar(g.aluno?.nome||"Cliente")+'</strong><span>Data: '+escapar(formatarData(g.venda.data))+'</span><span>Responsável: '+escapar(nomeResponsavel)+'</span><span>Pagamento: '+escapar(g.venda.formaPagamento||"Não informado")+'</span><span>Valor total: <strong>'+moeda(g.venda.valorTotal)+'</strong></span><span>Itens comprados: '+nomesItens+'</span></div><button type="button" class="secondary-button" data-select-refund-sale="'+escapar(g.venda.id)+'">Selecionar venda</button></article>';
+      }).join(""):'<div class="empty-state">Nenhuma venda encontrada com esses filtros.</div>';
+    }
     if(anterior&&!grupos.some(g=>String(g.venda.id)===anterior)){select.value="";selecionarVenda("");}
   };
   search.addEventListener("input",renderizarVendas);
@@ -2654,6 +2664,15 @@ async function abrirDevolucao() {
     atualizar();
   };
   document.getElementById("devolucaoListaVendas").addEventListener("click",event=>{
+    if(event.target.closest("[data-clear-refund-sale]")) {
+      select.value="";
+      search.value="";
+      dataInicio.value="";
+      dataFim.value="";
+      selecionarVenda("");
+      renderizarVendas();
+      return;
+    }
     const button=event.target.closest("[data-select-refund-sale]");
     if(button)selecionarVenda(button.dataset.selectRefundSale);
   });
