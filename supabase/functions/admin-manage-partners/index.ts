@@ -180,7 +180,7 @@ Deno.serve(async (req: Request) => {
       const profissao = typeof body.profissao === "string" ? body.profissao.trim() : "";
       const endereco = typeof body.endereco === "string" ? body.endereco.trim() : "";
       const percentual = Number(body.commission_percent);
-      if (nome.length < 2 || nome.length > 160 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254 ||
+      if (nome.length < 2 || nome.length > 160 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
           nacionalidade.length < 2 || nacionalidade.length > 80 ||
           estadoCivil.length < 2 || estadoCivil.length > 80 ||
           profissao.length < 2 || profissao.length > 120 ||
