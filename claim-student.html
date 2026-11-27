@@ -79,8 +79,8 @@
           throw new Error(message);
         }
         if (!data || !data.ok) throw new Error(data && data.error ? data.error : "Não foi possível confirmar o acesso.");
-        status.textContent = "Acesso confirmado! Abrindo sua área de aluno...";
-        window.location.replace("usuario.html");
+        status.textContent = "Acesso confirmado! Abrindo a tela de instalação do aplicativo...";
+        window.location.replace("/instalar.html?perfil=aluno");
       } catch (error) {
         console.error("Falha ao confirmar vínculo de aluno:", error);
         fail(error && error.message ? error.message : "Ocorreu um erro ao confirmar seu acesso. Peça um novo link ao instrutor.");
