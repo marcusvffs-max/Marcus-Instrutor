@@ -4128,6 +4128,17 @@ async function carregarDadosAdminSupabase() {
   return { carregado: true, motivo: "sucesso" };
 }
 
+// Atualiza imediatamente o cadastro principal quando uma indicação de parceiro é aprovada.
+window.atualizarCadastroAlunosAposIndicacao = async function() {
+  const resultado = await carregarDadosAdminSupabase();
+  if (!resultado?.carregado) throw new Error("Não foi possível atualizar os dados dos alunos.");
+  listarAlunos();
+  atualizarSeletoresAlunos();
+  atualizarPainel();
+  await atualizarStatusConvitesAlunos(false);
+  return resultado;
+};
+
 function avisarDadosLegadosNaoVinculados() {
   const chaveAviso = "marcus_legacy_storage_notice";
   if (!STORAGE_KEY_ATUAL || window.sessionStorage.getItem(chaveAviso)) return;
