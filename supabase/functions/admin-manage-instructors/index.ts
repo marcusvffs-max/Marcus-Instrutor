@@ -703,19 +703,7 @@ Deno.serve(async (req: Request) => {
       return response({ error: "Você já está conectado com esse e-mail." }, 400);
     }
 
-    const smtpHost = Deno.env.get("SMTP_HOST");
-    const smtpPort = Number(Deno.env.get("SMTP_PORT") ?? "465");
-    const smtpUser = Deno.env.get("SMTP_USER");
-    const smtpPass = Deno.env.get("SMTP_PASS");
-    const smtpFrom = Deno.env.get("SMTP_FROM");
-    if (!smtpHost || !smtpUser || !smtpPass || !smtpFrom || ![465, 587].includes(smtpPort)) {
-      console.error("Configuração SMTP incompleta ou inválida.");
-      return response({ error: "O envio de e-mail ainda não está configurado corretamente." }, 500);
-    }
-    const smtpFromAddress = smtpFrom.match(/<([^<>]+)>/)?.[1] ?? smtpFrom.trim();
-    const brandedSmtpFrom = `Central do Instrutor <${smtpFromAddress}>`;
-
-    if (isStudentInvite && studentInviteId && !studentRecoveryUserId) {
+        if (isStudentInvite && studentInviteId && !studentRecoveryUserId) {
       const clearStaleQuery = admin.from("students")
         .update({ invited_at: null, invite_attempt_id: null })
         .eq("id", studentInviteId)
@@ -745,23 +733,34 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-      type: (studentRecoveryUserId || studentLegacyLinkUserId) ? "recovery" : "invite",
-      email,
-      options: {
-        ...(!(studentRecoveryUserId || studentLegacyLinkUserId)
-          ? {
-              data: isStudentInvite
-                ? { nome, student_id: studentInviteId, instructor_id: authData.user.id, invite_attempt_id: studentInviteAttemptId }
-                : { nome },
-            }
-          : {}),
-        redirectTo: isStudentInvite
-          ? `${requestAppUrl}claim-access.html?role=aluno&attempt_id=${encodeURIComponent(studentInviteAttemptId ?? "")}`
-          : requestAppUrl,
-      },
-    });
-    if (linkError) {
+    const inviteRedirect = isStudentInvite
+      ? `${requestAppUrl}claim-access.html?role=aluno&attempt_id=${encodeURIComponent(studentInviteAttemptId ?? "")}`
+      : requestAppUrl;
+    let invitedUserId: string | null = null;
+    let inviteError: { message: string } | null = null;
+
+    if (studentRecoveryUserId || studentLegacyLinkUserId) {
+      // Para contas existentes, o Auth envia o e-mail de recuperação usando
+      // o provedor SMTP configurado no próprio projeto Supabase.
+      const { error } = await admin.auth.resetPasswordForEmail(email, {
+        redirectTo: inviteRedirect,
+      });
+      inviteError = error;
+      invitedUserId = studentRecoveryUserId ?? studentLegacyLinkUserId;
+    } else {
+      // Convites novos também usam o envio nativo do Supabase Auth.
+      // O trigger transacional vincula o aluno no INSERT de auth.users.
+      const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+        data: isStudentInvite
+          ? { nome, student_id: studentInviteId, instructor_id: authData.user.id, invite_attempt_id: studentInviteAttemptId }
+          : { nome },
+        redirectTo: inviteRedirect,
+      });
+      inviteError = error;
+      invitedUserId = data.user?.id ?? null;
+    }
+
+    if (inviteError || !invitedUserId) {
       if (studentInviteId && studentInviteReservation) {
         await admin.from("students")
           .update({ invited_at: null, invite_attempt_id: null })
@@ -770,16 +769,16 @@ Deno.serve(async (req: Request) => {
           .is("user_id", null)
           .eq("invited_at", studentInviteReservation);
       }
-      const message = linkError.message.toLowerCase();
+      const message = String(inviteError?.message ?? "").toLowerCase();
       if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
-        return response({ error: "Já existe uma conta cadastrada com esse e-mail." }, 409);
+        return response({ error: "Já existe uma conta cadastrada com esse e-mail. Atualize o cadastro e tente novamente." }, 409);
       }
-      console.error("Falha ao gerar convite:", linkError.message);
-      return response({ error: "Não foi possível criar o convite. Confira o e-mail e tente novamente." }, 400);
+      console.error("Falha ao enviar convite pelo Supabase Auth:", inviteError?.message ?? "usuário não retornado");
+      return response({ error: "O Supabase não conseguiu enviar o convite. Confira o e-mail e tente novamente." }, 400);
     }
 
     const expectedExistingUserId = studentRecoveryUserId ?? studentLegacyLinkUserId;
-    if (expectedExistingUserId && linkData.user?.id && linkData.user.id !== expectedExistingUserId) {
+    if (expectedExistingUserId && invitedUserId !== expectedExistingUserId) {
       if (studentInviteId && studentInviteReservation) {
         await admin.from("students")
           .update({ invited_at: null, invite_attempt_id: null })
@@ -790,24 +789,6 @@ Deno.serve(async (req: Request) => {
       }
       console.error("O Supabase retornou uma conta diferente da conta existente esperada.");
       return response({ error: "Não foi possível confirmar a conta existente. Nenhuma conta ou vínculo foi alterado." }, 409);
-    }
-
-    const invitedUserId = linkData.user?.id ?? studentRecoveryUserId ?? studentLegacyLinkUserId;
-    const actionLink = linkData.properties?.action_link;
-    if (!invitedUserId || !actionLink) {
-      let safeToReleaseReservation = !invitedUserId || Boolean(studentRecoveryUserId || studentLegacyLinkUserId);
-      if (invitedUserId && !studentRecoveryUserId && !studentLegacyLinkUserId) {
-        const { error: deleteError } = await admin.auth.admin.deleteUser(invitedUserId);
-        safeToReleaseReservation = !deleteError;
-        if (deleteError) console.error("Falha ao remover conta incompleta:", deleteError?.message ?? "erro desconhecido");
-      }
-      if (safeToReleaseReservation && studentInviteId && studentInviteReservation) {
-        await admin.from("students").update({ invited_at: null, invite_attempt_id: null })
-          .eq("id", studentInviteId).eq("owner_id", authData.user.id)
-          .is("user_id", null).eq("invited_at", studentInviteReservation);
-      }
-      console.error("O Supabase não retornou os dados necessários do convite.");
-      return response({ error: "Não foi possível preparar o convite." }, 500);
     }
 
     // Para conta legada, não altere nenhum dado do perfil antes da confirmação
@@ -872,52 +853,6 @@ Deno.serve(async (req: Request) => {
         console.error("Falha ao vincular conta ao cadastro do aluno:", linkStudentError?.message ?? "cadastro já alterado");
         return response({ error: "Não foi possível concluir o vínculo. Atualize a lista de alunos e tente novamente." }, 409);
       }
-    }
-
-    const safeName = escapeHtml(nome);
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: { user: smtpUser, pass: smtpPass },
-    });
-
-    try {
-      await transporter.sendMail({
-        from: brandedSmtpFrom,
-        to: email,
-        subject: studentLegacyLinkUserId ? "Confirme seu acesso de aluno - Central do Instrutor" : studentRecoveryUserId ? "Novo link de acesso à Central do Instrutor" : "Convite para acessar a Central do Instrutor",
-        text: studentLegacyLinkUserId ? `Olá, ${nome}! Foi solicitado um vínculo entre sua conta já existente e seu cadastro de aluno. Para confirmar que você controla esta conta e concluir o acesso, abra este link em até 15 minutos: ${actionLink}` : studentRecoveryUserId ? `Olá, ${nome}! Foi solicitado um novo link para acessar sua conta na Central do Instrutor e cadastrar ou redefinir sua senha: ${actionLink}` : `Olá, ${nome}! Você foi convidado(a) para acessar o aplicativo Central do Instrutor como ${role === "admin" ? "administrador(a)" : role === "usuario" ? (isStudentInvite ? "aluno(a)" : "usuário") : "instrutor(a)"}. Para aceitar o convite e cadastrar sua senha, acesse: ${actionLink}`,
-        html: `<!doctype html><html lang="pt-BR"><body style="font-family:Arial,sans-serif;color:#1f2937;line-height:1.6"><div style="max-width:560px;margin:24px auto;padding:28px;border:1px solid #e5e7eb;border-radius:14px"><h2 style="color:#12345a">Convite Central do Instrutor</h2><p>Olá, <strong>${safeName}</strong>!</p><p>${studentLegacyLinkUserId ? "Foi solicitado um vínculo entre esta conta existente e seu cadastro de aluno. Clique abaixo em até 15 minutos para confirmar o acesso. Se você não reconhece a solicitação, ignore este e-mail." : studentRecoveryUserId ? "Foi solicitado um novo link para acessar sua conta e cadastrar ou redefinir sua senha." : `Você foi convidado(a) para acessar o aplicativo Central do Instrutor como <strong>${role === "admin" ? "administrador(a)" : role === "usuario" ? (isStudentInvite ? "aluno(a)" : "usuário") : "instrutor(a)"}</strong>. Para aceitar o convite e cadastrar sua primeira senha, clique no botão abaixo:`}</p><p style="margin:28px 0"><a href="${actionLink}" style="display:inline-block;background:#12345a;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px">${studentLegacyLinkUserId ? "Confirmar meu acesso" : studentRecoveryUserId ? "Acessar minha conta" : "Aceitar convite e criar senha"}</a></p><p>Se você não esperava este convite, pode ignorar esta mensagem.</p></div></body></html>`,
-      });
-    } catch (mailError) {
-      const err = mailError as {
-        name?: string; message?: string; code?: string; command?: string;
-        responseCode?: number;
-      };
-      console.error("Falha SMTP (diagnóstico sem credenciais):", {
-        name: err?.name ?? "Error",
-        message: err?.message ?? "sem mensagem",
-        code: err?.code ?? null,
-        command: err?.command ?? null,
-        responseCode: err?.responseCode ?? null,
-      });
-      const { error: deleteError } = (studentRecoveryUserId || studentLegacyLinkUserId)
-        ? { error: null }
-        : await admin.auth.admin.deleteUser(invitedUserId);
-      if (!deleteError && studentInviteId && studentInviteReservation) {
-        await admin.from("students")
-          .update({ invited_at: null, invite_attempt_id: null })
-          .eq("id", studentInviteId)
-          .eq("owner_id", authData.user.id)
-          .is("user_id", null)
-          .eq("invited_at", studentInviteReservation);
-      } else if (deleteError) {
-        console.error("Falha ao remover conta após erro SMTP:", deleteError.message);
-      }
-      return response({ error: "O convite foi preparado, mas o e-mail não pôde ser enviado. Confira o SMTP e tente novamente." }, 502);
-    } finally {
-      transporter.close();
     }
 
     return response({ ok: true, message: studentLegacyLinkUserId ? "Link de confirmação enviado para a conta existente do aluno." : studentRecoveryUserId ? "Novo link de acesso enviado ao aluno." : "Convite enviado com sucesso." });
