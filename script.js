@@ -786,6 +786,13 @@ function abrirDetalhesAluno(id) {
   const aluno = db.alunos.find(item => String(item.id) === String(id));
   if (!aluno) { mostrarAviso("Não foi possível localizar o aluno."); return; }
   const acesso = aluno.user_id ? "Conta vinculada" : aluno.invited_at ? "Convite enviado ou aguardando confirmação" : "Ainda não convidado";
+  const vendasAluno=db.vendas.filter(v=>String(v.alunoId)===String(aluno.id));
+  const movimentosAluno=db.movimentacoes.filter(m=>String(m.alunoId)===String(aluno.id)&&m.status!=="cancelado");
+  const totalVendasAluno=vendasAluno.reduce((s,v)=>s+Number(v.valorTotal||0),0);
+  const totalEntradasAluno=movimentosAluno.filter(m=>m.tipo==="entrada").reduce((s,m)=>s+Number(m.valor||0),0);
+  const totalSaidasAluno=movimentosAluno.filter(m=>m.tipo==="saida").reduce((s,m)=>s+Number(m.valor||0),0);
+  const ultimosMovimentos=movimentosAluno.slice().sort((a,b)=>String(b.data||"").localeCompare(String(a.data||""))).slice(0,5);
+  const historicoFinanceiro=ultimosMovimentos.length?ultimosMovimentos.map(m=>'<p><strong>'+escapar(formatarData(m.data))+'</strong><span>'+escapar(m.descricao|| (m.tipo==="entrada"?"Pagamento":"Devolução/despesa"))+' · '+(m.tipo==="entrada"?"+":"−")+moeda(m.valor)+'</span></p>').join(""):'<p><strong>Movimentações</strong><span>Nenhum pagamento ou estorno registrado.</span></p>';
   abrirModal(`
     <h2>${escapar(aluno.nome)}</h2>
     <div class="student-detail-grid">
@@ -803,6 +810,13 @@ function abrirDetalhesAluno(id) {
         <p><strong>Aulas contratadas</strong><span>${Number(aluno.contratadas || 0)}</span></p>
         <p><strong>Aulas restantes</strong><span>${Number(aluno.saldo || 0)}</span></p>
         <p><strong>Aluguéis disponíveis</strong><span>${Number(aluno.alugueisDisponiveis || 0)} de ${Number(aluno.alugueisComprados || 0)} comprados</span></p>
+      </section>
+      <section class="student-detail-card"><h3>Financeiro e pagamentos</h3>
+        <p><strong>Total de vendas</strong><span>${moeda(totalVendasAluno)}</span></p>
+        <p><strong>Entradas registradas</strong><span>${moeda(totalEntradasAluno)}</span></p>
+        <p><strong>Devoluções e saídas</strong><span>${moeda(totalSaidasAluno)}</span></p>
+        <p><strong>Vendas registradas</strong><span>${vendasAluno.length}</span></p>
+        <div class="student-finance-history">${historicoFinanceiro}</div>
       </section>
       <section class="student-detail-card"><h3>Conta e acesso</h3>
         <p><strong>Acesso do aluno</strong><span>${escapar(acesso)}</span></p>
