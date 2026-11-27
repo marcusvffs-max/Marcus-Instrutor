@@ -1462,11 +1462,42 @@
     form.reset();
     el("tituloDevolucaoInstrutor").textContent = "Devolução de produtos e serviços";
     const saleSelect = el("devolucaoVendaInstrutor");
-    saleSelect.innerHTML = '<option value="">Selecione uma venda</option>' +
-      availableSales.map(group => '<option value="' + escapeHtml(group.sale.id) + '">' +
-        escapeHtml(studentName(group.sale.student_id)) + ' · ' + escapeHtml(formatDate(group.sale.data_venda)) +
-        ' · ' + currency(group.sale.total) + '</option>').join("");
-    saleSelect.value = saleId && availableSales.some(group => String(group.sale.id) === String(saleId)) ? saleId : "";
+    let saleSearch = el("buscaVendaDevolucaoInstrutor");
+    if (!saleSearch) {
+      saleSearch = document.createElement("input");
+      saleSearch.type = "search";
+      saleSearch.id = "buscaVendaDevolucaoInstrutor";
+      saleSearch.placeholder = "Pesquisar venda por aluno ou data";
+      saleSearch.setAttribute("aria-label", "Pesquisar venda por aluno ou data");
+      saleSelect.insertAdjacentElement("beforebegin", saleSearch);
+    }
+    saleSearch.value = "";
+    const preencherVendas = (termo = "") => {
+      const normalized = termo.trim().toLocaleLowerCase("pt-BR");
+      const matches = availableSales.filter(group => {
+        const name = studentName(group.sale.student_id).toLocaleLowerCase("pt-BR");
+        const date = String(group.sale.data_venda || "");
+        return !normalized || name.includes(normalized) || date.includes(normalized) || formatDate(date).toLocaleLowerCase("pt-BR").includes(normalized);
+      });
+      saleSelect.innerHTML = '<option value="">' + (normalized ? "Selecione a venda encontrada" : "Digite para pesquisar uma venda") + '</option>' +
+        matches.map(group => '<option value="' + escapeHtml(group.sale.id) + '">' +
+          escapeHtml(studentName(group.sale.student_id)) + ' · ' + escapeHtml(formatDate(group.sale.data_venda)) +
+          ' · ' + currency(group.sale.total) + '</option>').join("");
+    };
+    preencherVendas();
+    saleSearch.oninput = () => {
+      state.refundSaleId = null;
+      el("resumoVendaDevolucaoInstrutor").textContent = "Selecione uma venda encontrada na pesquisa.";
+      el("devolucaoItensListaInstrutor")?.replaceChildren();
+      preencherVendas(saleSearch.value);
+    };
+    saleSelect.value = "";
+    if (saleId && availableSales.some(group => String(group.sale.id) === String(saleId))) {
+      const selected = availableSales.find(group => String(group.sale.id) === String(saleId));
+      saleSearch.value = studentName(selected.sale.student_id);
+      preencherVendas(saleSearch.value);
+      saleSelect.value = saleId;
+    }
     state.refundSaleId = null;
     const itemSelect = el("devolucaoItemInstrutor");
     const quantityField = el("devolucaoQuantidadeInstrutor");
