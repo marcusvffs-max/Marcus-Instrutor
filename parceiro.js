@@ -1,10 +1,9 @@
 "use strict";
 (async function () {
   const $ = id => document.getElementById(id);
-  const host = location.hostname;
-  const qa = host === "marcusinstrutor-git-qa-production-readin-52425c-marcusvffs-2839.vercel.app" || host === "marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app" || host === "marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app" || /^marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(host);
-  const url = qa ? "https://voyjssflroiwdyaacthh.supabase.co" : "https://ydyqagqsuqntuibzgwzd.supabase.co";
-  const key = qa ? "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9" : "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
+  // Compartilha o mesmo projeto de autenticação da tela principal do aplicativo oficial.
+  const url = "https://voyjssflroiwdyaacthh.supabase.co";
+  const key = "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9";
   const client = window.supabase?.createClient(url, key, { auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage } });
   const say = (message, error = false) => { $("partnerStatus").textContent = message; $("partnerStatus").classList.toggle("partner-error", error); };
   const money = value => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
