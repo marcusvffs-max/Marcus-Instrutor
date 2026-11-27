@@ -77,13 +77,13 @@
     students=s.data||[];exams=e.data||[];
     render();say("");
   }
-  function studentOptions(selected=selectedStudentId||""){return '<option value="">Selecione o aluno</option>'+students.map(s=>'<option value="'+esc(s.id)+'" '+(s.id===selected?'selected':'')+'>'+esc(s.nome)+'</option>').join("");}
+  function studentOptions(selected=selectedStudentId||"",term=""){const q=String(term||"").trim().toLocaleLowerCase("pt-BR");return '<option value="">Selecione o aluno</option>'+students.filter(s=>[s.nome,s.telefone].join(" ").toLocaleLowerCase("pt-BR").includes(q)).map(s=>'<option value="'+esc(s.id)+'" '+(s.id===selected?'selected':'')+'>'+esc(s.nome)+(s.telefone?' · '+esc(s.telefone):'')+'</option>').join("");}
   function render(){
     const host=$("marcus-exam-content");if(!host)return;
     const tabs=[["historico","Histórico"],["agendar","Agendar exame"]];
     let body="";
     if(activeTab==="agendar"){
-      body='<div class="mx-card"><h3>Agendar exame prático</h3><p class="mx-muted">O agendamento não desconta aluguel. O saldo será conferido e consumido somente quando o resultado for registrado.</p><form id="mx-exam-form"><label>Aluno</label><select name="student" required>'+studentOptions()+'</select><div class="mx-grid"><div><label>Data</label><input name="date" type="date" required></div><div><label>Horário</label><input name="time" type="time" required></div></div><label>Observações</label><textarea name="notes" rows="2" maxlength="500"></textarea><button class="mx-btn" type="submit">Salvar agendamento</button></form></div>';
+      body='<div class="mx-card"><h3>Agendar exame prático</h3><p class="mx-muted">O agendamento não desconta aluguel. O saldo será conferido e consumido somente quando o resultado for registrado.</p><form id="mx-exam-form"><label>Aluno</label><input id="mx-exam-student-search" type="search" placeholder="Buscar aluno por nome ou telefone" aria-label="Buscar aluno por nome ou telefone"><select name="student" required>'+studentOptions()+'</select><div class="mx-grid"><div><label>Data</label><input name="date" type="date" required></div><div><label>Horário</label><input name="time" type="time" required></div></div><label>Observações</label><textarea name="notes" rows="2" maxlength="500"></textarea><button class="mx-btn" type="submit">Salvar agendamento</button></form></div>';
     }else{
       const rows=exams.filter(x=>(!selectedStudentId||String(x.student_id)===String(selectedStudentId))&&(selectedStatus==="todos"||x.status===selectedStatus)).map(x=>{
         const st=students.find(s=>s.id===x.student_id);
@@ -95,6 +95,9 @@
     host.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>tab(b.dataset.tab));
     const statusFilter=$("mx-status-filter");
     if(statusFilter){statusFilter.value=selectedStatus;statusFilter.addEventListener("change",e=>{selectedStatus=e.target.value;render();});}
+    const examSearch=$("mx-exam-student-search");
+    const examSelect=host.querySelector('#mx-exam-form select[name="student"]');
+    if(examSearch&&examSelect)examSearch.addEventListener("input",()=>{const selected=examSelect.value;examSelect.innerHTML=studentOptions(selected,examSearch.value);});
     $("mx-exam-form")?.addEventListener("submit",schedule);
     host.querySelectorAll("[data-result]").forEach(b=>b.onclick=()=>recordResult(b.dataset.result,b.dataset.value));
     host.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>cancelExam(b.dataset.cancel));
