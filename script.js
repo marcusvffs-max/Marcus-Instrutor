@@ -2490,6 +2490,11 @@ async function abrirDevolucao() {
     <form id="formDevolucao">
       <label for="buscaVendaDevolucao">Pesquisar venda</label>
       <input id="buscaVendaDevolucao" type="search" placeholder="Buscar por cliente, data ou pagamento">
+      <div class="refund-sale-filters">
+        <label>De <input id="devolucaoDataInicio" type="date"></label>
+        <label>Até <input id="devolucaoDataFim" type="date"></label>
+        <label>Ordenar por <select id="devolucaoOrdenacao"><option value="recentes">Data mais recente</option><option value="antigas">Data mais antiga</option><option value="nome">Nome do cliente (A–Z)</option></select></label>
+      </div>
       <label for="devolucaoVenda">Vendas disponíveis</label>
       <select name="vendaId" id="devolucaoVenda" required>
         <option value="">Selecione uma venda</option>
@@ -2513,11 +2518,30 @@ async function abrirDevolucao() {
   const previa = document.getElementById("devolucaoPrevia");
   let grupoAtual = null;
 
-  search.addEventListener("input", () => {
-    const term = search.value.trim().toLocaleLowerCase("pt-BR");
-    [...select.options].forEach((o,i) => { if(i) o.hidden = !!term && !o.textContent.toLocaleLowerCase("pt-BR").includes(term); });
-    if (select.selectedOptions[0]?.hidden) { select.value=""; select.dispatchEvent(new Event("change")); }
-  });
+  const dataInicio=document.getElementById("devolucaoDataInicio");
+  const dataFim=document.getElementById("devolucaoDataFim");
+  const ordenacao=document.getElementById("devolucaoOrdenacao");
+  const renderizarVendas=()=>{
+    const termo=search.value.trim().toLocaleLowerCase("pt-BR");
+    const anterior=select.value;
+    let grupos=vendasDisponiveis.filter(g=>{
+      const nome=String(g.aluno?.nome||"").toLocaleLowerCase("pt-BR");
+      const data=String(g.venda.data||"").slice(0,10);
+      const pagamento=String(g.venda.formaPagamento||"").toLocaleLowerCase("pt-BR");
+      return (!termo||nome.includes(termo)||data.includes(termo)||pagamento.includes(termo))&&
+        (!dataInicio.value||data>=dataInicio.value)&&(!dataFim.value||data<=dataFim.value);
+    });
+    if(ordenacao.value==="nome")grupos.sort((a,b)=>String(a.aluno?.nome||"").localeCompare(String(b.aluno?.nome||""),"pt-BR"));
+    else grupos.sort((a,b)=>ordenacao.value==="antigas"?String(a.venda.data||"").localeCompare(String(b.venda.data||"")):String(b.venda.data||"").localeCompare(String(a.venda.data||"")));
+    select.innerHTML='<option value="">Selecione uma venda ('+grupos.length+')</option>'+grupos.map(g=>'<option value="'+escapar(g.venda.id)+'">'+escapar(g.aluno?.nome||"Cliente")+' · '+escapar(formatarData(g.venda.data))+' · '+moeda(g.venda.valorTotal)+'</option>').join("");
+    select.value=grupos.some(g=>String(g.venda.id)===anterior)?anterior:"";
+    if(select.value!==anterior)select.dispatchEvent(new Event("change"));
+  };
+  search.addEventListener("input",renderizarVendas);
+  dataInicio.addEventListener("change",renderizarVendas);
+  dataFim.addEventListener("change",renderizarVendas);
+  ordenacao.addEventListener("change",renderizarVendas);
+  renderizarVendas();
 
   const atualizar = () => {
     const rows = [...lista.querySelectorAll("[data-refund-item]")];
