@@ -559,15 +559,44 @@
 
   <script>
     if ("serviceWorker" in navigator) {
-      window.addEventListener("load", function () {
-        navigator.serviceWorker.register("./service-worker.js?v=qa-preview-isolated-3", { updateViaCache: "none" })
-          .then(function (registro) {
-            return registro.update();
-          })
-          .catch(function (error) {
-            console.error("Erro ao registrar o aplicativo:", error);
-          });
-      });
+      (function () {
+        var jaControlado = Boolean(navigator.serviceWorker.controller);
+        navigator.serviceWorker.addEventListener("controllerchange", function () {
+          if (!jaControlado) return;
+          jaControlado = false;
+          window.location.reload();
+        });
+
+        function conferirAtualizacao(registro) {
+          if (document.visibilityState !== "hidden") {
+            registro.update().catch(function (error) {
+              console.warn("Não foi possível conferir atualização agora:", error);
+            });
+          }
+        }
+
+        window.addEventListener("load", function () {
+          navigator.serviceWorker.register("./service-worker.js?v=central-auto-update-20261127-1", { updateViaCache: "none" })
+            .then(function (registro) {
+              conferirAtualizacao(registro);
+              window.addEventListener("focus", function () {
+                conferirAtualizacao(registro);
+              });
+              window.addEventListener("pageshow", function () {
+                conferirAtualizacao(registro);
+              });
+              document.addEventListener("visibilitychange", function () {
+                if (document.visibilityState === "visible") conferirAtualizacao(registro);
+              });
+              window.setInterval(function () {
+                conferirAtualizacao(registro);
+              }, 60 * 60 * 1000);
+            })
+            .catch(function (error) {
+              console.error("Erro ao registrar o aplicativo:", error);
+            });
+        });
+      })();
     }
   </script>
 
