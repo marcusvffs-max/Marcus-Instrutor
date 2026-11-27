@@ -316,6 +316,7 @@
     try {
       const result = await invoke("create_student", {
         nome: $("referralName").value,
+        email: $("referralEmail").value,
         telefone: $("referralPhone").value,
         cpf: $("referralCpf").value,
         endereco: $("referralAddress").value,
