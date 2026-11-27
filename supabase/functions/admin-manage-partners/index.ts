@@ -170,7 +170,7 @@ Deno.serve(async (req: Request) => {
         : "Orçamento reprovado." });
     }
 
-    if (body.action === "invite") {
+    if (body.action === "create") {
       const nome = typeof body.nome === "string" ? body.nome.trim() : "";
       const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
       const telefone = typeof body.telefone === "string" ? body.telefone.trim() : null;
@@ -180,14 +180,14 @@ Deno.serve(async (req: Request) => {
       const profissao = typeof body.profissao === "string" ? body.profissao.trim() : "";
       const endereco = typeof body.endereco === "string" ? body.endereco.trim() : "";
       const percentual = Number(body.commission_percent);
-      if (nome.length < 2 || nome.length > 160 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
+      if (nome.length < 2 || nome.length > 160 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254 ||
           nacionalidade.length < 2 || nacionalidade.length > 80 ||
           estadoCivil.length < 2 || estadoCivil.length > 80 ||
           profissao.length < 2 || profissao.length > 120 ||
           endereco.length < 5 || endereco.length > 300 ||
           (telefone && telefone.length > 40) || (cpfCnpj && cpfCnpj.length > 30) ||
           !Number.isFinite(percentual) || percentual < 0 || percentual > 100) {
-        return response({ error: "Informe nome, e-mail válido, nacionalidade, estado civil, profissão, endereço e comissão válida." }, 400);
+        return response({ error: "Confira os campos obrigatórios e informe um e-mail e uma comissão válidos." }, 400);
       }
       const { data: partner, error: insertError } = await db.from("partners").insert({
         owner_id: ownerId, nome, email, telefone, cpf_cnpj: cpfCnpj,
@@ -196,35 +196,38 @@ Deno.serve(async (req: Request) => {
       }).select("id").single();
       if (insertError?.code === "23505") return response({ error: "Já existe um parceiro cadastrado com este e-mail." }, 409);
       if (insertError) throw insertError;
+      return response({ ok: true, partner_id: partner.id, message: "Parceiro cadastrado com sucesso. O convite de acesso pode ser enviado pelo cartão do parceiro." });
+    }
 
-      const requestOrigin = req.headers.get("origin") ?? "";
-      const safePreviewOrigin = requestOrigin === "https://marcusinstrutor-git-qa-production-readin-52425c-marcusvffs-2839.vercel.app" ||
-        requestOrigin === "https://marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app" ||
-        /^https:\/\/marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(requestOrigin);
-      const redirectTo = safePreviewOrigin
-        ? requestOrigin + "/claim-access.html?role=parceiro"
-        : "https://marcusinstrutor-git-qa-production-readin-52425c-marcusvffs-2839.vercel.app/claim-access.html?role=parceiro";
-      const { data: invited, error: inviteError } = await db.auth.admin.inviteUserByEmail(email, {
-        data: { nome, app_role: "parceiro" },
+    if (body.action === "invite_existing") {
+      if (!uuid(body.partner_id)) return response({ error: "Selecione um parceiro válido." }, 400);
+      const { data: partner, error: partnerError } = await db.from("partners")
+        .select("id,nome,email,user_id").eq("id", body.partner_id).eq("owner_id", ownerId).maybeSingle();
+      if (partnerError) throw partnerError;
+      if (!partner) return response({ error: "Parceiro não encontrado." }, 404);
+      if (partner.user_id) return response({ error: "Este parceiro já possui acesso vinculado." }, 409);
+      const redirectTo = "https://marcusinstrutor.vercel.app/claim-access.html?role=parceiro";
+      const { data: invited, error: inviteError } = await db.auth.admin.inviteUserByEmail(partner.email, {
+        data: { nome: partner.nome, app_role: "parceiro" },
         redirectTo,
       });
       if (inviteError || !invited.user) {
-        await db.from("partners").delete().eq("id", partner.id).eq("owner_id", ownerId);
-        return response({ error: inviteError?.message || "Não foi possível enviar o convite." }, 409);
+        return response({ error: inviteError?.message || "O cadastro foi salvo, mas não foi possível enviar o convite de acesso." }, 409);
       }
       const { error: roleError } = await db.from("profiles")
-        .update({ role: "parceiro", nome }).eq("id", invited.user.id);
+        .update({ role: "parceiro", nome: partner.nome }).eq("id", invited.user.id);
       if (roleError) {
         await db.auth.admin.deleteUser(invited.user.id);
-        await db.from("partners").delete().eq("id", partner.id).eq("owner_id", ownerId);
-        throw roleError;
+        return response({ error: "Parceiro cadastrado, mas não foi possível configurar o acesso: " + roleError.message }, 500);
       }
-      const { error: linkError } = await db.from("partners")
-        .update({ user_id: invited.user.id }).eq("id", partner.id).eq("owner_id", ownerId);
-      if (linkError) {
+      const { data: linked, error: linkError } = await db.from("partners")
+        .update({ user_id: invited.user.id, updated_at: new Date().toISOString() })
+        .eq("id", partner.id).eq("owner_id", ownerId).is("user_id", null)
+        .select("id").maybeSingle();
+      if (linkError || !linked) {
         await db.auth.admin.deleteUser(invited.user.id);
-        await db.from("partners").delete().eq("id", partner.id).eq("owner_id", ownerId);
-        throw linkError;
+        if (linkError) throw linkError;
+        return response({ error: "O parceiro foi salvo, mas o vínculo de acesso não pôde ser concluído." }, 409);
       }
       return response({ ok: true, partner_id: partner.id, message: "Convite enviado. O parceiro ficará pendente até sua aprovação." });
     }
