@@ -123,6 +123,20 @@ Deno.serve(async (req: Request) => {
         .select("id,status").eq("id", referral.partner_id).eq("owner_id", ownerId).maybeSingle();
       if (partnerError) throw partnerError;
       if (!partner || partner.status !== "aprovado") return response({ error: "Aprove o parceiro antes de aceitar indicações." }, 409);
+      if (referral.student_id) {
+        const { data: linkedStudent, error: linkedStudentError } = await db.from("students")
+          .select("id,nome,email").eq("id", referral.student_id).eq("owner_id", ownerId).maybeSingle();
+        if (linkedStudentError) throw linkedStudentError;
+        if (linkedStudent) {
+          const { data: linkedReferral, error: linkError } = await db.from("partner_students")
+            .update({ status: "aprovado", reviewed_at: new Date().toISOString(), reviewed_by: ownerId, updated_at: new Date().toISOString() })
+            .eq("id", referral.id).eq("owner_id", ownerId).eq("status", "pendente_aprovacao")
+            .select("id,status,student_id").maybeSingle();
+          if (linkError) throw linkError;
+          if (!linkedReferral) return response({ error: "A indicação foi analisada em outra sessão." }, 409);
+          return response({ ok: true, student: linkedReferral, message: "Aluno já vinculado ao cadastro. Nenhum cadastro duplicado foi criado." });
+        }
+      }
       const { data: student, error: studentError } = await db.from("students").insert({
         owner_id: ownerId, partner_id: referral.partner_id,
         nome: referral.nome, email: referral.email, telefone: referral.telefone, cpf: referral.cpf,
