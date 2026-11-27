@@ -1157,6 +1157,32 @@ async function excluirVeiculo(id) {
    AULAS
 ========================================= */
 
+function configurarBuscaAlunoAgendamento(formulario, selectName, inputId) {
+  const select = formulario?.elements?.[selectName];
+  if (!select || document.getElementById(inputId)) return;
+  const search = document.createElement("input");
+  search.type = "search";
+  search.id = inputId;
+  search.className = "search-input";
+  search.placeholder = "Buscar aluno por nome ou telefone";
+  search.setAttribute("aria-label", "Buscar aluno por nome ou telefone");
+  select.parentNode.insertBefore(search, select);
+  const renderOptions = () => {
+    const term = search.value.trim().toLocaleLowerCase("pt-BR");
+    const selected = select.value;
+    const filtered = db.alunos.filter(aluno =>
+      [aluno.nome, aluno.telefone].join(" ").toLocaleLowerCase("pt-BR").includes(term)
+    );
+    select.innerHTML = '<option value="">Selecione o aluno</option>' + filtered.map(aluno =>
+      '<option value="' + escapar(aluno.id) + '">' + escapar(aluno.nome) +
+      (aluno.telefone ? ' · ' + escapar(aluno.telefone) : '') + '</option>'
+    ).join("");
+    if (filtered.some(aluno => String(aluno.id) === String(selected))) select.value = selected;
+  };
+  search.addEventListener("input", renderOptions);
+  renderOptions();
+}
+
 function abrirFormularioAula(id = null) {
   aulaEditando = id;
   const aula = db.aulas.find(a => a.id === id) || {};
@@ -1210,7 +1236,9 @@ function abrirFormularioAula(id = null) {
     </form>
   `);
 
-  document.getElementById("formAula").onsubmit = salvarAula;
+  const formularioAula = document.getElementById("formAula");
+  configurarBuscaAlunoAgendamento(formularioAula, "alunoId", "buscarAlunoAgendamentoAula");
+  formularioAula.onsubmit = salvarAula;
 }
 
 
@@ -1309,6 +1337,8 @@ function abrirAgendamentoLote() {
 
     </form>
   `);
+
+  configurarBuscaAlunoAgendamento(document.getElementById("formAgendamentoLote"), "alunoId", "buscarAlunoAgendamentoLote");
 
   const quantidade = document.getElementById("quantidadeAulasLote");
   const formulario = document.getElementById("formAgendamentoLote");
@@ -3344,8 +3374,8 @@ async function salvarConfiguracoes() {
 
   const botao = document.getElementById("btnSalvarConfiguracoes");
   const nome = document.getElementById("nomeEmpresa").value.trim() || "Central do Instrutor";
-  const corPrincipal = document.getElementById("corPrincipal").value;
-  const corSecundaria = document.getElementById("corSecundaria").value;
+  const corPrincipal = "#12345a";
+  const corSecundaria = "#e8edf3";
   const arquivo = document.getElementById("logoEmpresa")?.files?.[0] || null;
   if (botao) { botao.disabled = true; botao.textContent = "Salvando..."; }
 
@@ -3890,8 +3920,8 @@ async function carregarDadosAdminSupabase() {
   db.configuracoes = {
     ...db.configuracoes,
     nome: configuracoesNuvem?.nome_empresa || db.configuracoes.nome,
-    corPrincipal: configuracoesNuvem?.cor_principal || db.configuracoes.corPrincipal,
-    corSecundaria: configuracoesNuvem?.cor_secundaria || db.configuracoes.corSecundaria,
+    corPrincipal: "#12345a",
+    corSecundaria: "#e8edf3",
     logo: configuracoesNuvem?.logo_url || "",
     logo_url: configuracoesNuvem?.logo_url || ""
   };
@@ -4186,12 +4216,12 @@ async function salvarPrecoFixo(key){
 function iniciarAplicativo() {
   document.documentElement.style.setProperty(
     "--primary",
-    db.configuracoes.corPrincipal
+    "#12345a"
   );
 
   document.documentElement.style.setProperty(
     "--secondary",
-    db.configuracoes.corSecundaria
+    "#e8edf3"
   );
 
   const titulo = document.querySelector(".brand h1");
