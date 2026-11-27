@@ -1960,3 +1960,6 @@ body.autenticado .login-screen {
 .student-finance-history{display:grid;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border-color,#e2e8f0)}
 .student-finance-history p{padding:6px 0;border-bottom:1px solid var(--border-color,#eef2f6)}
 .student-finance-history p:last-child{border-bottom:0}
+
+/* Identidade visual oficial: cores fixas da Central do Instrutor. */
+#page-configuracoes label[for="corPrincipal"],#page-configuracoes #corPrincipal,#page-configuracoes label[for="corSecundaria"],#page-configuracoes #corSecundaria{display:none!important}
