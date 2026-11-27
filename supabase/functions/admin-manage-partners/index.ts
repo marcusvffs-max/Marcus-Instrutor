@@ -179,19 +179,20 @@ Deno.serve(async (req: Request) => {
       const estadoCivil = typeof body.estado_civil === "string" ? body.estado_civil.trim() : "";
       const profissao = typeof body.profissao === "string" ? body.profissao.trim() : "";
       const endereco = typeof body.endereco === "string" ? body.endereco.trim() : "";
-      const percentual = Number(body.commission_percent);
-      if (nome.length < 2 || nome.length > 160 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
-          nacionalidade.length < 2 || nacionalidade.length > 80 ||
-          estadoCivil.length < 2 || estadoCivil.length > 80 ||
-          profissao.length < 2 || profissao.length > 120 ||
-          endereco.length < 5 || endereco.length > 300 ||
-          (telefone && telefone.length > 40) || (cpfCnpj && cpfCnpj.length > 30) ||
-          !Number.isFinite(percentual) || percentual < 0 || percentual > 100) {
-        return response({ error: "Confira os campos obrigatórios e informe um e-mail e uma comissão válidos." }, 400);
+      const percentual = Number(typeof body.commission_percent === "string" ? body.commission_percent.replace(",", ".") : body.commission_percent);
+      if (nome.length < 2 || nome.length > 160) return response({ error: "Informe o nome completo do parceiro." }, 400);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return response({ error: "Informe um e-mail válido para o parceiro." }, 400);
+      if ((nacionalidade && nacionalidade.length > 80) || (estadoCivil && estadoCivil.length > 80) ||
+          (profissao && profissao.length > 120) || (endereco && endereco.length > 300) ||
+          (telefone && telefone.length > 40) || (cpfCnpj && cpfCnpj.length > 30)) {
+        return response({ error: "Um dos campos complementares ultrapassou o limite permitido." }, 400);
+      }
+      if (!Number.isFinite(percentual) || percentual < 0 || percentual > 100) {
+        return response({ error: "Informe uma comissão entre 0 e 100%." }, 400);
       }
       const { data: partner, error: insertError } = await db.from("partners").insert({
         owner_id: ownerId, nome, email, telefone, cpf_cnpj: cpfCnpj,
-        nacionalidade, estado_civil: estadoCivil, profissao, endereco,
+        nacionalidade: nacionalidade || null, estado_civil: estadoCivil || null, profissao: profissao || null, endereco: endereco || null,
         commission_percent: percentual, status: "pendente",
       }).select("id").single();
       if (insertError?.code === "23505") return response({ error: "Já existe um parceiro cadastrado com este e-mail." }, 409);
