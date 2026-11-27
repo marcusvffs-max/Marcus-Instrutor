@@ -26,7 +26,7 @@
 </head>
 <body>
   <main>
-    <img class="logo" src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Logotipo oficial Central do Instrutor">
+    <img class="logo" src="/central-instrutor-logo.svg" alt="Logotipo oficial Central do Instrutor">
     <p class="eyebrow">Central do Instrutor</p>
     <h1>Instale o aplicativo</h1>
     <p class="description">Tenha o Central do Instrutor na tela inicial do seu celular, com acesso rápido e em formato de aplicativo.</p>
@@ -41,6 +41,7 @@
       var button = document.getElementById("installButton");
       var status = document.getElementById("status");
       var isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      var installationCompleted = false;
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function(){
           navigator.serviceWorker.register("/service-worker.js", {updateViaCache:"none"}).catch(function(error){
@@ -51,7 +52,7 @@
       if (isStandalone) {
         button.textContent = "Aplicativo instalado";
         button.disabled = true;
-        status.textContent = "O Central do Instrutor já está instalado neste dispositivo.";
+        status.textContent = "O Central do Instrutor já está instalado neste dispositivo. Você pode fechar esta tela.";
       }
       window.addEventListener("beforeinstallprompt", function(event){
         event.preventDefault();
@@ -70,17 +71,29 @@
         var choice = await installPrompt.userChoice;
         installPrompt = null;
         if (choice && choice.outcome === "accepted") {
-          voltarAoSite();
+          button.textContent = "Aguardando instalação…";
+          status.textContent = "Pedido aceito. Aguarde a conclusão da instalação; esta tela será fechada ao finalizar.";
+          if (installationCompleted) closeInstallScreen();
           return;
         } else {
           status.textContent = "Instalação cancelada. Você pode tocar no botão novamente quando quiser.";
           button.disabled = false;
         }
       });
-      function voltarAoSite(){
-        window.location.replace("https://central-do-instrutor.pages.dev/");
+      function closeInstallScreen(){
+        if (installationCompleted) return;
+        installationCompleted = true;
+        status.textContent = "Aplicativo instalado. Finalizando esta tela…";
+        button.textContent = "Instalação concluída";
+        button.disabled = true;
+        window.close();
+        window.setTimeout(function(){
+          if (!document.hidden) {
+            status.textContent = "Aplicativo instalado com sucesso. Se esta tela continuar aberta, você já pode fechá-la.";
+          }
+        }, 700);
       }
-      window.addEventListener("appinstalled", voltarAoSite);
+      window.addEventListener("appinstalled", closeInstallScreen);
     })();
   </script>
 </body>
