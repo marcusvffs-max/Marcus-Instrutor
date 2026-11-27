@@ -743,10 +743,13 @@ test("convites de aluno usam o envio nativo do Supabase Auth sem depender de SMT
 test("aluno e parceiro salvam senha e seguem para a tela de instalação", () => {
   const passwordSave = claimAccess.indexOf("client.auth.updateUser({password})");
   const studentLink = claimAccess.indexOf('action:"complete_student_link"');
-  const redirect = claimAccess.indexOf('location.replace(INSTALL_URL');
+  const redirect = claimAccess.indexOf("window.location.assign(installUrl.href)");
   assert.ok(passwordSave >= 0 && studentLink > passwordSave && redirect > studentLink);
   assert.match(claimAccess, /\["aluno","parceiro"\]\.includes\(role\)/);
-  assert.match(claimAccess, /location\.replace\(INSTALL_URL\+"\?perfil="/);
+  assert.match(claimAccess, /new URL\(INSTALL_URL,"https:\/\/marcusinstrutor\.vercel\.app"\)/);
+  assert.match(claimAccess, /installUrl\.searchParams\.set\("perfil",role\)/);
+  assert.match(claimAccess, /form\.hidden=true/);
+  assert.match(claimAccess, /Toque aqui para abrir a instalação do aplicativo/);
   assert.match(partnerEdge, /claim-access\.html\?role=parceiro/);
   assert.match(partnerEdge, /over_email_send_rate_limit/);
   assert.match(partnerEdge, /Nenhum acesso foi enviado/);
