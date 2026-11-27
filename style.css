@@ -1916,3 +1916,14 @@ body.autenticado .login-screen {
 
 /* Orçamentos */
 .quote-list-name{display:flex;width:100%;align-items:center;justify-content:space-between;gap:10px;padding:15px 16px;margin:5px 0;border:1px solid #dbe3ec;border-radius:12px;background:#fff;color:#12345a;text-align:left;font:inherit;font-weight:700;cursor:pointer}.quote-list-name small{font-size:12px;color:#64748b;font-weight:500}.quote-editor-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #e2e8f0}.quote-editor-row>div{display:flex;flex-direction:column;gap:4px;min-width:0}.quote-editor-row small{color:#64748b;font-size:12px}.quote-editor-items,.quote-detail-items{margin:14px 0}.quote-detail-totals{margin:18px 0 0 auto;max-width:300px}.quote-detail-totals>div{display:flex;justify-content:space-between;padding:7px 0}.quote-total-final{border-top:2px solid #12345a;color:#12345a;font-size:19px;font-weight:800}.quote-actions{flex-wrap:wrap}@media(max-width:560px){.quote-editor-row{grid-template-columns:minmax(0,1fr) auto}.quote-editor-row button{grid-column:1/-1;justify-self:end}.quote-actions button{flex:1}}
+
+
+/* Devoluções: cartões por item, legíveis em telas pequenas */
+.refund-item-quantity-list{display:grid;gap:10px;margin:14px 0}
+.refund-item-quantity-card{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px;border:1px solid var(--border-color,#d9e0e8);border-radius:12px;background:var(--card-bg,#fff);min-width:0}
+.refund-item-quantity-card>div{display:grid;gap:5px;min-width:0;flex:1}
+.refund-item-quantity-card>div strong{overflow-wrap:anywhere}
+.refund-item-quantity-card>div span{font-size:.88rem;color:var(--muted,#64748b);line-height:1.4}
+.refund-item-quantity-card>label{display:grid;gap:5px;min-width:112px;font-size:.84rem;font-weight:600}
+.refund-item-quantity-card input{width:100%;min-height:42px;padding:8px 10px;border:1px solid var(--border-color,#cbd5e1);border-radius:8px;font:inherit}
+@media(max-width:560px){.refund-item-quantity-card{align-items:stretch;flex-direction:column;gap:10px}.refund-item-quantity-card>label{width:100%;min-width:0}.refund-item-quantity-card input{max-width:100%}}
