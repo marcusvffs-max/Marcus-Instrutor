@@ -525,7 +525,8 @@
       <h1 id="loginTitulo">Central do Instrutor</h1>
       <p class="login-description">Entre com sua conta autorizada para acessar o sistema.</p>
       <form id="formLogin">
-        <a id="btnInstalarAplicativoLogin" href="https://marcusinstrutor.vercel.app/instalar.html" style="display:block;width:max-content;max-width:100%;margin:0 auto 18px;padding:11px 24px;border:0;border-radius:9px;background:#12345a;color:#fff;text-decoration:none;text-align:center;font-size:15px;font-weight:600;line-height:1.3;box-sizing:border-box;">Instalar aplicativo</a>
+        <button id="btnInstalarAplicativoLogin" type="button" style="display:block;width:max-content;max-width:100%;margin:0 auto 18px;padding:11px 24px;border:0;border-radius:9px;background:#12345a;color:#fff;text-align:center;font-size:15px;font-weight:600;line-height:1.3;box-sizing:border-box;cursor:pointer;">Instalar aplicativo</button>
+        <p id="instalarAplicativoMensagem" class="login-message" role="status" aria-live="polite" style="text-align:center;margin:-8px 0 14px;"></p>
         <label for="loginEmail">E-mail</label>
         <input id="loginEmail" name="email" type="email" autocomplete="username" placeholder="Seu e-mail" required>
         <label for="loginSenha">Senha</label>
@@ -612,6 +613,44 @@
       const campoEmail = document.getElementById("loginEmail");
       const campoSenha = document.getElementById("loginSenha");
       const mensagemLogin = document.getElementById("loginMensagem");
+      const botaoInstalarLogin = document.getElementById("btnInstalarAplicativoLogin");
+      const mensagemInstalacaoLogin = document.getElementById("instalarAplicativoMensagem");
+      let promptInstalacaoPendente = null;
+      window.addEventListener("beforeinstallprompt", function (evento) {
+        evento.preventDefault();
+        promptInstalacaoPendente = evento;
+      });
+      window.addEventListener("appinstalled", function () {
+        promptInstalacaoPendente = null;
+        if (mensagemInstalacaoLogin) mensagemInstalacaoLogin.textContent = "Aplicativo instalado com sucesso.";
+        if (botaoInstalarLogin) {
+          botaoInstalarLogin.textContent = "Aplicativo instalado";
+          botaoInstalarLogin.disabled = true;
+        }
+      });
+      if (botaoInstalarLogin) {
+        botaoInstalarLogin.addEventListener("click", async function () {
+          if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) {
+            if (mensagemInstalacaoLogin) mensagemInstalacaoLogin.textContent = "O aplicativo já está instalado.";
+            return;
+          }
+          if (promptInstalacaoPendente) {
+            const eventoInstalacao = promptInstalacaoPendente;
+            promptInstalacaoPendente = null;
+            await eventoInstalacao.prompt();
+            const escolha = await eventoInstalacao.userChoice;
+            if (mensagemInstalacaoLogin) {
+              mensagemInstalacaoLogin.textContent = escolha && escolha.outcome === "accepted"
+                ? "Instalação solicitada. Aguarde a conclusão."
+                : "Instalação não concluída. Você pode tentar novamente.";
+            }
+            return;
+          }
+          if (mensagemInstalacaoLogin) {
+            mensagemInstalacaoLogin.textContent = "A instalação direta não está disponível neste momento. No Chrome, abra o menu ⋮ e escolha “Instalar aplicativo” ou “Adicionar à tela inicial”.";
+          }
+        });
+      }
       const botaoEntrar = document.getElementById("btnEntrar");
       const formRecuperarSenha = document.getElementById("formRecuperarSenha");
       const formNovaSenha = document.getElementById("formNovaSenha");
