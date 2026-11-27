@@ -1994,7 +1994,11 @@
     const rows=(q.items||[]).map(x=>'<div class="quote-editor-row"><div><strong>'+escapeHtml(x.descricao)+'</strong><small>'+Number(x.quantidade)+' × '+currency(x.preco_unitario)+'</small></div><strong>'+currency(x.subtotal)+'</strong></div>').join("");
     const form=document.createElement("form");form.id="formDetalhesQuoteInstrutor";form.hidden=true;
     form.innerHTML='<h4 style="display:none">Orçamento</h4><strong>'+escapeHtml(q.client_name)+'</strong><p>'+escapeHtml(formatDate(q.created_at))+'</p><div class="quote-detail-items">'+rows+'</div><div class="quote-detail-totals"><div>Subtotal <strong>'+currency(q.subtotal)+'</strong></div><div>Desconto <strong>'+currency(q.discount)+'</strong></div><div class="quote-total-final">Total <strong>'+currency(q.total)+'</strong></div></div>'+(q.notes?'<p><strong>Observações:</strong> '+escapeHtml(q.notes)+'</p>':'')+'<div class="modal-actions"><button type="button" class="button button-outline" data-instructor-quote-close>Fechar</button><button type="button" class="button button-outline" data-instructor-quote-print="'+escapeHtml(q.id)+'">Imprimir / PDF</button><button type="button" class="button button-primary" data-instructor-quote-convert="'+escapeHtml(q.id)+'">Enviar para venda</button></div>';
-    document.body.appendChild(form);form.querySelector("[data-instructor-quote-close]").onclick=()=>closeInstructorModal(form.id);openInstructorModal(form.id);
+    document.body.appendChild(form);
+    form.querySelector("[data-instructor-quote-close]").onclick=()=>{closeInstructorModal(form.id);form.remove();};
+    form.querySelector("[data-instructor-quote-print]").onclick=()=>printInstructorQuote(q.id);
+    form.querySelector("[data-instructor-quote-convert]").onclick=()=>{closeInstructorModal(form.id);form.remove();convertInstructorQuote(q.id);};
+    openInstructorModal(form.id);
   }
 
   function printInstructorQuote(id) {
@@ -2018,14 +2022,15 @@
     const q=state.quoteCache.find(x=>x.id===id);if(!q)return;
     const form=document.createElement("form");form.id="formConverterQuoteInstrutor";form.hidden=true;
     form.innerHTML='<h4 style="display:none">Enviar orçamento para venda</h4><p>Cliente: <strong>'+escapeHtml(q.client_name)+'</strong><br>Total: <strong>'+currency(q.total)+'</strong></p><label>Vincular a aluno já cadastrado (opcional)</label><select name="studentId"><option value="">Cadastrar cliente ao confirmar a venda</option>'+state.students.map(s=>'<option value="'+escapeHtml(s.id)+'">'+escapeHtml(s.nome)+'</option>').join("")+'</select><label>Forma de pagamento</label><select name="payment" required><option value="">Selecione</option><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência bancária</option><option>Outro</option></select><div class="modal-actions"><button type="button" class="button button-outline" data-instructor-quote-close>Cancelar</button><button type="submit" class="button button-primary">Confirmar venda e lançar no financeiro</button></div>';
-    document.body.appendChild(form);form.querySelector("[data-instructor-quote-close]").onclick=()=>closeInstructorModal(form.id);
+    document.body.appendChild(form);
+    form.querySelector("[data-instructor-quote-close]").onclick=()=>{closeInstructorModal(form.id);form.remove();};
     form.onsubmit=async e=>{
       e.preventDefault();const button=form.querySelector('button[type="submit"]');if(!form.elements.payment.value){showMessage("Selecione a forma de pagamento.");return;}
       button.disabled=true;button.textContent="Registrando venda...";
       try{
         const {data,error}=await state.supabase.rpc("convert_sales_quote_to_sale",{p_quote_id:q.id,p_sale_id:crypto.randomUUID(),p_student_id:form.elements.studentId.value||null,p_payment_method:form.elements.payment.value});
         if(error)throw error;
-        closeInstructorModal(form.id);await loadOwnData();await loadInstructorQuotes();
+        closeInstructorModal(form.id);form.remove();await loadOwnData();await loadInstructorQuotes();
         showMessage("Venda confirmada e lançada no financeiro: "+currency(data?.total??q.total)+".",false);
       }catch(error){console.error(error);showMessage(error.message||"Não foi possível converter o orçamento.");}
       finally{button.disabled=false;button.textContent="Confirmar venda e lançar no financeiro";}
@@ -2613,10 +2618,23 @@
         button.classList.toggle("active", active);
       });
       window.scrollTo({ top: 0, behavior: "smooth" });
+      if (page === "orcamentos") loadInstructorQuotes();
     }
 
     document.querySelectorAll("[data-instructor-page]").forEach(button => {
       button.addEventListener("click", () => navigateInstructorPage(button.dataset.instructorPage));
+    });
+    el("btnNovoOrcamento")?.addEventListener("click", openInstructorQuoteForm);
+    el("buscaOrcamentos")?.addEventListener("input", renderInstructorQuotes);
+    el("listaOrcamentos")?.addEventListener("click", event => {
+      const open=event.target.closest("[data-instructor-quote-open]");
+      const print=event.target.closest("[data-instructor-quote-print]");
+      const del=event.target.closest("[data-instructor-quote-delete]");
+      const convert=event.target.closest("[data-instructor-quote-convert]");
+      if(open)openInstructorQuoteDetails(open.dataset.instructorQuoteOpen);
+      else if(print)printInstructorQuote(print.dataset.instructorQuotePrint);
+      else if(del)deleteInstructorQuote(del.dataset.instructorQuoteDelete);
+      else if(convert)convertInstructorQuote(convert.dataset.instructorQuoteConvert);
     });
     navigateInstructorPage("inicio");
 
