@@ -134,6 +134,12 @@
           try {
             const result = await invoke("review_student", { partner_student_id: item.id, status });
             say(result.message || "Indicação atualizada.");
+            if (status === "aprovado") {
+              if (typeof window.atualizarCadastroAlunosAposIndicacao !== "function") {
+                throw new Error("Não foi possível atualizar a lista principal de alunos. Atualize o aplicativo e confira novamente.");
+              }
+              await window.atualizarCadastroAlunosAposIndicacao();
+            }
             await loadPartners();
           } catch (error) { say(error.message, true); button.disabled = false; }
         });
