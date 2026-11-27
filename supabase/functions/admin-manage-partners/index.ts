@@ -213,6 +213,14 @@ Deno.serve(async (req: Request) => {
         redirectTo,
       });
       if (inviteError || !invited.user) {
+        const rateLimited = inviteError?.status === 429 ||
+          inviteError?.code === "over_email_send_rate_limit" ||
+          /over_email_send_rate_limit|email.*rate.?limit|too many requests/i.test(inviteError?.message || "");
+        if (rateLimited) {
+          return response({
+            error: "O serviço de e-mail atingiu o limite temporário de convites. Nenhum acesso foi enviado. Aguarde o limite ser liberado ou configure um serviço de e-mail próprio no Supabase antes de tentar novamente."
+          }, 429);
+        }
         return response({ error: inviteError?.message || "O cadastro foi salvo, mas não foi possível enviar o convite de acesso." }, 409);
       }
       const { error: roleError } = await db.from("profiles")
