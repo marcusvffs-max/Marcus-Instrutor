@@ -1927,3 +1927,13 @@ body.autenticado .login-screen {
 .refund-item-quantity-card>label{display:grid;gap:5px;min-width:112px;font-size:.84rem;font-weight:600}
 .refund-item-quantity-card input{width:100%;min-height:42px;padding:8px 10px;border:1px solid var(--border-color,#cbd5e1);border-radius:8px;font:inherit}
 @media(max-width:560px){.refund-item-quantity-card{align-items:stretch;flex-direction:column;gap:10px}.refund-item-quantity-card>label{width:100%;min-width:0}.refund-item-quantity-card input{max-width:100%}}
+
+
+/* Detalhes do aluno em cartões responsivos */
+.student-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}
+.student-detail-card{min-width:0;padding:14px;border:1px solid var(--border-color,#d9e0e8);border-radius:12px;background:var(--card-bg,#fff)}
+.student-detail-card h3{margin:0 0 10px;font-size:1rem}
+.student-detail-card p{display:grid;gap:3px;margin:8px 0;min-width:0}
+.student-detail-card p strong{font-size:.78rem;color:var(--muted,#64748b);font-weight:600}
+.student-detail-card p span{overflow-wrap:anywhere}
+@media(max-width:560px){.student-detail-grid{grid-template-columns:1fr}}
