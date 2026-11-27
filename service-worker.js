@@ -1,12 +1,12 @@
 "use strict";
 
-const CACHE_NAME = "central-instrutor-v52-refund-sale-search-20261127-1";
+const CACHE_NAME = "central-instrutor-v53-app-icon-20261127-1";
 
 const ARQUIVOS = [
   "./",
   "./index.html",
   "./central-instrutor-logo.svg",
-  "./central-app-icon.svg",
+  "./central-app-icon.svg?v=2",
   "./instrutor.html",
   "./parceiro.html",
   "./parceiro.js?v=partner-portal-13",
@@ -16,9 +16,7 @@ const ARQUIVOS = [
   "./instrutor.css?v=central-logo-1",
   "./instrutor.js?v=unified-fixed-items-8",
   "./script.js?v=central-correcoes-20261127-7",
-  "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png"
+  "./manifest.json"
 ];
 
 const ARQUIVOS_ADMINISTRATIVOS = [
@@ -63,8 +61,6 @@ self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Os scripts administrativos só são requisitados depois da validação
-  // de role=admin e não devem ser armazenados no cache compartilhado.
   if (ARQUIVOS_ADMINISTRATIVOS.some(caminho => url.pathname.endsWith(caminho))) {
     event.respondWith(fetch(event.request));
     return;
