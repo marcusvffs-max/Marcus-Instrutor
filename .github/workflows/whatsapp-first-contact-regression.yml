@@ -1,0 +1,52 @@
+name: Production readiness source checks
+
+on:
+  push:
+    branches:
+      - qa/production-readiness-integration-20261125
+  pull_request:
+
+jobs:
+  static-regressions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check WhatsApp first-contact routing
+        run: node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          import { readFileSync } from "node:fs";
+          const source = readFileSync("supabase/functions/whatsapp-webhook/index.ts", "utf8");
+          assert.ok(source.includes("let isNewConversation = false"));
+          assert.ok(source.includes("isNewConversation = Boolean(created && !createError)"));
+          assert.ok(source.includes('if (isNewConversation || conversationStatus === "aguardando")'));
+          assert.ok(source.includes('status: "aguardando_escolha"'));
+          assert.ok(source.includes("sendInitialMenuSelection(supabase, conversation.id, phone)"));
+          assert.ok(source.includes("async function sendInitialMenuSelection("));
+          assert.ok(!source.includes("async async function sendInitialMenuSelection("));
+          assert.ok(source.includes('assistant_activation_reason: isNewConversation ? "new_contact_first_message" : "legacy_aguardando"'));
+          assert.ok(source.includes('messageError?.code === "23505"'));
+          assert.ok(source.includes('conversationStatus === "atendimento_humano"'));
+          assert.ok(source.includes("ai_paused_until"));
+          const initialMenu = source.slice(source.indexOf("async function sendInitialMenuSelection"), source.indexOf("async function sendServiceContinuationMenu"));
+          const serviceMenu = source.slice(source.indexOf("async function sendInteractiveServiceMenu"), source.indexOf("async function sendInitialMenuSelection"));
+          const continuationMenu = source.slice(source.indexOf("async function sendServiceContinuationMenu"), source.indexOf("async function sendAttendanceMenu"));
+          assert.ok(serviceMenu.includes('id: "service_app", title: "Aplicativo"'));
+          assert.ok(continuationMenu.includes('id: "service_app", title: "Aplicativo"'));
+          assert.ok((serviceMenu.match(/id: "/g) ?? []).length <= 10, "Service menu exceeds WhatsApp's 10-row limit");
+          assert.ok((continuationMenu.match(/id: "/g) ?? []).length <= 10, "Continuation menu exceeds WhatsApp's 10-row limit");
+          assert.ok(!continuationMenu.includes('id: "menu_talk_marcus"'));
+          assert.ok(continuationMenu.includes('digite “Falar com Instrutor”'));
+          assert.ok(!initialMenu.includes('id: "service_app"'), "Aplicativo must not appear in the initial greeting");
+          assert.ok(source.includes('if (menuChoice === "service_app")'));
+          assert.ok(source.includes('reply_type: "student_app_access_information"'));
+          assert.ok(source.includes("if (sent) await sendServiceContinuationMenu(supabase, conversation.id, phone)"));
+          assert.ok(source.includes("Acompanhe suas aulas de direção de maneira simples e prática!"));
+          console.log("OK: WhatsApp first-contact routing and student app menu.");
+          NODE
+      - name: Check rental-credit RLS migration
+        run: node test-student-rental-credit-rls-repair.mjs
+      - name: Check partner module regressions
+        run: node --test scripts/test-partner-module.mjs

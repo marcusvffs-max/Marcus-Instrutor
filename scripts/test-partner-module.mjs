@@ -18,7 +18,7 @@ test("login encaminha perfil parceiro para a área exclusiva", () => {
 });
 
 test("painel admin carrega gestão de parceiros somente após autenticação", () => {
-  assert.match(adminHtml, /await carregarScript\("parceiros-admin\.js\?v=partner-admin-5"\)/);
+  assert.match(adminHtml, /await carregarScript\("parceiros-admin\.js\?v=partner-admin-6"\)/);
   assert.match(adminHtml, /id="page-parceiros"/);
   assert.match(adminHtml, /data-page="parceiros"/);
 });
@@ -41,7 +41,7 @@ test("cadastro administrativo do aluno permite associar parceiro", () => {
 });
 
 test("portal do parceiro consulta somente as ações autenticadas do endpoint próprio", () => {
-  assert.match(partnerHtml, /parceiro\.js\?v=partner-portal-5/);
+  assert.match(partnerHtml, /parceiro\.js\?v=partner-portal-11/);
   assert.match(partnerJs, /functions\.invoke\("partner-portal"/);
   for (const action of ["overview", "confirm_receipt", "mark_read"]) {
     assert.ok(partnerJs.includes('"' + action + '"'), "Ação ausente: " + action);
@@ -50,9 +50,9 @@ test("portal do parceiro consulta somente as ações autenticadas do endpoint pr
 });
 
 test("service worker mantém portal disponível e não compartilha script administrativo", () => {
-  assert.match(serviceWorker, /marcus-instrutor-v38-partner-admin-popups/);
+  assert.match(serviceWorker, /marcus-instrutor-v40-partner-portal-11/);
   assert.match(serviceWorker, /"\.\/parceiro\.html"/);
-  assert.match(serviceWorker, /"\.\/parceiro\.js\?v=partner-portal-5"/);
+  assert.match(serviceWorker, /"\.\/parceiro\.js\?v=partner-portal-11"/);
   assert.match(serviceWorker, /"\/parceiros-admin\.js"/);
 });
 
@@ -78,6 +78,18 @@ test("as duas Edge Functions exigem JWT no config do Supabase", () => {
 
 const partnerSchemaMigration = read("../supabase/migrations/20261124045002_partner_module_schema_and_commissions.sql");
 const partnerIndexesMigration = read("../supabase/migrations/20261124045125_partner_referral_fk_indexes.sql");
+
+test("schema de parceiros inclui as chaves compostas e campos usados pelo portal", () => {
+  assert.match(partnerSchemaMigration, /sale_items_id_owner_partner_key/);
+  assert.match(partnerSchemaMigration, /lessons_id_owner_partner_key/);
+  assert.match(partnerSchemaMigration, /ADD COLUMN IF NOT EXISTS nacionalidade text/);
+  assert.match(partnerSchemaMigration, /ADD COLUMN IF NOT EXISTS estado_civil text/);
+  assert.match(partnerSchemaMigration, /ADD COLUMN IF NOT EXISTS profissao text/);
+  assert.match(partnerSchemaMigration, /CHECK \(role IN \('admin', 'instrutor', 'usuario', 'parceiro'\)\)/);
+  for (const table of ["partners", "partner_students", "partner_quotes", "partner_quote_items", "partner_messages", "partner_message_recipients", "partner_commissions", "partner_payouts", "partner_commission_lessons"]) {
+    assert.ok(partnerSchemaMigration.includes("ALTER TABLE public." + table + " ENABLE ROW LEVEL SECURITY"), "RLS ausente: " + table);
+  }
+});
 
 test("PIX é controlado pelo administrador e somente leitura no portal", () => {
   assert.match(adminJs, /update_pix_key/);

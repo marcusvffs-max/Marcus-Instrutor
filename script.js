@@ -42,6 +42,7 @@ let relatorioAtual = null;
 let adminSupabaseUserId = null;
 let adminAlunosSupabaseAtivo = false;
 let idProdutoEditando = null;
+let mostrarVeiculosInativos = false;
 
 /* =========================================
    FUNÇÕES BÁSICAS
@@ -246,6 +247,9 @@ function atualizarTela(nome) {
     case "aulas":
       listarAulas();
       break;
+    case "orcamentos":
+      listarOrcamentos();
+      break;
     case "financeiro":
       listarMovimentacoes();
       atualizarFinanceiro();
@@ -280,7 +284,7 @@ async function atualizarProximosExamesPainel() {
   try {
     const { data, error } = await cliente
       .from("student_practical_exams")
-      .select("id,scheduled_at,students(nome)")
+      .select("id,scheduled_at,students(nome,telefone)")
       .eq("owner_id", adminSupabaseUserId)
       .eq("status", "agendado")
       .order("scheduled_at", { ascending: true })
@@ -294,11 +298,18 @@ async function atualizarProximosExamesPainel() {
           const dataHora = Number.isNaN(quando.getTime())
             ? "Data não disponível"
             : quando.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+          const telefone = String(exame.students?.telefone || "").trim();
+          const numeroDiscagem = telefone.replace(/\D/g, "");
+          const numeroWhatsApp = numeroDiscagem && (numeroDiscagem.length === 10 || numeroDiscagem.length === 11) ? "55" + numeroDiscagem : numeroDiscagem;
+          const contato = numeroDiscagem
+            ? `<a class="exame-telefone" href="tel:${escapar(numeroDiscagem)}">Telefone: ${escapar(telefone)} · Ligar</a>${numeroWhatsApp ? ` <a class="exame-whatsapp" href="https://wa.me/${escapar(numeroWhatsApp)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ""}`
+            : `<span class="form-hint">Telefone não informado</span>`;
           return `<div class="record exame-painel-item">
-            <div><strong>${escapar(exame.students?.nome || "Aluno")}</strong><p>${escapar(dataHora)}</p><span class="form-hint">Exame prático agendado</span></div>
+            <div><strong>${escapar(exame.students?.nome || "Aluno")}</strong><p>${escapar(dataHora)}</p><p>${contato}</p><span class="form-hint">Exame prático agendado</span></div>
             <div class="exame-painel-acoes">
               <button type="button" class="primary-button" data-exame-resultado="aprovado" data-exame-id="${escapar(exame.id)}">Aprovado</button>
               <button type="button" class="secondary-button" data-exame-resultado="reprovado" data-exame-id="${escapar(exame.id)}">Reprovado</button>
+              <button type="button" class="secondary-button" data-exame-cancelar="${escapar(exame.id)}">Cancelar</button>
             </div>
           </div>`;
         }).join("")
@@ -309,7 +320,7 @@ async function atualizarProximosExamesPainel() {
         const exameId = botao.dataset.exameId;
         const label = resultado === "aprovado" ? "APROVADO" : "REPROVADO";
         if (!(await confirmar("Confirmar resultado " + label + "? Esta ação consumirá 1 Aluguel de Veículo e não poderá ser desfeita."))) return;
-        const botoes = host.querySelectorAll("[data-exame-resultado]");
+        const botoes = host.querySelectorAll("[data-exame-resultado], [data-exame-cancelar]");
         botoes.forEach(b => b.disabled = true);
         try {
           const { error: rpcError } = await cliente.rpc("record_student_practical_exam_result", {
@@ -323,6 +334,27 @@ async function atualizarProximosExamesPainel() {
         } catch (erro) {
           console.error("Falha ao registrar resultado do exame:", erro);
           mostrarAviso(erro?.message || "Não foi possível registrar o resultado do exame.");
+          botoes.forEach(b => b.disabled = false);
+        }
+      });
+    });
+    host.querySelectorAll("[data-exame-cancelar]").forEach(botao => {
+      botao.addEventListener("click", async () => {
+        const exameId = botao.dataset.exameCancelar;
+        if (!(await confirmar("Cancelar este exame por não comparecimento do aluno? O exame ficará registrado como cancelado e nenhum aluguel será consumido."))) return;
+        const botoes = host.querySelectorAll("[data-exame-resultado], [data-exame-cancelar]");
+        botoes.forEach(b => b.disabled = true);
+        try {
+          const { error: rpcError } = await cliente.rpc("cancel_student_practical_exam", {
+            p_exam_id: exameId
+          });
+          if (rpcError) throw rpcError;
+          mostrarAviso("Exame cancelado. Nenhum aluguel foi consumido.");
+          await atualizarProximosExamesPainel();
+          atualizarPainel();
+        } catch (erro) {
+          console.error("Falha ao cancelar exame:", erro);
+          mostrarAviso(erro?.message || "Não foi possível cancelar o exame.");
           botoes.forEach(b => b.disabled = false);
         }
       });
@@ -416,11 +448,15 @@ function atualizarPainel() {
       .slice(0, 12);
 
     proximas.innerHTML = aulas.length
-      ? aulas.map(a => `
+      ? aulas.map(a => {
+          const aluno = db.alunos.find(item => String(item.id) === String(a.alunoId));
+          const telefoneAluno = String(aluno?.telefone || "").replace(/\D/g, "");
+          const whatsappAluno = telefoneAluno && (telefoneAluno.length === 10 || telefoneAluno.length === 11) ? "55" + telefoneAluno : telefoneAluno;
+          return `
           <div class="record">
             <strong>${escapar(nomeAluno(a.alunoId))}</strong>
             <p>${formatarData(a.data)} • ${escapar(a.horario)}</p>
-
+            ${whatsappAluno ? `<p><a class="exame-whatsapp" href="https://wa.me/${escapar(whatsappAluno)}" target="_blank" rel="noopener noreferrer">WhatsApp do aluno</a></p>` : '<p class="form-hint">WhatsApp não disponível: telefone não informado.</p>'}
             <div class="record-actions">
               <button
                 type="button"
@@ -439,7 +475,7 @@ function atualizarPainel() {
               </button>
             </div>
           </div>
-        `).join("")
+        `}).join("")
       : '<div class="empty-state">Nenhuma aula agendada para hoje.</div>';
 
     proximas.onclick = evento => {
@@ -737,39 +773,41 @@ async function atualizarStatusConvitesAlunos(mostrarMensagem = true) {
 function listarAlunos() {
   const lista = document.getElementById("listaAlunos");
   if (!lista) return;
-
-  const busca = (
-    document.getElementById("buscaAlunos")?.value || ""
-  ).toLowerCase();
-
-  const alunos = db.alunos.filter(a =>
-    a.nome.toLowerCase().includes(busca) ||
-    String(a.email || "").toLowerCase().includes(busca) ||
-    String(a.cpf || "").includes(busca)
-  );
-
+  const busca = String(document.getElementById("buscaAlunos")?.value || "").trim().toLocaleLowerCase("pt-BR");
+  const alunos = db.alunos.filter(a => String(a.nome || "").toLocaleLowerCase("pt-BR").includes(busca));
   lista.innerHTML = alunos.length
     ? alunos.map(a => `
-        <div class="record">
-          <div class="record-info">
-            <strong>${escapar(a.nome)}</strong>
-            <p>E-mail: ${escapar(a.email || "Não informado")}</p>
-            <p>Telefone: ${escapar(a.telefone || "Não informado")}</p>
-            <p>Categoria: ${escapar(a.categoria)}</p>
-            <p>Situação: ${escapar(a.situacao)}</p>
-            <p>Aulas restantes: <strong>${Number(a.saldo || 0)}</strong></p>
-            <p>Aluguéis de veículo disponíveis: <strong>${Number(a.alugueisDisponiveis || 0)}</strong> de ${Number(a.alugueisComprados || 0)} comprados</p>
-          </div>
-          <div class="record-actions">
-            ${a.email ? `<button type="button" data-invite-aluno="${a.id}">${a.user_id ? "Reenviar acesso" : a.invited_at ? "Reenviar convite" : "Enviar convite"}</button>` : ""}
-            <button type="button" data-open-student-exams="${a.id}">Exames</button>
-            <button type="button" data-edit-aluno="${a.id}">Editar</button>
-            <button type="button" data-delete-aluno="${a.id}">Excluir</button>
-          </div>
-          ${a.email ? `<p class="student-invite-status">Acesso: ${a.user_id ? "Conta vinculada" : a.invited_at ? "Convite enviado ou aguardando confirmação" : "Ainda não convidado"}</p>` : ""}
-        </div>
+        <button type="button" class="quote-list-name student-list-name" data-open-aluno="${escapar(a.id)}"><span>${escapar(a.nome)}</span></button>
       `).join("")
     : '<div class="empty-state">Nenhum aluno encontrado.</div>';
+}
+
+function abrirDetalhesAluno(id) {
+  const aluno = db.alunos.find(item => String(item.id) === String(id));
+  if (!aluno) { mostrarAviso("Não foi possível localizar o aluno."); return; }
+  const acesso = aluno.user_id ? "Conta vinculada" : aluno.invited_at ? "Convite enviado ou aguardando confirmação" : "Ainda não convidado";
+  abrirModal(`
+    <h2>${escapar(aluno.nome)}</h2>
+    <div class="record-info">
+      <p><strong>E-mail:</strong> ${escapar(aluno.email || "Não informado")}</p>
+      <p><strong>Telefone:</strong> ${escapar(aluno.telefone || "Não informado")}</p>
+      <p><strong>CPF:</strong> ${escapar(aluno.cpf || "Não informado")}</p>
+      <p><strong>Endereço:</strong> ${escapar(aluno.endereco || "Não informado")}</p>
+      <p><strong>Categoria:</strong> ${escapar(aluno.categoria || "Não informada")}</p>
+      <p><strong>Situação:</strong> ${escapar(aluno.situacao || "Em aberto")}</p>
+      <p><strong>Aulas contratadas:</strong> ${Number(aluno.contratadas || 0)}</p>
+      <p><strong>Aulas restantes:</strong> ${Number(aluno.saldo || 0)}</p>
+      <p><strong>Aluguéis disponíveis:</strong> ${Number(aluno.alugueisDisponiveis || 0)} de ${Number(aluno.alugueisComprados || 0)} comprados</p>
+      <p><strong>Acesso do aluno:</strong> ${escapar(acesso)}</p>
+    </div>
+    <div class="record-actions">
+      ${aluno.email ? `<button type="button" data-invite-aluno="${escapar(aluno.id)}">${aluno.user_id ? "Reenviar acesso" : aluno.invited_at ? "Reenviar convite" : "Enviar convite"}</button>` : ""}
+      <button type="button" data-open-student-exams="${escapar(aluno.id)}">Exames</button>
+      <button type="button" data-edit-aluno="${escapar(aluno.id)}">Editar</button>
+      <button type="button" data-delete-aluno="${escapar(aluno.id)}">Excluir</button>
+      <button type="button" class="secondary-button" data-close>Fechar</button>
+    </div>
+  `);
 }
 
 async function enviarConviteAluno(id, botao) {
@@ -884,6 +922,12 @@ function abrirFormularioVeiculo(id = null) {
         ${opcoes(["A", "B"], veiculo.categoria || "B")}
       </select>
 
+      <label>Situação</label>
+      <select name="ativo">
+        <option value="true" ${veiculo.ativo !== false ? "selected" : ""}>Ativo</option>
+        <option value="false" ${veiculo.ativo === false ? "selected" : ""}>Inativo</option>
+      </select>
+
       <div class="modal-actions">
         <button type="button" class="secondary-button" data-close>Cancelar</button>
         <button type="submit" class="primary-button">Salvar veículo</button>
@@ -934,7 +978,8 @@ async function salvarVeiculo(evento) {
     tipo: dados.tipo,
     nome: modelo,
     placa,
-    categoria: dados.categoria
+    categoria: dados.categoria,
+    ativo: dados.ativo !== "false"
   };
 
   if (botaoSalvar) {
@@ -968,7 +1013,8 @@ async function salvarVeiculo(evento) {
       tipo: salvo.tipo || "Carro",
       modelo: salvo.nome || "",
       placa: salvo.placa || "",
-      categoria: salvo.categoria || "B"
+      categoria: salvo.categoria || "B",
+      ativo: salvo.ativo !== false
     };
 
     if (veiculoEditando !== null) {
@@ -997,29 +1043,55 @@ async function salvarVeiculo(evento) {
 function listarVeiculos() {
   const lista = document.getElementById("listaVeiculos");
   if (!lista) return;
-
-  const busca = (
-    document.getElementById("buscaVeiculos")?.value || ""
-  ).toLowerCase();
-
-  const veiculos = db.veiculos.filter(v =>
-    v.modelo.toLowerCase().includes(busca) ||
-    v.placa.toLowerCase().includes(busca)
+  const busca = String(document.getElementById("buscaVeiculos")?.value || "").toLocaleLowerCase("pt-BR");
+  const todos = db.veiculos.filter(v => mostrarVeiculosInativos || v.ativo !== false);
+  const veiculos = todos.filter(v =>
+    String(v.modelo || "").toLocaleLowerCase("pt-BR").includes(busca) ||
+    String(v.placa || "").toLocaleLowerCase("pt-BR").includes(busca)
   );
-
+  const alternar = document.getElementById("btnAlternarVeiculosInativos");
+  if (alternar) alternar.textContent = mostrarVeiculosInativos ? "Ocultar veículos inativos" : "Mostrar veículos inativos";
   lista.innerHTML = veiculos.length
     ? veiculos.map(v => `
         <div class="record">
           <strong>${escapar(v.modelo)}</strong>
           <p>${escapar(v.tipo)} • Placa: ${escapar(v.placa)}</p>
-          <p>Categoria: ${escapar(v.categoria)}</p>
+          <p>Categoria: ${escapar(v.categoria)} · ${v.ativo === false ? "Inativo" : "Ativo"}</p>
           <div class="record-actions">
-            <button type="button" data-edit-veiculo="${v.id}">Editar</button>
-            <button type="button" data-delete-veiculo="${v.id}">Excluir</button>
+            <button type="button" data-edit-veiculo="${escapar(v.id)}">Editar</button>
+            <button type="button" data-toggle-veiculo="${escapar(v.id)}">${v.ativo === false ? "Reativar" : "Inativar"}</button>
+            <button type="button" data-delete-veiculo="${escapar(v.id)}">Excluir</button>
           </div>
         </div>
       `).join("")
-    : '<div class="empty-state">Nenhum veículo encontrado.</div>';
+    : '<div class="empty-state">' + (mostrarVeiculosInativos ? "Nenhum veículo encontrado." : "Nenhum veículo ativo encontrado.") + '</div>';
+}
+
+async function alterarStatusVeiculo(id) {
+  const veiculo = db.veiculos.find(v => String(v.id) === String(id));
+  if (!veiculo) return;
+  const novoStatus = veiculo.ativo === false;
+  if (!novoStatus && !(await confirmar("Inativar este veículo? Ele deixará de aparecer em novos agendamentos. As aulas já registradas serão preservadas."))) return;
+  if (!adminAlunosSupabaseAtivo || !adminSupabaseUserId) {
+    mostrarAviso("Não foi possível conectar ao Supabase. A situação do veículo não foi alterada.");
+    return;
+  }
+  const cliente = window.getMarcusSupabase?.();
+  if (!cliente) { mostrarAviso("Conexão com o Supabase indisponível."); return; }
+  try {
+    const { data, error } = await cliente.from("vehicles")
+      .update({ ativo: novoStatus })
+      .eq("id", id).eq("owner_id", adminSupabaseUserId)
+      .select("id,ativo").single();
+    if (error) throw error;
+    veiculo.ativo = data.ativo !== false;
+    listarVeiculos();
+    atualizarSeletoresAlunos();
+    mostrarAviso(novoStatus ? "Veículo reativado." : "Veículo inativado. As aulas anteriores foram preservadas.");
+  } catch (erro) {
+    console.error("Erro ao alterar situação do veículo:", erro);
+    mostrarAviso("Não foi possível alterar a situação do veículo. Tente novamente.");
+  }
 }
 
 async function excluirVeiculo(id) {
@@ -1073,8 +1145,8 @@ function abrirFormularioAula(id = null) {
     return;
   }
 
-  if (!db.veiculos.length) {
-    mostrarAviso("Cadastre um veículo primeiro.");
+  if (!db.veiculos.some(v => v.ativo !== false || String(v.id) === String(db.aulas.find(a => String(a.id) === String(id))?.veiculoId))) {
+    mostrarAviso("Cadastre ou reative um veículo para agendar uma nova aula.");
     return;
   }
 
@@ -1099,7 +1171,7 @@ function abrirFormularioAula(id = null) {
       <label>Veículo</label>
       <select name="veiculoId" required>
         <option value="">Selecione</option>
-        ${db.veiculos.map(v => `<option value="${v.id}" ${aula.veiculoId === v.id ? "selected" : ""}>${escapar(v.modelo)} - ${escapar(v.placa)}</option>`).join("")}
+        ${db.veiculos.filter(v => v.ativo !== false || String(v.id) === String(aula.veiculoId)).map(v => `<option value="${v.id}" ${aula.veiculoId === v.id ? "selected" : ""}>${escapar(v.modelo)} - ${escapar(v.placa)}${v.ativo === false ? " (Inativo · aula já vinculada)" : ""}</option>`).join("")}
       </select>
 
       <label>Situação</label>
@@ -1127,7 +1199,7 @@ async function salvarAula(evento) {
  const anterior=aulaEditando!==null?db.aulas.find(a=>String(a.id)===String(aulaEditando)):null;
  if(aulaEditando!==null&&!anterior){mostrarAviso("Não foi possível localizar a aula para edição.");return;}
  const alunoNovo=db.alunos.find(a=>String(a.id)===String(dados.alunoId)),veiculoNovo=db.veiculos.find(v=>String(v.id)===String(dados.veiculoId));
- if(!alunoNovo||!veiculoNovo){mostrarAviso("Selecione um aluno e um veículo válidos.");return;}
+ if(!alunoNovo||!veiculoNovo || (veiculoNovo.ativo === false && String(anterior?.veiculoId) !== String(veiculoNovo.id))){mostrarAviso("Selecione um aluno e um veículo ativo válido para novos agendamentos.");return;}
  const conflito=db.aulas.find(a=>String(a.id)!==String(aulaEditando)&&a.data===dados.data&&a.horario===dados.horario&&String(a.veiculoId)===String(dados.veiculoId)&&a.status!=="Cancelada"&&dados.status!=="Cancelada");
  if(conflito){mostrarAviso("Este veículo já possui uma aula neste dia e horário.");return;}
  const payload={owner_id:adminSupabaseUserId,student_id:dados.alunoId,vehicle_id:dados.veiculoId,data_aula:dados.data,horario:horarioTelaParaBanco(dados.horario),status:statusAulaParaBanco(dados.status),observacoes:String(dados.observacoes||"").trim()||null};
@@ -1151,8 +1223,8 @@ function abrirAgendamentoLote() {
     return;
   }
 
-  if (!db.veiculos.length) {
-    mostrarAviso("Cadastre um veículo primeiro.");
+  if (!db.veiculos.some(v => v.ativo !== false)) {
+    mostrarAviso("Cadastre ou reative um veículo para agendar novas aulas.");
     return;
   }
 
@@ -1174,7 +1246,7 @@ function abrirAgendamentoLote() {
       <label>Veículo para todas as aulas</label>
       <select name="veiculoId" required>
         <option value="">Selecione o veículo</option>
-        ${db.veiculos.map(v => `
+        ${db.veiculos.filter(v => v.ativo !== false).map(v => `
           <option value="${v.id}">
             ${escapar(v.modelo)} - ${escapar(v.placa)}
           </option>
@@ -1301,7 +1373,7 @@ function renderizarCamposAgendamentoLote(preservar = true) {
 async function salvarAgendamentoLote(evento) {
  evento.preventDefault();if(!adminAlunosSupabaseAtivo||!adminSupabaseUserId){mostrarAviso("Não foi possível conectar ao Supabase. As aulas não foram agendadas.");return;}
  const formulario=evento.currentTarget,botaoSalvar=formulario.querySelector('button[type="submit"]'),dados=new FormData(formulario),alunoId=dados.get("alunoId"),veiculoId=dados.get("veiculoId"),quantidade=Math.max(1,Math.min(50,Number(document.getElementById("quantidadeAulasLote").value)||1));
- if(!db.alunos.some(a=>String(a.id)===String(alunoId))){mostrarAviso("Selecione um aluno válido.");return;}if(!db.veiculos.some(v=>String(v.id)===String(veiculoId))){mostrarAviso("Selecione um veículo válido.");return;}
+ if(!db.alunos.some(a=>String(a.id)===String(alunoId))){mostrarAviso("Selecione um aluno válido.");return;}if(!db.veiculos.some(v=>String(v.id)===String(veiculoId) && v.ativo !== false)){mostrarAviso("Selecione um veículo ativo válido.");return;}
  const novasAulas=[];for(let i=0;i<quantidade;i++){const data=dados.get(`data_${i}`),horario=dados.get(`horario_${i}`);if(!data||!horario){mostrarAviso(`Preencha a data e o horário da aula ${i+1}.`);return;}
  if(db.aulas.some(a=>a.data===data&&a.horario===horario&&String(a.veiculoId)===String(veiculoId)&&a.status!=="Cancelada")){mostrarAviso(`Aula ${i+1}: este veículo já possui aula nessa data e horário.`);return;}
  if(novasAulas.some(a=>a.data_aula===data&&a.horario===horarioTelaParaBanco(horario))){mostrarAviso(`Aula ${i+1}: existe outra aula deste lote no mesmo dia e horário.`);return;}
@@ -1481,7 +1553,63 @@ function atualizarFinanceiro() {
   if (elSaldo) elSaldo.textContent = moeda(entradas - saidas);
 }
 
-function imprimirReciboVendaAdmin(vendaId) {
+
+function abrirReciboComoPDF(dados) {
+  // Recibo em documento isolado: evita que os estilos de impressão do aplicativo
+  // ocultem o conteúdo e produzam uma página/PDF em branco.
+  const popup = window.open("", "_blank");
+  if (!popup) throw new Error("O navegador bloqueou a abertura do recibo. Permita pop-ups e tente novamente.");
+  const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  })[char]);
+  const itens = (dados.itens || []).map(item => `
+    <tr><td>${esc(item.descricao || "Item")}</td>
+    <td class="center">${esc(item.quantidade ?? 1)}</td>
+    <td class="right">${esc(item.unitario || "")}</td>
+    <td class="right">${esc(item.total || "")}</td></tr>`).join("");
+  const logo = dados.logo ? `<img class="logo" src="${esc(dados.logo)}" alt="Logo">` : "";
+  const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Recibo de pagamento</title>
+    <style>
+      @page{size:A4;margin:16mm}
+      *{box-sizing:border-box}
+      html,body{margin:0;padding:0;background:#fff;color:#17212f;font:12px Arial,Helvetica,sans-serif}
+      body{width:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .cabecalho{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:2px solid #1e3a5f;padding-bottom:14px;margin-bottom:24px}
+      h1{font-size:20px;margin:0 0 5px} h2{text-align:center;font-size:18px;margin:24px 0}
+      p{margin:5px 0;line-height:1.4}.logo{max-width:105px;max-height:75px;object-fit:contain}
+      table{width:100%;border-collapse:collapse;margin-top:20px}
+      th,td{padding:9px 7px;border-bottom:1px solid #dce2eb;text-align:left}
+      th{background:#f3f6fa}.center{text-align:center}.right{text-align:right}
+      .total{text-align:right;font-size:18px;font-weight:bold;margin:22px 0}
+      .assinatura{margin:65px auto 0;text-align:center;width:240px;border-top:1px solid #444;padding-top:8px}
+      @media screen{body{max-width:800px;margin:24px auto;padding:24px;box-shadow:0 1px 8px #0002}}
+    </style></head><body>
+    <div class="cabecalho"><div><h1>${esc(dados.responsavel || "Responsável")}</h1>
+    ${dados.documento ? `<p>CPF/CNPJ: ${esc(dados.documento)}</p>` : ""}
+    ${dados.celular ? `<p>WhatsApp: ${esc(dados.celular)}</p>` : ""}
+    ${dados.endereco ? `<p>${esc(dados.endereco)}</p>` : ""}</div>${logo}</div>
+    <h2>RECIBO DE PAGAMENTO</h2>
+    <p><strong>Recebemos de:</strong> ${esc(dados.aluno || "Aluno")}</p>
+    <p><strong>Data da venda:</strong> ${esc(dados.data || "—")}</p>
+    <p><strong>Forma de pagamento:</strong> ${esc(dados.pagamento || "Não informada")}</p>
+    <p><strong>Situação:</strong> ${esc(dados.status || "CONFIRMADA")}</p>
+    <table><thead><tr><th>Descrição</th><th class="center">Qtd.</th><th class="right">Valor unit.</th><th class="right">Total</th></tr></thead><tbody>${itens}</tbody></table>
+    <div class="total">Total: ${esc(dados.total || "R$ 0,00")}</div>
+    ${dados.desconto ? `<p><strong>Desconto aplicado:</strong> ${esc(dados.desconto)}</p>` : ""}
+    ${dados.devolvido ? `<p><strong>Devoluções registradas:</strong> ${esc(dados.devolvido)}</p>` : ""}
+    ${dados.observacoes ? `<p><strong>Observações:</strong> ${esc(dados.observacoes)}</p>` : ""}
+    <p>Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
+    <div class="assinatura"><strong>${esc(dados.responsavel || "Responsável")}</strong><br>Responsável</div>
+    <script>window.onload=function(){var imgs=Array.from(document.images);Promise.all(imgs.map(function(i){return i.complete?Promise.resolve():new Promise(function(r){i.onload=i.onerror=r;});})).then(function(){setTimeout(function(){window.focus();window.print();},250);});};</script>
+    </body></html>`;
+  popup.document.open();
+  popup.document.write(html);
+  popup.document.close();
+}
+
+async function imprimirReciboVendaAdmin(vendaId) {
   const venda = db.vendas.find(item => String(item.id) === String(vendaId));
   if (!venda) return mostrarAviso("Venda não encontrada.");
   const aluno = db.alunos.find(item => String(item.id) === String(venda.alunoId));
@@ -1491,47 +1619,26 @@ function imprimirReciboVendaAdmin(vendaId) {
     celular: document.getElementById("contratanteCelular")?.value?.trim() || "",
     endereco: document.getElementById("contratanteEndereco")?.value?.trim() || ""
   };
-  const itens = (venda.itens || []).map(item => `
-    <tr><td>${escapar(item.nome || "Item")}</td><td>${Number(item.quantidade || 1)}</td>
-    <td>${moeda(item.precoUnitario || 0)}</td><td>${moeda(item.total || 0)}</td></tr>`).join("");
-  const status = String(venda.status || "confirmada").toLowerCase();
-  const logo = db.configuracoes?.logo && /^(https?:|data:image\/)/i.test(db.configuracoes.logo)
-    ? '<img class="logo" src="' + escapar(db.configuracoes.logo) + '" alt="Logomarca">'
-    : "";
-  const popup = window.open("", "_blank", "width=820,height=900");
-  if (!popup) return mostrarAviso("Permita janelas pop-up para imprimir o recibo.");
-  popup.document.open();
-  popup.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Recibo de venda</title>
-  <style>
-    *{box-sizing:border-box}body{font:14px Arial,sans-serif;color:#17212f;margin:32px auto;max-width:760px;padding:0 24px}
-    header{display:flex;align-items:center;gap:18px;border-bottom:2px solid #1e3a5f;padding-bottom:18px;margin-bottom:24px}
-    .logo{max-width:105px;max-height:80px;object-fit:contain}h1{font-size:24px;margin:0 0 6px}h2{font-size:20px;text-align:center;letter-spacing:1px;margin:28px 0}
-    .muted{color:#596579;line-height:1.5}.box{border:1px solid #d8dee8;border-radius:10px;padding:16px;margin:16px 0}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid p{margin:4px 0}
-    table{width:100%;border-collapse:collapse;margin:18px 0}th,td{padding:10px 8px;border-bottom:1px solid #e2e7ef;text-align:left}th{background:#f3f6fa}
-    td:last-child,th:last-child{text-align:right}.total{text-align:right;font-size:21px;font-weight:700;margin:20px 0}
-    .status{padding:8px 12px;border-radius:6px;background:${status==="confirmada"?"#e8f5ed":"#fff0ed"};display:inline-block;font-weight:700}
-    .signature{margin-top:70px;text-align:center}.signature span{display:block;border-top:1px solid #333;width:260px;margin:0 auto 8px}
-    .actions{text-align:center;margin-top:28px}.actions button{padding:10px 20px;border:0;border-radius:6px;background:#1e3a5f;color:#fff;font-size:14px}
-    @media print{body{margin:0 auto;padding:0 10mm}.actions{display:none}}
-  </style></head><body>
-  <header>${logo}<div><h1>${escapar(perfil.nome)}</h1><div class="muted">${perfil.documento ? "CPF/CNPJ: "+escapar(perfil.documento)+" · " : ""}${perfil.celular ? "WhatsApp: "+escapar(perfil.celular) : ""}<br>${escapar(perfil.endereco)}</div></div></header>
-  <h2>RECIBO DE PAGAMENTO</h2>
-  <div class="box grid"><p><strong>Recebemos de:</strong><br>${escapar(aluno?.nome || venda.nomeAluno || "Aluno")}</p>
-  <p><strong>Data da venda:</strong><br>${escapar(formatarData(venda.data))}</p>
-  <p><strong>Forma de pagamento:</strong><br>${escapar(venda.formaPagamento || "Não informada")}</p>
-  <p><strong>Situação:</strong><br><span class="status">${status==="confirmada"?"CONFIRMADA":"CANCELADA"}</span></p></div>
-  <table><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Total</th></tr></thead><tbody>${itens || '<tr><td colspan="4">Itens não disponíveis.</td></tr>'}</tbody></table>
-  <div class="total">Total: ${moeda(venda.valorTotal || 0)}</div>
-  ${Number(venda.desconto || 0)>0?'<p class="muted">Desconto aplicado: '+moeda(venda.desconto)+'</p>':""}
-  ${Number(venda.valorDevolvido || 0)>0?'<p class="muted">Devoluções registradas: '+moeda(venda.valorDevolvido)+'</p>':""}
-  <p class="muted">Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
-  <div class="signature"><span></span><strong>${escapar(perfil.nome)}</strong><br><small>Responsável</small></div>
-  <div class="actions"><button onclick="window.print()">Imprimir / Salvar PDF</button></div>
-  </body></html>`);
-  popup.document.close();
-  popup.focus();
-  setTimeout(() => popup.print(), 350);
+  const itens = (venda.itens || []).map(item => ({
+    descricao: item.nome || "Item",
+    quantidade: Number(item.quantidade || 1),
+    unitario: moeda(item.precoUnitario || 0),
+    total: moeda(item.total || 0)
+  }));
+  try {
+    await abrirReciboComoPDF({
+      responsavel: perfil.nome, documento: perfil.documento, celular: perfil.celular, endereco: perfil.endereco,
+      logo: db.configuracoes?.logo || "",
+      aluno: aluno?.nome || venda.nomeAluno || "Aluno",
+      data: formatarData(venda.data), pagamento: venda.formaPagamento || "Não informada",
+      status: String(venda.status || "confirmada").toLowerCase() === "confirmada" ? "CONFIRMADA" : "CANCELADA",
+      itens, total: moeda(venda.valorTotal || 0),
+      desconto: Number(venda.desconto || 0) > 0 ? moeda(venda.desconto) : "",
+      devolvido: Number(venda.valorDevolvido || 0) > 0 ? moeda(venda.valorDevolvido) : ""
+    });
+  } catch (error) {
+    mostrarAviso(error.message || "Não foi possível gerar o PDF do recibo.");
+  }
 }
 
 function listarMovimentacoes() {
@@ -1918,9 +2025,17 @@ async function abrirVenda() {
 
   const produtosAtivos = db.produtos.filter(p => p.ativo !== false);
   const clientePrecos = window.getMarcusSupabase?.();
-  const { data: fx, error: fxError } = await clientePrecos.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", adminSupabaseUserId).maybeSingle();
+  const { data: fx, error: fxError } = await clientePrecos.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco,taxa_inscricao_detran_preco,taxa_legislacao_detran_preco,taxa_direcao_detran_preco,exame_medico_preco,exame_psicotecnico_preco").eq("owner_id", adminSupabaseUserId).maybeSingle();
   if (fxError) { mostrarAviso("Não foi possível carregar os preços dos itens fixos."); return; }
-  const itensFixos = [{key:"aluguel_veiculo",nome:"Aluguel de Veículo",preco:Number(fx?.aluguel_veiculo_preco||0)},{key:"cartao_moto_pista",nome:"Cartão Moto Pista",preco:Number(fx?.cartao_moto_pista_preco||0)}].filter(x=>x.preco>0);
+  const itensFixos = [
+    {key:"aluguel_veiculo",nome:"Aluguel de Veículo",preco:Number(fx?.aluguel_veiculo_preco||0)},
+    {key:"cartao_moto_pista",nome:"Cartão Moto Pista",preco:Number(fx?.cartao_moto_pista_preco||0)},
+    {key:"taxa_inscricao_detran",nome:"Taxa de inscrição (Detran)",preco:Number(fx?.taxa_inscricao_detran_preco||0)},
+    {key:"taxa_legislacao_detran",nome:"Taxa de Legislação (Detran)",preco:Number(fx?.taxa_legislacao_detran_preco||0)},
+    {key:"taxa_direcao_detran",nome:"Taxa de direção (Detran)",preco:Number(fx?.taxa_direcao_detran_preco||0)},
+    {key:"exame_medico",nome:"Exame médico",preco:Number(fx?.exame_medico_preco||0)},
+    {key:"exame_psicotecnico",nome:"Exame psicotécnico",preco:Number(fx?.exame_psicotecnico_preco||0)}
+  ].filter(x=>x.preco>0);
   if (!produtosAtivos.length && !itensFixos.length) { mostrarAviso("Cadastre produtos/serviços ou configure os preços em Produtos e Serviços."); return; }
 
   const itensCarrinho = [];
@@ -1952,15 +2067,25 @@ async function abrirVenda() {
         Adicionar item
       </button>
 
-      <div class="panel">
-        <strong>Itens da venda</strong>
-        <div id="itensCarrinhoVenda"><p>Nenhum item adicionado.</p></div>
-        <p>Subtotal de produtos: <strong id="subtotalProdutosVenda">R$ 0,00</strong></p>
-        <p>Subtotal de serviços: <strong id="subtotalServicosVenda">R$ 0,00</strong></p>
-        <p>Desconto aplicado somente aos serviços: <strong id="descontoAplicadoVenda">R$ 0,00</strong></p>
-        <p>Total final: <strong id="totalVenda">R$ 0,00</strong></p>
-        <p>Aulas que serão adicionadas: <strong id="aulasVenda">0</strong></p>
-      </div>
+      <section class="sale-summary" aria-label="Resumo da venda">
+        <div class="sale-summary-heading">
+          <div><span class="sale-eyebrow">CONFERÊNCIA</span><h3>Resumo da venda</h3></div>
+          <span class="sale-summary-tag">Pedido</span>
+        </div>
+        <div class="sale-items-section">
+          <strong class="sale-section-title">Itens adicionados</strong>
+          <div id="itensCarrinhoVenda" class="sale-items-list">
+            <div class="sale-empty"><span class="sale-empty-icon">＋</span><span><strong>Nenhum item adicionado</strong><small>Escolha um produto ou serviço acima.</small></span></div>
+          </div>
+        </div>
+        <div class="sale-breakdown">
+          <div class="sale-breakdown-card"><span>Produtos</span><strong id="subtotalProdutosVenda">R$ 0,00</strong></div>
+          <div class="sale-breakdown-card"><span>Serviços</span><strong id="subtotalServicosVenda">R$ 0,00</strong></div>
+        </div>
+        <div class="sale-discount-row"><span><strong>Desconto nos serviços</strong><small>Não altera o valor dos produtos</small></span><strong id="descontoAplicadoVenda">R$ 0,00</strong></div>
+        <div class="sale-total-card"><span>TOTAL DA VENDA</span><strong id="totalVenda">R$ 0,00</strong></div>
+        <div class="sale-lessons"><span class="sale-lessons-icon">▣</span><span><strong>Aulas que serão adicionadas</strong><small>Créditos de aulas incluídos nesta venda</small></span><b><strong id="aulasVenda">0</strong><small> aulas</small></b></div>
+      </section>
 
       <label>Tipo de desconto</label>
       <select id="tipoDescontoVenda" name="descontoTipo">
@@ -2021,16 +2146,16 @@ async function abrirVenda() {
     const lista = document.getElementById("itensCarrinhoVenda");
     lista.innerHTML = itensCarrinho.length
       ? itensCarrinho.map((item, indice) => `
-          <div class="record">
-            <strong>${escapar(item.nome)}</strong>
-            <p>Classificação: ${item.tipo === "servico" ? "Serviço" : "Produto"}</p>
-            <p>Quantidade: ${item.quantidade}</p>
-            ${item.aulasContratadas > 0 ? `<p>Aulas adicionadas: ${item.aulasContratadas}</p>` : ""}
-            <p>Subtotal: ${moeda(item.total)}</p>
-            <button type="button" data-remover-item="${indice}">Remover</button>
+          <div class="sale-item-row">
+            <div class="sale-item-main">
+              <span class="sale-item-kind">${item.tipo === "servico" ? "SERVIÇO" : "PRODUTO"}</span>
+              <strong>${escapar(item.nome)}</strong>
+              <small>${item.quantidade} ${item.quantidade === 1 ? "unidade" : "unidades"} · ${moeda(item.precoUnitario)} cada${item.aulasContratadas > 0 ? ` · ${item.aulasContratadas} aulas` : ""}</small>
+            </div>
+            <div class="sale-item-values"><strong>${moeda(item.total)}</strong><button type="button" class="sale-remove-item" data-remover-item="${indice}" aria-label="Remover ${escapar(item.nome)}">Remover</button></div>
           </div>
         `).join("")
-      : "<p>Nenhum item adicionado.</p>";
+      : '<div class="sale-empty"><span class="sale-empty-icon">＋</span><span><strong>Nenhum item adicionado</strong><small>Escolha um produto ou serviço acima.</small></span></div>';
 
     const subtotalProdutos = Math.round(itensCarrinho.filter(item => item.tipo === "produto").reduce((s, item) => s + item.total, 0) * 100) / 100;
     const subtotalServicos = Math.round(itensCarrinho.filter(item => item.tipo === "servico").reduce((s, item) => s + item.total, 0) * 100) / 100;
@@ -2206,6 +2331,119 @@ async function salvarVenda(evento, itensCarrinho) {
   }
 }
 
+
+/* =========================================
+   ORÇAMENTOS — MÓDULO INDEPENDENTE
+========================================= */
+let orcamentosCache=[];
+function renderizarListaOrcamentos(){
+ const host=document.getElementById("listaOrcamentos");if(!host)return;
+ const termo=String(document.getElementById("buscaOrcamentos")?.value||"").trim().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
+ const filtrados=orcamentosCache.filter(q=>String(q.client_name||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").includes(termo));
+ host.classList.toggle("empty-state",!filtrados.length);
+ host.innerHTML=filtrados.length?filtrados.map(q=>'<button type="button" class="quote-list-name" data-open-quote="'+q.id+'"><span>'+escapar(q.client_name)+'</span></button>').join(""):'<div class="empty-state">'+(orcamentosCache.length?'Nenhum orçamento encontrado.':'Nenhum orçamento salvo.')+'</div>';
+}
+async function listarOrcamentos(){
+ const host=document.getElementById("listaOrcamentos");if(!host)return;
+ const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId){host.textContent="Conexão indisponível.";return;}
+ host.innerHTML='<div class="empty-state">Carregando orçamentos...</div>';
+ try{
+  const {data,error}=await client.from("sales_quotes").select("id,client_name,total,created_at,converted_sale_id").eq("owner_id",adminSupabaseUserId).order("created_at",{ascending:false});
+  if(error)throw error;
+  orcamentosCache=data||[];
+  renderizarListaOrcamentos();
+ }catch(e){console.error(e);host.innerHTML='<div class="empty-state">Não foi possível carregar os orçamentos.</div>';}
+}
+
+async function abrirOrcamento(){
+ const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId){mostrarAviso("Conexão com a nuvem indisponível.");return;}
+ const {data:fx,error:fxError}=await client.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco,taxa_inscricao_detran_preco,taxa_legislacao_detran_preco,taxa_direcao_detran_preco,exame_medico_preco,exame_psicotecnico_preco").eq("owner_id",adminSupabaseUserId).maybeSingle();
+ if(fxError){mostrarAviso("Não foi possível carregar os preços dos itens fixos.");return;}
+ const products=db.produtos.filter(p=>p.ativo!==false);
+ const fixed=[{key:"aluguel_veiculo",nome:"Aluguel de Veículo",preco:Number(fx?.aluguel_veiculo_preco||0)},{key:"cartao_moto_pista",nome:"Cartão Moto Pista",preco:Number(fx?.cartao_moto_pista_preco||0)},{key:"taxa_inscricao_detran",nome:"Taxa de inscrição (Detran)",preco:Number(fx?.taxa_inscricao_detran_preco||0)},{key:"taxa_legislacao_detran",nome:"Taxa de Legislação (Detran)",preco:Number(fx?.taxa_legislacao_detran_preco||0)},{key:"taxa_direcao_detran",nome:"Taxa de direção (Detran)",preco:Number(fx?.taxa_direcao_detran_preco||0)},{key:"exame_medico",nome:"Exame médico",preco:Number(fx?.exame_medico_preco||0)},{key:"exame_psicotecnico",nome:"Exame psicotécnico",preco:Number(fx?.exame_psicotecnico_preco||0)}].filter(x=>x.preco>0);
+ if(!products.length&&!fixed.length){mostrarAviso("Cadastre produtos/serviços ou configure os preços antes de criar um orçamento.");return;}
+ const items=[];
+ const productOptions=products.map(p=>'<option value="'+p.id+'">'+escapar(p.nome)+' — '+moeda(p.preco)+'</option>').join("");
+ const fixedOptions=fixed.map(x=>'<option value="fixed:'+x.key+'">'+x.nome+' — '+moeda(x.preco)+'</option>').join("");
+ abrirModal('<h2>Novo orçamento</h2><form id="formOrcamento"><label for="orcamentoNome">Nome do cliente</label><input id="orcamentoNome" name="clientName" required maxlength="160" placeholder="Nome da pessoa" autocomplete="off"><label for="orcamentoProduto">Produto ou serviço</label><select id="orcamentoProduto"><option value="">Selecione</option>'+productOptions+fixedOptions+'</select><label for="orcamentoQuantidade">Quantidade</label><input id="orcamentoQuantidade" type="number" min="1" step="1" value="1"><button id="orcamentoAdicionarItem" type="button" class="secondary-button">Adicionar item</button><div class="panel quote-editor-items"><h3>Itens do orçamento</h3><div id="orcamentoItens"><div class="empty-state">Nenhum item adicionado.</div></div></div><label for="orcamentoTipoDesconto">Tipo de desconto</label><select id="orcamentoTipoDesconto"><option value="valor">Valor fixo (R$)</option><option value="percentual">Percentual (%)</option></select><label for="orcamentoValorDesconto">Desconto sobre serviços</label><input id="orcamentoValorDesconto" type="number" min="0" step="0.01" value="0"><div class="sale-total-card"><span>TOTAL DO ORÇAMENTO</span><strong id="orcamentoTotal">R$ 0,00</strong></div><label for="orcamentoObservacoes">Observações (opcional)</label><textarea id="orcamentoObservacoes" rows="2" maxlength="1000"></textarea><div class="modal-actions"><button type="button" class="secondary-button" data-close>Cancelar</button><button type="submit" class="primary-button">Salvar orçamento</button></div><p id="orcamentoStatus" class="form-hint" role="status"></p></form>');
+ const form=document.getElementById("formOrcamento"),productField=document.getElementById("orcamentoProduto"),qtyField=document.getElementById("orcamentoQuantidade"),discountField=document.getElementById("orcamentoValorDesconto"),discountType=document.getElementById("orcamentoTipoDesconto");
+ function calc(){
+  const gross=items.reduce((s,x)=>s+x.subtotal,0),services=items.filter(x=>x.tipo_item==="servico").reduce((s,x)=>s+x.subtotal,0),v=Number(discountField.value||0);let discount=0,valid=Number.isFinite(v)&&v>=0;
+  if(services<=0){if(v>0)valid=false;}else if(discountType.value==="percentual"){if(v>=100)valid=false;else discount=Math.round(services*v)/100;}else if(v>=services&&v>0)valid=false;else discount=Math.round(v*100)/100;
+  const total=Math.round((gross-discount)*100)/100;document.getElementById("orcamentoTotal").textContent=valid?moeda(total):"Desconto inválido";
+  return {gross,discount,total,valid};
+ }
+ function render(){
+  const host=document.getElementById("orcamentoItens");
+  host.innerHTML=items.length?items.map((x,i)=>'<div class="quote-editor-row"><div><strong>'+escapar(x.descricao)+'</strong><small>'+x.quantidade+' × '+moeda(x.preco_unitario)+'</small></div><strong>'+moeda(x.subtotal)+'</strong><button type="button" class="sale-remove-item" data-quote-remove="'+i+'">Remover</button></div>').join(""):'<div class="empty-state">Nenhum item adicionado.</div>';
+  calc();
+ }
+ document.getElementById("orcamentoAdicionarItem").onclick=()=>{
+  const val=productField.value,q=Number(qtyField.value),f=val.startsWith("fixed:")?fixed.find(x=>x.key===val.slice(6)):null,p=products.find(x=>String(x.id)===val);
+  if((!f&&!p)||!Number.isInteger(q)||q<1){mostrarAviso("Selecione um item e informe uma quantidade válida.");return;}
+  const type=f?"produto":(p.tipo||"servico"),price=f?f.preco:Number(p.preco),min=p?.quantidadeAulasMin,max=p?.quantidadeAulasMax;
+  if(!Number.isFinite(price)||price<=0){mostrarAviso("O item possui preço inválido.");return;}
+  if((min!=null&&q<Number(min))||(max!=null&&q>Number(max))){mostrarAviso("A quantidade está fora dos limites deste pacote.");return;}
+  const lessons=type==="servico"?(min!=null||max!=null?q:q*Math.max(1,Number(p?.quantidadeAulas||1))):0;
+  items.push({product_id:f?null:p.id,fixed_item_key:f?.key||null,descricao:f?.nome||p.nome,tipo_item:type,quantidade:q,preco_unitario:price,subtotal:Math.round(price*q*100)/100,aulas_contratadas:lessons});
+  productField.value="";qtyField.value="1";render();
+ };
+ document.getElementById("orcamentoItens").onclick=e=>{const b=e.target.closest("[data-quote-remove]");if(b){items.splice(Number(b.dataset.quoteRemove),1);render();}};
+ discountField.oninput=calc;discountType.onchange=calc;
+ form.onsubmit=async e=>{
+  e.preventDefault();const name=form.elements.clientName.value.trim(),r=calc(),status=document.getElementById("orcamentoStatus"),btn=form.querySelector('button[type="submit"]');
+  if(!name||!items.length||!r.valid||r.total<=0){mostrarAviso("Informe o nome, adicione itens e confira o desconto.");return;}
+  btn.disabled=true;btn.textContent="Salvando...";
+  try{
+   const {error}=await client.from("sales_quotes").insert({owner_id:adminSupabaseUserId,client_name:name,items,subtotal:r.gross,discount_type:discountType.value,discount_value:Number(discountField.value||0),discount:r.discount,total:r.total,notes:document.getElementById("orcamentoObservacoes").value.trim()||null});
+   if(error)throw error;fecharModal();await listarOrcamentos();mostrarAviso("Orçamento salvo. Nenhuma venda ou movimentação financeira foi criada.");
+  }catch(err){console.error(err);status.textContent=err.message||"Não foi possível salvar.";btn.disabled=false;btn.textContent="Salvar orçamento";}
+ };
+}
+
+async function abrirDetalhesOrcamento(id){
+ const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId)return;
+ const {data:q,error}=await client.from("sales_quotes").select("*").eq("id",id).eq("owner_id",adminSupabaseUserId).single();
+ if(error||!q){mostrarAviso("Não foi possível abrir este orçamento.");return;}
+ const rows=(q.items||[]).map(x=>'<div class="quote-editor-row"><div><strong>'+escapar(x.descricao)+'</strong><small>'+Number(x.quantidade)+' × '+moeda(x.preco_unitario)+'</small></div><strong>'+moeda(x.subtotal)+'</strong></div>').join("");
+ abrirModal('<span class="eyebrow">ORÇAMENTO</span><h2>'+escapar(q.client_name)+'</h2><p>'+new Date(q.created_at).toLocaleDateString("pt-BR")+'</p><div class="quote-detail-items">'+rows+'</div><div class="quote-detail-totals"><div>Subtotal <strong>'+moeda(q.subtotal)+'</strong></div><div>Desconto <strong>'+moeda(q.discount)+'</strong></div><div class="quote-total-final">Total <strong>'+moeda(q.total)+'</strong></div></div>'+(q.notes?'<p><strong>Observações:</strong> '+escapar(q.notes)+'</p>':'')+(q.converted_sale_id?'<p class="form-hint">Este orçamento já foi convertido em venda.</p>':'')+'<div class="modal-actions quote-actions"><button type="button" class="secondary-button" data-close>Fechar</button><button type="button" class="secondary-button" data-print-quote="'+q.id+'">Imprimir / PDF</button>'+(q.converted_sale_id?'':'<button type="button" class="primary-button quote-convert-button" style="background:#198754;color:#fff;border-color:#198754" data-convert-quote="'+q.id+'">Converter em venda</button>')+'<button type="button" class="danger-button quote-delete-button" style="background:#fde7ef;color:#b42318;border-color:#f8c5d5" data-delete-quote="'+q.id+'">Excluir orçamento</button></div>');
+}
+
+async function excluirOrcamento(id){
+ if(!(await confirmar("Deseja excluir este orçamento? Esta ação não afeta vendas nem o financeiro.")))return;
+ const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId)return;
+ const {error}=await client.from("sales_quotes").delete().eq("id",id).eq("owner_id",adminSupabaseUserId);
+ if(error){mostrarAviso(error.message||"Não foi possível excluir o orçamento.");return;}
+ fecharModal();await listarOrcamentos();mostrarAviso("Orçamento excluído.");
+}
+
+async function abrirConversaoOrcamento(id){
+ const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId)return;
+ const {data:q,error}=await client.from("sales_quotes").select("id,client_name,total").eq("id",id).eq("owner_id",adminSupabaseUserId).single();
+ if(error||!q){mostrarAviso("Não foi possível localizar o orçamento.");return;}
+ const options=db.alunos.map(a=>'<option value="'+a.id+'">'+escapar(a.nome)+'</option>').join("");
+ abrirModal('<h2>Converter orçamento em venda</h2><p>Cliente: <strong>'+escapar(q.client_name)+'</strong><br>Total: <strong>'+moeda(q.total)+'</strong></p><form id="formConverterOrcamento" data-quote-id="'+q.id+'"><label for="quoteStudent">Vincular a aluno já cadastrado (opcional)</label><select id="quoteStudent" name="studentId"><option value="">Cadastrar o cliente somente ao confirmar a venda</option>'+options+'</select><label for="quotePayment">Forma de pagamento</label><select id="quotePayment" name="payment" required><option value="">Selecione</option><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência bancária</option><option>Outro</option></select><div class="modal-actions"><button type="button" class="secondary-button" data-close>Cancelar</button><button type="submit" class="primary-button">Confirmar venda e lançar no financeiro</button></div><p class="form-hint">O aluno só será cadastrado se você confirmar a venda. Se cancelar, nenhum aluno será criado.</p></form>');
+ document.getElementById("formConverterOrcamento").onsubmit=async e=>{
+  e.preventDefault();const form=e.currentTarget,btn=form.querySelector('button[type="submit"]');if(!form.elements.payment.value){mostrarAviso("Selecione a forma de pagamento.");return;}
+  btn.disabled=true;btn.textContent="Registrando venda...";
+  try{
+   const {data,error}=await client.rpc("convert_sales_quote_to_sale",{p_quote_id:q.id,p_sale_id:crypto.randomUUID(),p_student_id:form.elements.studentId.value||null,p_payment_method:form.elements.payment.value});
+   if(error)throw error;await carregarDadosAdminSupabase();fecharModal();await listarOrcamentos();listarAlunos();listarMovimentacoes();atualizarFinanceiro();atualizarPainel();mostrarAviso("Venda confirmada e lançada no financeiro: "+moeda(data?.total??q.total)+".");
+  }catch(err){console.error(err);mostrarAviso(err.message||"Não foi possível converter o orçamento.");btn.disabled=false;btn.textContent="Confirmar venda e lançar no financeiro";}
+ };
+}
+
+async function imprimirOrcamento(id){
+ const win=window.open("","_blank");if(!win){mostrarAviso("Permita a abertura da janela de impressão para gerar o PDF.");return;}
+ const client=window.getMarcusSupabase?.();if(!client||!adminSupabaseUserId){win.close();return;}
+ const {data:q,error}=await client.from("sales_quotes").select("*").eq("id",id).eq("owner_id",adminSupabaseUserId).single();
+ if(error||!q){win.close();mostrarAviso("Não foi possível preparar o PDF.");return;}
+ const rows=(q.items||[]).map(x=>'<tr><td>'+escapar(x.descricao)+'</td><td>'+Number(x.quantidade)+'</td><td>'+moeda(x.preco_unitario)+'</td><td>'+moeda(x.subtotal)+'</td></tr>').join("");
+ const logo=db.configuracoes?.logo||"https://central-do-instrutor.pages.dev/assets/logo-central.webp";
+ const doc='<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Orçamento - '+escapar(q.client_name)+'</title><style>body{font:14px Arial,sans-serif;color:#172033;margin:32px}header{display:flex;align-items:center;gap:18px;border-bottom:2px solid #12345a;padding-bottom:16px}header img{max-width:150px;max-height:70px;object-fit:contain}h1{font-size:24px;color:#12345a;margin:0}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{padding:10px;border-bottom:1px solid #d9e0e8;text-align:left}th{background:#eef3f8}.totais{margin:24px 0 0 auto;width:260px}.totais div{display:flex;justify-content:space-between;padding:6px}.total{font-size:20px;font-weight:bold;color:#12345a;border-top:2px solid #12345a}.obs{margin-top:28px}@media print{body{margin:15mm}}</style></head><body><header><img src="'+logo+'" alt="Central do Instrutor"><div><h1>ORÇAMENTO</h1><p>Proposta para: <strong>'+escapar(q.client_name)+'</strong><br>Data: '+new Date(q.created_at).toLocaleDateString("pt-BR")+'</p></div></header><table><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unitário</th><th>Subtotal</th></tr></thead><tbody>'+rows+'</tbody></table><div class="totais"><div><span>Subtotal</span><strong>'+moeda(q.subtotal)+'</strong></div><div><span>Desconto</span><strong>'+moeda(q.discount)+'</strong></div><div class="total"><span>Total</span><strong>'+moeda(q.total)+'</strong></div></div>'+(q.notes?'<div class="obs"><strong>Observações</strong><p>'+escapar(q.notes)+'</p></div>':'')+'<script>window.onload=function(){window.print();};</script></body></html>';
+ win.document.write(doc);win.document.close();
+}
+
 /* =========================================
    DEVOLUÇÕES
 ========================================= */
@@ -2239,7 +2477,9 @@ function abrirDevolucao() {
     <h2>Devolução por venda</h2>
     <p class="refund-modal-intro">Primeiro selecione a venda. Depois escolha somente os itens pertencentes a ela.</p>
     <form id="formDevolucao">
-      <label for="devolucaoVenda">Venda</label>
+      <label for="buscaVendaDevolucao">Pesquisar venda</label>
+      <input id="buscaVendaDevolucao" type="search" placeholder="Buscar por aluno, data ou pagamento">
+      <label for="devolucaoVenda">Vendas disponíveis</label>
       <select name="vendaId" id="devolucaoVenda" required>
         <option value="">Selecione uma venda</option>
         ${vendasDisponiveis.map(grupo => {
@@ -2250,10 +2490,10 @@ function abrirDevolucao() {
       </select>
       <div id="devolucaoResumoVenda" class="refund-sale-summary">Selecione uma venda para visualizar seus itens.</div>
       <label for="devolucaoItemVenda">Item desta venda</label>
-      <select name="itemVenda" id="devolucaoItemVenda" required disabled>
+      <select name="itemVenda" id="devolucaoItemVenda" multiple size="5" required disabled>
         <option value="">Selecione primeiro uma venda</option>
       </select>
-      <label id="devolucaoRotuloQuantidade" for="devolucaoQuantidade">Quantidade para devolver</label>
+      <label id="devolucaoRotuloQuantidade" for="devolucaoQuantidade">Quantidade para devolver de cada item selecionado</label>
       <input name="quantidade" id="devolucaoQuantidade" type="number" min="1" step="1" required disabled>
       <div id="devolucaoPrevia" class="refund-preview"><strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p></div>
       <div class="modal-actions">
@@ -2266,6 +2506,12 @@ function abrirDevolucao() {
   const formulario = document.getElementById("formDevolucao");
   const seletorVenda = formulario.elements.vendaId;
   const seletorItem = formulario.elements.itemVenda;
+  const buscaVenda = document.getElementById("buscaVendaDevolucao");
+  buscaVenda.addEventListener("input", () => {
+    const termo = buscaVenda.value.trim().toLocaleLowerCase("pt-BR");
+    [...seletorVenda.options].forEach((option, index) => { if (index > 0) option.hidden = !!termo && !option.textContent.toLocaleLowerCase("pt-BR").includes(termo); });
+    if (seletorVenda.selectedOptions[0]?.hidden) { seletorVenda.value = ""; seletorVenda.dispatchEvent(new Event("change")); }
+  });
   const campoQuantidade = formulario.elements.quantidade;
   const rotuloQuantidade = document.getElementById("devolucaoRotuloQuantidade");
   const previa = document.getElementById("devolucaoPrevia");
@@ -2273,24 +2519,26 @@ function abrirDevolucao() {
   let opcoesAtuais = [];
 
   const atualizarPrevia = () => {
-    const opcao = opcoesAtuais.find(item => item.valor === seletorItem.value);
-    if (!opcao) {
+    const selecionadas = [...seletorItem.selectedOptions].map(option => opcoesAtuais.find(item => item.valor === option.value)).filter(Boolean);
+    if (!selecionadas.length) {
       campoQuantidade.value = "";
       campoQuantidade.disabled = true;
       campoQuantidade.removeAttribute("max");
-      previa.innerHTML = "<strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p>";
+      previa.innerHTML = "<strong>Resumo da devolução</strong><p>Marque um ou mais itens e informe a quantidade por item.</p>";
       return;
     }
-    rotuloQuantidade.textContent = opcao.item.fixedItemKey === "aluguel_veiculo" ? "Aluguéis para devolver" : opcao.tipo === "produto" ? "Unidades para devolver" : "Aulas para devolver";
+    rotuloQuantidade.textContent = "Quantidade para devolver de cada item selecionado";
     campoQuantidade.disabled = false;
-    campoQuantidade.max = String(opcao.disponiveis);
+    campoQuantidade.max = String(Math.min(...selecionadas.map(item => item.disponiveis)));
     const quantidade = Number(campoQuantidade.value || 0);
-    const valida = Number.isInteger(quantidade) && quantidade >= 1 && quantidade <= opcao.disponiveis;
-    const restante = Math.max(0, Number(opcao.item.valorLiquido ?? opcao.item.total ?? 0) - Number(opcao.item.valorDevolvido || 0));
-    const estimado = valida ? Math.min(opcao.valorUnitario * quantidade, restante) : 0;
+    const valida = Number.isInteger(quantidade) && quantidade >= 1 && selecionadas.every(item => quantidade <= item.disponiveis);
+    const estimado = valida ? selecionadas.reduce((total, opcao) => {
+      const restante = Math.max(0, Number(opcao.item.valorLiquido ?? opcao.item.total ?? 0) - Number(opcao.item.valorDevolvido || 0));
+      return total + Math.min(opcao.valorUnitario * quantidade, restante);
+    }, 0) : 0;
     previa.innerHTML = valida
-      ? `<strong>Resumo da devolução</strong><p>${opcao.item.fixedItemKey === "aluguel_veiculo" ? "Aluguéis" : opcao.tipo === "produto" ? "Unidades" : "Aulas"}: <strong>${quantidade}</strong> de ${opcao.disponiveis} disponíveis</p><p>Valor unitário: <strong>${moeda(opcao.valorUnitario)}</strong></p><p class="refund-preview-total">Estorno estimado: <strong>${moeda(estimado)}</strong></p>`
-      : `<strong>Resumo da devolução</strong><p>Informe uma quantidade inteira entre 1 e ${opcao.disponiveis}.</p>`;
+      ? "<strong>Resumo da devolução</strong><p>Itens selecionados: <strong>" + selecionadas.length + "</strong></p><p>Quantidade por item: <strong>" + quantidade + "</strong></p><p class=\"refund-preview-total\">Estorno estimado: <strong>" + moeda(estimado) + "</strong></p>"
+      : "<strong>Resumo da devolução</strong><p>Informe uma quantidade válida para cada item selecionado.</p>";
   };
 
   seletorVenda.addEventListener("change", () => {
@@ -2311,12 +2559,12 @@ function abrirDevolucao() {
   campoQuantidade.addEventListener("input", atualizarPrevia);
 
   formulario.onsubmit = evento => {
-    const opcao = opcoesAtuais.find(item => item.valor === seletorItem.value);
+    const selecionadas = [...seletorItem.selectedOptions].map(option => opcoesAtuais.find(item => item.valor === option.value)).filter(Boolean);
     const quantidade = Number(campoQuantidade.value);
-    if (!seletorVenda.value || !opcao || !Number.isInteger(quantidade) ||
-        quantidade < 1 || quantidade > opcao.disponiveis) {
+    if (!seletorVenda.value || !selecionadas.length || !Number.isInteger(quantidade) ||
+        quantidade < 1 || selecionadas.some(item => quantidade > item.disponiveis)) {
       evento.preventDefault();
-      mostrarAviso("Selecione uma venda, um item dessa venda e uma quantidade válida.");
+      mostrarAviso("Selecione uma venda, um ou mais itens e uma quantidade válida para cada item.");
       return;
     }
     salvarDevolucao(evento);
@@ -2325,49 +2573,45 @@ function abrirDevolucao() {
 
 async function salvarDevolucao(evento) {
   evento.preventDefault();
-
   const formulario = evento.currentTarget;
-  const [tipoItem, saleItemId] = (formulario.elements.itemVenda.value || ":").split(":");
+  const selecionados = [...formulario.elements.itemVenda.selectedOptions].map(option => {
+    const partes = (option.value || ":").split(":");
+    return { tipo: partes[0], saleItemId: partes[1] };
+  });
   const quantidade = numero(formulario.elements.quantidade.value);
   const botao = formulario.querySelector('button[type="submit"]');
-
-  if (!saleItemId || !["produto", "servico"].includes(tipoItem) ||
+  if (!selecionados.length || selecionados.some(item => !item.saleItemId || !["produto", "servico"].includes(item.tipo)) ||
       !Number.isInteger(quantidade) || quantidade < 1) {
-    mostrarAviso("Informe um item e uma quantidade válida.");
+    mostrarAviso("Informe um ou mais itens e uma quantidade válida para cada item.");
     return;
   }
   if (!adminAlunosSupabaseAtivo) {
     mostrarAviso("A conexão administrativa com o Supabase não está ativa.");
     return;
   }
-
   botao.disabled = true;
   botao.textContent = "Registrando...";
-
+  let concluidos = 0;
   try {
     const cliente = window.getMarcusSupabase?.();
     if (!cliente) throw new Error("Conexão com o Supabase indisponível.");
-
-    const nomeRpc = tipoItem === "produto"
-      ? "admin_refund_sale_product"
-      : "admin_refund_sale_lessons";
-    const parametros = tipoItem === "produto"
-      ? { p_sale_item_id: saleItemId, p_quantidade: quantidade }
-      : { p_sale_item_id: saleItemId, p_quantidade: quantidade };
-
-    const { error } = await cliente.rpc(nomeRpc, parametros);
-    if (error) throw error;
-
+    for (const item of selecionados) {
+      const nomeRpc = item.tipo === "produto" ? "admin_refund_sale_product" : "admin_refund_sale_lessons";
+      const { error } = await cliente.rpc(nomeRpc, { p_sale_item_id: item.saleItemId, p_quantidade: quantidade });
+      if (error) throw error;
+      concluidos++;
+    }
     await carregarDadosAdminSupabase();
     fecharModal();
     listarAlunos();
     listarMovimentacoes();
     atualizarFinanceiro();
     atualizarPainel();
-    mostrarAviso("Devolução registrada e valores atualizados.");
+    mostrarAviso("Devolução dos itens selecionados registrada e valores atualizados.");
   } catch (erro) {
     console.error("Falha ao registrar devolução:", erro);
-    mostrarAviso(erro.message || "Não foi possível registrar a devolução.");
+    if (erro && typeof erro === "object" && erro.message) mostrarAviso((concluidos > 0 ? "Devolução parcial: " + concluidos + " item(ns) registrados. Confira o histórico. " : "") + erro.message);
+    else mostrarAviso("Não foi possível registrar a devolução.");
     botao.disabled = false;
     botao.textContent = "Confirmar devolução";
   }
@@ -3098,10 +3342,10 @@ async function salvarConfiguracoes() {
       const caminho = caminhoLogoConta(adminSupabaseUserId);
       const { error: uploadError } = await cliente.storage
         .from("instructor-logos")
-        .upload(caminho, arquivo, { upsert: true, contentType: arquivo.type, cacheControl: "3600" });
+        .upload(caminho, arquivo, { upsert: true, contentType: arquivo.type, cacheControl: "0" });
       if (uploadError) throw uploadError;
       const { data: publicData } = cliente.storage.from("instructor-logos").getPublicUrl(caminho);
-      logoUrl = publicData?.publicUrl || null;
+      logoUrl = publicData?.publicUrl ? `${publicData.publicUrl}?v=${Date.now()}` : null;
       if (!logoUrl) throw new Error("Não foi possível obter o endereço da logomarca.");
     }
 
@@ -3252,6 +3496,15 @@ document.addEventListener("click", evento => {
     return;
   }
 
+  const editarPrecoFixo = evento.target.closest("[data-edit-preco-fixo]");
+  if (editarPrecoFixo) { abrirEditorPrecoFixo(editarPrecoFixo.dataset.editPrecoFixo); return; }
+
+  const abrirAluno = evento.target.closest("[data-open-aluno]");
+  if (abrirAluno) {
+    abrirDetalhesAluno(abrirAluno.dataset.openAluno);
+    return;
+  }
+
   const abrirExamesAluno = evento.target.closest("[data-open-student-exams]");
   if (abrirExamesAluno) {
     if (window.MarcusExamsRentals?.openForStudent) window.MarcusExamsRentals.openForStudent(abrirExamesAluno.dataset.openStudentExams);
@@ -3274,6 +3527,12 @@ document.addEventListener("click", evento => {
   const editarVeiculo = evento.target.closest("[data-edit-veiculo]");
   if (editarVeiculo) {
     abrirFormularioVeiculo(editarVeiculo.dataset.editVeiculo);
+    return;
+  }
+
+  const alternarVeiculoBotao = evento.target.closest("[data-toggle-veiculo]");
+  if (alternarVeiculoBotao) {
+    alterarStatusVeiculo(alternarVeiculoBotao.dataset.toggleVeiculo);
     return;
   }
 
@@ -3324,6 +3583,15 @@ document.addEventListener("click", evento => {
     return;
   }
 
+  const abrirQuote = evento.target.closest("[data-open-quote]");
+  if(abrirQuote){abrirDetalhesOrcamento(abrirQuote.dataset.openQuote);return;}
+  const excluirQuote = evento.target.closest("[data-delete-quote]");
+  if(excluirQuote){excluirOrcamento(excluirQuote.dataset.deleteQuote);return;}
+  const converterQuote = evento.target.closest("[data-convert-quote]");
+  if(converterQuote){abrirConversaoOrcamento(converterQuote.dataset.convertQuote);return;}
+  const imprimirQuote = evento.target.closest("[data-print-quote]");
+  if(imprimirQuote){imprimirOrcamento(imprimirQuote.dataset.printQuote);return;}
+
   const excluirDespesaBotao = evento.target.closest("[data-delete-despesa]");
   if (excluirDespesaBotao) {
     excluirDespesa(excluirDespesaBotao.dataset.deleteDespesa);
@@ -3357,6 +3625,9 @@ const botaoAgendamentoLote = document.getElementById("btnAgendamentoLote");
 if (botaoAgendamentoLote) {
   botaoAgendamentoLote.onclick = abrirAgendamentoLote;
      }
+const botaoNovoOrcamento = document.getElementById("btnNovoOrcamento");
+if(botaoNovoOrcamento) botaoNovoOrcamento.onclick=abrirOrcamento;
+
 const botaoNovaVenda = document.getElementById("btnNovaVenda");
 if (botaoNovaVenda) {
   botaoNovaVenda.onclick = abrirVenda;
@@ -3381,6 +3652,10 @@ if (botaoProdutos) {
 const buscaProdutos = document.getElementById("buscaProdutos");
 if (buscaProdutos) {
   buscaProdutos.addEventListener("input", listarProdutos);
+}
+const buscaOrcamentos = document.getElementById("buscaOrcamentos");
+if (buscaOrcamentos) {
+  buscaOrcamentos.addEventListener("input", renderizarListaOrcamentos);
 }
 
 const botaoDevolucao = document.getElementById("btnDevolucao");
@@ -3469,6 +3744,13 @@ if (buscaAlunos) {
 const buscaVeiculos = document.getElementById("buscaVeiculos");
 if (buscaVeiculos) {
   buscaVeiculos.addEventListener("input", listarVeiculos);
+}
+const botaoAlternarVeiculosInativos = document.getElementById("btnAlternarVeiculosInativos");
+if (botaoAlternarVeiculosInativos) {
+  botaoAlternarVeiculosInativos.addEventListener("click", () => {
+    mostrarVeiculosInativos = !mostrarVeiculosInativos;
+    listarVeiculos();
+  });
 }
 
 const filtroDataAulas = document.getElementById("filtroDataAulas");
@@ -3668,7 +3950,8 @@ async function carregarDadosAdminSupabase() {
     tipo: v.tipo || "Carro",
     modelo: v.nome || "",
     placa: v.placa || "",
-    categoria: v.categoria || "B"
+    categoria: v.categoria || "B",
+    ativo: v.ativo !== false
   }));
 
   const aulas = dados.lessons.map(a => ({
@@ -3826,23 +4109,64 @@ async function prepararDadosAdmin() {
    INICIALIZAÇÃO
 ========================================= */
 
+const CONFIG_PRODUTOS_FIXOS = {
+  aluguel_veiculo: {nome:"Aluguel de Veículo", coluna:"aluguel_veiculo_preco"},
+  cartao_moto_pista: {nome:"Cartão Moto Pista", coluna:"cartao_moto_pista_preco"},
+  taxa_inscricao_detran: {nome:"Taxa de inscrição (Detran)", coluna:"taxa_inscricao_detran_preco"},
+  taxa_legislacao_detran: {nome:"Taxa de Legislação (Detran)", coluna:"taxa_legislacao_detran_preco"},
+  taxa_direcao_detran: {nome:"Taxa de direção (Detran)", coluna:"taxa_direcao_detran_preco"},
+  exame_medico: {nome:"Exame médico", coluna:"exame_medico_preco"},
+  exame_psicotecnico: {nome:"Exame psicotécnico", coluna:"exame_psicotecnico_preco"}
+};
+
 async function carregarPrecosItensFixos() {
   const client=window.getMarcusSupabase?.(); if(!client||!adminSupabaseUserId)return;
-  const {data,error}=await client.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id",adminSupabaseUserId).maybeSingle();
+  const colunas=Object.values(CONFIG_PRODUTOS_FIXOS).map(x=>x.coluna).join(",");
+  const {data,error}=await client.from("app_settings").select(colunas).eq("owner_id",adminSupabaseUserId).maybeSingle();
   const status=document.getElementById("statusPrecosFixos");
   if(error){if(status)status.textContent="Não foi possível carregar os preços.";return;}
-  const aluguel=document.getElementById("precoAluguelFixo"),cartao=document.getElementById("precoCartaoFixo");
-  if(aluguel)aluguel.value=Number(data?.aluguel_veiculo_preco||0).toFixed(2);
-  if(cartao)cartao.value=Number(data?.cartao_moto_pista_preco||0).toFixed(2);
+  const lista=document.getElementById("listaPrecosFixos");
+  if(lista)lista.innerHTML=Object.entries(CONFIG_PRODUTOS_FIXOS).map(([key,item])=>
+    `<button type="button" class="secondary-button" data-edit-preco-fixo="${key}" style="display:block;width:100%;text-align:left;margin:6px 0">${item.nome}</button>`
+  ).join("");
 }
-async function salvarPrecosItensFixos(){
-  const client=window.getMarcusSupabase?.(),aluguel=Number(document.getElementById("precoAluguelFixo")?.value),cartao=Number(document.getElementById("precoCartaoFixo")?.value);
-  const status=document.getElementById("statusPrecosFixos"),button=document.getElementById("btnSalvarPrecosFixos");
-  if(!client||!adminSupabaseUserId||!Number.isFinite(aluguel)||!Number.isFinite(cartao)||aluguel<0||cartao<0){if(status)status.textContent="Informe valores válidos.";return;}
-  if(button)button.disabled=true;
-  try{const {error}=await client.from("app_settings").upsert({owner_id:adminSupabaseUserId,aluguel_veiculo_preco:aluguel,cartao_moto_pista_preco:cartao},{onConflict:"owner_id"});if(error)throw error;if(status)status.textContent="Preços salvos nesta conta.";}
-  catch(error){console.error("Falha ao salvar preços fixos:",error);if(status)status.textContent=error.message||"Não foi possível salvar os preços.";}
-  finally{if(button)button.disabled=false;}
+function abrirEditorPrecoFixo(key){
+  const item=CONFIG_PRODUTOS_FIXOS[key]; if(!item)return;
+  const client=window.getMarcusSupabase?.();
+  if(!client||!adminSupabaseUserId){mostrarAviso("Não foi possível acessar os preços desta conta.");return;}
+  client.from("app_settings").select(item.coluna).eq("owner_id",adminSupabaseUserId).maybeSingle().then(({data,error})=>{
+    if(error){mostrarAviso("Não foi possível carregar o preço deste produto.");return;}
+    const valor=Number(data?.[item.coluna]||0).toFixed(2);
+    abrirModal(`
+      <h2>${item.nome}</h2>
+      <form id="formPrecoFixo">
+        <label for="valorPrecoFixo">Preço (R$)</label>
+        <input id="valorPrecoFixo" type="number" min="0" step="0.01" value="${valor}" required>
+        <button id="btnSalvarPrecoFixo" class="primary-button" type="submit">Salvar preço</button>
+        <p id="statusPrecoFixo" class="form-hint" role="status"></p>
+      </form>`);
+    document.getElementById("formPrecoFixo").addEventListener("submit",evento=>{
+      evento.preventDefault();
+      salvarPrecoFixo(key);
+    });
+  });
+}
+async function salvarPrecoFixo(key){
+  const item=CONFIG_PRODUTOS_FIXOS[key],client=window.getMarcusSupabase?.();
+  const campo=document.getElementById("valorPrecoFixo"),botao=document.getElementById("btnSalvarPrecoFixo"),status=document.getElementById("statusPrecoFixo");
+  const preco=Number(campo?.value);
+  if(!item||!client||!adminSupabaseUserId||!Number.isFinite(preco)||preco<0){if(status)status.textContent="Informe um preço válido.";return;}
+  if(botao){botao.disabled=true;botao.textContent="Salvando...";}
+  try{
+    const {error}=await client.from("app_settings").upsert({owner_id:adminSupabaseUserId,[item.coluna]:preco},{onConflict:"owner_id"});
+    if(error)throw error;
+    fecharModal();
+    mostrarAviso("Preço salvo com sucesso.");
+  }catch(error){
+    console.error("Falha ao salvar preço fixo:",error);
+    if(status)status.textContent=error.message||"Não foi possível salvar o preço.";
+    if(botao){botao.disabled=false;botao.textContent="Salvar preço";}
+  }
 }
 
 function iniciarAplicativo() {

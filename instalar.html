@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#12345a">
+  <meta name="description" content="Instale o aplicativo Central do Instrutor no seu celular.">
+  <title>Instalar aplicativo | Central do Instrutor</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/central-app-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <style>
+    :root{color-scheme:light;--navy:#12345a;--blue:#2474b8;--ink:#1e293b;--muted:#64748b;--bg:#f3f6fa}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:linear-gradient(145deg,#edf3f9,#f8fafc 58%,#e7eef6);font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
+    main{width:min(100%,420px);padding:36px 26px 30px;text-align:center;background:#fff;border:1px solid #e2e8f0;border-radius:24px;box-shadow:0 18px 55px rgba(18,52,90,.12)}
+    .logo{display:block;width:100%;max-width:290px;height:auto;object-fit:contain;margin:0 auto 18px}
+    .eyebrow{margin:0 0 8px;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:1.7px;text-transform:uppercase}
+    h1{margin:0;color:var(--navy);font-size:26px;line-height:1.2}
+    .description{margin:13px 0 26px;color:var(--muted);font-size:15px;line-height:1.55}
+    button{width:100%;min-height:54px;border:0;border-radius:13px;background:var(--navy);color:#fff;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 8px 18px rgba(18,52,90,.2)}
+    button:disabled{opacity:.65;cursor:default}
+    #status{min-height:44px;margin:18px 0 0;color:var(--muted);font-size:13px;line-height:1.5}
+    .footer{margin:18px 0 0;color:#94a3b8;font-size:11px}
+  </style>
+</head>
+<body>
+  <main>
+    <img class="logo" src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Logotipo oficial Central do Instrutor">
+    <p class="eyebrow">Central do Instrutor</p>
+    <h1>Instale o aplicativo</h1>
+    <p class="description">Tenha o Central do Instrutor na tela inicial do seu celular, com acesso rápido e em formato de aplicativo.</p>
+    <button id="installButton" type="button">Instalar aplicativo</button>
+    <p id="status" role="status" aria-live="polite">Toque no botão acima para instalar.</p>
+    <p class="footer">Instalação oficial do aplicativo</p>
+  </main>
+  <script>
+    (function(){
+      "use strict";
+      var installPrompt = null;
+      var button = document.getElementById("installButton");
+      var status = document.getElementById("status");
+      var isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function(){
+          navigator.serviceWorker.register("/service-worker.js", {updateViaCache:"none"}).catch(function(error){
+            console.error("Falha ao preparar instalação:", error);
+          });
+        });
+      }
+      if (isStandalone) {
+        button.textContent = "Aplicativo instalado";
+        button.disabled = true;
+        status.textContent = "O Central do Instrutor já está instalado neste dispositivo.";
+      }
+      window.addEventListener("beforeinstallprompt", function(event){
+        event.preventDefault();
+        installPrompt = event;
+        button.disabled = false;
+        status.textContent = "Pronto para instalar no seu celular.";
+      });
+      button.addEventListener("click", async function(){
+        if (isStandalone) return;
+        if (!installPrompt) {
+          status.textContent = "Se a janela de instalação não aparecer, abra esta página no Google Chrome, toque no menu ⋮ e escolha “Instalar app” ou “Adicionar à tela inicial”.";
+          return;
+        }
+        button.disabled = true;
+        installPrompt.prompt();
+        var choice = await installPrompt.userChoice;
+        installPrompt = null;
+        if (choice && choice.outcome === "accepted") {
+          voltarAoSite();
+          return;
+        } else {
+          status.textContent = "Instalação cancelada. Você pode tocar no botão novamente quando quiser.";
+          button.disabled = false;
+        }
+      });
+      function voltarAoSite(){
+        window.location.replace("https://central-do-instrutor.pages.dev/");
+      }
+      window.addEventListener("appinstalled", voltarAoSite);
+    })();
+  </script>
+</body>
+</html>

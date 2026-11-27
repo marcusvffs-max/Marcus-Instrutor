@@ -266,7 +266,7 @@
     button.disabled = true;
     button.textContent = "Salvando…";
     try {
-      const result = await invoke("create", {
+      const result = await invoke("invite", {
         nome: $("novoParceiroNome").value,
         email: $("novoParceiroEmail").value,
         telefone: $("novoParceiroTelefone").value,

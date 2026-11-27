@@ -2,12 +2,12 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#12345a"><title>Área do Parceiro · Marcus Instrutor</title>
+  <meta name="theme-color" content="#12345a"><title>Área do Parceiro · Central do Instrutor</title>
   <link rel="stylesheet" href="style.css?v=central-logo-1">
   <style>
     body{background:#f3f6fb;color:#172033}.partner-shell{max-width:1080px;margin:0 auto;padding:24px 16px 56px}
-    .partner-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:24px}
-    .partner-top h1{margin:0;font-size:clamp(1.4rem,4vw,2rem)}.partner-top p{margin:5px 0 0;color:#64748b}
+    .partner-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;position:relative;left:50%;transform:translateX(-50%);margin:0 0 24px;padding:0;width:100vw;box-sizing:border-box}
+    .partner-brand{display:flex;align-items:center;gap:14px;min-width:0}.partner-app-logo{display:block;width:clamp(150px,22vw,230px);max-height:58px;height:auto;object-fit:contain;object-position:left center;flex:0 0 auto}.partner-top h1{margin:0;font-size:clamp(1.4rem,4vw,2rem)}.partner-top p{margin:5px 0 0;color:#64748b}
     .partner-button{border:0;border-radius:10px;padding:11px 15px;font:inherit;font-weight:700;cursor:pointer;background:#12345a;color:#fff}
     .partner-button.secondary{background:#e2e8f0;color:#172033}.partner-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:20px}
     .partner-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:18px;box-shadow:0 5px 20px #0f172a08}
@@ -30,13 +30,13 @@
     #partnerQuoteForm label{font-weight:600;color:#334155}
     #partnerQuoteForm textarea{resize:vertical}
     #partnerStatus{margin:12px 0;color:#475569;min-height:24px}.partner-error{color:#b42318!important}
-    @media(max-width:600px){.partner-shell{padding:16px 12px 40px}.partner-table{min-width:560px}}
+    @media(max-width:600px){.partner-shell{padding:16px 12px 40px}.partner-top{left:50%;margin-bottom:24px}.partner-brand{width:100%;gap:10px}.partner-app-logo{width:min(42vw,170px);max-height:48px}.partner-table{min-width:560px}}
   </style>
 </head>
 <body>
   <main class="partner-shell">
     <header class="partner-top">
-      <div><h1 id="partnerName">Área do Parceiro</h1><p id="partnerEmail">Carregando seus dados…</p></div>
+      <div class="partner-brand"><img class="partner-app-logo" src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Central do Instrutor"><div><h1 id="partnerName">Área do Parceiro</h1><p id="partnerEmail">Carregando seus dados…</p></div></div>
       <div class="partner-top-actions">
         <button id="btnPartnerRefresh" class="partner-button secondary" type="button">Atualizar tela</button>
         <button id="btnPartnerMessages" class="partner-button secondary partner-header-message" type="button">Mensagens <span id="partnerUpdatesBadge" class="partner-notification-badge" hidden>0</span></button>

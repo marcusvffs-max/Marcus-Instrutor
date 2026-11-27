@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#12345a">
+  <title>Ativar acesso | Central do Instrutor</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:#f3f6fa;font-family:Arial,sans-serif;color:#172033}
+    main{width:min(100%,480px);padding:30px;background:#fff;border:1px solid #dbe5f0;border-radius:18px;box-shadow:0 12px 34px #12345a12}
+    img{display:block;width:min(230px,70%);height:auto;max-height:70px;object-fit:contain;margin:0 auto 24px}
+    h1{text-align:center;color:#12345a;font-size:1.45rem;margin:0 0 10px}p{line-height:1.55;color:#526174}
+    label{display:block;font-weight:700;margin:16px 0 7px}input{width:100%;padding:13px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}
+    button{width:100%;margin-top:22px;padding:14px;border:0;border-radius:9px;background:#12345a;color:white;font-weight:700;font-size:1rem;cursor:pointer}
+    button:disabled{opacity:.6;cursor:wait}#status{min-height:24px;margin-top:16px;text-align:center;font-weight:600} .error{color:#b42318!important}
+  </style>
+</head>
+<body>
+<main>
+  <img src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Central do Instrutor">
+  <h1>Ative seu acesso</h1>
+  <p>Crie uma senha para sua conta. Depois de salvar, você será encaminhado ao site da Central do Instrutor para entrar e instalar o aplicativo.</p>
+  <form id="passwordForm">
+    <label for="password">Criar senha</label>
+    <input id="password" type="password" minlength="8" autocomplete="new-password" required placeholder="Mínimo de 8 caracteres">
+    <label for="confirmPassword">Confirmar senha</label>
+    <input id="confirmPassword" type="password" minlength="8" autocomplete="new-password" required placeholder="Digite a senha novamente">
+    <button id="saveButton" type="submit" disabled>Salvar senha e continuar</button>
+  </form>
+  <p id="status" role="status" aria-live="polite">Validando seu convite…</p>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.1"></script>
+<script>
+(async function(){
+  const APP_URL="https://voyjssflroiwdyaacthh.supabase.co";
+  const APP_KEY="sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9";
+  const SITE_URL="https://central-do-instrutor.pages.dev/acesso.html";
+  const params=new URLSearchParams(location.search);
+  const role=params.get("role");
+  const attemptId=params.get("attempt_id")||"";
+  const status=document.getElementById("status");
+  const button=document.getElementById("saveButton");
+  const form=document.getElementById("passwordForm");
+  const say=(message,error=false)=>{status.textContent=message;status.classList.toggle("error",error)};
+  const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if(!["aluno","parceiro"].includes(role)||(role==="aluno"&&attemptId&&!uuid.test(attemptId))){say("Este convite está incompleto ou inválido. Peça ao administrador ou instrutor para enviar um novo.",true);return}
+  if(!window.supabase?.createClient){say("Não foi possível carregar a autenticação. Atualize a página.",true);return}
+  const client=window.supabase.createClient(APP_URL,APP_KEY,{auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true,storage:window.sessionStorage}});
+  try{
+    const {data,error}=await client.auth.getSession();
+    if(error)throw error;
+    if(!data.session){say("O convite não foi validado. Abra novamente o link recebido por e-mail neste navegador.",true);return}
+    history.replaceState({},document.title,location.pathname+location.search);
+    const {data:profile,error:profileError}=await client.from("profiles").select("role").eq("id",data.session.user.id).maybeSingle();
+    if(profileError)throw profileError;
+    const expected=role==="aluno"?"usuario":"parceiro";
+    if(!profile||profile.role!==expected){say("Este convite não corresponde ao tipo de conta esperado. Solicite um novo convite.",true);return}
+    button.disabled=false;
+    say("Convite validado. Defina sua senha.");
+    form.addEventListener("submit",async event=>{
+      event.preventDefault();
+      const password=document.getElementById("password").value;
+      const confirmation=document.getElementById("confirmPassword").value;
+      if(password.length<8){say("A senha precisa ter pelo menos 8 caracteres.",true);return}
+      if(password!==confirmation){say("As senhas não coincidem. Confira os dois campos.",true);return}
+      button.disabled=true;say("Salvando sua senha…");
+      try{
+        const {error:updateError}=await client.auth.updateUser({password});
+        if(updateError)throw updateError;
+        if(role==="aluno"&&attemptId){
+          const {data:linked,error:linkError}=await client.functions.invoke("admin-manage-instructors",{body:{action:"complete_student_link",attempt_id:attemptId}});
+          if(linkError){let msg=linkError.message;try{const details=await linkError.context?.json?.();if(details?.error)msg=details.error}catch(_){}throw new Error(msg)}
+          if(!linked?.ok)throw new Error(linked?.error||"Não foi possível concluir o vínculo do aluno.");
+        }
+        await client.auth.signOut({scope:"local"});
+        say("Senha salva! Abrindo o site para você entrar…");
+        location.replace(SITE_URL+"?perfil="+role);
+      }catch(error){console.error(error);say(error.message||"Não foi possível salvar sua senha. Tente novamente.",true);button.disabled=false}
+    });
+  }catch(error){console.error(error);say(error.message||"Não foi possível validar o convite.",true)}
+})();
+</script>
+</body>
+</html>

@@ -167,6 +167,8 @@ async function sendInteractiveServiceMenu(
     { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
     { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
     { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
+    { id: "service_app", title: "Aplicativo", description: "Conheça o acesso exclusivo para acompanhar suas aulas." },
+    { id: "menu_close_assistant", title: "Encerrar assistente", description: "Finalize e pause a assistente por 48 horas." },
   ];
 
   const menu = {
@@ -262,7 +264,6 @@ async function sendServiceContinuationMenu(
   recipient: string,
 ) {
   const rows = [
-    { id: "menu_talk_marcus", title: "Falar com Instrutor", description: "Solicite atendimento direto com Marcus." },
     { id: "service_packages", title: "Pacotes e valores", description: "Consulte os pacotes disponíveis e seus preços." },
     { id: "service_documents", title: "Documentos e etapas", description: "Saiba quais documentos e etapas são necessários." },
     { id: "service_registration_fee", title: "Taxa de inscrição", description: "Informações para emitir a taxa da primeira habilitação." },
@@ -271,6 +272,7 @@ async function sendServiceContinuationMenu(
     { id: "service_theory_fee", title: "Taxa exame legislação", description: "Como emitir e pagar a taxa da prova teórica." },
     { id: "service_driving_fee", title: "Taxa exame direção", description: "Informações sobre a taxa da prova prática." },
     { id: "service_other", title: "Outros assuntos", description: "Tire dúvidas sobre outros assuntos da habilitação." },
+    { id: "service_app", title: "Aplicativo", description: "Conheça o acesso exclusivo para acompanhar suas aulas." },
     { id: "menu_close_assistant", title: "Encerrar assistente", description: "Finalize e pause a assistente por 48 horas." },
   ];
 
@@ -278,7 +280,7 @@ async function sendServiceContinuationMenu(
     type: "interactive",
     interactive: {
       type: "list",
-      body: { text: "O que mais você gostaria de consultar? 😊" },
+      body: { text: "O que mais você gostaria de consultar? 😊\n\nPara falar diretamente com Marcus, digite “Falar com Instrutor”." },
       footer: { text: "Atendimento do Instrutor Marcus." },
       action: {
         button: "Ver opções",
@@ -300,7 +302,7 @@ async function sendServiceContinuationMenu(
       supabase,
       conversationId,
       recipient,
-      `O que mais você gostaria de consultar? 😊\n\n${fallback}\n\nResponda com o número da opção desejada. Para encerrar, escolha "Encerrar assistente" ou digite Encerrar.`,
+      `O que mais você gostaria de consultar? 😊\n\n${fallback}\n\nResponda com o número da opção desejada. Para falar diretamente com Marcus, digite “Falar com Instrutor”. Para encerrar, escolha "Encerrar assistente" ou digite Encerrar.`,
     );
   }
 }
@@ -343,7 +345,7 @@ function readMenuChoice(message: any, content: unknown): string | null {
     "service_packages", "service_contract", "service_schedule",
     "service_balance", "service_reschedule", "service_documents",
     "service_registration_fee", "service_medical", "service_free_theory_course", "service_theory_fee",
-    "service_driving_fee", "service_other", "menu_close_assistant",
+    "service_driving_fee", "service_other", "service_app", "menu_close_assistant",
   ]);
   if (validChoices.has(choiceId)) {
     if (choiceId === "menu_talk_marcus") return "humano";
@@ -370,6 +372,7 @@ function readMenuChoice(message: any, content: unknown): string | null {
   if (/^(emitir taxa exame legislação( \\(detran-mg\\))?|taxa exame legislação)$/i.test(text)) return "service_theory_fee";
   if (/^(emitir taxa exame direção( \\(detran-mg\\))?|taxa exame direção)$/i.test(text)) return "service_driving_fee";
   if (/^(outros|outros assuntos)$/i.test(text)) return "service_other";
+  if (/^(aplicativo|app|acesso aluno)$/i.test(text)) return "service_app";
   return null;
 }
 
@@ -387,6 +390,7 @@ function serviceChoiceLabel(choice: string): string {
     service_theory_fee: "Emitir taxa exame Legislação (Detran-MG)",
     service_driving_fee: "Emitir taxa exame direção (Detran-MG)",
     service_other: "Outros",
+    service_app: "Aplicativo",
   };
   return labels[choice] ?? "Atendimento";
 }
@@ -1855,6 +1859,8 @@ Deno.serve(async (req: Request) => {
             Number(message.timestamp ?? Date.now() / 1000) * 1000,
           ).toISOString();
 
+          let isNewConversation = false;
+
           if (!conversation) {
             const { data: created, error: createError } = await supabase
               .from("whatsapp_conversations")
@@ -1881,6 +1887,7 @@ Deno.serve(async (req: Request) => {
             } else {
               conversation = created;
               conversationError = createError;
+              isNewConversation = Boolean(created && !createError);
             }
           } else {
             const { error: updateConversationError } = await supabase
@@ -1940,6 +1947,35 @@ Deno.serve(async (req: Request) => {
             continue;
           }
           stored++;
+
+          // Primeiro contato e conversas legadas em "aguardando" recebem o menu
+          // inicial automaticamente, sem exigir que o cliente digite "Olá".
+          if (isNewConversation || conversationStatus === "aguardando") {
+            const { error: firstContactStateError } = await supabase
+              .from("whatsapp_conversations")
+              .update({
+                status: "aguardando_escolha",
+                ai_paused_until: null,
+                ai_pause_reason: null,
+                quote_state: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", conversation.id)
+              .eq("owner_id", OWNER_ID);
+            if (firstContactStateError) {
+              console.error("First-contact assistant activation failed:", firstContactStateError.message);
+              continue;
+            }
+            await clearPendingOtherDetails(supabase, conversation.id, "first_contact_assistant_activation");
+            await updateMessageMetadata(supabase, providerId, {
+              menu_choice: "first_contact_opened_assistant_menu",
+              ai_status: "waiting_for_service_choice",
+              assistant_activation_reason: isNewConversation ? "new_contact_first_message" : "legacy_aguardando",
+            });
+            await sendInitialMenuSelection(supabase, conversation.id, phone);
+            menusSent++;
+            continue;
+          }
 
           const normalizedCustomerCommand = typeof content === "string"
             ? content.normalize("NFKC").trim().toLocaleLowerCase("pt-BR")
@@ -2120,6 +2156,28 @@ Deno.serve(async (req: Request) => {
                 await updateMessageMetadata(supabase, providerId, {
                   other_details_prompt_sent: sent,
                 });
+                continue;
+              }
+
+              if (menuChoice === "service_app") {
+                const appAccessReply =
+                  "📱 APLICATIVO DO ALUNO\n\n" +
+                  "Acompanhe suas aulas de direção de maneira simples e prática!\n\n" +
+                  "Com seu acesso exclusivo, você pode consultar suas aulas agendadas diretamente pelo celular, com mais facilidade para se organizar e acompanhar seus próximos horários.\n\n" +
+                  "🚗 Mais praticidade para acompanhar sua jornada rumo à CNH!";
+                const sent = await sendWhatsAppText(
+                  supabase,
+                  conversation.id,
+                  phone,
+                  appAccessReply,
+                  true,
+                );
+                await updateMessageMetadata(supabase, providerId, {
+                  ai_status: sent ? "static_service_reply_sent" : "static_service_reply_failed",
+                  reply_type: "student_app_access_information",
+                  reply_sent: sent,
+                });
+                if (sent) await sendServiceContinuationMenu(supabase, conversation.id, phone);
                 continue;
               }
 

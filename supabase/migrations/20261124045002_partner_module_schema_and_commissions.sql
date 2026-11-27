@@ -1,3 +1,17 @@
+-- Pré-requisitos compostos exigidos pelas FKs multi-tenant abaixo.
+-- A chave primária já garante unicidade de id; estes índices permitem validar também owner_id.
+CREATE UNIQUE INDEX IF NOT EXISTS sale_items_id_owner_partner_key
+  ON public.sale_items(id, owner_id);
+CREATE UNIQUE INDEX IF NOT EXISTS lessons_id_owner_partner_key
+  ON public.lessons(id, owner_id);
+
+-- O perfil parceiro é atribuído pela Edge Function administrativa via service_role.
+ALTER TABLE public.profiles
+  DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE public.profiles
+  ADD CONSTRAINT profiles_role_check
+  CHECK (role IN ('admin', 'instrutor', 'usuario', 'parceiro'));
+
 -- Estrutura persistente do módulo de parceiros, com isolamento por proprietário.
 CREATE TABLE IF NOT EXISTS public.partners (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -19,6 +33,9 @@ CREATE TABLE IF NOT EXISTS public.partners (
 );
 ALTER TABLE public.partners ALTER COLUMN commission_percent SET DEFAULT 5;
 ALTER TABLE public.partners ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+ALTER TABLE public.partners ADD COLUMN IF NOT EXISTS nacionalidade text;
+ALTER TABLE public.partners ADD COLUMN IF NOT EXISTS estado_civil text;
+ALTER TABLE public.partners ADD COLUMN IF NOT EXISTS profissao text;
 CREATE UNIQUE INDEX IF NOT EXISTS partners_owner_email_lower_uidx
   ON public.partners(owner_id, lower(email));
 CREATE INDEX IF NOT EXISTS partners_owner_status_created_idx
@@ -211,8 +228,17 @@ CREATE TABLE IF NOT EXISTS public.partner_commission_lessons (
 CREATE INDEX IF NOT EXISTS partner_commission_lessons_owner_commission_idx
   ON public.partner_commission_lessons(owner_id, commission_id);
 
+-- Todas as tabelas do módulo ficam protegidas por RLS. As tabelas acessadas
+-- exclusivamente pelas Edge Functions não recebem políticas para authenticated;
+-- service_role mantém o acesso administrativo controlado no servidor.
 ALTER TABLE public.partners ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_quotes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_quote_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_message_recipients ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.partner_commissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.partner_payouts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.partner_commission_lessons ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.partners, public.partner_students, public.partner_quotes,
   public.partner_quote_items, public.partner_messages, public.partner_message_recipients,

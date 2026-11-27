@@ -20,12 +20,14 @@
   <link rel="stylesheet" href="style.css?v=central-logo-1">
   <link rel="stylesheet" href="admin-visual.css?v=admin-visual-1">
   <link rel="stylesheet" href="admin-visual.css?v=admin-visual-1">
-  <link rel="icon" href="icon-192.png" type="image/png">
+  <link rel="icon" href="central-app-icon.svg?v=1" type="image/svg+xml">\n  <link rel="apple-touch-icon" href="central-app-icon.svg?v=1">
 <style id="marcus-ui-requested-updates">
 .contract-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0}
 .exame-painel-item{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .exame-painel-acoes,.contract-record-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .exame-painel-acoes button,.contract-record-actions button{min-height:38px}
+.exame-telefone{display:inline-block;color:#1457a6;font-weight:700;text-decoration:underline;min-height:32px;padding:5px 0}
+.exame-whatsapp{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:6px 12px;border-radius:8px;background:#16834a;color:#fff!important;font-weight:700;text-decoration:none!important;margin:4px 0}.exame-whatsapp:hover{background:#116b3c}
 @media(max-width:560px){.contract-action-grid{grid-template-columns:1fr}.exame-painel-acoes{width:100%}.exame-painel-acoes button{flex:1}}
 </style></head>
 
@@ -50,20 +52,12 @@
 
         <div class="dashboard-grid">
           <article class="dashboard-card">
-            <span class="card-label">Alunos cadastrados</span>
-            <strong id="totalAlunos">0</strong>
-          </article>
-          <article class="dashboard-card">
             <span class="card-label">Aulas agendadas</span>
             <strong id="totalAgendadas">0</strong>
           </article>
           <article class="dashboard-card">
             <span class="card-label">Aulas realizadas</span>
             <strong id="totalRealizadas">0</strong>
-          </article>
-          <article class="dashboard-card">
-            <span class="card-label">Saldo do dia</span>
-            <strong id="saldoCaixa">R$ 0,00</strong>
           </article>
         </div>
 
@@ -108,7 +102,7 @@
         </div>
 
         <input id="buscaAlunos" class="search-input" type="search"
-          placeholder="Buscar aluno pelo nome ou CPF">
+          placeholder="Buscar aluno pelo nome">
 
         <div id="listaAlunos" class="list-container">
           <div class="empty-state">Nenhum aluno cadastrado.</div>
@@ -121,9 +115,10 @@
             <span class="eyebrow">CADASTROS</span>
             <h2>Veículos</h2>
           </div>
-          <button id="btnNovoVeiculo" class="primary-button" type="button">
-            + Novo veículo
-          </button>
+          <div class="heading-actions">
+            <button id="btnAlternarVeiculosInativos" class="secondary-button" type="button">Mostrar veículos inativos</button>
+            <button id="btnNovoVeiculo" class="primary-button" type="button">+ Novo veículo</button>
+          </div>
         </div>
 
         <input id="buscaVeiculos" class="search-input" type="search"
@@ -164,6 +159,13 @@
         </div>
       </section>
 
+
+      <section id="page-orcamentos" class="page">
+        <div class="page-heading"><div><span class="eyebrow">PROPOSTAS COMERCIAIS</span><h2>Orçamentos</h2></div><button id="btnNovoOrcamento" class="primary-button" type="button">+ Novo orçamento</button></div>
+        <p class="muted">Orçamentos não geram vendas, créditos de aulas ou movimentações financeiras.</p>
+        <input id="buscaOrcamentos" class="search-input" type="search" placeholder="Pesquisar orçamento pelo nome" aria-label="Pesquisar orçamento pelo nome">
+        <div id="listaOrcamentos" class="list-container"><div class="empty-state">Carregando orçamentos...</div></div>
+      </section>
       <section id="page-financeiro" class="page">
         <div class="page-heading">
           <div>
@@ -248,13 +250,11 @@
         </div>
 
         <div class="panel" id="precosItensFixosProdutos">
-          <h3>Preços de itens fixos</h3>
-          <p>Aluguel de Veículo e Cartão Moto Pista aparecem junto com os demais itens na hora de fazer uma venda.</p>
-          <div class="form-grid">
-            <div><label for="precoAluguelFixo">Aluguel de Veículo (R$)</label><input id="precoAluguelFixo" type="number" min="0" step="0.01"></div>
-            <div><label for="precoCartaoFixo">Cartão Moto Pista (R$)</label><input id="precoCartaoFixo" type="number" min="0" step="0.01"></div>
+          <h3>Produtos fixos</h3>
+          <p>Selecione um produto pelo nome para abrir a edição do preço.</p>
+          <div id="listaPrecosFixos" class="list-container" aria-label="Produtos fixos">
+            <div class="empty-state">Carregando produtos fixos...</div>
           </div>
-          <button id="btnSalvarPrecosFixos" class="secondary-button" type="button">Salvar preços</button>
           <p id="statusPrecosFixos" class="form-hint" role="status"></p>
         </div>
 
@@ -491,6 +491,7 @@
         <span>Aulas</span>
       </button>
       <button type="button" data-page="parceiros" class="menu-item"><span class="menu-icon">♧</span><span>Parceiros</span><span id="badgeMenuParceiros" class="menu-notification-badge" hidden>0</span></button>
+      <button type="button" data-page="orcamentos" class="menu-item"><span class="menu-icon">▧</span><span>Orçamentos</span></button>
       <button type="button" data-page="financeiro" class="menu-item">
         <span class="menu-icon">$</span>
         <span>Financeiro</span>
@@ -519,7 +520,7 @@
 
   <section id="telaLogin" class="login-screen" aria-labelledby="loginTitulo">
     <div class="login-card">
-      <div class="login-brand">MI</div>
+      <div class="login-brand"><img class="login-logo" src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Central do Instrutor"></div>
       <span class="login-eyebrow">ÁREA RESTRITA</span>
       <h1 id="loginTitulo">Central do Instrutor</h1>
       <p class="login-description">Entre com sua conta autorizada para acessar o sistema.</p>
@@ -575,7 +576,7 @@
     (function () {
       "use strict";
       const hostPreview = window.location.hostname;
-      const USAR_SUPABASE_QA = hostPreview === "marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app" ||
+      const USAR_SUPABASE_QA = hostPreview === "marcusinstrutor-git-qa-production-readin-52425c-marcusvffs-2839.vercel.app" || hostPreview === "marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app" ||
     hostPreview === "marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app" || /^marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(hostPreview);
       const SUPABASE_URL = USAR_SUPABASE_QA ? "https://voyjssflroiwdyaacthh.supabase.co" : "https://ydyqagqsuqntuibzgwzd.supabase.co";
       const SUPABASE_PUBLISHABLE_KEY = USAR_SUPABASE_QA ? "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9" : "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
@@ -610,10 +611,9 @@
       }
       async function carregarPainelAdmin() {
         if (painelAdminCarregado) return;
-        await carregarScript("script.js?v=confirm-modal-green-3");
+        await carregarScript("script.js?v=produtos-fixos-detran-1");
         await carregarScript("contratante-perfil.js?v=2-cellphone");
         await carregarScript("contratos.js?v=confirm-modal-green-3");
-        await carregarScript("whatsapp-panel.js?v=whatsapp-panel-v12-message-delete");
         await carregarScript("exames-alugueis.js?v=confirm-modal-green-3");
         await carregarScript("admin-users.js?v=confirm-modal-green-3");
         await carregarScript("parceiros-admin.js?v=partner-admin-6");
@@ -863,5 +863,7 @@
   </script>
 
 <!-- Atualização de interface do módulo Parceiros -->
+
+
 </body>
 </html>

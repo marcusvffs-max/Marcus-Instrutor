@@ -1,21 +1,24 @@
 "use strict";
 
-const CACHE_NAME = "marcus-instrutor-v39-confirm-modal-green";
+const CACHE_NAME = "central-instrutor-v44-install-flow-2";
 
 const ARQUIVOS = [
   "./",
   "./index.html",
   "./central-instrutor-logo.svg",
+  "./central-app-icon.svg",
   "./instrutor.html",
   "./parceiro.html",
-  "./parceiro.js?v=partner-portal-5",
+  "./parceiro.js?v=partner-portal-11",
   "./style.css?v=central-logo-1",
   "./admin-visual.css?v=admin-visual-1",
   "./exames-alugueis.js?v=confirm-modal-green-3",
   "./instrutor.css?v=central-logo-1",
   "./instrutor.js?v=unified-fixed-items-5",
   "./script.js?v=confirm-modal-green-3",
-  "./manifest.json"
+  "./manifest.json",
+  "./icon-192.png",
+  "./icon-512.png"
 ];
 
 const ARQUIVOS_ADMINISTRATIVOS = [

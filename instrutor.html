@@ -26,7 +26,10 @@
 .exame-painel-item{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .exame-painel-acoes,.contract-record-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .exame-painel-acoes button,.contract-record-actions button{min-height:38px}
+.exame-whatsapp{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:6px 12px;border-radius:8px;background:#16834a;color:#fff!important;font-weight:700;text-decoration:none!important;margin:4px 0}.exame-whatsapp:hover{background:#116b3c}
 @media(max-width:560px){.contract-action-grid{grid-template-columns:1fr}.exame-painel-acoes{width:100%}.exame-painel-acoes button{flex:1}}
+.header-access-expiry{flex:1;max-width:380px;margin:0;text-align:center;line-height:1.35}
+@media(max-width:640px){.topbar{flex-wrap:wrap}.header-access-expiry{order:3;flex-basis:100%;max-width:none}.topbar .icon-button{margin-left:auto}}
 </style></head>
 
 <body>
@@ -37,6 +40,7 @@
       <div class="brand">
         <img class="brand-logo" src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Central do Instrutor">
       </div>
+      <div id="avisoValidadeAcesso" class="access-expiry-banner header-access-expiry" role="status" aria-live="polite">Consultando validade do acesso...</div>
       <button id="btnLogout" class="icon-button" type="button">Sair</button>
     </header>
 
@@ -51,20 +55,12 @@
 
         <div class="dashboard-grid">
           <article class="dashboard-card">
-            <span class="card-label">Alunos cadastrados</span>
-            <strong id="totalAlunos">0</strong>
-          </article>
-          <article class="dashboard-card">
             <span class="card-label">Aulas agendadas</span>
             <strong id="totalAgendadas">0</strong>
           </article>
           <article class="dashboard-card">
             <span class="card-label">Aulas realizadas</span>
             <strong id="totalRealizadas">0</strong>
-          </article>
-          <article class="dashboard-card">
-            <span class="card-label">Saldo do dia</span>
-            <strong id="saldoCaixa">R$ 0,00</strong>
           </article>
         </div>
 
@@ -109,7 +105,7 @@
         </div>
 
         <input id="buscaAlunos" class="search-input" type="search"
-          placeholder="Buscar aluno pelo nome ou CPF">
+          placeholder="Buscar aluno pelo nome">
 
         <div id="listaAlunos" class="list-container">
           <div class="empty-state">Nenhum aluno cadastrado.</div>
@@ -122,9 +118,10 @@
             <span class="eyebrow">CADASTROS</span>
             <h2>Veículos</h2>
           </div>
-          <button id="btnNovoVeiculo" class="primary-button" type="button">
-            + Novo veículo
-          </button>
+          <div class="heading-actions">
+            <button id="btnAlternarVeiculosInativos" class="secondary-button" type="button">Mostrar veículos inativos</button>
+            <button id="btnNovoVeiculo" class="primary-button" type="button">+ Novo veículo</button>
+          </div>
         </div>
 
         <input id="buscaVeiculos" class="search-input" type="search"
@@ -249,13 +246,11 @@
         </div>
 
         <div class="panel" id="precosItensFixosProdutos">
-          <h3>Preços de itens fixos</h3>
-          <p>Aluguel de Veículo e Cartão Moto Pista aparecem junto com os demais itens na hora de fazer uma venda.</p>
-          <div class="form-grid">
-            <div><label for="precoAluguelFixo">Aluguel de Veículo (R$)</label><input id="precoAluguelFixo" type="number" min="0" step="0.01"></div>
-            <div><label for="precoCartaoFixo">Cartão Moto Pista (R$)</label><input id="precoCartaoFixo" type="number" min="0" step="0.01"></div>
+          <h3>Produtos fixos</h3>
+          <p>Selecione um produto pelo nome para abrir a edição do preço.</p>
+          <div id="listaPrecosFixos" class="list-container" aria-label="Produtos fixos">
+            <div class="empty-state">Carregando produtos fixos...</div>
           </div>
-          <button id="btnSalvarPrecosFixos" class="secondary-button" type="button">Salvar preços</button>
           <p id="statusPrecosFixos" class="form-hint" role="status"></p>
         </div>
 
@@ -486,7 +481,7 @@
 
   <section id="telaLogin" class="login-screen" aria-labelledby="loginTitulo">
     <div class="login-card">
-      <div class="login-brand">MI</div>
+      <div class="login-brand"><img class="login-logo" src="https://central-do-instrutor.pages.dev/assets/logo-central.webp" alt="Central do Instrutor"></div>
       <span class="login-eyebrow">ÁREA RESTRITA</span>
       <h1 id="loginTitulo">Central do Instrutor</h1>
       <p class="login-description">Entre com sua conta autorizada para acessar o sistema.</p>
@@ -542,7 +537,8 @@
     (function () {
       "use strict";
       const hostPreview = window.location.hostname;
-      const USAR_SUPABASE_QA = hostPreview === "marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app" ||
+      const USAR_SUPABASE_QA = hostPreview === "marcusinstrutor-git-qa-production-readin-52425c-marcusvffs-2839.vercel.app" ||
+    hostPreview === "marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app" ||
     hostPreview === "marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app" || /^marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(hostPreview);
       const SUPABASE_URL = USAR_SUPABASE_QA ? "https://voyjssflroiwdyaacthh.supabase.co" : "https://ydyqagqsuqntuibzgwzd.supabase.co";
       const SUPABASE_PUBLISHABLE_KEY = USAR_SUPABASE_QA ? "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9" : "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
@@ -577,7 +573,7 @@
       }
       async function carregarPainelInstrutor() {
         if (painelAdminCarregado) return;
-        await carregarScript("script.js?v=confirm-modal-green-3");
+        await carregarScript("script.js?v=produtos-fixos-detran-1");
 await carregarScript("contratante-perfil.js?v=2-cellphone");
 await carregarScript("contratos.js?v=confirm-modal-green-3");
 await carregarScript("exames-alugueis.js?v=confirm-modal-green-3");
@@ -615,6 +611,36 @@ await carregarScript("instrutor-users.js?v=linked-students-only-1");
         auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true, storage: window.sessionStorage }
       });
       window.getMarcusSupabase = function () { return clienteSupabase; };
+      function atualizarContadorValidade(validade) {
+        const aviso = document.getElementById("avisoValidadeAcesso");
+        if (!aviso) return;
+        const atualizar = () => {
+          const fim = validade ? new Date(validade).getTime() : 0;
+          if (!fim || !Number.isFinite(fim)) {
+            aviso.textContent = "Não foi possível consultar a validade do acesso.";
+            return;
+          }
+          const restante = fim - Date.now();
+          if (restante <= 0) {
+            aviso.textContent = "Acesso expirado · regularize na Central do Instrutor.";
+            aviso.classList.add("access-expiry-warning");
+            return;
+          }
+          const dias = Math.ceil(restante / 86400000);
+          aviso.textContent = "Autorização ativa · faltam " + dias + (dias === 1 ? " dia para o bloqueio automático." : " dias para o bloqueio automático.");
+          aviso.classList.toggle("access-expiry-warning", dias <= 3);
+        };
+        atualizar();
+        if (window.__marcusAccessCountdownTimer) clearInterval(window.__marcusAccessCountdownTimer);
+        window.__marcusAccessCountdownTimer = setInterval(atualizar, 60000);
+      }
+      function mostrarAcessoBloqueado() {
+        document.body.innerHTML = '<main style="min-height:100vh;display:grid;place-items:center;padding:24px;background:#f1f5f9;font-family:Arial,sans-serif;color:#172033"><section style="width:min(100%,460px);padding:28px;border-radius:18px;background:#fff;box-shadow:0 12px 40px rgba(15,23,42,.12);text-align:center"><div style="font-size:42px" aria-hidden="true">🔒</div><h1 style="margin:12px 0">Acesso temporariamente bloqueado</h1><p>Sua autorização na Central do Instrutor venceu ou ainda não foi liberada.</p><p>Seu cadastro e seus dados continuam salvos. Para liberar ou renovar o acesso, regularize seu plano na Central do Instrutor.</p><p><a href="https://central-do-instrutor.pages.dev/" target="_blank" rel="noopener noreferrer">Abrir Central do Instrutor</a></p><button id="btnSairAcessoBloqueado" type="button" style="margin-top:18px;padding:12px 24px;border:0;border-radius:10px;background:#12345a;color:#fff;font-weight:700">Sair</button></section></main>';
+        document.getElementById("btnSairAcessoBloqueado").addEventListener("click", async function () {
+          await clienteSupabase.auth.signOut({ scope: "local" });
+          window.location.replace("index.html");
+        });
+      }
       async function conferirPerfil(usuario) {
         if (modoRecuperacao) {
           mostrarFormularioRecuperacao();
@@ -622,7 +648,7 @@ await carregarScript("instrutor-users.js?v=linked-students-only-1");
         }
         if (!usuario || !usuario.id) { mostrarLogin("Entre com sua conta para continuar."); return false; }
         const { data: perfil, error } = await clienteSupabase.from("profiles")
-          .select("id, role").eq("id", usuario.id).maybeSingle();
+          .select("id, role, instructor_access_until").eq("id", usuario.id).maybeSingle();
         if (error) {
           await clienteSupabase.auth.signOut({ scope: "local" });
           mostrarLogin("Não foi possível validar seu acesso. Confira a conexão e tente novamente.");
@@ -650,7 +676,13 @@ await carregarScript("instrutor-users.js?v=linked-students-only-1");
           mostrarLogin("Esta área é exclusiva para instrutores autorizados.");
           return false;
         }
+        const validadeAcesso = perfil.instructor_access_until ? new Date(perfil.instructor_access_until).getTime() : 0;
+        if (!Number.isFinite(validadeAcesso) || validadeAcesso <= Date.now()) {
+          mostrarAcessoBloqueado();
+          return false;
+        }
         await mostrarAplicativo(usuario);
+        atualizarContadorValidade(perfil.instructor_access_until);
         const botaoSair = document.getElementById("btnLogout");
         if (botaoSair) {
           botaoSair.onclick = async function () {

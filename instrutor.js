@@ -606,6 +606,11 @@
     container.innerHTML = scheduled.slice(0, 12).map(lesson => {
       const student = state.students.find(item => item.id === lesson.student_id);
       const remaining = Number(student?.aulas_restantes || 0);
+      const phoneDigits = String(student?.telefone || "").replace(/\D/g, "");
+      const whatsappNumber = phoneDigits && (phoneDigits.length === 10 || phoneDigits.length === 11) ? "55" + phoneDigits : phoneDigits;
+      const whatsappAction = whatsappNumber
+        ? '<a class="button button-outline button-small" href="https://wa.me/' + escapeHtml(whatsappNumber) + '" target="_blank" rel="noopener noreferrer">WhatsApp</a>'
+        : '<span class="form-hint">Telefone não informado</span>';
       return '<article class="upcoming-lesson-card">' +
         '<div class="upcoming-lesson-date"><strong>' + escapeHtml(formatDate(lesson.data_aula)) +
         '</strong><span>' + escapeHtml(String(lesson.horario || "").slice(0, 5)) + '</span></div>' +
@@ -614,6 +619,7 @@
         '<small>Aula ' + escapeHtml(lesson.numero_aula ?? "—") +
         ' · Saldo: ' + escapeHtml(remaining) + '</small></div>' +
         '<div class="upcoming-lesson-actions">' +
+        whatsappAction +
         '<button class="button button-success button-small" type="button" data-dashboard-lesson-action="realizada" data-lesson-id="' +
         escapeHtml(lesson.id) + '"' + (remaining <= 0 ? ' disabled title="Aluno sem aulas restantes"' : '') +
         '>Realizada</button>' +
@@ -1336,55 +1342,109 @@
     }).join("");
   }
 
-  function printInstructorSaleReceipt(saleId) {
+  function abrirReciboComoPDF(dados) {
+  // Mesmo mecanismo dos contratos/relatórios: imprime o documento atual com window.print().
+  const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  })[char]);
+  const itens = (dados.itens || []).map(item => `
+    <tr><td>${esc(item.descricao || "Item")}</td>
+    <td class="center">${esc(item.quantidade ?? 1)}</td>
+    <td class="right">${esc(item.unitario || "")}</td>
+    <td class="right">${esc(item.total || "")}</td></tr>`).join("");
+  const logo = dados.logo ? `<img class="recibo-logo" src="${esc(dados.logo)}" alt="Logo">` : "";
+  let style = document.getElementById("estiloImpressaoRecibo");
+  if (!style) {
+    style = document.createElement("style");
+    style.id = "estiloImpressaoRecibo";
+    document.head.appendChild(style);
+  }
+  style.textContent = `
+    @media print {
+      @page { size: A4; margin: 16mm; }
+      html, body { height:auto !important; min-height:0 !important; margin:0 !important; padding:0 !important; overflow:visible !important; }
+      body.printing-receipt > *:not(#reciboImpressao) { display:none !important; }
+      body.printing-receipt > #reciboImpressao {
+        display:block !important; position:static !important; width:auto !important;
+        height:auto !important; min-height:0 !important; margin:0 !important; padding:0 !important;
+        background:#fff !important; color:#17212f !important;
+        font:12px Arial,sans-serif !important;
+        -webkit-print-color-adjust:exact; print-color-adjust:exact;
+        break-after:avoid-page !important; page-break-after:avoid !important;
+      }
+      #reciboImpressao table { width:100%; border-collapse:collapse; margin-top:20px; }
+      #reciboImpressao th,#reciboImpressao td { padding:9px 7px; border-bottom:1px solid #dce2eb; text-align:left; }
+      #reciboImpressao th { background:#f3f6fa !important; }
+      #reciboImpressao .center { text-align:center; }
+      #reciboImpressao .right { text-align:right; }
+      #reciboImpressao .recibo-total { text-align:right; font-size:18px; font-weight:bold; margin:22px 0; }
+      #reciboImpressao .recibo-cabecalho { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1e3a5f; padding-bottom:14px; margin-bottom:24px; }
+      #reciboImpressao .recibo-logo { max-width:105px; max-height:75px; object-fit:contain; }
+      #reciboImpressao .recibo-assinatura { margin:65px auto 0; text-align:center; width:240px; border-top:1px solid #444; padding-top:8px; }
+      #reciboImpressao p { margin:5px 0; line-height:1.4; }
+    }
+  `;
+  const area = document.createElement("section");
+  area.id = "reciboImpressao";
+  area.innerHTML = `
+    <div class="recibo-cabecalho"><div><h1 style="font-size:20px;margin:0 0 5px">${esc(dados.responsavel || "Responsável")}</h1>
+    ${dados.documento ? `<p>CPF/CNPJ: ${esc(dados.documento)}</p>` : ""}
+    ${dados.celular ? `<p>WhatsApp: ${esc(dados.celular)}</p>` : ""}
+    ${dados.endereco ? `<p>${esc(dados.endereco)}</p>` : ""}</div>${logo}</div>
+    <h2 style="text-align:center;font-size:18px;margin:24px 0">RECIBO DE PAGAMENTO</h2>
+    <p><strong>Recebemos de:</strong> ${esc(dados.aluno || "Aluno")}</p>
+    <p><strong>Data da venda:</strong> ${esc(dados.data || "—")}</p>
+    <p><strong>Forma de pagamento:</strong> ${esc(dados.pagamento || "Não informada")}</p>
+    <p><strong>Situação:</strong> ${esc(dados.status || "CONFIRMADA")}</p>
+    <table><thead><tr><th>Descrição</th><th class="center">Qtd.</th><th class="right">Valor unit.</th><th class="right">Total</th></tr></thead><tbody>${itens}</tbody></table>
+    <div class="recibo-total">Total: ${esc(dados.total || "R$ 0,00")}</div>
+    ${dados.desconto ? `<p><strong>Desconto aplicado:</strong> ${esc(dados.desconto)}</p>` : ""}
+    ${dados.devolvido ? `<p><strong>Devoluções registradas:</strong> ${esc(dados.devolvido)}</p>` : ""}
+    ${dados.observacoes ? `<p style="white-space:pre-wrap"><strong>Observações:</strong> ${esc(dados.observacoes)}</p>` : ""}
+    <p>Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
+    <div class="recibo-assinatura"><strong>${esc(dados.responsavel || "Responsável")}</strong><br>Responsável</div>`;
+  const anterior = document.getElementById("reciboImpressao");
+  if (anterior) anterior.remove();
+  document.body.appendChild(area);
+  document.body.classList.add("printing-receipt");
+  const limpar = () => {
+    document.body.classList.remove("printing-receipt");
+    area.remove();
+    window.removeEventListener("afterprint", limpar);
+  };
+  window.addEventListener("afterprint", limpar, { once: true });
+  // Chamada direta, igual à impressão dos contratos e relatórios.
+  window.print();
+}
+  async function printInstructorSaleReceipt(saleId) {
     const sale = state.sales.find(item => String(item.id) === String(saleId));
     if (!sale) return showMessage("Venda não encontrada.");
     const items = state.saleItems.filter(item => item.sale_id === sale.id);
     const profile = state.contractorProfile || {};
     const responsible = profile.contratante_nome || profile.nome_empresa || state.profile?.nome || "Instrutor";
-    const lines = items.map(item => {
+    const rows = items.map(item => {
       const info = refundableInstructorItem(item);
       const quantity = info.type === "produto" ? Number(item.quantidade || 0) : Number(item.aulas_contratadas || 0);
       const unit = info.type === "produto"
         ? (quantity ? Number(item.subtotal || item.valor_liquido || 0) / quantity : 0)
         : Number(item.valor_por_aula || 0);
-      return '<tr><td>' + escapeHtml(item.descricao || "Item") + '</td><td>' + quantity +
-        '</td><td>' + currency(unit) + '</td><td>' + currency(item.subtotal ?? item.valor_liquido ?? 0) + '</td></tr>';
-    }).join("");
-    const logo = state.logoUrl && /^(https?:|data:image\/)/i.test(state.logoUrl)
-      ? '<img class="logo" src="' + escapeHtml(state.logoUrl) + '" alt="Logomarca">' : "";
-    const popup = window.open("", "_blank", "width=820,height=900");
-    if (!popup) return showMessage("Permita janelas pop-up para imprimir o recibo.");
-    const cancelled = sale.status !== "confirmada";
-    popup.document.open();
-    popup.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Recibo de venda</title>
-      <style>*{box-sizing:border-box}body{font:14px Arial,sans-serif;color:#17212f;max-width:760px;margin:32px auto;padding:0 24px}
-      header{display:flex;align-items:center;gap:18px;border-bottom:2px solid #1e3a5f;padding-bottom:18px;margin-bottom:24px}
-      .logo{max-width:105px;max-height:80px;object-fit:contain}h1{font-size:24px;margin:0 0 6px}h2{text-align:center;margin:28px 0}
-      .muted{color:#596579;line-height:1.5}.box{border:1px solid #d8dee8;border-radius:10px;padding:16px;margin:16px 0}
-      .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid p{margin:4px 0}
-      table{width:100%;border-collapse:collapse;margin:18px 0}th,td{padding:10px 8px;border-bottom:1px solid #e2e7ef;text-align:left}
-      th{background:#f3f6fa}td:last-child,th:last-child{text-align:right}.total{text-align:right;font-size:21px;font-weight:700;margin:20px 0}
-      .status{display:inline-block;padding:8px 12px;border-radius:6px;background:${cancelled?"#fff0ed":"#e8f5ed"};font-weight:700}
-      .signature{margin-top:70px;text-align:center}.signature span{display:block;border-top:1px solid #333;width:260px;margin:0 auto 8px}
-      .actions{text-align:center;margin-top:28px}.actions button{padding:10px 20px;border:0;border-radius:6px;background:#1e3a5f;color:#fff}
-      @media print{body{margin:0 auto;padding:0 10mm}.actions{display:none}}</style></head><body>
-      <header>${logo}<div><h1>${escapeHtml(responsible)}</h1>
-      <div class="muted">${profile.contratante_documento?"CPF/CNPJ: "+escapeHtml(profile.contratante_documento)+" · ":""}${profile.contratante_celular?"WhatsApp: "+escapeHtml(profile.contratante_celular):""}<br>${escapeHtml(profile.contratante_endereco||"")}</div></div></header>
-      <h2>RECIBO DE PAGAMENTO</h2><div class="box grid">
-      <p><strong>Recebemos de:</strong><br>${escapeHtml(studentName(sale.student_id))}</p>
-      <p><strong>Data da venda:</strong><br>${escapeHtml(formatDate(sale.data_venda))}</p>
-      <p><strong>Forma de pagamento:</strong><br>${escapeHtml(sale.forma_pagamento||"Não informada")}</p>
-      <p><strong>Situação:</strong><br><span class="status">${cancelled?"CANCELADA":"CONFIRMADA"}</span></p></div>
-      <table><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Total</th></tr></thead><tbody>${lines||'<tr><td colspan="4">Itens não disponíveis.</td></tr>'}</tbody></table>
-      <div class="total">Total: ${currency(sale.total)}</div>
-      ${sale.observacoes?'<p class="muted">Observações: '+escapeHtml(sale.observacoes)+'</p>':""}
-      <p class="muted">Este recibo comprova o registro da venda acima. Guarde-o para seu controle.</p>
-      <div class="signature"><span></span><strong>${escapeHtml(responsible)}</strong><br><small>Responsável</small></div>
-      <div class="actions"><button onclick="window.print()">Imprimir / Salvar PDF</button></div></body></html>`);
-    popup.document.close();
-    popup.focus();
-    setTimeout(() => popup.print(), 350);
+      return {
+        descricao: item.descricao || "Item", quantidade: quantity,
+        unitario: currency(unit), total: currency(item.subtotal ?? item.valor_liquido ?? 0)
+      };
+    });
+    try {
+      await abrirReciboComoPDF({
+        responsavel: responsible, documento: profile.contratante_documento || "", logo: state.logoUrl || "",
+        celular: profile.contratante_celular || "", endereco: profile.contratante_endereco || "",
+        aluno: studentName(sale.student_id), data: formatDate(sale.data_venda),
+        pagamento: sale.forma_pagamento || "Não informada",
+        status: sale.status === "confirmada" ? "CONFIRMADA" : "CANCELADA",
+        itens: rows, total: currency(sale.total), observacoes: sale.observacoes || ""
+      });
+    } catch (error) {
+      showMessage(error.message || "Não foi possível gerar o PDF do recibo.");
+    }
   }
 
   function openInstructorRefundForm(saleId = null) {
