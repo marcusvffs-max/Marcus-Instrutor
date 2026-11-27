@@ -1,9 +1,11 @@
 "use strict";
 
 (function () {
-  // O aplicativo oficial usa sempre o projeto Supabase atual do Central do Instrutor.
-  const SUPABASE_URL = "https://voyjssflroiwdyaacthh.supabase.co";
-  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9";
+  const hostPreview = window.location.hostname;
+  const USAR_SUPABASE_QA = hostPreview === "marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app" ||
+    hostPreview === "marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app" || /^marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(hostPreview);
+  const SUPABASE_URL = USAR_SUPABASE_QA ? "https://voyjssflroiwdyaacthh.supabase.co" : "https://ydyqagqsuqntuibzgwzd.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = USAR_SUPABASE_QA ? "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9" : "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
 
   const el = id => document.getElementById(id);
   const state = {
@@ -35,8 +37,7 @@
     lessonSearch: "",
     lessonStatusFilter: "",
     logoUrl: "",
-    contractorProfile: null,
-    quoteCache: []
+    contractorProfile: null
   };
 
   function escapeHtml(value) {
@@ -1263,7 +1264,7 @@
       state.supabase.from("products").select("id,nome,tipo,descricao,preco,quantidade_aulas,ativo").eq("owner_id", state.user.id).order("nome", { ascending: true }),
       state.supabase.from("sales").select("id,student_id,data_venda,total,forma_pagamento,status,observacoes,created_at").eq("owner_id", state.user.id).order("data_venda", { ascending: false }).order("created_at", { ascending: false }),
       state.supabase.from("sale_items").select("id,sale_id,descricao,quantidade,tipo_item,aulas_contratadas,aulas_devolvidas,valor_por_aula,valor_liquido,valor_devolvido,quantidade_devolvida,subtotal,valor_unitario,fixed_item_key").eq("owner_id", state.user.id),
-      state.supabase.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco,taxa_inscricao_detran_preco,taxa_legislacao_detran_preco,taxa_direcao_detran_preco,exame_medico_preco,exame_psicotecnico_preco").eq("owner_id", state.user.id).maybeSingle(),
+      state.supabase.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", state.user.id).maybeSingle(),
       state.supabase.from("student_rental_credits").select("sale_item_id,quantity_purchased,quantity_refunded,quantity_consumed")
     ]);
     if (productsResult.error) throw productsResult.error;
@@ -1291,15 +1292,7 @@
           : rentalCreditLedgerMissing ? fallback : 0;
         return [item.id, available];
       }));
-    state.fixedItemPrices = {
-      aluguel:Number(fixedPricesResult.data?.aluguel_veiculo_preco||0),
-      cartao:Number(fixedPricesResult.data?.cartao_moto_pista_preco||0),
-      taxa_inscricao_detran:Number(fixedPricesResult.data?.taxa_inscricao_detran_preco||0),
-      taxa_legislacao_detran:Number(fixedPricesResult.data?.taxa_legislacao_detran_preco||0),
-      taxa_direcao_detran:Number(fixedPricesResult.data?.taxa_direcao_detran_preco||0),
-      exame_medico:Number(fixedPricesResult.data?.exame_medico_preco||0),
-      exame_psicotecnico:Number(fixedPricesResult.data?.exame_psicotecnico_preco||0)
-    };
+    state.fixedItemPrices = { aluguel:Number(fixedPricesResult.data?.aluguel_veiculo_preco||0), cartao:Number(fixedPricesResult.data?.cartao_moto_pista_preco||0) };
     const aluguelInput=el("precoAluguelFixoInstrutor"),cartaoInput=el("precoCartaoFixoInstrutor");
     if(aluguelInput)aluguelInput.value=state.fixedItemPrices.aluguel.toFixed(2);
     if(cartaoInput)cartaoInput.value=state.fixedItemPrices.cartao.toFixed(2);
@@ -1461,103 +1454,116 @@
         .map(item => ({ item, ...refundableInstructorItem(item) }))
         .filter(entry => entry.available > 0)
     })).filter(group => group.sale.status === "confirmada" && group.items.length > 0);
-    if (!availableSales.length) { showMessage("Não existem vendas confirmadas com itens disponíveis para devolução."); return; }
 
-    const form=el("formDevolucaoInstrutor");
-    form.reset();
-    el("tituloDevolucaoInstrutor").textContent="Devolução de produtos e serviços";
-    const ordered=[...availableSales].sort((a,b)=>String(b.sale.data_venda||"").localeCompare(String(a.sale.data_venda||"")));
-    el("devolucaoVendaInstrutor").innerHTML='<option value="">Selecione uma venda</option>'+ordered.map(g=>
-      '<option value="'+escapeHtml(g.sale.id)+'">'+escapeHtml(studentName(g.sale.student_id))+' · '+escapeHtml(formatDate(g.sale.data_venda))+' · '+currency(g.sale.total)+'</option>').join("");
-    if(!el("devolucaoBuscaVendaInstrutor")){
-      el("devolucaoVendaInstrutor").insertAdjacentHTML("beforebegin",'<label for="devolucaoBuscaVendaInstrutor">Pesquisar venda</label><input id="devolucaoBuscaVendaInstrutor" type="search" placeholder="Buscar cliente, data ou valor">');
-      el("devolucaoBuscaVendaInstrutor").addEventListener("input",()=>{
-        const term=el("devolucaoBuscaVendaInstrutor").value.trim().toLocaleLowerCase("pt-BR");
-        [...el("devolucaoVendaInstrutor").options].forEach((o,i)=>{if(i)o.hidden=!!term&&!o.textContent.toLocaleLowerCase("pt-BR").includes(term);});
-        if(el("devolucaoVendaInstrutor").selectedOptions[0]?.hidden){el("devolucaoVendaInstrutor").value="";updateInstructorRefundSaleSelection();}
-      });
+    if (!availableSales.length) {
+      showMessage("Não existem vendas confirmadas com itens disponíveis para devolução.");
+      return;
     }
-    if(!el("devolucaoItensInstrutorLote")){
-      el("devolucaoPreviaInstrutor").insertAdjacentHTML("beforebegin",'<div id="devolucaoItensInstrutorLote" class="refund-item-quantity-list"></div>');
-    }
-    el("devolucaoItemInstrutor").style.display="none";
-    el("devolucaoQuantidadeInstrutor").style.display="none";
-    el("devolucaoItensInstrutorLote").innerHTML="<p>Selecione uma venda para visualizar os itens.</p>";
-    el("devolucaoVendaInstrutor").value=saleId&&availableSales.some(g=>g.sale.id===saleId)?saleId:"";
-    state.refundSaleId=null;
-    state.refundItems=availableSales;
-    el("resumoVendaDevolucaoInstrutor").textContent="Selecione uma venda para visualizar os itens disponíveis.";
-    el("devolucaoPreviaInstrutor").innerHTML="<strong>Resumo da devolução</strong><p>Informe a quantidade de cada item.</p>";
-    form.onsubmit=saveInstructorRefund;
+
+    el("formDevolucaoInstrutor").reset();
+    el("tituloDevolucaoInstrutor").textContent = "Devolução de produtos e serviços";
+    el("devolucaoVendaInstrutor").innerHTML = '<option value="">Selecione uma venda</option>' +
+      availableSales.map(group => '<option value="' + escapeHtml(group.sale.id) + '">' +
+        escapeHtml(studentName(group.sale.student_id)) + ' · ' + escapeHtml(formatDate(group.sale.data_venda)) +
+        ' · ' + currency(group.sale.total) + '</option>').join("");
+    el("devolucaoVendaInstrutor").value = saleId && availableSales.some(group => group.sale.id === saleId) ? saleId : "";
+    state.refundSaleId = null;
+    el("resumoVendaDevolucaoInstrutor").textContent = "Selecione uma venda para visualizar os itens disponíveis.";
+    el("devolucaoItemInstrutor").innerHTML = '<option value="">Selecione primeiro uma venda</option>';
+    el("devolucaoItemInstrutor").disabled = true;
+    el("devolucaoQuantidadeInstrutor").value = "";
+    el("devolucaoQuantidadeInstrutor").disabled = true;
+    el("devolucaoQuantidadeInstrutor").removeAttribute("max");
+    el("devolucaoPreviaInstrutor").innerHTML = "<strong>Resumo da devolução</strong><p>Escolha uma venda e um item.</p>";
+    el("formDevolucaoInstrutor").onsubmit = saveInstructorRefund;
     openInstructorModal("formDevolucaoInstrutor");
-    if(el("devolucaoVendaInstrutor").value)updateInstructorRefundSaleSelection();
+    if (el("devolucaoVendaInstrutor").value) updateInstructorRefundSaleSelection();
   }
 
   function updateInstructorRefundSaleSelection() {
-    const saleId=el("devolucaoVendaInstrutor").value;
-    const group=(state.refundItems||[]).find(g=>g.sale.id===saleId);
-    const sale=group?.sale||null;
-    state.refundSaleId=sale?.id||null;
-    const list=el("devolucaoItensInstrutorLote");
-    el("resumoVendaDevolucaoInstrutor").innerHTML=sale
-      ? '<strong>'+escapeHtml(studentName(sale.student_id))+'</strong><span>Data: '+escapeHtml(formatDate(sale.data_venda))+' · Responsável: '+escapeHtml(state.profile?.nome||state.user?.email||"Instrutor")+'</span><span>Pagamento: '+escapeHtml(sale.forma_pagamento||"Não informado")+' · Valor total: '+currency(sale.total)+'</span>'
+    const saleId = el("devolucaoVendaInstrutor").value;
+    const sale = state.sales.find(item => item.id === saleId && item.status === "confirmada");
+    state.refundSaleId = sale?.id || null;
+    const items = sale ? state.saleItems.filter(item => item.sale_id === sale.id)
+      .map(item => ({ item, ...refundableInstructorItem(item) }))
+      .filter(entry => entry.available > 0) : [];
+
+    el("resumoVendaDevolucaoInstrutor").innerHTML = sale
+      ? '<strong>' + escapeHtml(studentName(sale.student_id)) + '</strong><span>' +
+        escapeHtml(formatDate(sale.data_venda)) + ' · ' + escapeHtml(sale.forma_pagamento || "Pagamento não informado") +
+        '</span><span>Valor da venda: ' + currency(sale.total) + '</span>'
       : "Selecione uma venda para visualizar os itens disponíveis.";
-    list.innerHTML=group?group.items.map(entry=>{
-      const item=entry.item;
-      const unit=item.fixed_item_key==="aluguel_veiculo"?"aluguel(is)":entry.type==="produto"?"unidade(s)":"aula(s)";
-      return '<div class="refund-item-quantity-card" data-instructor-refund-item="'+escapeHtml(item.id)+'"><div><strong>'+escapeHtml(item.descricao||"Item")+'</strong><span>Comprado: '+(entry.type==="produto"?Number(item.quantidade||0):Number(item.aulas_contratadas||0))+' · Já devolvido: '+(entry.type==="produto"?Number(item.quantidade_devolvida||0):Number(item.aulas_devolvidas||0))+' · Disponível: '+entry.available+' '+unit+'</span></div><label>Quantidade a devolver<input type="number" data-instructor-refund-qty min="0" max="'+entry.available+'" step="1" value="0" inputmode="numeric"></label></div>';
-    }).join(""):"<p>Selecione uma venda para visualizar os itens.</p>";
-    list.querySelectorAll("[data-instructor-refund-qty]").forEach(input=>input.addEventListener("input",updateInstructorRefundPreview));
-    updateInstructorRefundPreview();
+    el("devolucaoItemInstrutor").innerHTML = '<option value="">Selecione um item desta venda</option>' +
+      items.map(entry => '<option value="' + escapeHtml(entry.item.id) + '">' + escapeHtml(entry.item.descricao || "Item") +
+        ' · ' + entry.available + (entry.item.fixed_item_key === "aluguel_veiculo" ? " aluguel(is)" : entry.type === "produto" ? " unidade(s)" : " aula(s)") + ' disponíveis</option>').join("");
+    el("devolucaoItemInstrutor").disabled = !items.length;
+    el("devolucaoItemInstrutor").value = "";
+    el("devolucaoQuantidadeInstrutor").value = "";
+    el("devolucaoQuantidadeInstrutor").disabled = true;
+    el("devolucaoQuantidadeInstrutor").removeAttribute("max");
+    el("devolucaoPreviaInstrutor").innerHTML = "<strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p>";
   }
 
   function updateInstructorRefundPreview() {
-    const group=(state.refundItems||[]).find(g=>g.sale.id===state.refundSaleId);
-    const rows=[...el("devolucaoItensInstrutorLote").querySelectorAll("[data-instructor-refund-item]")];
-    let total=0, count=0, invalid=false;
-    rows.forEach(row=>{
-      const entry=group?.items.find(x=>x.item.id===row.dataset.instructorRefundItem);
-      const field=row.querySelector("[data-instructor-refund-qty]");
-      const qty=Number(field.value||0);
-      if(field.value!==""&&(!Number.isInteger(qty)||qty<0||qty>entry.available))invalid=true;
-      if(qty>0){count++;total+=Math.min(entry.unitValue*qty,Math.max(0,entry.netValue-Number(entry.item.valor_devolvido||0)));}
-    });
-    el("devolucaoPreviaInstrutor").innerHTML=invalid
-      ? "<strong>Confira as quantidades</strong><p>Use números inteiros dentro do saldo disponível de cada item.</p>"
-      : count?'<strong>Resumo da devolução</strong><p>Itens selecionados: <strong>'+count+'</strong></p><p class="refund-preview-total">Estorno estimado: <strong>'+currency(total)+'</strong></p>'
-      : "<strong>Resumo da devolução</strong><p>Informe a quantidade de pelo menos um item.</p>";
+    const itemId = el("devolucaoItemInstrutor").value;
+    const entry = state.saleItems.filter(item => item.sale_id === state.refundSaleId)
+      .map(item => ({ item, ...refundableInstructorItem(item) }))
+      .find(candidate => candidate.item.id === itemId);
+    const field = el("devolucaoQuantidadeInstrutor");
+    const preview = el("devolucaoPreviaInstrutor");
+    if (!entry || entry.available <= 0) {
+      field.disabled = true;
+      field.value = "";
+      field.removeAttribute("max");
+      preview.innerHTML = "<strong>Resumo da devolução</strong><p>Escolha um item disponível.</p>";
+      return;
+    }
+    field.disabled = false;
+    field.max = String(entry.available);
+    const quantity = Number(field.value || 0);
+    const valid = Number.isInteger(quantity) && quantity >= 1 && quantity <= entry.available;
+    const remainingValue = Math.max(0, entry.netValue - Number(entry.item.valor_devolvido || 0));
+    const refund = valid ? Math.min(entry.unitValue * quantity, remainingValue) : 0;
+    preview.innerHTML = valid
+      ? '<strong>Resumo da devolução</strong><p>' + (entry.item.fixed_item_key === "aluguel_veiculo" ? "Aluguéis" : entry.type === "produto" ? "Unidades" : "Aulas") + ': <strong>' + quantity +
+        '</strong> de ' + entry.available + ' disponíveis</p><p>Valor unitário: <strong>' + currency(entry.unitValue) +
+        '</strong></p><p class="refund-preview-total">Estorno estimado: <strong>' + currency(refund) + '</strong></p>'
+      : '<strong>Resumo da devolução</strong><p>Informe uma quantidade inteira entre 1 e ' + entry.available + '.</p>';
   }
 
   async function saveInstructorRefund(event) {
     event.preventDefault();
-    const group=(state.refundItems||[]).find(g=>g.sale.id===state.refundSaleId);
-    const rows=[...el("devolucaoItensInstrutorLote").querySelectorAll("[data-instructor-refund-item]")];
-    const items=rows.map(row=>({sale_item_id:row.dataset.instructorRefundItem,quantity:Number(row.querySelector("[data-instructor-refund-qty]").value)})).filter(x=>x.quantity>0);
-    const invalid=rows.some(row=>{
-      const field=row.querySelector("[data-instructor-refund-qty]");
-      const entry=group?.items.find(x=>x.item.id===row.dataset.instructorRefundItem);
-      return field.value!==""&&(!Number.isInteger(Number(field.value))||Number(field.value)<0||Number(field.value)>(entry?.available||0));
-    });
-    if(!group||!items.length||invalid){showMessage("Selecione uma venda e informe uma quantidade válida para cada item.");return;}
-    const button=el("btnConfirmarDevolucaoInstrutor");
-    button.disabled=true;button.textContent="Registrando...";
-    try{
-      const {error}=await state.supabase.rpc("refund_sale_items_batch",{p_items:items});
-      if(error)throw error;
+    const sale = state.sales.find(item => item.id === state.refundSaleId && item.status === "confirmada");
+    const itemId = el("devolucaoItemInstrutor").value;
+    const quantity = Number(el("devolucaoQuantidadeInstrutor").value);
+    const entry = state.saleItems.filter(item => item.sale_id === state.refundSaleId)
+      .map(item => ({ item, ...refundableInstructorItem(item) }))
+      .find(candidate => candidate.item.id === itemId);
+    if (!sale || !entry || !Number.isInteger(quantity) || quantity < 1 || quantity > entry.available) {
+      showMessage("Selecione um item desta venda e informe uma quantidade válida.");
+      return;
+    }
+    const button = el("btnConfirmarDevolucaoInstrutor");
+    button.disabled = true;
+    button.textContent = "Registrando...";
+    try {
+      const { error } = await state.supabase.rpc("instructor_refund_sale_item", {
+        p_sale_item_id: itemId,
+        p_quantidade: quantity
+      });
+      if (error) throw error;
       closeInstructorModal("formDevolucaoInstrutor");
-      formResetInstructorRefund();
+      el("formDevolucaoInstrutor").reset();
+      state.refundSaleId = null;
       await loadOwnData();
-      showMessage("Devolução registrada. Todos os itens foram processados juntos e os valores atualizados.",false);
-    }catch(error){
-      console.error("Falha ao registrar devolução do instrutor:",error);
-      showMessage(error.message||"Não foi possível registrar a devolução. Nenhum item foi alterado.");
-    }finally{button.disabled=false;button.textContent="Confirmar devolução";}
-  }
-
-  function formResetInstructorRefund(){
-    el("formDevolucaoInstrutor").reset();
-    state.refundSaleId=null;
-    state.refundItems=[];
+      showMessage("Devolução registrada. O estorno financeiro e o saldo do aluno foram atualizados.", false);
+    } catch (error) {
+      console.error("Falha ao registrar devolução do instrutor:", error);
+      showMessage(error.message || "Não foi possível registrar a devolução. Confira as quantidades disponíveis.");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Confirmar devolução";
+    }
   }
 
   async function deleteInstructorSale(id) {
@@ -1917,125 +1923,6 @@
     saleStudent.innerHTML = '<option value="">Selecione um aluno</option>' + state.students.map(student => '<option value="' + escapeHtml(student.id) + '">' + escapeHtml(student.nome) + '</option>').join("");
     renderSales();
     updateLessonSelects();
-  }
-
-  async function loadInstructorQuotes() {
-    const host=el("listaOrcamentos");
-    if(!host)return;
-    host.innerHTML='<div class="empty-state">Carregando orçamentos...</div>';
-    const {data,error}=await state.supabase.from("sales_quotes").select("id,client_name,items,subtotal,discount_type,discount_value,discount,total,notes,created_at").eq("owner_id",state.user.id).order("created_at",{ascending:false});
-    if(error){console.error("Falha ao carregar orçamentos:",error);host.innerHTML='<div class="empty-state">Não foi possível carregar os orçamentos.</div>';return;}
-    state.quoteCache=data||[];
-    renderInstructorQuotes();
-  }
-
-  function renderInstructorQuotes() {
-    const host=el("listaOrcamentos");if(!host)return;
-    const term=String(el("buscaOrcamentos")?.value||"").trim().toLocaleLowerCase("pt-BR");
-    const rows=state.quoteCache.filter(q=>String(q.client_name||"").toLocaleLowerCase("pt-BR").includes(term));
-    host.innerHTML=rows.length?rows.map(q=>'<article class="quote-list-card"><div class="quote-list-main"><strong>'+escapeHtml(q.client_name)+'</strong><span>'+escapeHtml(formatDate(q.created_at))+' · '+(q.items||[]).length+' item(ns)</span><strong>'+currency(q.total)+'</strong></div><div class="quote-list-actions"><button type="button" class="button button-outline button-small" data-instructor-quote-open="'+escapeHtml(q.id)+'">Abrir</button><button type="button" class="button button-outline button-small" data-instructor-quote-print="'+escapeHtml(q.id)+'">PDF</button><button type="button" class="button button-danger button-small" data-instructor-quote-delete="'+escapeHtml(q.id)+'">Excluir</button><button type="button" class="button button-primary button-small" data-instructor-quote-convert="'+escapeHtml(q.id)+'">Enviar para venda</button></div></article>').join(""):'<div class="empty-state">Nenhum orçamento encontrado.</div>';
-  }
-
-  function openInstructorQuoteForm() {
-    const products=state.products.filter(p=>p.ativo!==false);
-    const fixed=[["aluguel_veiculo","Aluguel de Veículo",state.fixedItemPrices.aluguel],["cartao_moto_pista","Cartão Moto Pista",state.fixedItemPrices.cartao],["taxa_inscricao_detran","Taxa de inscrição (Detran)",state.fixedItemPrices.taxa_inscricao_detran],["taxa_legislacao_detran","Taxa de Legislação (Detran)",state.fixedItemPrices.taxa_legislacao_detran],["taxa_direcao_detran","Taxa de direção (Detran)",state.fixedItemPrices.taxa_direcao_detran],["exame_medico","Exame médico",state.fixedItemPrices.exame_medico],["exame_psicotecnico","Exame psicotécnico",state.fixedItemPrices.exame_psicotecnico]].filter(x=>Number(x[2])>0);
-    if(!products.length&&!fixed.length){showMessage("Cadastre produtos/serviços ou configure os preços antes de criar um orçamento.");return;}
-    const productOptions=products.map(p=>'<option value="'+escapeHtml(p.id)+'">'+escapeHtml(p.nome)+' — '+currency(p.preco)+'</option>').join("");
-    const fixedOptions=fixed.map(x=>'<option value="fixed:'+x[0]+'">'+escapeHtml(x[1])+' — '+currency(x[2])+'</option>').join("");
-    if(!el("formOrcamentoInstrutor")){
-      const form=document.createElement("form");form.id="formOrcamentoInstrutor";form.hidden=true;
-      form.innerHTML='<h4 style="display:none">Novo orçamento</h4><label>Nome do cliente</label><input name="clientName" required maxlength="160" placeholder="Nome da pessoa"><label>Produto ou serviço</label><select id="quoteProductInstrutor"><option value="">Selecione</option>'+productOptions+fixedOptions+'</select><label>Quantidade</label><input id="quoteQuantityInstrutor" type="number" min="1" step="1" value="1"><button id="quoteAddItemInstrutor" type="button" class="button button-outline">Adicionar item</button><div class="quote-editor-items"><h3>Itens do orçamento</h3><div id="quoteItemsInstrutor" class="list-container">Nenhum item adicionado.</div></div><label>Tipo de desconto</label><select id="quoteDiscountTypeInstrutor"><option value="valor">Valor fixo (R$)</option><option value="percentual">Percentual (%)</option></select><label>Desconto sobre serviços</label><input id="quoteDiscountInstrutor" type="number" min="0" step="0.01" value="0"><div class="sale-total-card"><span>TOTAL DO ORÇAMENTO</span><strong id="quoteTotalInstrutor">R$ 0,00</strong></div><label>Observações (opcional)</label><textarea name="notes" rows="2" maxlength="1000"></textarea><div class="modal-actions"><button type="button" class="button button-outline" data-instructor-quote-close>Cancelar</button><button type="submit" class="button button-primary">Salvar orçamento</button></div>';
-      document.body.appendChild(form);
-    }
-    const form=el("formOrcamentoInstrutor");form.reset();form.hidden=false;
-    el("quoteProductInstrutor").innerHTML='<option value="">Selecione</option>'+productOptions+fixedOptions;
-    el("quoteQuantityInstrutor").value="1";
-    const items=[];
-    const calc=()=>{
-      const gross=items.reduce((s,x)=>s+x.subtotal,0),services=items.filter(x=>x.tipo_item==="servico").reduce((s,x)=>s+x.subtotal,0),v=Number(el("quoteDiscountInstrutor").value||0);
-      let discount=0,valid=Number.isFinite(v)&&v>=0;
-      if(services<=0){if(v>0)valid=false;}else if(el("quoteDiscountTypeInstrutor").value==="percentual"){if(v>=100)valid=false;else discount=Math.round(services*v)/100;}else if(v>=services&&v>0)valid=false;else discount=Math.round(v*100)/100;
-      const total=Math.round((gross-discount)*100)/100;
-      el("quoteTotalInstrutor").textContent=valid?currency(total):"Desconto inválido";
-      return {gross,discount,total,valid};
-    };
-    const render=()=>{
-      el("quoteItemsInstrutor").innerHTML=items.length?items.map((x,i)=>'<div class="quote-editor-row"><div><strong>'+escapeHtml(x.descricao)+'</strong><small>'+x.quantidade+' × '+currency(x.preco_unitario)+'</small></div><strong>'+currency(x.subtotal)+'</strong><button type="button" class="button button-outline button-small" data-quote-remove-instrutor="'+i+'">Remover</button></div>').join(""):'<div class="empty-state">Nenhum item adicionado.</div>';
-      calc();
-    };
-    el("quoteAddItemInstrutor").onclick=()=>{
-      const val=el("quoteProductInstrutor").value,q=Number(el("quoteQuantityInstrutor").value),f=val.startsWith("fixed:")?fixed.find(x=>x[0]===val.slice(6)):null,p=products.find(x=>String(x.id)===val);
-      if((!f&&!p)||!Number.isInteger(q)||q<1){showMessage("Selecione um item e informe uma quantidade válida.");return;}
-      const type=f?"produto":(p.tipo||"servico"),price=f?Number(f[2]):Number(p.preco);
-      if(!Number.isFinite(price)||price<=0){showMessage("O item possui preço inválido.");return;}
-      const lessons=type==="servico"?q*Math.max(1,Number(p?.quantidade_aulas||1)):0;
-      items.push({product_id:f?null:p.id,fixed_item_key:f?.[0]||null,descricao:f?.[1]||p.nome,tipo_item:type,quantidade:q,preco_unitario:price,subtotal:Math.round(price*q*100)/100,aulas_contratadas:lessons});
-      el("quoteProductInstrutor").value="";el("quoteQuantityInstrutor").value="1";render();
-    };
-    el("quoteItemsInstrutor").onclick=e=>{const btn=e.target.closest("[data-quote-remove-instrutor]");if(btn){items.splice(Number(btn.dataset.quoteRemoveInstrutor),1);render();}};
-    el("quoteDiscountInstrutor").oninput=calc;el("quoteDiscountTypeInstrutor").onchange=calc;
-    form.onsubmit=async e=>{
-      e.preventDefault();const name=form.elements.clientName.value.trim(),r=calc(),button=form.querySelector('button[type="submit"]');
-      if(!name||!items.length||!r.valid||r.total<=0){showMessage("Informe o nome, adicione itens e confira o desconto.");return;}
-      button.disabled=true;button.textContent="Salvando...";
-      try{
-        const {error}=await state.supabase.from("sales_quotes").insert({owner_id:state.user.id,client_name:name,items,subtotal:r.gross,discount_type:el("quoteDiscountTypeInstrutor").value,discount_value:Number(el("quoteDiscountInstrutor").value||0),discount:r.discount,total:r.total,notes:form.elements.notes.value.trim()||null});
-        if(error)throw error;
-        closeInstructorModal("formOrcamentoInstrutor");await loadInstructorQuotes();showMessage("Orçamento salvo. Nenhuma venda ou movimentação financeira foi criada.",false);
-      }catch(error){console.error(error);showMessage(error.message||"Não foi possível salvar o orçamento.");}
-      finally{button.disabled=false;button.textContent="Salvar orçamento";}
-    };
-    form.querySelector("[data-instructor-quote-close]").onclick=()=>closeInstructorModal("formOrcamentoInstrutor");
-    openInstructorModal("formOrcamentoInstrutor");
-  }
-
-  function openInstructorQuoteDetails(id) {
-    const q=state.quoteCache.find(x=>x.id===id);if(!q)return;
-    const rows=(q.items||[]).map(x=>'<div class="quote-editor-row"><div><strong>'+escapeHtml(x.descricao)+'</strong><small>'+Number(x.quantidade)+' × '+currency(x.preco_unitario)+'</small></div><strong>'+currency(x.subtotal)+'</strong></div>').join("");
-    const form=document.createElement("form");form.id="formDetalhesQuoteInstrutor";form.hidden=true;
-    form.innerHTML='<h4 style="display:none">Orçamento</h4><strong>'+escapeHtml(q.client_name)+'</strong><p>'+escapeHtml(formatDate(q.created_at))+'</p><div class="quote-detail-items">'+rows+'</div><div class="quote-detail-totals"><div>Subtotal <strong>'+currency(q.subtotal)+'</strong></div><div>Desconto <strong>'+currency(q.discount)+'</strong></div><div class="quote-total-final">Total <strong>'+currency(q.total)+'</strong></div></div>'+(q.notes?'<p><strong>Observações:</strong> '+escapeHtml(q.notes)+'</p>':'')+'<div class="modal-actions"><button type="button" class="button button-outline" data-instructor-quote-close>Fechar</button><button type="button" class="button button-outline" data-instructor-quote-print="'+escapeHtml(q.id)+'">Imprimir / PDF</button><button type="button" class="button button-primary" data-instructor-quote-convert="'+escapeHtml(q.id)+'">Enviar para venda</button></div>';
-    document.body.appendChild(form);
-    form.querySelector("[data-instructor-quote-close]").onclick=()=>{closeInstructorModal(form.id);form.remove();};
-    form.querySelector("[data-instructor-quote-print]").onclick=()=>printInstructorQuote(q.id);
-    form.querySelector("[data-instructor-quote-convert]").onclick=()=>{closeInstructorModal(form.id);form.remove();convertInstructorQuote(q.id);};
-    openInstructorModal(form.id);
-  }
-
-  function printInstructorQuote(id) {
-    const q=state.quoteCache.find(x=>x.id===id);if(!q)return;
-    const win=window.open("","_blank");if(!win){showMessage("Permita a abertura da janela de impressão para gerar o PDF.");return;}
-    const esc=escapeHtml,rows=(q.items||[]).map(x=>'<tr><td>'+esc(x.descricao)+'</td><td>'+Number(x.quantidade)+'</td><td>'+currency(x.preco_unitario)+'</td><td>'+currency(x.subtotal)+'</td></tr>').join("");
-    const logo=state.logoUrl?'<img src="'+esc(state.logoUrl)+'" alt="Logomarca da conta">':"";
-    const creator=state.profile?.nome||state.user?.email||"Instrutor";
-    const html='<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Orçamento</title><style>body{font:14px Arial,sans-serif;color:#172033;margin:32px}header{display:flex;gap:18px;align-items:center;border-bottom:2px solid #12345a;padding-bottom:16px}img{max-width:150px;max-height:70px;object-fit:contain}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{padding:10px;border-bottom:1px solid #d9e0e8;text-align:left}th{background:#eef3f8}.totais{margin:24px 0 0 auto;width:260px}.totais div{display:flex;justify-content:space-between;padding:6px}.total{font-size:20px;font-weight:bold;border-top:2px solid #12345a}</style></head><body><header>'+logo+'<div><h1>ORÇAMENTO</h1><p>Proposta para: <strong>'+esc(q.client_name)+'</strong><br>Data: '+new Date(q.created_at).toLocaleDateString("pt-BR")+'<br>Responsável: <strong>'+esc(creator)+'</strong></p></div></header><table><thead><tr><th>Descrição</th><th>Qtd.</th><th>Valor unitário</th><th>Subtotal</th></tr></thead><tbody>'+rows+'</tbody></table><div class="totais"><div>Subtotal <strong>'+currency(q.subtotal)+'</strong></div><div>Desconto <strong>'+currency(q.discount)+'</strong></div><div class="total">Total <strong>'+currency(q.total)+'</strong></div></div>'+(q.notes?'<p><strong>Observações:</strong> '+esc(q.notes)+'</p>':'')+'<script>window.onload=function(){window.print();};</script></body></html>';
-    win.document.write(html);win.document.close();
-  }
-
-  async function deleteInstructorQuote(id) {
-    if(!await confirmAction("Deseja excluir este orçamento? Esta ação não afeta vendas nem o financeiro."))return;
-    const {error}=await state.supabase.from("sales_quotes").delete().eq("id",id).eq("owner_id",state.user.id);
-    if(error){showMessage(error.message||"Não foi possível excluir o orçamento.");return;}
-    await loadInstructorQuotes();showMessage("Orçamento excluído.",false);
-  }
-
-  async function convertInstructorQuote(id) {
-    const q=state.quoteCache.find(x=>x.id===id);if(!q)return;
-    const form=document.createElement("form");form.id="formConverterQuoteInstrutor";form.hidden=true;
-    form.innerHTML='<h4 style="display:none">Enviar orçamento para venda</h4><p>Cliente: <strong>'+escapeHtml(q.client_name)+'</strong><br>Total: <strong>'+currency(q.total)+'</strong></p><label>Vincular a aluno já cadastrado (opcional)</label><select name="studentId"><option value="">Cadastrar cliente ao confirmar a venda</option>'+state.students.map(s=>'<option value="'+escapeHtml(s.id)+'">'+escapeHtml(s.nome)+'</option>').join("")+'</select><label>Forma de pagamento</label><select name="payment" required><option value="">Selecione</option><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência bancária</option><option>Outro</option></select><div class="modal-actions"><button type="button" class="button button-outline" data-instructor-quote-close>Cancelar</button><button type="submit" class="button button-primary">Confirmar venda e lançar no financeiro</button></div>';
-    document.body.appendChild(form);
-    form.querySelector("[data-instructor-quote-close]").onclick=()=>{closeInstructorModal(form.id);form.remove();};
-    form.onsubmit=async e=>{
-      e.preventDefault();const button=form.querySelector('button[type="submit"]');if(!form.elements.payment.value){showMessage("Selecione a forma de pagamento.");return;}
-      button.disabled=true;button.textContent="Registrando venda...";
-      try{
-        const {data,error}=await state.supabase.rpc("convert_sales_quote_to_sale",{p_quote_id:q.id,p_sale_id:crypto.randomUUID(),p_student_id:form.elements.studentId.value||null,p_payment_method:form.elements.payment.value});
-        if(error)throw error;
-        closeInstructorModal(form.id);form.remove();await loadOwnData();await loadInstructorQuotes();
-        showMessage("Venda confirmada e lançada no financeiro: "+currency(data?.total??q.total)+".",false);
-      }catch(error){console.error(error);showMessage(error.message||"Não foi possível converter o orçamento.");}
-      finally{button.disabled=false;button.textContent="Confirmar venda e lançar no financeiro";}
-    };
-    openInstructorModal(form.id);
   }
 
   function resetStudentForm() {
@@ -2618,23 +2505,10 @@
         button.classList.toggle("active", active);
       });
       window.scrollTo({ top: 0, behavior: "smooth" });
-      if (page === "orcamentos") loadInstructorQuotes();
     }
 
     document.querySelectorAll("[data-instructor-page]").forEach(button => {
       button.addEventListener("click", () => navigateInstructorPage(button.dataset.instructorPage));
-    });
-    el("btnNovoOrcamento")?.addEventListener("click", openInstructorQuoteForm);
-    el("buscaOrcamentos")?.addEventListener("input", renderInstructorQuotes);
-    el("listaOrcamentos")?.addEventListener("click", event => {
-      const open=event.target.closest("[data-instructor-quote-open]");
-      const print=event.target.closest("[data-instructor-quote-print]");
-      const del=event.target.closest("[data-instructor-quote-delete]");
-      const convert=event.target.closest("[data-instructor-quote-convert]");
-      if(open)openInstructorQuoteDetails(open.dataset.instructorQuoteOpen);
-      else if(print)printInstructorQuote(print.dataset.instructorQuotePrint);
-      else if(del)deleteInstructorQuote(del.dataset.instructorQuoteDelete);
-      else if(convert)convertInstructorQuote(convert.dataset.instructorQuoteConvert);
     });
     navigateInstructorPage("inicio");
 
