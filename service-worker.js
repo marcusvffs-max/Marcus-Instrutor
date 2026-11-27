@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "central-instrutor-v47-invite-install-flow-20261127-1";
+const CACHE_NAME = "central-instrutor-v48-partner-notifications-20261127-1";
 
 const ARQUIVOS = [
   "./",
@@ -14,8 +14,8 @@ const ARQUIVOS = [
   "./admin-visual.css?v=admin-visual-1",
   "./exames-alugueis.js?v=exam-search-phone-sync-1",
   "./instrutor.css?v=central-logo-1",
-  "./instrutor.js?v=unified-fixed-items-6",
-  "./script.js?v=central-correcoes-20261127-3",
+  "./instrutor.js?v=unified-fixed-items-7",
+  "./script.js?v=central-correcoes-20261127-4",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
