@@ -1937,3 +1937,8 @@ body.autenticado .login-screen {
 .student-detail-card p strong{font-size:.78rem;color:var(--muted,#64748b);font-weight:600}
 .student-detail-card p span{overflow-wrap:anywhere}
 @media(max-width:560px){.student-detail-grid{grid-template-columns:1fr}}
+
+
+/* Confirmações devem ficar acima de listas, históricos e modais */
+#modalContainer{position:relative;z-index:30000!important}
+#modalContainer>.modal-overlay{position:fixed!important;z-index:30001!important;inset:0!important}
