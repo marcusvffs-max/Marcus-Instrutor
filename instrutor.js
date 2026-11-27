@@ -35,7 +35,8 @@
     lessonSearch: "",
     lessonStatusFilter: "",
     logoUrl: "",
-    contractorProfile: null
+    contractorProfile: null,
+    quoteCache: []
   };
 
   function escapeHtml(value) {
@@ -1262,7 +1263,7 @@
       state.supabase.from("products").select("id,nome,tipo,descricao,preco,quantidade_aulas,ativo").eq("owner_id", state.user.id).order("nome", { ascending: true }),
       state.supabase.from("sales").select("id,student_id,data_venda,total,forma_pagamento,status,observacoes,created_at").eq("owner_id", state.user.id).order("data_venda", { ascending: false }).order("created_at", { ascending: false }),
       state.supabase.from("sale_items").select("id,sale_id,descricao,quantidade,tipo_item,aulas_contratadas,aulas_devolvidas,valor_por_aula,valor_liquido,valor_devolvido,quantidade_devolvida,subtotal,valor_unitario,fixed_item_key").eq("owner_id", state.user.id),
-      state.supabase.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco").eq("owner_id", state.user.id).maybeSingle(),
+      state.supabase.from("app_settings").select("aluguel_veiculo_preco,cartao_moto_pista_preco,taxa_inscricao_detran_preco,taxa_legislacao_detran_preco,taxa_direcao_detran_preco,exame_medico_preco,exame_psicotecnico_preco").eq("owner_id", state.user.id).maybeSingle(),
       state.supabase.from("student_rental_credits").select("sale_item_id,quantity_purchased,quantity_refunded,quantity_consumed")
     ]);
     if (productsResult.error) throw productsResult.error;
@@ -1290,7 +1291,15 @@
           : rentalCreditLedgerMissing ? fallback : 0;
         return [item.id, available];
       }));
-    state.fixedItemPrices = { aluguel:Number(fixedPricesResult.data?.aluguel_veiculo_preco||0), cartao:Number(fixedPricesResult.data?.cartao_moto_pista_preco||0) };
+    state.fixedItemPrices = {
+      aluguel:Number(fixedPricesResult.data?.aluguel_veiculo_preco||0),
+      cartao:Number(fixedPricesResult.data?.cartao_moto_pista_preco||0),
+      taxa_inscricao_detran:Number(fixedPricesResult.data?.taxa_inscricao_detran_preco||0),
+      taxa_legislacao_detran:Number(fixedPricesResult.data?.taxa_legislacao_detran_preco||0),
+      taxa_direcao_detran:Number(fixedPricesResult.data?.taxa_direcao_detran_preco||0),
+      exame_medico:Number(fixedPricesResult.data?.exame_medico_preco||0),
+      exame_psicotecnico:Number(fixedPricesResult.data?.exame_psicotecnico_preco||0)
+    };
     const aluguelInput=el("precoAluguelFixoInstrutor"),cartaoInput=el("precoCartaoFixoInstrutor");
     if(aluguelInput)aluguelInput.value=state.fixedItemPrices.aluguel.toFixed(2);
     if(cartaoInput)cartaoInput.value=state.fixedItemPrices.cartao.toFixed(2);
