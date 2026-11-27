@@ -551,7 +551,7 @@
         }
 
         window.addEventListener("load", function () {
-          navigator.serviceWorker.register("./service-worker.js?v=central-auto-update-20261127-4", { updateViaCache: "none" })
+          navigator.serviceWorker.register("./service-worker.js?v=central-auto-update-20261127-5", { updateViaCache: "none" })
             .then(function (registro) {
               conferirAtualizacao(registro);
               window.addEventListener("focus", function () {
@@ -612,7 +612,7 @@
       }
       async function carregarPainelInstrutor() {
         if (painelAdminCarregado) return;
-        await carregarScript("script.js?v=central-correcoes-20261127-3");
+        await carregarScript("script.js?v=central-correcoes-20261127-4");
 await carregarScript("contratante-perfil.js?v=2-cellphone");
 await carregarScript("contratos.js?v=confirm-native-toplayer-1");
 await carregarScript("exames-alugueis.js?v=exam-search-phone-sync-1");
