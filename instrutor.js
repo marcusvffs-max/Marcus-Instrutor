@@ -2469,7 +2469,20 @@
       openInstructorModal("formVenda");
       el("vendaAluno").focus();
     });
-    el("btnAdicionarItemVenda").addEventListener("click", addSaleCartItem);
+    const addItemButton = el("btnAdicionarItemVenda");
+    addItemButton.addEventListener("click", addSaleCartItem);
+    if (addItemButton) {
+      addItemButton.classList.add("button-add-item-highlight");
+      addItemButton.textContent = "＋ Adicionar item";
+      addItemButton.style.cssText = "display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:50px;margin:12px 0 6px;padding:13px 18px;border:2px solid #12345a;border-radius:12px;background:#12345a;color:#fff;font-size:1rem;font-weight:800;letter-spacing:.2px;box-shadow:0 5px 0 rgba(18,52,90,.18),0 8px 18px rgba(18,52,90,.18);cursor:pointer";
+      if (!addItemButton.nextElementSibling?.classList.contains("add-item-guidance")) {
+        const hint = document.createElement("p");
+        hint.className = "add-item-guidance";
+        hint.textContent = "Depois de escolher o produto ou serviço e a quantidade, toque aqui para incluí-lo na venda.";
+        hint.style.cssText = "margin:0 0 12px;color:#40566d;font-size:.86rem;font-weight:600;line-height:1.4";
+        addItemButton.insertAdjacentElement("afterend", hint);
+      }
+    }
     el("btnSalvarPrecosFixosInstrutor")?.addEventListener("click", saveFixedItemPrices);
     el("itensCarrinhoVenda").addEventListener("click", event => {
       const button = event.target.closest("[data-cart-remove]");
