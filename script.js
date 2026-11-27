@@ -2459,7 +2459,13 @@ async function imprimirOrcamento(id){
    DEVOLUÇÕES
 ========================================= */
 
-function abrirDevolucao() {
+async function abrirDevolucao() {
+  const clienteResponsavel = window.getMarcusSupabase?.();
+  let nomeResponsavel = "Conta responsável";
+  if (clienteResponsavel && adminSupabaseUserId) {
+    const {data:perfilResponsavel} = await clienteResponsavel.from("profiles").select("nome").eq("id",adminSupabaseUserId).maybeSingle();
+    nomeResponsavel = perfilResponsavel?.nome || "Conta responsável";
+  }
   const vendasDisponiveis = db.vendas.map(venda => {
     const aluno = db.alunos.find(item => String(item.id) === String(venda.alunoId));
     const itens = (venda.itens || []).map(item => {
