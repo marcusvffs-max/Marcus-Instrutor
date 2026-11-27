@@ -59,7 +59,7 @@ Deno.serve(async (req: Request) => {
       const cpf = typeof body.cpf === "string" ? body.cpf.trim() : null;
       const endereco = typeof body.endereco === "string" ? body.endereco.trim() : null;
       const categoria = typeof body.categoria === "string" ? body.categoria.trim() : null;
-      if (nome.length < 2 || nome.length > 160 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254 ||
+      if (nome.length < 2 || nome.length > 160 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
           (telefone && telefone.length > 40) || (cpf && cpf.length > 20) || (endereco && endereco.length > 300) ||
           (categoria && !["A","B","AB","C","D","E"].includes(categoria))) {
         return response({ error: "Confira o nome, telefone, CPF, endereço e categoria do aluno." }, 400);
