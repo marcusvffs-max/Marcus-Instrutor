@@ -181,7 +181,7 @@ Deno.serve(async (req: Request) => {
         if (existingError) throw existingError;
         if (!existingAdminQuote) {
           const { data: partnerItems, error: itemsError } = await db.from("partner_quote_items")
-            .select("descricao,quantidade,valor_unitario,subtotal").eq("owner_id", ownerId).eq("quote_id", quote.id);
+            .select("product_id,descricao,tipo_item,quantidade,valor_unitario,subtotal,aulas_contratadas").eq("owner_id", ownerId).eq("quote_id", quote.id).order("created_at", { ascending: true });
           if (itemsError) throw itemsError;
           const discount = Number(quote.desconto || 0);
           const notes = [
@@ -192,10 +192,14 @@ Deno.serve(async (req: Request) => {
             owner_id: ownerId,
             client_name: referralNameForQuote,
             items: (partnerItems || []).map((item: any) => ({
+              product_id: item.product_id,
+              fixed_item_key: null,
               descricao: item.descricao,
+              tipo_item: item.tipo_item,
               quantidade: Number(item.quantidade || 0),
               preco_unitario: Number(item.valor_unitario || 0),
-              subtotal: Number(item.subtotal || 0)
+              subtotal: Number(item.subtotal || 0),
+              aulas_contratadas: Number(item.aulas_contratadas || 0)
             })),
             subtotal: Number(quote.subtotal || 0),
             discount_type: "valor",
