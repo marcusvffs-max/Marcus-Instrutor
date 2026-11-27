@@ -54,19 +54,20 @@ Deno.serve(async (req: Request) => {
 
     if (body.action === "create_student") {
       const nome = typeof body.nome === "string" ? body.nome.trim() : "";
+      const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
       const telefone = typeof body.telefone === "string" ? body.telefone.trim() : null;
       const cpf = typeof body.cpf === "string" ? body.cpf.trim() : null;
       const endereco = typeof body.endereco === "string" ? body.endereco.trim() : null;
       const categoria = typeof body.categoria === "string" ? body.categoria.trim() : null;
-      if (nome.length < 2 || nome.length > 160 || (telefone && telefone.length > 40) ||
-          (cpf && cpf.length > 20) || (endereco && endereco.length > 300) ||
+      if (nome.length < 2 || nome.length > 160 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 254 ||
+          (telefone && telefone.length > 40) || (cpf && cpf.length > 20) || (endereco && endereco.length > 300) ||
           (categoria && !["A","B","AB","C","D","E"].includes(categoria))) {
         return response({ error: "Confira o nome, telefone, CPF, endereço e categoria do aluno." }, 400);
       }
       const { data, error } = await db.from("partner_students").insert({
-        owner_id: partner.owner_id, partner_id: partner.id, nome, telefone, cpf, endereco, categoria,
+        owner_id: partner.owner_id, partner_id: partner.id, nome, email, telefone, cpf, endereco, categoria,
         status: "pendente_aprovacao",
-      }).select("id,nome,telefone,cpf,endereco,categoria,status,created_at").single();
+      }).select("id,nome,email,telefone,cpf,endereco,categoria,status,created_at").single();
       if (error) throw error;
       return response({ ok: true, student: data, message: "Aluno enviado ao administrador para aprovação." });
     }
@@ -150,7 +151,7 @@ Deno.serve(async (req: Request) => {
     const [studentsResult, referralsResult, quotesResult, commissionsResult, payoutsResult, recipientsResult, productsResult] = await Promise.all([
       db.from("students").select("id,nome,categoria,status,created_at")
         .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).order("nome"),
-      db.from("partner_students").select("id,nome,telefone,cpf,categoria,status,student_id,created_at")
+      db.from("partner_students").select("id,nome,email,telefone,cpf,categoria,status,student_id,created_at")
         .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).order("created_at", { ascending: false }),
       db.from("partner_quotes").select("id,partner_student_id,status,total,created_at,observacoes")
         .eq("owner_id", partner.owner_id).eq("partner_id", partner.id).order("created_at", { ascending: false }),
