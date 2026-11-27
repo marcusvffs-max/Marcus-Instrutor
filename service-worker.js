@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "central-instrutor-v46-auto-update-20261127-2";
+const CACHE_NAME = "central-instrutor-v46-auto-update-20261127-3";
 
 const ARQUIVOS = [
   "./",
