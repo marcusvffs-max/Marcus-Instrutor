@@ -575,11 +575,9 @@
   <script>
     (function () {
       "use strict";
-      const hostPreview = window.location.hostname;
-      const USAR_SUPABASE_QA = hostPreview === "marcusinstrutor-git-qa-production-readin-52425c-marcusvffs-2839.vercel.app" || hostPreview === "marcusinstrutor-git-feature-acessos-alun-ffc22b-marcusvffs-2839.vercel.app" ||
-    hostPreview === "marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839.vercel.app" || /^marcusinstrutor-[a-z0-9]{9}-marcusvffs-2839\.vercel\.app$/.test(hostPreview);
-      const SUPABASE_URL = USAR_SUPABASE_QA ? "https://voyjssflroiwdyaacthh.supabase.co" : "https://ydyqagqsuqntuibzgwzd.supabase.co";
-      const SUPABASE_PUBLISHABLE_KEY = USAR_SUPABASE_QA ? "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9" : "sb_publishable_hgqXLoA9BQvZy0L3dEEJ-A_WfoUq7tU";
+      // O aplicativo oficial usa sempre o projeto Supabase atual do Central do Instrutor.
+      const SUPABASE_URL = "https://voyjssflroiwdyaacthh.supabase.co";
+      const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_YpDyl5xJknD9NJ-i2fDn9Q_F4jjkLm9";
       const formularioLogin = document.getElementById("formLogin");
       const campoEmail = document.getElementById("loginEmail");
       const campoSenha = document.getElementById("loginSenha");
