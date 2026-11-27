@@ -9,7 +9,7 @@ const ARQUIVOS = [
   "./central-app-icon.svg",
   "./instrutor.html",
   "./parceiro.html",
-  "./parceiro.js?v=partner-portal-11",
+  "./parceiro.js?v=partner-portal-13",
   "./style.css?v=central-logo-2",
   "./admin-visual.css?v=admin-visual-1",
   "./exames-alugueis.js?v=exam-search-phone-sync-1",
