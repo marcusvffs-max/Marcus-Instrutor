@@ -7,6 +7,8 @@ const edge = read("../supabase/functions/admin-manage-instructors/index.ts");
 const migration = read("../supabase/migrations/20261121120000_student_account_link.sql");
 const rules = read("../supabase/functions/_shared/student-link-rules.mjs");
 const claim = read("../claim-student.html");
+const claimAccess = read("../claim-access.html");
+const installPage = read("../instalar.html");
 const studentPortal = read("../usuario.js");
 const docs = read("../docs/TESTE-CONVITE-VINCULO-ALUNO.md");
 
@@ -15,7 +17,7 @@ test("reserva usa timestamp capturado sem referência fora do escopo", () => {
   assert.match(edge, /studentInvitePreviousInvitedAt = student\.invited_at \?\? null;/);
   const reservation = edge.slice(
     edge.indexOf("if (isStudentInvite && studentInviteId && !studentRecoveryUserId)"),
-    edge.indexOf("const { data: linkData")
+    edge.indexOf("const inviteRedirect")
   );
   assert.match(reservation, /\.eq\("invited_at", studentInvitePreviousInvitedAt\)/);
   assert.doesNotMatch(reservation, /student\.invited_at/);
@@ -81,7 +83,7 @@ test("fluxo de conta antiga não altera perfil antes do clique do titular", () =
 test("página de confirmação exige sessão e chama a ação autenticada", () => {
   assert.match(claim, /client\.auth\.getSession\(\)/);
   assert.match(claim, /action: "complete_student_link"/);
-  assert.match(claim, /window\.location\.replace\("usuario\.html"\)/);
+  assert.match(claim, /window\.location\.replace\("\/instalar\.html\?perfil=aluno"\)/);
   assert.match(claim, /const usarSupabaseQa =/);
   assert.match(claim, /voyjssflroiwdyaacthh\.supabase\.co/);
   assert.match(studentPortal, /marcusinstrutor-git-feature-relatorios-i-bc78ff-marcusvffs-2839\.vercel\.app/);
@@ -723,4 +725,25 @@ test("respostas automáticas entregues durante a pausa não entram no histórico
 test("primeira mensagem após expirar a pausa inicia um novo ciclo", () => {
   assert.match(whatsappWebhook, /previousPauseUntil <= Date\.now\(\)/);
   assert.match(whatsappWebhook, /Expired WhatsApp pause cycle creation failed/);
+});
+
+
+test("convites de aluno usam o envio nativo do Supabase Auth sem depender de SMTP próprio", () => {
+  const start = edge.indexOf("const inviteRedirect");
+  const end = edge.indexOf("// Para conta legada", start);
+  assert.ok(start >= 0 && end > start);
+  const inviteFlow = edge.slice(start, end);
+  assert.match(inviteFlow, /admin\.auth\.admin\.inviteUserByEmail/);
+  assert.match(inviteFlow, /admin\.auth\.resetPasswordForEmail/);
+  assert.match(inviteFlow, /redirectTo: inviteRedirect/);
+  assert.doesNotMatch(inviteFlow, /SMTP_HOST|sendMail|generateLink/);
+});
+
+test("aluno e parceiro salvam senha e seguem para a tela de instalação", () => {
+  assert.match(claimAccess, /client\.auth\.updateUser\(\{password\}\)/);
+  assert.match(claimAccess, /location\.replace\(INSTALL_URL/);
+  assert.doesNotMatch(claimAccess, /SITE_URL|central-do-instrutor\.pages\.dev/);
+  assert.match(installPage, /appinstalled/);
+  assert.match(installPage, /window\.close\(\)/);
+  assert.match(installPage, /Aguardando instalação/);
 });
