@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "central-instrutor-v44-install-flow-2";
+const CACHE_NAME = "central-instrutor-v45-auto-update-20261127-1";
 
 const ARQUIVOS = [
   "./",
@@ -10,12 +10,12 @@ const ARQUIVOS = [
   "./instrutor.html",
   "./parceiro.html",
   "./parceiro.js?v=partner-portal-11",
-  "./style.css?v=central-logo-1",
+  "./style.css?v=central-logo-2",
   "./admin-visual.css?v=admin-visual-1",
-  "./exames-alugueis.js?v=confirm-modal-green-3",
+  "./exames-alugueis.js?v=exam-search-phone-sync-1",
   "./instrutor.css?v=central-logo-1",
   "./instrutor.js?v=unified-fixed-items-5",
-  "./script.js?v=confirm-modal-green-3",
+  "./script.js?v=central-correcoes-20261127-2",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
@@ -33,32 +33,28 @@ const ARQUIVOS_ADMINISTRATIVOS = [
 
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache =>
-      Promise.all(
+    caches.open(CACHE_NAME)
+      .then(cache => Promise.all(
         ARQUIVOS.map(arquivo =>
           cache.add(arquivo).catch(erro => {
             console.warn("Erro no cache:", arquivo, erro);
           })
         )
-      )
-    )
+      ))
+      .then(() => self.skipWaiting())
   );
-
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys().then(chaves =>
-      Promise.all(
+    caches.keys()
+      .then(chaves => Promise.all(
         chaves
-          .filter(chave => chave !== CACHE_NAME)
+          .filter(chave => chave.startsWith("central-instrutor-") && chave !== CACHE_NAME)
           .map(chave => caches.delete(chave))
-      )
-    )
+      ))
+      .then(() => self.clients.claim())
   );
-
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", event => {
