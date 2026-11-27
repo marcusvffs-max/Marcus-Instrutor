@@ -551,7 +551,7 @@
         }
 
         window.addEventListener("load", function () {
-          navigator.serviceWorker.register("./service-worker.js?v=central-auto-update-20261127-2", { updateViaCache: "none" })
+          navigator.serviceWorker.register("./service-worker.js?v=central-auto-update-20261127-4", { updateViaCache: "none" })
             .then(function (registro) {
               conferirAtualizacao(registro);
               window.addEventListener("focus", function () {
