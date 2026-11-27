@@ -2092,11 +2092,13 @@ async function abrirVenda() {
   abrirModal(`
     <h2>Nova venda</h2>
     <form id="formVenda">
-      <label>Aluno</label>
-      <select name="alunoId" required>
+      <label for="buscaClienteVenda">Pesquisar cliente/aluno</label>
+      <input id="buscaClienteVenda" type="search" class="search-input" placeholder="Digite o nome do aluno" autocomplete="off">
+      <label for="alunoVendaSelect">Aluno</label>
+      <select id="alunoVendaSelect" name="alunoId" required>
         <option value="">Selecione</option>
         ${db.alunos.map(a =>
-          `<option value="${a.id}">${escapar(a.nome)}</option>`
+          `<option value="${a.id}" data-nome-aluno="${escapar(a.nome)}">${escapar(a.nome)}</option>`
         ).join("")}
       </select>
 
@@ -2164,6 +2166,17 @@ async function abrirVenda() {
   `);
 
   const formulario = document.getElementById("formVenda");
+  const buscaClienteVenda = document.getElementById("buscaClienteVenda");
+  const alunoVendaSelect = document.getElementById("alunoVendaSelect");
+  buscaClienteVenda?.addEventListener("input", () => {
+    const termo = buscaClienteVenda.value.trim().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR");
+    [...alunoVendaSelect.options].forEach(option => {
+      if (!option.value) { option.hidden = false; return; }
+      const nome = String(option.dataset.nomeAluno || option.textContent).normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR");
+      option.hidden = !nome.includes(termo);
+    });
+    if (alunoVendaSelect.selectedOptions[0]?.hidden) alunoVendaSelect.value = "";
+  });
   const campoProduto = document.getElementById("produtoVenda");
   const campoQuantidade = document.getElementById("quantidadeVenda");
   const campoTipoDesconto = document.getElementById("tipoDescontoVenda");
