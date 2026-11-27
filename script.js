@@ -788,24 +788,31 @@ function abrirDetalhesAluno(id) {
   const acesso = aluno.user_id ? "Conta vinculada" : aluno.invited_at ? "Convite enviado ou aguardando confirmação" : "Ainda não convidado";
   abrirModal(`
     <h2>${escapar(aluno.nome)}</h2>
-    <div class="record-info">
-      <p><strong>E-mail:</strong> ${escapar(aluno.email || "Não informado")}</p>
-      <p><strong>Telefone:</strong> ${escapar(aluno.telefone || "Não informado")}</p>
-      <p><strong>CPF:</strong> ${escapar(aluno.cpf || "Não informado")}</p>
-      <p><strong>Endereço:</strong> ${escapar(aluno.endereco || "Não informado")}</p>
-      <p><strong>Categoria:</strong> ${escapar(aluno.categoria || "Não informada")}</p>
-      <p><strong>Situação:</strong> ${escapar(aluno.situacao || "Em aberto")}</p>
-      <p><strong>Aulas contratadas:</strong> ${Number(aluno.contratadas || 0)}</p>
-      <p><strong>Aulas restantes:</strong> ${Number(aluno.saldo || 0)}</p>
-      <p><strong>Aluguéis disponíveis:</strong> ${Number(aluno.alugueisDisponiveis || 0)} de ${Number(aluno.alugueisComprados || 0)} comprados</p>
-      <p><strong>Acesso do aluno:</strong> ${escapar(acesso)}</p>
+    <div class="student-detail-grid">
+      <section class="student-detail-card"><h3>Dados pessoais</h3>
+        <p><strong>CPF</strong><span>${escapar(aluno.cpf || "Não informado")}</span></p>
+        <p><strong>Categoria</strong><span>${escapar(aluno.categoria || "Não informada")}</span></p>
+        <p><strong>Situação</strong><span>${escapar(aluno.situacao || "Em aberto")}</span></p>
+      </section>
+      <section class="student-detail-card"><h3>Contatos e endereço</h3>
+        <p><strong>E-mail</strong><span>${escapar(aluno.email || "Não informado")}</span></p>
+        <p><strong>Telefone</strong><span>${escapar(aluno.telefone || "Não informado")}</span></p>
+        <p><strong>Endereço</strong><span>${escapar(aluno.endereco || "Não informado")}</span></p>
+      </section>
+      <section class="student-detail-card"><h3>Aulas e habilitação</h3>
+        <p><strong>Aulas contratadas</strong><span>${Number(aluno.contratadas || 0)}</span></p>
+        <p><strong>Aulas restantes</strong><span>${Number(aluno.saldo || 0)}</span></p>
+        <p><strong>Aluguéis disponíveis</strong><span>${Number(aluno.alugueisDisponiveis || 0)} de ${Number(aluno.alugueisComprados || 0)} comprados</span></p>
+      </section>
+      <section class="student-detail-card"><h3>Conta e acesso</h3>
+        <p><strong>Acesso do aluno</strong><span>${escapar(acesso)}</span></p>
+      </section>
     </div>
     <div class="record-actions">
       ${aluno.email ? `<button type="button" data-invite-aluno="${escapar(aluno.id)}">${aluno.user_id ? "Reenviar acesso" : aluno.invited_at ? "Reenviar convite" : "Enviar convite"}</button>` : ""}
       <button type="button" data-open-student-exams="${escapar(aluno.id)}">Exames</button>
       <button type="button" data-edit-aluno="${escapar(aluno.id)}">Editar</button>
       <button type="button" data-delete-aluno="${escapar(aluno.id)}">Excluir</button>
-      <button type="button" class="secondary-button" data-close>Fechar</button>
     </div>
   `);
 }
