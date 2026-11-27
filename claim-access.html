@@ -65,14 +65,13 @@
       if(password!==confirmation){say("As senhas não coincidem. Confira os dois campos.",true);return}
       button.disabled=true;say("Salvando sua senha…");
       try{
-        const {error:updateError}=await client.auth.updateUser({password});
-        if(updateError)throw updateError;
         if(role==="aluno"&&attemptId){
           const {data:linked,error:linkError}=await client.functions.invoke("admin-manage-instructors",{body:{action:"complete_student_link",attempt_id:attemptId}});
           if(linkError){let msg=linkError.message;try{const details=await linkError.context?.json?.();if(details?.error)msg=details.error}catch(_){}throw new Error(msg)}
           if(!linked?.ok)throw new Error(linked?.error||"Não foi possível concluir o vínculo do aluno.");
         }
-        await client.auth.signOut({scope:"local"});
+        const {error:updateError}=await client.auth.updateUser({password});
+        if(updateError)throw updateError;
         say("Senha salva! Abrindo a tela de instalação do aplicativo…");
         location.replace(INSTALL_URL+"?perfil="+encodeURIComponent(role));
       }catch(error){console.error(error);say(error.message||"Não foi possível salvar sua senha. Tente novamente.",true);button.disabled=false}
