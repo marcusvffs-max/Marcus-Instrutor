@@ -205,7 +205,7 @@
           inviteButton.disabled = true;
           inviteButton.textContent = "Enviando convite…";
           try {
-            const result = await invoke("invite", { partner_id: partner.id });
+            const result = await invoke("invite_existing", { partner_id: partner.id });
             say(result.message || "Convite enviado.");
             await loadPartners();
           } catch (error) {
@@ -266,7 +266,7 @@
     button.disabled = true;
     button.textContent = "Salvando…";
     try {
-      const result = await invoke("invite", {
+      const result = await invoke("create", {
         nome: $("novoParceiroNome").value,
         email: $("novoParceiroEmail").value,
         telefone: $("novoParceiroTelefone").value,
@@ -281,6 +281,7 @@
       $("novaComissaoParceiro").value = "5";
       closeModal("modalCadastroParceiro");
       say(result.message || "Parceiro cadastrado com sucesso.");
+      window.mostrarAviso?.(result.message || "Parceiro cadastrado com sucesso.");
       await loadPartners();
     } catch (error) { say(error.message, true); }
     finally { button.disabled = false; button.textContent = "Salvar parceiro"; }
