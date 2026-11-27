@@ -1683,7 +1683,7 @@ function listarMovimentacoes() {
     const possuiAluguel = (venda?.itens || []).some(item => item.fixedItemKey === "aluguel_veiculo");
     const acao = venda && itens.some(item => item.tipo === "entrada")
       ? `<button type="button" class="secondary-button finance-action" data-print-sale="${escapar(venda.id)}">Imprimir recibo</button>
-         ${!possuiAluguel ? `<button type="button" class="secondary-button finance-action" data-delete-venda="${escapar(venda.id)}">Excluir venda</button>` : ""}`
+         <button type="button" class="secondary-button finance-action" data-delete-venda="${escapar(venda.id)}">Excluir venda</button>`
       : "";
     return {
       data: venda?.createdAt || venda?.data || dataMaisRecente,
