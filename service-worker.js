@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "central-instrutor-v51-refund-batch-20261127-1";
+const CACHE_NAME = "central-instrutor-v52-refund-sale-search-20261127-1";
 
 const ARQUIVOS = [
   "./",
