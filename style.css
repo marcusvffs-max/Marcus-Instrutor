@@ -1956,3 +1956,7 @@ body.autenticado .login-screen {
 .refund-sale-choice-main>span{font-size:.85rem;color:var(--muted,#64748b);overflow-wrap:anywhere}
 .refund-sale-choice>button{flex:0 0 auto;min-width:112px}
 @media(max-width:560px){.refund-sale-choice{align-items:stretch;flex-direction:column}.refund-sale-choice>button{width:100%}}
+
+.student-finance-history{display:grid;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border-color,#e2e8f0)}
+.student-finance-history p{padding:6px 0;border-bottom:1px solid var(--border-color,#eef2f6)}
+.student-finance-history p:last-child{border-bottom:0}
