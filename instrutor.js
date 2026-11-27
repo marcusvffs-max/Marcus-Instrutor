@@ -2466,6 +2466,26 @@
       el("formVenda").reset();
       state.saleCart = [];
       renderSaleCart();
+      const studentSelect = el("vendaAluno");
+      if (studentSelect && !el("buscaClienteVendaInstrutor")) {
+        const search = document.createElement("input");
+        search.id = "buscaClienteVendaInstrutor";
+        search.type = "search";
+        search.className = "search-input";
+        search.placeholder = "Pesquisar cliente/aluno pelo nome";
+        search.setAttribute("aria-label", "Pesquisar cliente/aluno pelo nome");
+        search.autocomplete = "off";
+        studentSelect.parentNode.insertBefore(search, studentSelect);
+        search.addEventListener("input", () => {
+          const term = search.value.trim().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR");
+          [...studentSelect.options].forEach(option => {
+            if (!option.value) { option.hidden = false; return; }
+            const name = option.textContent.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR");
+            option.hidden = !name.includes(term);
+          });
+          if (studentSelect.selectedOptions[0]?.hidden) studentSelect.value = "";
+        });
+      }
       openInstructorModal("formVenda");
       el("vendaAluno").focus();
     });
