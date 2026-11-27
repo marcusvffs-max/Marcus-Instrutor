@@ -2656,12 +2656,8 @@ function abrirDespesa() {
 async function excluirVenda(id) {
   const venda = db.vendas.find(v => v.id === id);
   if (!venda) return;
-  if ((venda.itens || []).some(item => item.fixedItemKey === "aluguel_veiculo")) {
-    mostrarAviso("Esta venda contém aluguéis de veículo e deve permanecer no histórico. Use a opção de devolução para ajustar o saldo.");
-    return;
-  }
 
-  if (!(await confirmar("Excluir esta venda e seus lançamentos financeiros?"))) {
+  if (!(await confirmar("Excluir esta venda e seus lançamentos financeiros? O sistema verificará automaticamente aulas utilizadas, aluguéis, exames e comissões. Se houver vínculo que precise ser preservado, a exclusão será bloqueada."))) {
     return;
   }
 
@@ -2669,7 +2665,7 @@ async function excluirVenda(id) {
     const cliente = window.getMarcusSupabase?.();
     if (!cliente) throw new Error("Conexão com o Supabase indisponível.");
 
-    const { error } = await cliente.rpc("admin_delete_sale", {
+    const { error } = await cliente.rpc("delete_my_sale", {
       p_sale_id: id
     });
     if (error) throw error;
