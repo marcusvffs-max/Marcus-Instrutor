@@ -1454,116 +1454,103 @@
         .map(item => ({ item, ...refundableInstructorItem(item) }))
         .filter(entry => entry.available > 0)
     })).filter(group => group.sale.status === "confirmada" && group.items.length > 0);
+    if (!availableSales.length) { showMessage("Não existem vendas confirmadas com itens disponíveis para devolução."); return; }
 
-    if (!availableSales.length) {
-      showMessage("Não existem vendas confirmadas com itens disponíveis para devolução.");
-      return;
+    const form=el("formDevolucaoInstrutor");
+    form.reset();
+    el("tituloDevolucaoInstrutor").textContent="Devolução de produtos e serviços";
+    const ordered=[...availableSales].sort((a,b)=>String(b.sale.data_venda||"").localeCompare(String(a.sale.data_venda||"")));
+    el("devolucaoVendaInstrutor").innerHTML='<option value="">Selecione uma venda</option>'+ordered.map(g=>
+      '<option value="'+escapeHtml(g.sale.id)+'">'+escapeHtml(studentName(g.sale.student_id))+' · '+escapeHtml(formatDate(g.sale.data_venda))+' · '+currency(g.sale.total)+'</option>').join("");
+    if(!el("devolucaoBuscaVendaInstrutor")){
+      el("devolucaoVendaInstrutor").insertAdjacentHTML("beforebegin",'<label for="devolucaoBuscaVendaInstrutor">Pesquisar venda</label><input id="devolucaoBuscaVendaInstrutor" type="search" placeholder="Buscar cliente, data ou valor">');
+      el("devolucaoBuscaVendaInstrutor").addEventListener("input",()=>{
+        const term=el("devolucaoBuscaVendaInstrutor").value.trim().toLocaleLowerCase("pt-BR");
+        [...el("devolucaoVendaInstrutor").options].forEach((o,i)=>{if(i)o.hidden=!!term&&!o.textContent.toLocaleLowerCase("pt-BR").includes(term);});
+        if(el("devolucaoVendaInstrutor").selectedOptions[0]?.hidden){el("devolucaoVendaInstrutor").value="";updateInstructorRefundSaleSelection();}
+      });
     }
-
-    el("formDevolucaoInstrutor").reset();
-    el("tituloDevolucaoInstrutor").textContent = "Devolução de produtos e serviços";
-    el("devolucaoVendaInstrutor").innerHTML = '<option value="">Selecione uma venda</option>' +
-      availableSales.map(group => '<option value="' + escapeHtml(group.sale.id) + '">' +
-        escapeHtml(studentName(group.sale.student_id)) + ' · ' + escapeHtml(formatDate(group.sale.data_venda)) +
-        ' · ' + currency(group.sale.total) + '</option>').join("");
-    el("devolucaoVendaInstrutor").value = saleId && availableSales.some(group => group.sale.id === saleId) ? saleId : "";
-    state.refundSaleId = null;
-    el("resumoVendaDevolucaoInstrutor").textContent = "Selecione uma venda para visualizar os itens disponíveis.";
-    el("devolucaoItemInstrutor").innerHTML = '<option value="">Selecione primeiro uma venda</option>';
-    el("devolucaoItemInstrutor").disabled = true;
-    el("devolucaoQuantidadeInstrutor").value = "";
-    el("devolucaoQuantidadeInstrutor").disabled = true;
-    el("devolucaoQuantidadeInstrutor").removeAttribute("max");
-    el("devolucaoPreviaInstrutor").innerHTML = "<strong>Resumo da devolução</strong><p>Escolha uma venda e um item.</p>";
-    el("formDevolucaoInstrutor").onsubmit = saveInstructorRefund;
+    if(!el("devolucaoItensInstrutorLote")){
+      el("devolucaoPreviaInstrutor").insertAdjacentHTML("beforebegin",'<div id="devolucaoItensInstrutorLote" class="refund-item-quantity-list"></div>');
+    }
+    el("devolucaoItemInstrutor").style.display="none";
+    el("devolucaoQuantidadeInstrutor").style.display="none";
+    el("devolucaoItensInstrutorLote").innerHTML="<p>Selecione uma venda para visualizar os itens.</p>";
+    el("devolucaoVendaInstrutor").value=saleId&&availableSales.some(g=>g.sale.id===saleId)?saleId:"";
+    state.refundSaleId=null;
+    state.refundItems=availableSales;
+    el("resumoVendaDevolucaoInstrutor").textContent="Selecione uma venda para visualizar os itens disponíveis.";
+    el("devolucaoPreviaInstrutor").innerHTML="<strong>Resumo da devolução</strong><p>Informe a quantidade de cada item.</p>";
+    form.onsubmit=saveInstructorRefund;
     openInstructorModal("formDevolucaoInstrutor");
-    if (el("devolucaoVendaInstrutor").value) updateInstructorRefundSaleSelection();
+    if(el("devolucaoVendaInstrutor").value)updateInstructorRefundSaleSelection();
   }
 
   function updateInstructorRefundSaleSelection() {
-    const saleId = el("devolucaoVendaInstrutor").value;
-    const sale = state.sales.find(item => item.id === saleId && item.status === "confirmada");
-    state.refundSaleId = sale?.id || null;
-    const items = sale ? state.saleItems.filter(item => item.sale_id === sale.id)
-      .map(item => ({ item, ...refundableInstructorItem(item) }))
-      .filter(entry => entry.available > 0) : [];
-
-    el("resumoVendaDevolucaoInstrutor").innerHTML = sale
-      ? '<strong>' + escapeHtml(studentName(sale.student_id)) + '</strong><span>' +
-        escapeHtml(formatDate(sale.data_venda)) + ' · ' + escapeHtml(sale.forma_pagamento || "Pagamento não informado") +
-        '</span><span>Valor da venda: ' + currency(sale.total) + '</span>'
+    const saleId=el("devolucaoVendaInstrutor").value;
+    const group=(state.refundItems||[]).find(g=>g.sale.id===saleId);
+    const sale=group?.sale||null;
+    state.refundSaleId=sale?.id||null;
+    const list=el("devolucaoItensInstrutorLote");
+    el("resumoVendaDevolucaoInstrutor").innerHTML=sale
+      ? '<strong>'+escapeHtml(studentName(sale.student_id))+'</strong><span>Data: '+escapeHtml(formatDate(sale.data_venda))+' · Responsável: '+escapeHtml(state.profile?.nome||state.user?.email||"Instrutor")+'</span><span>Pagamento: '+escapeHtml(sale.forma_pagamento||"Não informado")+' · Valor total: '+currency(sale.total)+'</span>'
       : "Selecione uma venda para visualizar os itens disponíveis.";
-    el("devolucaoItemInstrutor").innerHTML = '<option value="">Selecione um item desta venda</option>' +
-      items.map(entry => '<option value="' + escapeHtml(entry.item.id) + '">' + escapeHtml(entry.item.descricao || "Item") +
-        ' · ' + entry.available + (entry.item.fixed_item_key === "aluguel_veiculo" ? " aluguel(is)" : entry.type === "produto" ? " unidade(s)" : " aula(s)") + ' disponíveis</option>').join("");
-    el("devolucaoItemInstrutor").disabled = !items.length;
-    el("devolucaoItemInstrutor").value = "";
-    el("devolucaoQuantidadeInstrutor").value = "";
-    el("devolucaoQuantidadeInstrutor").disabled = true;
-    el("devolucaoQuantidadeInstrutor").removeAttribute("max");
-    el("devolucaoPreviaInstrutor").innerHTML = "<strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p>";
+    list.innerHTML=group?group.items.map(entry=>{
+      const item=entry.item;
+      const unit=item.fixed_item_key==="aluguel_veiculo"?"aluguel(is)":entry.type==="produto"?"unidade(s)":"aula(s)";
+      return '<div class="refund-item-quantity-card" data-instructor-refund-item="'+escapeHtml(item.id)+'"><div><strong>'+escapeHtml(item.descricao||"Item")+'</strong><span>Comprado: '+(entry.type==="produto"?Number(item.quantidade||0):Number(item.aulas_contratadas||0))+' · Já devolvido: '+(entry.type==="produto"?Number(item.quantidade_devolvida||0):Number(item.aulas_devolvidas||0))+' · Disponível: '+entry.available+' '+unit+'</span></div><label>Quantidade a devolver<input type="number" data-instructor-refund-qty min="0" max="'+entry.available+'" step="1" value="0" inputmode="numeric"></label></div>';
+    }).join(""):"<p>Selecione uma venda para visualizar os itens.</p>";
+    list.querySelectorAll("[data-instructor-refund-qty]").forEach(input=>input.addEventListener("input",updateInstructorRefundPreview));
+    updateInstructorRefundPreview();
   }
 
   function updateInstructorRefundPreview() {
-    const itemId = el("devolucaoItemInstrutor").value;
-    const entry = state.saleItems.filter(item => item.sale_id === state.refundSaleId)
-      .map(item => ({ item, ...refundableInstructorItem(item) }))
-      .find(candidate => candidate.item.id === itemId);
-    const field = el("devolucaoQuantidadeInstrutor");
-    const preview = el("devolucaoPreviaInstrutor");
-    if (!entry || entry.available <= 0) {
-      field.disabled = true;
-      field.value = "";
-      field.removeAttribute("max");
-      preview.innerHTML = "<strong>Resumo da devolução</strong><p>Escolha um item disponível.</p>";
-      return;
-    }
-    field.disabled = false;
-    field.max = String(entry.available);
-    const quantity = Number(field.value || 0);
-    const valid = Number.isInteger(quantity) && quantity >= 1 && quantity <= entry.available;
-    const remainingValue = Math.max(0, entry.netValue - Number(entry.item.valor_devolvido || 0));
-    const refund = valid ? Math.min(entry.unitValue * quantity, remainingValue) : 0;
-    preview.innerHTML = valid
-      ? '<strong>Resumo da devolução</strong><p>' + (entry.item.fixed_item_key === "aluguel_veiculo" ? "Aluguéis" : entry.type === "produto" ? "Unidades" : "Aulas") + ': <strong>' + quantity +
-        '</strong> de ' + entry.available + ' disponíveis</p><p>Valor unitário: <strong>' + currency(entry.unitValue) +
-        '</strong></p><p class="refund-preview-total">Estorno estimado: <strong>' + currency(refund) + '</strong></p>'
-      : '<strong>Resumo da devolução</strong><p>Informe uma quantidade inteira entre 1 e ' + entry.available + '.</p>';
+    const group=(state.refundItems||[]).find(g=>g.sale.id===state.refundSaleId);
+    const rows=[...el("devolucaoItensInstrutorLote").querySelectorAll("[data-instructor-refund-item]")];
+    let total=0, count=0, invalid=false;
+    rows.forEach(row=>{
+      const entry=group?.items.find(x=>x.item.id===row.dataset.instructorRefundItem);
+      const field=row.querySelector("[data-instructor-refund-qty]");
+      const qty=Number(field.value||0);
+      if(field.value!==""&&(!Number.isInteger(qty)||qty<0||qty>entry.available))invalid=true;
+      if(qty>0){count++;total+=Math.min(entry.unitValue*qty,Math.max(0,entry.netValue-Number(entry.item.valor_devolvido||0)));}
+    });
+    el("devolucaoPreviaInstrutor").innerHTML=invalid
+      ? "<strong>Confira as quantidades</strong><p>Use números inteiros dentro do saldo disponível de cada item.</p>"
+      : count?'<strong>Resumo da devolução</strong><p>Itens selecionados: <strong>'+count+'</strong></p><p class="refund-preview-total">Estorno estimado: <strong>'+currency(total)+'</strong></p>'
+      : "<strong>Resumo da devolução</strong><p>Informe a quantidade de pelo menos um item.</p>";
   }
 
   async function saveInstructorRefund(event) {
     event.preventDefault();
-    const sale = state.sales.find(item => item.id === state.refundSaleId && item.status === "confirmada");
-    const itemId = el("devolucaoItemInstrutor").value;
-    const quantity = Number(el("devolucaoQuantidadeInstrutor").value);
-    const entry = state.saleItems.filter(item => item.sale_id === state.refundSaleId)
-      .map(item => ({ item, ...refundableInstructorItem(item) }))
-      .find(candidate => candidate.item.id === itemId);
-    if (!sale || !entry || !Number.isInteger(quantity) || quantity < 1 || quantity > entry.available) {
-      showMessage("Selecione um item desta venda e informe uma quantidade válida.");
-      return;
-    }
-    const button = el("btnConfirmarDevolucaoInstrutor");
-    button.disabled = true;
-    button.textContent = "Registrando...";
-    try {
-      const { error } = await state.supabase.rpc("instructor_refund_sale_item", {
-        p_sale_item_id: itemId,
-        p_quantidade: quantity
-      });
-      if (error) throw error;
+    const group=(state.refundItems||[]).find(g=>g.sale.id===state.refundSaleId);
+    const rows=[...el("devolucaoItensInstrutorLote").querySelectorAll("[data-instructor-refund-item]")];
+    const items=rows.map(row=>({sale_item_id:row.dataset.instructorRefundItem,quantity:Number(row.querySelector("[data-instructor-refund-qty]").value)})).filter(x=>x.quantity>0);
+    const invalid=rows.some(row=>{
+      const field=row.querySelector("[data-instructor-refund-qty]");
+      const entry=group?.items.find(x=>x.item.id===row.dataset.instructorRefundItem);
+      return field.value!==""&&(!Number.isInteger(Number(field.value))||Number(field.value)<0||Number(field.value)>(entry?.available||0));
+    });
+    if(!group||!items.length||invalid){showMessage("Selecione uma venda e informe uma quantidade válida para cada item.");return;}
+    const button=el("btnConfirmarDevolucaoInstrutor");
+    button.disabled=true;button.textContent="Registrando...";
+    try{
+      const {error}=await state.supabase.rpc("refund_sale_items_batch",{p_items:items});
+      if(error)throw error;
       closeInstructorModal("formDevolucaoInstrutor");
-      el("formDevolucaoInstrutor").reset();
-      state.refundSaleId = null;
+      formResetInstructorRefund();
       await loadOwnData();
-      showMessage("Devolução registrada. O estorno financeiro e o saldo do aluno foram atualizados.", false);
-    } catch (error) {
-      console.error("Falha ao registrar devolução do instrutor:", error);
-      showMessage(error.message || "Não foi possível registrar a devolução. Confira as quantidades disponíveis.");
-    } finally {
-      button.disabled = false;
-      button.textContent = "Confirmar devolução";
-    }
+      showMessage("Devolução registrada. Todos os itens foram processados juntos e os valores atualizados.",false);
+    }catch(error){
+      console.error("Falha ao registrar devolução do instrutor:",error);
+      showMessage(error.message||"Não foi possível registrar a devolução. Nenhum item foi alterado.");
+    }finally{button.disabled=false;button.textContent="Confirmar devolução";}
+  }
+
+  function formResetInstructorRefund(){
+    el("formDevolucaoInstrutor").reset();
+    state.refundSaleId=null;
+    state.refundItems=[];
   }
 
   async function deleteInstructorSale(id) {
