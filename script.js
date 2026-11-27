@@ -2495,11 +2495,9 @@ async function abrirDevolucao() {
         <label>Até <input id="devolucaoDataFim" type="date"></label>
         <label>Ordenar por <select id="devolucaoOrdenacao"><option value="recentes">Data mais recente</option><option value="antigas">Data mais antiga</option><option value="nome">Nome do cliente (A–Z)</option></select></label>
       </div>
-      <label for="devolucaoVenda">Vendas disponíveis</label>
-      <select name="vendaId" id="devolucaoVenda" required>
-        <option value="">Selecione uma venda</option>
-        ${vendasDisponiveis.map(g => `<option value="${escapar(g.venda.id)}">${escapar(g.aluno?.nome || "Cliente")} · ${escapar(formatarData(g.venda.data))} · ${moeda(g.venda.valorTotal)}</option>`).join("")}
-      </select>
+      <label>Vendas disponíveis</label>
+      <input type="hidden" name="vendaId" id="devolucaoVenda" required>
+      <div id="devolucaoListaVendas" class="refund-sale-list"></div>
       <div id="devolucaoResumoVenda" class="refund-sale-summary">Selecione uma venda para visualizar os itens.</div>
       <div id="devolucaoItensQuantidade" class="refund-item-quantity-list"><p>Os itens e quantidades aparecerão aqui.</p></div>
       <div id="devolucaoPrevia" class="refund-preview"><strong>Resumo da devolução</strong><p>Selecione uma venda e informe as quantidades.</p></div>
@@ -2533,9 +2531,12 @@ async function abrirDevolucao() {
     });
     if(ordenacao.value==="nome")grupos.sort((a,b)=>String(a.aluno?.nome||"").localeCompare(String(b.aluno?.nome||""),"pt-BR"));
     else grupos.sort((a,b)=>ordenacao.value==="antigas"?String(a.venda.data||"").localeCompare(String(b.venda.data||"")):String(b.venda.data||"").localeCompare(String(a.venda.data||"")));
-    select.innerHTML='<option value="">Selecione uma venda ('+grupos.length+')</option>'+grupos.map(g=>'<option value="'+escapar(g.venda.id)+'">'+escapar(g.aluno?.nome||"Cliente")+' · '+escapar(formatarData(g.venda.data))+' · '+moeda(g.venda.valorTotal)+'</option>').join("");
-    select.value=grupos.some(g=>String(g.venda.id)===anterior)?anterior:"";
-    if(select.value!==anterior)select.dispatchEvent(new Event("change"));
+    const host=document.getElementById("devolucaoListaVendas");
+    host.innerHTML=grupos.length?grupos.map(g=>{
+      const nomesItens=g.itens.map(o=>escapar(o.item.nome||"Item")).join(", ");
+      return '<article class="refund-sale-choice '+(String(g.venda.id)===anterior?'is-selected':'')+'"><div class="refund-sale-choice-main"><strong>'+escapar(g.aluno?.nome||"Cliente")+'</strong><span>Data: '+escapar(formatarData(g.venda.data))+'</span><span>Responsável: '+escapar(nomeResponsavel)+'</span><span>Pagamento: '+escapar(g.venda.formaPagamento||"Não informado")+'</span><span>Valor total: <strong>'+moeda(g.venda.valorTotal)+'</strong></span><span>Itens comprados: '+nomesItens+'</span></div><button type="button" class="secondary-button" data-select-refund-sale="'+escapar(g.venda.id)+'">'+(String(g.venda.id)===anterior?'Selecionada':'Selecionar venda')+'</button></article>';
+    }).join(""):'<div class="empty-state">Nenhuma venda encontrada com esses filtros.</div>';
+    if(anterior&&!grupos.some(g=>String(g.venda.id)===anterior)){select.value="";selecionarVenda("");}
   };
   search.addEventListener("input",renderizarVendas);
   dataInicio.addEventListener("change",renderizarVendas);
@@ -2562,21 +2563,31 @@ async function abrirDevolucao() {
     return {escolhidos,invalid};
   };
 
-  select.addEventListener("change", () => {
-    grupoAtual = vendasDisponiveis.find(g=>String(g.venda.id)===select.value) || null;
-    if (!grupoAtual) {
+  const selecionarVenda=(id)=>{
+    select.value=id||"";
+    grupoAtual=vendasDisponiveis.find(g=>String(g.venda.id)===String(id))||null;
+    if(!grupoAtual){
       resumo.textContent="Selecione uma venda para visualizar os itens.";
       lista.innerHTML="<p>Os itens e quantidades aparecerão aqui.</p>";
-      atualizar(); return;
+      atualizar();
+      document.querySelectorAll(".refund-sale-choice").forEach(card=>card.classList.remove("is-selected"));
+      return;
     }
-    resumo.innerHTML = "<strong>"+escapar(grupoAtual.aluno?.nome || "Cliente")+"</strong><span>Data: "+escapar(formatarData(grupoAtual.venda.data))+" · Responsável: "+escapar(grupoAtual.venda.nomeResponsavel || grupoAtual.venda.responsavelNome || "Conta responsável")+"</span><span>Pagamento: "+escapar(grupoAtual.venda.formaPagamento || "Não informado")+" · Valor total: "+moeda(grupoAtual.venda.valorTotal)+"</span>";
-    lista.innerHTML = grupoAtual.itens.map(o => {
-      const label=String(o.item.nome || (o.tipo==="produto"?"Produto":"Serviço"));
-      const remainingValue=Math.max(0,Number(o.item.valorLiquido ?? o.item.total ?? 0)-Number(o.item.valorDevolvido||0));
-      return '<div class="refund-item-quantity-card" data-refund-item="'+escapar(o.item.saleItemId)+'" data-tipo="'+o.tipo+'" data-unit="'+o.unitario+'" data-remaining-value="'+remainingValue+'" data-label="'+escapar(label)+'"><div><strong>'+escapar(label)+'</strong><span>Disponível para devolver: '+o.disponiveis+' '+o.unidade+'</span></div><label>Quantidade a devolver<input type="number" data-refund-qty min="0" max="'+o.disponiveis+'" step="1" value="0" inputmode="numeric"></label></div>';
+    resumo.innerHTML="<strong>"+escapar(grupoAtual.aluno?.nome||"Cliente")+"</strong><span>Data: "+escapar(formatarData(grupoAtual.venda.data))+" · Responsável: "+escapar(nomeResponsavel)+"</span><span>Pagamento: "+escapar(grupoAtual.venda.formaPagamento||"Não informado")+" · Valor total: "+moeda(grupoAtual.venda.valorTotal)+"</span>";
+    lista.innerHTML=grupoAtual.itens.map(o=>{
+      const label=String(o.item.nome||(o.tipo==="produto"?"Produto":"Serviço"));
+      const remainingValue=Math.max(0,Number(o.item.valorLiquido??o.item.total??0)-Number(o.item.valorDevolvido||0));
+      const original=o.tipo==="produto"?Number(o.item.quantidade||0):Number(o.item.aulasContratadas||0);
+      const devolvida=o.tipo==="produto"?Number(o.item.quantidadeDevolvida||0):Number(o.item.aulasDevolvidas||0);
+      return '<div class="refund-item-quantity-card" data-refund-item="'+escapar(o.item.saleItemId)+'" data-tipo="'+o.tipo+'" data-unit="'+o.unitario+'" data-remaining-value="'+remainingValue+'" data-label="'+escapar(label)+'"><div><strong>'+escapar(label)+'</strong><span>Comprado: '+original+' · Já devolvido: '+devolvida+' · Disponível: '+o.disponiveis+' '+o.unidade+'</span></div><label>Quantidade a devolver<input type="number" data-refund-qty min="0" max="'+o.disponiveis+'" step="1" value="0" inputmode="numeric"></label></div>';
     }).join("");
+    document.querySelectorAll(".refund-sale-choice").forEach(card=>card.classList.toggle("is-selected",card.querySelector("[data-select-refund-sale]")?.dataset.selectRefundSale===String(id)));
     lista.querySelectorAll("[data-refund-qty]").forEach(input=>input.addEventListener("input",atualizar));
     atualizar();
+  };
+  document.getElementById("devolucaoListaVendas").addEventListener("click",event=>{
+    const button=event.target.closest("[data-select-refund-sale]");
+    if(button)selecionarVenda(button.dataset.selectRefundSale);
   });
 
   form.onsubmit = salvarDevolucao;
