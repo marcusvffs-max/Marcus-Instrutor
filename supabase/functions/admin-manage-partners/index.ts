@@ -52,7 +52,7 @@ Deno.serve(async (req: Request) => {
     if (body.action === "list") {
       const [partnersResult, referralsResult, quotesResult, studentsResult, commissionsResult] = await Promise.all([
         db.from("partners").select("id,nome,email,telefone,cpf_cnpj,endereco,nacionalidade,estado_civil,profissao,pix_key,commission_percent,status,approved_at,rejected_at,created_at,updated_at,user_id").eq("owner_id", ownerId).order("created_at", { ascending: false }),
-        db.from("partner_students").select("id,partner_id,nome,telefone,cpf,endereco,categoria,status,created_at").eq("owner_id", ownerId).order("created_at", { ascending: false }),
+        db.from("partner_students").select("id,partner_id,nome,email,telefone,cpf,endereco,categoria,status,created_at").eq("owner_id", ownerId).order("created_at", { ascending: false }),
         db.from("partner_quotes").select("id,partner_id,partner_student_id,status,subtotal,total,observacoes,created_at").eq("owner_id", ownerId).order("created_at", { ascending: false }),
         db.from("students").select("id,nome,telefone,categoria,status,partner_id,created_at").eq("owner_id", ownerId).not("partner_id", "is", null).order("nome"),
         db.from("partner_commissions").select("id,partner_id,commission_amount,status").eq("owner_id", ownerId).in("status", ["disponivel","pendente"]),
@@ -106,7 +106,7 @@ Deno.serve(async (req: Request) => {
         return response({ error: "Aluno ou decisão inválidos." }, 400);
       }
       const { data: referral, error: referralError } = await db.from("partner_students")
-        .select("id,partner_id,nome,telefone,cpf,endereco,categoria,status,student_id")
+        .select("id,partner_id,nome,email,telefone,cpf,endereco,categoria,status,student_id")
         .eq("id", body.partner_student_id).eq("owner_id", ownerId).maybeSingle();
       if (referralError) throw referralError;
       if (!referral || referral.status !== "pendente_aprovacao") return response({ error: "Indicação não encontrada ou já analisada." }, 409);
@@ -125,7 +125,7 @@ Deno.serve(async (req: Request) => {
       if (!partner || partner.status !== "aprovado") return response({ error: "Aprove o parceiro antes de aceitar indicações." }, 409);
       const { data: student, error: studentError } = await db.from("students").insert({
         owner_id: ownerId, partner_id: referral.partner_id,
-        nome: referral.nome, telefone: referral.telefone, cpf: referral.cpf,
+        nome: referral.nome, email: referral.email, telefone: referral.telefone, cpf: referral.cpf,
         endereco: referral.endereco, categoria: referral.categoria,
         status: "em_aberto", aulas_compradas: 0, aulas_restantes: 0,
         alugueis_comprados: 0, alugueis_disponiveis: 0,
@@ -148,15 +148,50 @@ Deno.serve(async (req: Request) => {
         return response({ error: "Orçamento ou decisão inválidos." }, 400);
       }
       const { data: quote, error: quoteError } = await db.from("partner_quotes")
-        .select("id,partner_student_id,status").eq("id", body.quote_id).eq("owner_id", ownerId).maybeSingle();
+        .select("id,partner_student_id,status,subtotal,desconto,total,observacoes").eq("id", body.quote_id).eq("owner_id", ownerId).maybeSingle();
       if (quoteError) throw quoteError;
       if (!quote || quote.status !== "pendente") return response({ error: "Orçamento não encontrado ou já analisado." }, 409);
+      let referralNameForQuote = "Cliente indicado por parceiro";
       if (body.status === "aprovado") {
         const { data: referral, error: referralError } = await db.from("partner_students")
-          .select("id,status,student_id").eq("id", quote.partner_student_id).eq("owner_id", ownerId).maybeSingle();
+          .select("id,nome,status,student_id").eq("id", quote.partner_student_id).eq("owner_id", ownerId).maybeSingle();
         if (referralError) throw referralError;
         if (!referral || referral.status !== "aprovado" || !referral.student_id) {
           return response({ error: "Aprove primeiro o cadastro do aluno. O orçamento não cria venda nem lançamento financeiro." }, 409);
+        }
+        referralNameForQuote = referral.nome || referralNameForQuote;
+      }
+      if (body.status === "aprovado") {
+        const { data: existingAdminQuote, error: existingError } = await db.from("sales_quotes")
+          .select("id").eq("owner_id", ownerId).eq("source_partner_quote_id", quote.id).maybeSingle();
+        if (existingError) throw existingError;
+        if (!existingAdminQuote) {
+          const { data: partnerItems, error: itemsError } = await db.from("partner_quote_items")
+            .select("descricao,quantidade,valor_unitario,subtotal").eq("owner_id", ownerId).eq("quote_id", quote.id);
+          if (itemsError) throw itemsError;
+          const discount = Number(quote.desconto || 0);
+          const notes = [
+            "Orçamento enviado pelo parceiro.",
+            quote.observacoes ? "Observações do parceiro: " + quote.observacoes : ""
+          ].filter(Boolean).join("\\n");
+          const { error: adminQuoteError } = await db.from("sales_quotes").insert({
+            owner_id: ownerId,
+            client_name: referralNameForQuote,
+            items: (partnerItems || []).map((item: any) => ({
+              descricao: item.descricao,
+              quantidade: Number(item.quantidade || 0),
+              preco_unitario: Number(item.valor_unitario || 0),
+              subtotal: Number(item.subtotal || 0)
+            })),
+            subtotal: Number(quote.subtotal || 0),
+            discount_type: "valor",
+            discount_value: discount,
+            discount,
+            total: Number(quote.total || 0),
+            notes,
+            source_partner_quote_id: quote.id
+          });
+          if (adminQuoteError) throw adminQuoteError;
         }
       }
       const { data, error } = await db.from("partner_quotes")
