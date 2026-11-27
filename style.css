@@ -1942,3 +1942,8 @@ body.autenticado .login-screen {
 /* Confirmações devem ficar acima de listas, históricos e modais */
 #modalContainer{position:relative;z-index:30000!important}
 #modalContainer>.modal-overlay{position:fixed!important;z-index:30001!important;inset:0!important}
+
+.refund-sale-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:8px 0 12px}
+.refund-sale-filters label{display:grid;gap:5px;font-size:.84rem;font-weight:600}
+.refund-sale-filters input,.refund-sale-filters select{width:100%;min-width:0;min-height:40px;padding:7px 9px;border:1px solid var(--border-color,#cbd5e1);border-radius:8px;font:inherit}
+@media(max-width:560px){.refund-sale-filters{grid-template-columns:1fr}}
