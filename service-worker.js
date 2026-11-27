@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "central-instrutor-v48-partner-notifications-20261127-1";
+const CACHE_NAME = "central-instrutor-v49-referral-list-refresh-20261127-1";
 
 const ARQUIVOS = [
   "./",
@@ -15,7 +15,7 @@ const ARQUIVOS = [
   "./exames-alugueis.js?v=exam-search-phone-sync-1",
   "./instrutor.css?v=central-logo-1",
   "./instrutor.js?v=unified-fixed-items-7",
-  "./script.js?v=central-correcoes-20261127-4",
+  "./script.js?v=central-correcoes-20261127-5",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"
