@@ -70,7 +70,7 @@
   async function refresh(){
     say("Carregando...");
     const [s,e]=await Promise.all([
-      client.from("students").select("id,nome").eq("owner_id",ownerId).order("nome"),
+      client.from("students").select("id,nome,telefone").eq("owner_id",ownerId).order("nome"),
       client.from("student_practical_exams").select("id,student_id,scheduled_at,status,resultado,aluguel_consumido,observacoes").eq("owner_id",ownerId).order("scheduled_at",{ascending:false})
     ]);
     const err=s.error||e.error;if(err){say("Não foi possível carregar os dados: "+err.message);return;}
@@ -115,7 +115,7 @@
     if(!f.student.value||!f.date.value||!f.time.value){say("Informe aluno, data e horário.");return;}
     const scheduled=new Date(local);if(!Number.isFinite(scheduled.getTime())){say("Data ou horário inválido.");return;}
     const btn=f.querySelector("button[type=submit]");btn.disabled=true;
-    try{const {error}=await client.from("student_practical_exams").insert({owner_id:ownerId,student_id:f.student.value,scheduled_at:scheduled.toISOString(),status:"agendado",observacoes:f.notes.value.trim()||null});if(error)throw error;try{await refresh();}catch(refreshError){console.warn("Agendamento confirmado, mas a tela não foi atualizada:",refreshError);say("Exame agendado. Atualize a tela para conferir.",false);return;}tab("historico");say("Exame agendado. Nenhum aluguel foi descontado.",false);}
+    try{const {error}=await client.from("student_practical_exams").insert({owner_id:ownerId,student_id:f.student.value,scheduled_at:scheduled.toISOString(),status:"agendado",observacoes:f.notes.value.trim()||null});if(error)throw error;try{await refresh();await syncParentApp();}catch(refreshError){console.warn("Agendamento confirmado, mas a tela não foi atualizada:",refreshError);say("Exame agendado. Atualize a tela para conferir.",false);return;}tab("historico");say("Exame agendado. Nenhum aluguel foi descontado.",false);}
     catch(e){say(e.message||"Não foi possível agendar o exame.");}finally{btn.disabled=false;}
   }
   async function recordResult(id,result){
@@ -126,7 +126,7 @@
   }
   async function cancelExam(id){
     if(!(await window.MarcusConfirm("Cancelar este agendamento? Nenhum aluguel será consumido.")))return;
-    try{const {error}=await client.rpc("cancel_student_practical_exam",{p_exam_id:id});if(error)throw error;try{await refresh();}catch(refreshError){console.warn("Cancelamento confirmado, mas a tela não foi atualizada:",refreshError);say("Exame cancelado. Atualize a tela para conferir.",false);return;}tab("historico");say("Exame cancelado sem consumir aluguel.",false);}
+    try{const {error}=await client.rpc("cancel_student_practical_exam",{p_exam_id:id});if(error)throw error;try{await refresh();await syncParentApp();}catch(refreshError){console.warn("Cancelamento confirmado, mas a tela não foi atualizada:",refreshError);say("Exame cancelado. Atualize a tela para conferir.",false);return;}tab("historico");say("Exame cancelado sem consumir aluguel.",false);}
     catch(e){say(e.message||"Não foi possível cancelar o exame.");}
   }
   window.MarcusExamsRentals={
