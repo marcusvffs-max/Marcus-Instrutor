@@ -2454,48 +2454,33 @@ function abrirDevolucao() {
     const itens = (venda.itens || []).map(item => {
       if (!item.saleItemId) return null;
       const tipo = item.tipo === "produto" ? "produto" : "servico";
-      const quantidadeOriginal = tipo === "produto" ? Number(item.quantidade || 0) : Number(item.aulasContratadas || 0);
-      const quantidadeDevolvida = tipo === "produto" ? Number(item.quantidadeDevolvida || 0) : Number(item.aulasDevolvidas || 0);
+      const original = tipo === "produto" ? Number(item.quantidade || 0) : Number(item.aulasContratadas || 0);
+      const devolvida = tipo === "produto" ? Number(item.quantidadeDevolvida || 0) : Number(item.aulasDevolvidas || 0);
       const saldoCompra = item.fixedItemKey === "aluguel_veiculo" ? Number(item.alugueisDisponiveisNaCompra || 0) : Infinity;
-      const disponiveis = Math.min(Math.max(0, quantidadeOriginal - quantidadeDevolvida), saldoCompra);
+      const disponiveis = Math.min(Math.max(0, original - devolvida), saldoCompra);
       if (disponiveis <= 0) return null;
-      const valorLiquido = Number(item.valorLiquido ?? item.total ?? 0);
-      const valorUnitario = tipo === "produto"
-        ? (quantidadeOriginal > 0 ? valorLiquido / quantidadeOriginal : 0)
-        : Number(item.valorPorAula || 0);
-      return { valor: tipo + ":" + item.saleItemId, tipo, item, disponiveis, valorUnitario, unidade: item.fixedItemKey === "aluguel_veiculo" ? "aluguel(is)" : tipo === "produto" ? "unidade(s)" : "aula(s)" };
+      const liquido = Number(item.valorLiquido ?? item.total ?? 0);
+      const unitario = tipo === "produto" ? (original > 0 ? liquido / original : 0) : Number(item.valorPorAula || 0);
+      return { valor: tipo + ":" + item.saleItemId, tipo, item, disponiveis, unitario, unidade: item.fixedItemKey === "aluguel_veiculo" ? "aluguel(is)" : tipo === "produto" ? "unidade(s)" : "aula(s)" };
     }).filter(Boolean);
     return { venda, aluno, itens };
-  }).filter(grupo => grupo.itens.length > 0 && grupo.venda.status !== "cancelada");
-
-  if (!vendasDisponiveis.length) {
-    mostrarAviso("Não existem vendas com itens disponíveis para devolução.");
-    return;
-  }
+  }).filter(g => g.itens.length && g.venda.status !== "cancelada");
+  if (!vendasDisponiveis.length) { mostrarAviso("Não existem vendas com itens disponíveis para devolução."); return; }
 
   abrirModal(`
     <h2>Devolução por venda</h2>
-    <p class="refund-modal-intro">Primeiro selecione a venda. Depois escolha somente os itens pertencentes a ela.</p>
+    <p class="refund-modal-intro">Selecione a venda e informe a quantidade de cada item que deseja devolver.</p>
     <form id="formDevolucao">
       <label for="buscaVendaDevolucao">Pesquisar venda</label>
-      <input id="buscaVendaDevolucao" type="search" placeholder="Buscar por aluno, data ou pagamento">
+      <input id="buscaVendaDevolucao" type="search" placeholder="Buscar por cliente, data ou pagamento">
       <label for="devolucaoVenda">Vendas disponíveis</label>
       <select name="vendaId" id="devolucaoVenda" required>
         <option value="">Selecione uma venda</option>
-        ${vendasDisponiveis.map(grupo => {
-          const venda = grupo.venda;
-          const nome = grupo.aluno?.nome || "Aluno";
-          return `<option value="${escapar(venda.id)}">${escapar(nome)} · ${escapar(formatarData(venda.data))} · ${moeda(venda.valorTotal)} · ${grupo.itens.length} item(ns) disponíveis</option>`;
-        }).join("")}
+        ${vendasDisponiveis.map(g => `<option value="${escapar(g.venda.id)}">${escapar(g.aluno?.nome || "Cliente")} · ${escapar(formatarData(g.venda.data))} · ${moeda(g.venda.valorTotal)}</option>`).join("")}
       </select>
-      <div id="devolucaoResumoVenda" class="refund-sale-summary">Selecione uma venda para visualizar seus itens.</div>
-      <label for="devolucaoItemVenda">Item desta venda</label>
-      <select name="itemVenda" id="devolucaoItemVenda" multiple size="5" required disabled>
-        <option value="">Selecione primeiro uma venda</option>
-      </select>
-      <label id="devolucaoRotuloQuantidade" for="devolucaoQuantidade">Quantidade para devolver de cada item selecionado</label>
-      <input name="quantidade" id="devolucaoQuantidade" type="number" min="1" step="1" required disabled>
-      <div id="devolucaoPrevia" class="refund-preview"><strong>Resumo da devolução</strong><p>Escolha um item e informe a quantidade.</p></div>
+      <div id="devolucaoResumoVenda" class="refund-sale-summary">Selecione uma venda para visualizar os itens.</div>
+      <div id="devolucaoItensQuantidade" class="refund-item-quantity-list"><p>Os itens e quantidades aparecerão aqui.</p></div>
+      <div id="devolucaoPrevia" class="refund-preview"><strong>Resumo da devolução</strong><p>Selecione uma venda e informe as quantidades.</p></div>
       <div class="modal-actions">
         <button type="button" class="secondary-button" data-close>Cancelar</button>
         <button type="submit" class="primary-button">Confirmar devolução</button>
@@ -2503,117 +2488,84 @@ function abrirDevolucao() {
     </form>
   `);
 
-  const formulario = document.getElementById("formDevolucao");
-  const seletorVenda = formulario.elements.vendaId;
-  const seletorItem = formulario.elements.itemVenda;
-  const buscaVenda = document.getElementById("buscaVendaDevolucao");
-  buscaVenda.addEventListener("input", () => {
-    const termo = buscaVenda.value.trim().toLocaleLowerCase("pt-BR");
-    [...seletorVenda.options].forEach((option, index) => { if (index > 0) option.hidden = !!termo && !option.textContent.toLocaleLowerCase("pt-BR").includes(termo); });
-    if (seletorVenda.selectedOptions[0]?.hidden) { seletorVenda.value = ""; seletorVenda.dispatchEvent(new Event("change")); }
-  });
-  const campoQuantidade = formulario.elements.quantidade;
-  const rotuloQuantidade = document.getElementById("devolucaoRotuloQuantidade");
+  const form = document.getElementById("formDevolucao");
+  const select = form.elements.vendaId;
+  const search = document.getElementById("buscaVendaDevolucao");
+  const resumo = document.getElementById("devolucaoResumoVenda");
+  const lista = document.getElementById("devolucaoItensQuantidade");
   const previa = document.getElementById("devolucaoPrevia");
-  const resumoVenda = document.getElementById("devolucaoResumoVenda");
-  let opcoesAtuais = [];
+  let grupoAtual = null;
 
-  const atualizarPrevia = () => {
-    const selecionadas = [...seletorItem.selectedOptions].map(option => opcoesAtuais.find(item => item.valor === option.value)).filter(Boolean);
-    if (!selecionadas.length) {
-      campoQuantidade.value = "";
-      campoQuantidade.disabled = true;
-      campoQuantidade.removeAttribute("max");
-      previa.innerHTML = "<strong>Resumo da devolução</strong><p>Marque um ou mais itens e informe a quantidade por item.</p>";
-      return;
-    }
-    rotuloQuantidade.textContent = "Quantidade para devolver de cada item selecionado";
-    campoQuantidade.disabled = false;
-    campoQuantidade.max = String(Math.min(...selecionadas.map(item => item.disponiveis)));
-    const quantidade = Number(campoQuantidade.value || 0);
-    const valida = Number.isInteger(quantidade) && quantidade >= 1 && selecionadas.every(item => quantidade <= item.disponiveis);
-    const estimado = valida ? selecionadas.reduce((total, opcao) => {
-      const restante = Math.max(0, Number(opcao.item.valorLiquido ?? opcao.item.total ?? 0) - Number(opcao.item.valorDevolvido || 0));
-      return total + Math.min(opcao.valorUnitario * quantidade, restante);
-    }, 0) : 0;
-    previa.innerHTML = valida
-      ? "<strong>Resumo da devolução</strong><p>Itens selecionados: <strong>" + selecionadas.length + "</strong></p><p>Quantidade por item: <strong>" + quantidade + "</strong></p><p class=\"refund-preview-total\">Estorno estimado: <strong>" + moeda(estimado) + "</strong></p>"
-      : "<strong>Resumo da devolução</strong><p>Informe uma quantidade válida para cada item selecionado.</p>";
-  };
-
-  seletorVenda.addEventListener("change", () => {
-    const grupo = vendasDisponiveis.find(item => String(item.venda.id) === seletorVenda.value);
-    opcoesAtuais = grupo?.itens || [];
-    seletorItem.innerHTML = '<option value="">Selecione um item desta venda</option>' +
-      opcoesAtuais.map(opcao => {
-        const unidade = opcao.unidade;
-        return `<option value="${escapar(opcao.valor)}">${escapar(opcao.item.nome)} · ${opcao.disponiveis} ${unidade}</option>`;
-      }).join("");
-    seletorItem.disabled = !opcoesAtuais.length;
-    resumoVenda.innerHTML = grupo
-      ? `<strong>${escapar(grupo.aluno?.nome || "Aluno")}</strong><span>Data: ${escapar(formatarData(grupo.venda.data))} · Pagamento: ${escapar(grupo.venda.formaPagamento || "Não informado")}</span><span>Valor original: ${moeda(grupo.venda.valorTotal)}</span>`
-      : "Selecione uma venda para visualizar seus itens.";
-    atualizarPrevia();
+  search.addEventListener("input", () => {
+    const term = search.value.trim().toLocaleLowerCase("pt-BR");
+    [...select.options].forEach((o,i) => { if(i) o.hidden = !!term && !o.textContent.toLocaleLowerCase("pt-BR").includes(term); });
+    if (select.selectedOptions[0]?.hidden) { select.value=""; select.dispatchEvent(new Event("change")); }
   });
-  seletorItem.addEventListener("change", atualizarPrevia);
-  campoQuantidade.addEventListener("input", atualizarPrevia);
 
-  formulario.onsubmit = evento => {
-    const selecionadas = [...seletorItem.selectedOptions].map(option => opcoesAtuais.find(item => item.valor === option.value)).filter(Boolean);
-    const quantidade = Number(campoQuantidade.value);
-    if (!seletorVenda.value || !selecionadas.length || !Number.isInteger(quantidade) ||
-        quantidade < 1 || selecionadas.some(item => quantidade > item.disponiveis)) {
-      evento.preventDefault();
-      mostrarAviso("Selecione uma venda, um ou mais itens e uma quantidade válida para cada item.");
-      return;
-    }
-    salvarDevolucao(evento);
+  const atualizar = () => {
+    const rows = [...lista.querySelectorAll("[data-refund-item]")];
+    const escolhidos = rows.map(row => {
+      const input = row.querySelector("[data-refund-qty]");
+      const qty = Number(input.value);
+      const max = Number(input.max);
+      return { id: row.dataset.refundItem, tipo: row.dataset.tipo, qty, max, unit: Number(row.dataset.unit), remainingValue: Number(row.dataset.remainingValue), label: row.dataset.label };
+    }).filter(x => x.qty > 0);
+    const invalid = rows.some(row => {
+      const input=row.querySelector("[data-refund-qty]");
+      return input.value !== "" && (!Number.isInteger(Number(input.value)) || Number(input.value)<0 || Number(input.value)>Number(input.max));
+    });
+    const total = escolhidos.reduce((sum,x)=>sum+Math.min(x.unit*x.qty,x.remainingValue),0);
+    previa.innerHTML = invalid ? "<strong>Confira as quantidades</strong><p>Use números inteiros dentro do saldo disponível de cada item.</p>" :
+      escolhidos.length ? "<strong>Resumo da devolução</strong><p>Itens selecionados: <strong>"+escolhidos.length+"</strong></p><p class=\"refund-preview-total\">Estorno estimado: <strong>"+moeda(total)+"</strong></p>" :
+      "<strong>Resumo da devolução</strong><p>Informe a quantidade de pelo menos um item.</p>";
+    return {escolhidos,invalid};
   };
+
+  select.addEventListener("change", () => {
+    grupoAtual = vendasDisponiveis.find(g=>String(g.venda.id)===select.value) || null;
+    if (!grupoAtual) {
+      resumo.textContent="Selecione uma venda para visualizar os itens.";
+      lista.innerHTML="<p>Os itens e quantidades aparecerão aqui.</p>";
+      atualizar(); return;
+    }
+    resumo.innerHTML = "<strong>"+escapar(grupoAtual.aluno?.nome || "Cliente")+"</strong><span>Data: "+escapar(formatarData(grupoAtual.venda.data))+" · Responsável: "+escapar(grupoAtual.venda.nomeResponsavel || grupoAtual.venda.responsavelNome || "Conta responsável")+"</span><span>Pagamento: "+escapar(grupoAtual.venda.formaPagamento || "Não informado")+" · Valor total: "+moeda(grupoAtual.venda.valorTotal)+"</span>";
+    lista.innerHTML = grupoAtual.itens.map(o => {
+      const label=String(o.item.nome || (o.tipo==="produto"?"Produto":"Serviço"));
+      const remainingValue=Math.max(0,Number(o.item.valorLiquido ?? o.item.total ?? 0)-Number(o.item.valorDevolvido||0));
+      return '<div class="refund-item-quantity-card" data-refund-item="'+escapar(o.item.saleItemId)+'" data-tipo="'+o.tipo+'" data-unit="'+o.unitario+'" data-remaining-value="'+remainingValue+'" data-label="'+escapar(label)+'"><div><strong>'+escapar(label)+'</strong><span>Disponível para devolver: '+o.disponiveis+' '+o.unidade+'</span></div><label>Quantidade a devolver<input type="number" data-refund-qty min="0" max="'+o.disponiveis+'" step="1" value="0" inputmode="numeric"></label></div>';
+    }).join("");
+    lista.querySelectorAll("[data-refund-qty]").forEach(input=>input.addEventListener("input",atualizar));
+    atualizar();
+  });
+
+  form.onsubmit = salvarDevolucao;
 }
 
 async function salvarDevolucao(evento) {
   evento.preventDefault();
-  const formulario = evento.currentTarget;
-  const selecionados = [...formulario.elements.itemVenda.selectedOptions].map(option => {
-    const partes = (option.value || ":").split(":");
-    return { tipo: partes[0], saleItemId: partes[1] };
-  });
-  const quantidade = numero(formulario.elements.quantidade.value);
-  const botao = formulario.querySelector('button[type="submit"]');
-  if (!selecionados.length || selecionados.some(item => !item.saleItemId || !["produto", "servico"].includes(item.tipo)) ||
-      !Number.isInteger(quantidade) || quantidade < 1) {
-    mostrarAviso("Informe um ou mais itens e uma quantidade válida para cada item.");
-    return;
+  const form=evento.currentTarget;
+  const rows=[...form.querySelectorAll("[data-refund-item]")];
+  const items=rows.map(row=>({sale_item_id:row.dataset.refundItem,quantity:Number(row.querySelector("[data-refund-qty]").value),tipo:row.dataset.tipo}))
+    .filter(x=>x.quantity>0);
+  const botao=form.querySelector('button[type="submit"]');
+  if(!form.elements.vendaId.value||!items.length||items.some(x=>!Number.isInteger(x.quantity)||x.quantity<1)){
+    mostrarAviso("Selecione uma venda e informe uma quantidade válida para cada item."); return;
   }
-  if (!adminAlunosSupabaseAtivo) {
-    mostrarAviso("A conexão administrativa com o Supabase não está ativa.");
-    return;
-  }
-  botao.disabled = true;
-  botao.textContent = "Registrando...";
-  let concluidos = 0;
-  try {
-    const cliente = window.getMarcusSupabase?.();
-    if (!cliente) throw new Error("Conexão com o Supabase indisponível.");
-    for (const item of selecionados) {
-      const nomeRpc = item.tipo === "produto" ? "admin_refund_sale_product" : "admin_refund_sale_lessons";
-      const { error } = await cliente.rpc(nomeRpc, { p_sale_item_id: item.saleItemId, p_quantidade: quantidade });
-      if (error) throw error;
-      concluidos++;
-    }
+  if(!adminAlunosSupabaseAtivo){mostrarAviso("A conexão administrativa com o Supabase não está ativa.");return;}
+  botao.disabled=true;botao.textContent="Registrando...";
+  try{
+    const cliente=window.getMarcusSupabase?.();
+    if(!cliente)throw new Error("Conexão com o Supabase indisponível.");
+    const payload=items.map(({sale_item_id,quantity})=>({sale_item_id,quantity}));
+    const {error}=await cliente.rpc("refund_sale_items_batch",{p_items:payload});
+    if(error)throw error;
     await carregarDadosAdminSupabase();
-    fecharModal();
-    listarAlunos();
-    listarMovimentacoes();
-    atualizarFinanceiro();
-    atualizarPainel();
-    mostrarAviso("Devolução dos itens selecionados registrada e valores atualizados.");
-  } catch (erro) {
-    console.error("Falha ao registrar devolução:", erro);
-    if (erro && typeof erro === "object" && erro.message) mostrarAviso((concluidos > 0 ? "Devolução parcial: " + concluidos + " item(ns) registrados. Confira o histórico. " : "") + erro.message);
-    else mostrarAviso("Não foi possível registrar a devolução.");
-    botao.disabled = false;
-    botao.textContent = "Confirmar devolução";
+    fecharModal();listarAlunos();listarMovimentacoes();atualizarFinanceiro();atualizarPainel();
+    mostrarAviso("Devolução registrada. Todos os itens foram processados juntos e os valores atualizados.");
+  }catch(erro){
+    console.error("Falha ao registrar devolução:",erro);
+    mostrarAviso(erro.message||"Não foi possível registrar a devolução. Nenhum item foi alterado.");
+    botao.disabled=false;botao.textContent="Confirmar devolução";
   }
 }
 
