@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const edge = read("../supabase/functions/admin-manage-instructors/index.ts");
+const partnerEdge = read("../supabase/functions/admin-manage-partners/index.ts");
 const migration = read("../supabase/migrations/20261121120000_student_account_link.sql");
 const rules = read("../supabase/functions/_shared/student-link-rules.mjs");
 const claim = read("../claim-student.html");
@@ -740,8 +741,15 @@ test("convites de aluno usam o envio nativo do Supabase Auth sem depender de SMT
 });
 
 test("aluno e parceiro salvam senha e seguem para a tela de instalação", () => {
-  assert.match(claimAccess, /client\.auth\.updateUser\(\{password\}\)/);
-  assert.match(claimAccess, /location\.replace\(INSTALL_URL/);
+  const passwordSave = claimAccess.indexOf("client.auth.updateUser({password})");
+  const studentLink = claimAccess.indexOf('action:"complete_student_link"');
+  const redirect = claimAccess.indexOf('location.replace(INSTALL_URL');
+  assert.ok(passwordSave >= 0 && studentLink > passwordSave && redirect > studentLink);
+  assert.match(claimAccess, /\["aluno","parceiro"\]\.includes\(role\)/);
+  assert.match(claimAccess, /location\.replace\(INSTALL_URL\+"\?perfil="/);
+  assert.match(partnerEdge, /claim-access\.html\?role=parceiro/);
+  assert.match(partnerEdge, /over_email_send_rate_limit/);
+  assert.match(partnerEdge, /Nenhum acesso foi enviado/);
   assert.doesNotMatch(claimAccess, /SITE_URL|central-do-instrutor\.pages\.dev/);
   assert.match(installPage, /appinstalled/);
   assert.match(installPage, /window\.close\(\)/);
