@@ -72,8 +72,27 @@
           if(linkError){let msg=linkError.message;try{const details=await linkError.context?.json?.();if(details?.error)msg=details.error}catch(_){}throw new Error(msg)}
           if(!linked?.ok)throw new Error(linked?.error||"Não foi possível concluir o vínculo do aluno.");
         }
-        say("Senha salva! Abrindo a tela de instalação do aplicativo…");
-        location.replace(INSTALL_URL+"?perfil="+encodeURIComponent(role));
+        // Fecha a etapa de criação da senha e encaminha aluno e parceiro
+        // diretamente para a página oficial de instalação, sem retornar ao site.
+        form.hidden=true;
+        document.getElementById("password").value="";
+        document.getElementById("confirmPassword").value="";
+        button.textContent="Abrindo instalação…";
+        say("Senha salva! Abrindo a instalação do Central do Instrutor…");
+        const installUrl=new URL(INSTALL_URL,"https://marcusinstrutor.vercel.app");
+        installUrl.searchParams.set("perfil",role);
+        window.location.assign(installUrl.href);
+        // Se o navegador não concluir a navegação, mantém um caminho manual visível.
+        window.setTimeout(()=>{
+          if(location.pathname!=="/instalar.html"){
+            const link=document.createElement("a");
+            link.href=installUrl.href;
+            link.textContent="Toque aqui para abrir a instalação do aplicativo";
+            link.style="display:block;margin-top:18px;text-align:center;font-weight:700;color:#12345a";
+            status.appendChild(document.createElement("br"));
+            status.appendChild(link);
+          }
+        },1200);
       }catch(error){console.error(error);say(error.message||"Não foi possível salvar sua senha. Tente novamente.",true);button.disabled=false}
     });
   }catch(error){console.error(error);say(error.message||"Não foi possível validar o convite.",true)}
