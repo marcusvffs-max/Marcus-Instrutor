@@ -141,10 +141,14 @@
     const target = $("listaOrcamentosParceiros");
     if (!target) return;
     target.replaceChildren();
-    if (!rows.length) { target.append(make("p", "empty-state", "Nenhum orçamento pendente.")); return; }
+    if (!rows.length) { target.append(make("p", "empty-state", "Nenhum orçamento cadastrado pelos parceiros.")); return; }
     rows.forEach(item => {
       const card = make("article", "partner-admin-card");
       card.append(make("strong", "", item.student_name + " · " + item.partner_name));
+      const statusLabel = ({ pendente: "Aguardando aprovação", aprovado: "Aprovado", reprovado: "Reprovado" })[item.status] || item.status || "—";
+      card.append(make("span", "partner-status partner-status-" + item.status, statusLabel));
+      card.append(make("p", "partner-admin-meta", "Enviado em " + (item.created_at ? new Date(item.created_at).toLocaleString("pt-BR") : "—")));
+      if (item.reviewed_at) card.append(make("p", "partner-admin-meta", "Analisado em " + new Date(item.reviewed_at).toLocaleString("pt-BR")));
       (item.items || []).forEach(line => {
         card.append(make("p", "partner-admin-meta",
           line.descricao + " · " + line.quantidade + " × " + money(line.valor_unitario) +
@@ -152,21 +156,23 @@
       });
       card.append(make("p", "partner-admin-meta", "Total do orçamento: " + money(item.total)));
       if (item.observacoes) card.append(make("p", "partner-admin-meta", item.observacoes));
-      const actions = make("div", "partner-admin-actions");
-      [["aprovado","Aprovar orçamento"],["reprovado","Reprovar orçamento"]].forEach(([status,label]) => {
-        const button = make("button", "button button-secondary", label);
-        button.type = "button";
-        button.addEventListener("click", async () => {
-          button.disabled = true;
-          try {
-            const result = await invoke("review_quote", { quote_id: item.id, status });
-            say(result.message || "Orçamento atualizado.");
-            await loadPartners();
-          } catch (error) { say(error.message, true); button.disabled = false; }
+      if (item.status === "pendente") {
+        const actions = make("div", "partner-admin-actions");
+        [["aprovado","Aprovar orçamento"],["reprovado","Reprovar orçamento"]].forEach(([status,label]) => {
+          const button = make("button", "button button-secondary", label);
+          button.type = "button";
+          button.addEventListener("click", async () => {
+            button.disabled = true;
+            try {
+              const result = await invoke("review_quote", { quote_id: item.id, status });
+              say(result.message || "Orçamento atualizado.");
+              await loadPartners();
+            } catch (error) { say(error.message, true); button.disabled = false; }
+          });
+          actions.append(button);
         });
-        actions.append(button);
-      });
-      card.append(actions);
+        card.append(actions);
+      }
       target.append(card);
     });
   }
