@@ -2486,7 +2486,18 @@ async function abrirConversaoOrcamento(id){
  const {data:q,error}=await client.from("sales_quotes").select("id,client_name,total").eq("id",id).eq("owner_id",adminSupabaseUserId).single();
  if(error||!q){mostrarAviso("Não foi possível localizar o orçamento.");return;}
  const options=db.alunos.map(a=>'<option value="'+a.id+'">'+escapar(a.nome)+'</option>').join("");
- abrirModal('<h2>Converter orçamento em venda</h2><p>Cliente: <strong>'+escapar(q.client_name)+'</strong><br>Total: <strong>'+moeda(q.total)+'</strong></p><form id="formConverterOrcamento" data-quote-id="'+q.id+'"><label for="quoteStudent">Vincular a aluno já cadastrado (opcional)</label><select id="quoteStudent" name="studentId"><option value="">Cadastrar o cliente somente ao confirmar a venda</option>'+options+'</select><label for="quotePayment">Forma de pagamento</label><select id="quotePayment" name="payment" required><option value="">Selecione</option><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência bancária</option><option>Outro</option></select><div class="modal-actions"><button type="button" class="secondary-button" data-close>Cancelar</button><button type="submit" class="primary-button">Confirmar venda e lançar no financeiro</button></div><p class="form-hint">O aluno só será cadastrado se você confirmar a venda. Se cancelar, nenhum aluno será criado.</p></form>');
+ abrirModal('<h2>Converter orçamento em venda</h2><p>Cliente: <strong>'+escapar(q.client_name)+'</strong><br>Total: <strong>'+moeda(q.total)+'</strong></p><form id="formConverterOrcamento" data-quote-id="'+q.id+'"><label for="quoteStudentSearch">Pesquisar aluno pelo nome</label><input id="quoteStudentSearch" type="search" class="search-input" placeholder="Digite o nome do aluno..." autocomplete="off" aria-label="Pesquisar aluno pelo nome"><label for="quoteStudent">Vincular a aluno já cadastrado (opcional)</label><select id="quoteStudent" name="studentId"><option value="">Cadastrar o cliente somente ao confirmar a venda</option>'+options+'</select><label for="quotePayment">Forma de pagamento</label><select id="quotePayment" name="payment" required><option value="">Selecione</option><option>Pix</option><option>Dinheiro</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência bancária</option><option>Outro</option></select><div class="modal-actions"><button type="button" class="secondary-button" data-close>Cancelar</button><button type="submit" class="primary-button">Confirmar venda e lançar no financeiro</button></div><p class="form-hint">O aluno só será cadastrado se você confirmar a venda. Se cancelar, nenhum aluno será criado.</p></form>');
+ const studentSearch=document.getElementById("quoteStudentSearch");
+ const studentSelect=document.getElementById("quoteStudent");
+ studentSearch.addEventListener("input",()=>{
+  const term=studentSearch.value.trim().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLocaleLowerCase("pt-BR");
+  [...studentSelect.options].forEach(option=>{
+   if(!option.value){option.hidden=false;return;}
+   const name=option.textContent.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLocaleLowerCase("pt-BR");
+   option.hidden=!name.includes(term);
+  });
+  if(studentSelect.selectedOptions[0]?.hidden)studentSelect.value="";
+ });
  document.getElementById("formConverterOrcamento").onsubmit=async e=>{
   e.preventDefault();const form=e.currentTarget,btn=form.querySelector('button[type="submit"]');if(!form.elements.payment.value){mostrarAviso("Selecione a forma de pagamento.");return;}
   btn.disabled=true;btn.textContent="Registrando venda...";
