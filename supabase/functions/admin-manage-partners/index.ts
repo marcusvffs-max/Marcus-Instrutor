@@ -173,7 +173,7 @@ Deno.serve(async (req: Request) => {
           const notes = [
             "Orçamento enviado pelo parceiro.",
             quote.observacoes ? "Observações do parceiro: " + quote.observacoes : ""
-          ].filter(Boolean).join("\\n");
+          ].filter(Boolean).join("\n");
           const { error: adminQuoteError } = await db.from("sales_quotes").insert({
             owner_id: ownerId,
             client_name: referralNameForQuote,
